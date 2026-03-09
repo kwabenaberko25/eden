@@ -1,0 +1,90 @@
+# Quick Start
+
+Get up and running with Eden in under 5 minutes.
+
+---
+
+## Installation
+
+Install Eden using pip:
+
+```bash
+pip install eden-framework
+```
+
+Or with uv for faster installation:
+
+```bash
+uv pip install eden-framework
+```
+
+---
+
+## Your First Eden App
+
+Create a new file called `app.py`:
+
+```python
+from eden import Eden
+
+app = Eden\(
+    title="My First App",
+    debug=True
+)
+
+@app.get("/")
+async def index():
+    return {"message": "Hello, Eden!"}
+
+@app.get("/hello/{name}")
+async def hello(name: str):
+    return {"message": f"Hello, {name}!"}
+```
+
+---
+
+## Running the Server
+
+Use the Eden CLI to start the development server:
+
+```bash
+eden run
+```
+
+You should see:
+
+```text
+🌿 Eden Framework
+🚀 Starting development server...
+📡 Listening at: http://127.0.0.1:8000
+```
+🔄 Auto-reload: enabled
+
+Open [http://127.0.0.1:8000](http://127.0.0.1:8000) in your browser!
+
+---
+
+## Scaffolding a Project
+
+For larger applications, use the project scaffold:
+
+```bash
+eden new my_project
+cd my_project
+eden run
+```
+
+This creates a complete project structure with:
+- Organized directory structure
+- Pre-configured middleware
+- Docker support
+- Database configuration
+
+---
+
+## What's Next?
+
+- **Learn the fundamentals**: Start with [Phase 1](phase1.md)
+- **Explore the CLI**: See [`cli/index.md`](../cli/index.md)
+- **API Reference**: Check [`api_reference.md`](../api_reference.md)
+

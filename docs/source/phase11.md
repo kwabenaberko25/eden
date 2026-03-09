@@ -1,0 +1,72 @@
+# Phase 11: Task Sovereignty (Background Tasks) 🕒
+
+Heavy computations should never block the user's primary mission. In this phase, we master the **Eden Broker**—a high-performance system for background task execution and scheduling.
+
+---
+
+## 🏗️ The Task Broker
+
+Eden uses a unified broker interface (powered by Taskiq) to manage asynchronous work.
+
+### 1. Configuration
+
+In your `app.py`, the broker is automatically initialized. You can customize the backend (e.g., Redis) via environment variables or direct configuration.
+
+```bash
+# Set your broker URL
+export REDIS_URL="redis://localhost:6379"
+```
+
+---
+
+## ✍️ Defining Tasks
+
+Use the `@app.task` decorator to mark internal functions for background execution.
+
+```python
+@app.task
+async def process_telemetry_batch(batch_id: str):
+    # Perform heavy planetary calculations
+    ...
+```
+
+---
+
+## 🚀 Dispatching Work
+
+You can trigger tasks to run immediately or with a delay.
+
+### 1. Standard Dispatch
+```python
+await process_telemetry_batch.kiq("batch_123")
+```
+
+### 2. Delayed Scheduling
+```python
+# Run in 5 minutes
+await process_telemetry_batch.schedule(delay=300, batch_id="batch_456")
+```
+
+---
+
+## 🛰️ Starting the Worker
+
+To execute the dispatched tasks, you must run the Eden worker process.
+
+```bash
+# Run the worker for your application
+Eden worker --modules app.tasks
+```
+
+---
+
+## ✅ Verification
+
+To verify your Task Sovereignty:
+
+1. **Test Registration**: Verify the task appears when you run `Eden worker --help`.
+2. **Test Dispatch**: Trigger a task from a view and check the worker logs for execution.
+3. **Test Scheduling**: Schedule a task with a 10-second delay and verify its delayed start.
+
+If your Eden handles heavy lifting without breaking a sweat, your Task engine is **100% Verified**. You are ready for **Phase 12: Administrative Excellence**.
+

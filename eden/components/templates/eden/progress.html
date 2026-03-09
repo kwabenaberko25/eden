@@ -1,0 +1,32 @@
+{# Eden — Progress Bar Component Template #}
+<div class="w-full">
+
+  {# Label + percentage row #}
+  @if (label or show_percent) {
+  <div class="flex items-center justify-between mb-1.5">
+    @if (label) {
+    <span class="text-sm font-medium text-slate-300">{{ label }}</span>
+    }
+    @if (show_percent) {
+    <span class="text-xs font-semibold text-slate-400">{{ value | int }}%</span>
+    }
+  </div>
+  }
+
+  {# Track #}
+  <div class="w-full {{ height }} bg-gray-700/60 rounded-full overflow-hidden">
+    {# Fill #}
+    <div
+      class="{{ fill_class }} {{ height }} rounded-full transition-all duration-700 ease-out
+             @if (striped) { bg-[length:1rem_1rem]
+               bg-[repeating-linear-gradient(45deg,rgba(255,255,255,0.1)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.1)_50%,rgba(255,255,255,0.1)_75%,transparent_75%)] }
+             @if (animated and striped) { animate-[progress-stripes_1s_linear_infinite] }"
+      style="width: {{ value | int }}%"
+      role="progressbar"
+      aria-valuenow="{{ value | int }}"
+      aria-valuemin="0"
+      aria-valuemax="100">
+    </div>
+  </div>
+
+</div>

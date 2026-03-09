@@ -1,0 +1,9 @@
+<span class="inline-flex items-center {{ color_class }} {{ size_class }} font-medium
+             @if (pill) {
+               rounded-full
+             } @else {
+               rounded
+             }
+             transition-all duration-200">
+  {{ text }}@if (slots.default) { {{ slots.default }} }
+</span>

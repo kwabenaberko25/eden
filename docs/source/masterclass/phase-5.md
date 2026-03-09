@@ -1,0 +1,163 @@
+# Phase 5: The Leaves (Advanced Capabilities) 🍃
+
+Beyond CRUD and Security, modern applications need "The Leaves"—the specialized features that make an app feel robust: File Storage, Transactional Email, Payments, and Real-time interactivity.
+
+---
+
+## 📡 1. WebSocket Masterclass: Building a Live Chat
+
+WebSockets allow for bidirectional communication. In Eden, we combine the `WebSocketRouter` with **HTMX** to create real-time UIs without writing a single line of client-side JavaScript.
+
+### The Server-Side: `chat.py`
+
+We use a `ConnectionManager` to keep track of active sockets and broadcast messages to specific "rooms".
+
+```python
+from eden import WebSocketRouter, ConnectionManager, render_component
+
+ws_router = WebSocketRouter()
+manager = ConnectionManager()
+
+@ws_router.on_connect("/ws/chat/{room_id}")
+async def on_connect(socket, room_id: str):
+    # 1. Accept the connection and join the room
+    await manager.connect(socket, room=room_id)
+    print(f"User joined room: {room_id}")
+
+@ws_router.on_message("/ws/chat/{room_id}")
+async def on_chat_message(socket, room_id: str, data: dict):
+    # 2. Extract message from HTMX 'ws-send'
+    # HTMX sends the form data as a JSON object
+    message_text = data.get("chat_message")
+    
+    # 3. Render a snippet of HTML for the message
+    # We use a standard Eden component for the chat bubble
+    html = render_component("chat_bubble", {
+        "message": message_text, 
+        "user": socket.user.name,
+        "is_mine": True
+    })
+    
+    # 4. Broadcast the HTML to everyone in the room!
+    # HTMX will receive this HTML and swap it into the #chat-messages div
+    await manager.broadcast(html, room=room_id)
+```
+
+---
+
+### The Client-Side: HTMX + WebSockets
+
+HTMX makes WebSockets incredibly simple via the `ws` extension.
+
+```html
+<!-- 1. Enable the WebSocket extension -->
+<div hx-ext="ws" ws-connect="/ws/chat/room_42">
+    
+    <!-- 2. This area will automatically APPEND new messages -->
+    <!-- When the server broadcasts a message, HTMX looks for an ID in the HTML.
+         If your 'chat_bubble' component has id="chat-messages" and hx-swap-oob="beforeend",
+         HTMX will automatically append it here! -->
+    <div id="chat-messages" class="h-96 overflow-y-auto p-4 space-y-2 bg-slate-900 rounded-xl">
+        <p class="text-slate-500 text-sm italic">Welcome to the secret room...</p>
+    </div>
+
+    <!-- 3. Sending a message -->
+    <!-- 'ws-send' intercepts the form submission and sends it over the socket as JSON -->
+    <form ws-send class="flex gap-2 mt-4">
+        <input name="chat_message" placeholder="Type a message..." 
+               class="flex-1 bg-slate-800 border-slate-700 rounded-lg px-4 py-2 text-white">
+        <button type="submit" class="bg-blue-600 hover:bg-blue-500 px-6 py-2 rounded-lg font-bold">
+            Send 🚀
+        </button>
+    </form>
+</div>
+
+---
+```
+
+---
+
+## 📂 2. File Uploads & Cloud Storage
+
+Eden's `StorageManager` abstracts the file system. You can switch from local storage to AWS S3 by changing a single line in your config.
+
+```python
+from eden import StorageManager
+
+# Backend can be "local" or "s3"
+storage = StorageManager(backend="s3") 
+
+@app.post("/upload")
+async def upload_file(request):
+    form = await request.form()
+    file = form["attachment"]
+    
+    # 1. Save the file (Eden handles unique naming and streaming)
+    path = await storage.save(f"uploads/{file.filename}", file)
+    
+    # 2. Generate a permanent public URL
+    url = storage.url(path)
+    
+    return {"status": "success", "url": url}
+```
+
+---
+
+---
+
+## 📧 3. Transactional Email
+
+Emails in Eden are built on top of Jinja2 templates, ensuring your notifications are branded and beautiful.
+
+```python
+from eden import send_mail
+
+@app.post("/notify")
+async def send_notification(request):
+    await send_mail(
+        to=request.user.email,
+        subject="Action Required: Task Assigned 📌",
+        template="emails/notification.html",
+        context={
+            "user": request.user,
+            "task_name": "Review Documentation"
+        }
+    )
+```
+
+---
+```
+
+---
+
+## 💳 4. Payments Integration (Stripe)
+
+Eden provides a native Stripe provider for handling checkouts and webhooks with minimal boilerplate.
+
+```python
+from eden import StripeProvider
+
+stripe = StripeProvider(api_key="sk_test_...")
+
+@app.get("/upgrade")
+async def upgrade_plan(request):
+    # Generate a secure Stripe Checkout session
+    session = await stripe.create_checkout_session(
+        customer_email=request.user.email,
+        items=[{"price": "price_123_monthly", "quantity": 1}],
+        success_url="https://myapp.com/success",
+        cancel_url="https://myapp.com/billing"
+    )
+    # Redirect the user to Stripe's secure payment page
+    return RedirectResponse(session.url)
+```
+
+---
+
+---
+
+### 🎉 Phase 5 Complete
+
+You have explored the "Advanced" layer of Eden. You can now handle real-time chat via WebSockets, manage cloud storage, send emails, and process payments.
+
+**Up Next: [Phase 6: The Fruit (Performance, Async & Tooling)](./phase-6.md)**

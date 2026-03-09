@@ -1,0 +1,9 @@
+<div class="eden-component-product_card p-4 rounded-xl border border-white/10 bg-white/5 backdrop-blur-md">
+    <!-- ProductCard Component Content -->
+    <h3 class="text-lg font-bold text-white mb-2">{{ title|default("ProductCard") }}</h3>
+    <div class="text-slate-400">
+        {% slot "default" %}
+            This is the default content for the ProductCard component.
+        {% endslot %}
+    </div>
+</div>

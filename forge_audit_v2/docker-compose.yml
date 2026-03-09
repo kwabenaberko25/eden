@@ -1,0 +1,13 @@
+services:
+  web:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    environment:
+      EDEN_DEBUG: "true"
+      EDEN_SECRET_KEY: "change-me-in-production"
+
+

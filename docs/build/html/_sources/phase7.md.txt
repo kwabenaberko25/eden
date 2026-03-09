@@ -1,0 +1,58 @@
+# Phase 7: The Unified Layer (Resources) 🏛️
+
+As your Interstellar Nexus scales, you need a way to group logic, data, and access control into a single, cohesive unit. In this phase, we master **Eden Resources**—the ultimate abstraction for building mission-critical REST APIs.
+
+---
+
+## 🧱 The Resource Abstraction
+
+A `Resource` in Eden **inherits directly from `Model`**, creating a "Unified" structure where your data schema, API logic, and forms live together in a single class. This eliminates the boilerplate of mapping separate models to controllers.
+
+```python
+from eden import Resource, action, f, Mapped
+
+class SectorResource(Resource):
+    """Unified controller for Sector management."""
+    __tablename__ = "sectors"
+    
+    # 🧬 Data Schema (Inherited from Model)
+    name: Mapped[str] = f(max_length=100, required=True)
+    status: Mapped[str] = f(default="active", choices=["active", "dormant"])
+    
+    # ⚡ Custom behavior
+    async def get_pulse(self):
+        """Custom action to retrieve sector heartbeat."""
+        return {"pulse": "stable", "load": self.current_load}
+
+# Mount in app.py
+app.mount_resource(SectorResource, prefix="/api/sectors")
+```
+
+---
+
+## 🛰️ Automatic Endpoints
+
+By mounting a `Resource`, Eden automatically establishes:
+- `GET /`: List all entities.
+- `POST /`: Create a new entity.
+- `GET /{id}`: Retrieve a single entity.
+- `PATCH /{id}`: Update an entity.
+- `DELETE /{id}`: Secure deletion.
+
+---
+
+## 🔗 Action Discovery
+
+Every Eden Resource automatically generates its own OpenAPI metadata, ensuring that your unified layer is self-documenting and "Elite" at its core.
+
+---
+
+## ✅ Verification
+
+To verify your Unified Layer:
+
+1. **Test Standard CRUD**: Access `GET /api/sectors/` and verify it lists your sectors.
+2. **Test Custom Actions**: Access `GET /api/sectors/{id}/pulse` and verify the custom response.
+3. **Test Automatic Schemas**: Visit `/docs` and verify the Resource endpoints are correctly identified.
+
+If your system architecture is clean, modular, and self-documenting, your Unified Layer is **100% Verified**. You are ready for **Phase 8: The Fortress (Security)**.

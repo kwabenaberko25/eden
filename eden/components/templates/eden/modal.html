@@ -1,0 +1,32 @@
+<div id="{{ id }}" class="hidden fixed inset-0 z-50" role="dialog" aria-modal="true">
+  <!-- Backdrop -->
+  <div class="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300"
+       onclick="document.getElementById('{{ id }}').classList.add('hidden')"></div>
+  <!-- Panel -->
+  <div class="fixed inset-0 flex items-center justify-center p-4">
+    <div class="{{ size_class }} w-full bg-gray-800/95 backdrop-blur-md border border-gray-700
+                rounded-xl shadow-2xl shadow-black/40 transition-all duration-300
+                scale-95 opacity-0 modal-panel">
+      @if (title) {
+      <div class="flex items-center justify-between px-6 py-4 border-b border-gray-700/50">
+        <h2 class="text-lg font-semibold text-slate-100">{{ title }}</h2>
+        <button onclick="document.getElementById('{{ id }}').classList.add('hidden')"
+                class="text-slate-400 hover:text-slate-200 transition-colors duration-200 cursor-pointer">✕</button>
+      </div>
+      }
+      <div class="px-6 py-5 text-slate-300">
+        {{ slots.default }}
+      </div>
+      @if (slots.footer) {
+      <div class="px-6 py-3 bg-gray-900/40 border-t border-gray-700/50 flex justify-end gap-3">
+        {{ slots.footer }}
+      </div>
+      }
+    </div>
+  </div>
+</div>
+@if (slots.trigger) {
+<span onclick="document.getElementById('{{ id }}').classList.remove('hidden')" class="cursor-pointer">
+  {{ slots.trigger }}
+</span>
+}

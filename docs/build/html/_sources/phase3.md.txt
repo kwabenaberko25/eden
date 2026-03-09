@@ -1,0 +1,92 @@
+# Phase 3: The QuerySet API (Fluid Intelligence) 🔍
+
+Data without retrieval is just noise. In this phase, we master the **QuerySet API**—a fluent, chainable, and lazy-loading interface that allows you to query your interstellar nexus with surgical precision.
+
+---
+
+## 🌊 The Fluid Interface
+
+Eden's QuerySet allows you to build complex database queries using a Pythonic API. The query is lazy: it only executes when you call a "terminating" method like `.all()`.
+
+### 1. Essential Chainable Methods
+
+| Method | Description | Example |
+| :--- | :--- | :--- |
+| `.filter()` | Standard AND filters. | `.filter(is_active=True, status="OK")` |
+| `.exclude()` | Logical NOT filters. | `.exclude(status="CORRUPTED")` |
+| `.order_by()` | Sort results (use `-` for DESC). | `.order_by("-last_sync")` |
+| `.prefetch()` | Eager load relationships. | `.prefetch("drones", "sensors")` |
+| `.limit()` | Restrict result count. | `.limit(10)` |
+| `.offset()` | Skip results for pagination. | `.offset(20)` |
+
+---
+
+## 🧩 Complex Lookups (Q Objects)
+
+For logic beyond simple equality, use **Q objects**. They support bitwise operators for advanced filtering.
+
+```python
+from eden.db import Q
+
+# Find sectors that are 'Active' OR have 'Critical' priority
+query = Sector.query().filter(
+    Q(status="ACTIVE") | Q(priority="CRITICAL")
+)
+
+# Negation: Not active AND (Type A or Type B)
+query = Sector.query().filter(
+    ~Q(is_active=True) & (Q(type="A") | Q(type="B"))
+)
+
+results = await query.all()
+```
+
+---
+
+## ⚡ Atomic Operations (F Expressions)
+
+**F expressions** allow you to reference fields in the database without loading them into Python memory. This is critical for thread-safe operations like counters.
+
+```python
+from eden.db import F
+
+# Atomically increment a counter
+await Sector.query().filter(id=sector_id).update(
+    request_count=F("request_count") + 1
+)
+```
+
+---
+
+## 📊 Aggregations & Annotations
+
+Eden can perform complex calculations directly in the SQL engine, returning summarized data or dynamic fields.
+
+```python
+from eden.db.aggregates import Sum, Avg, Count
+
+# 1. Aggregate: Returns a dict of summary data
+stats = await Drone.query().aggregate(
+    total_power=Sum("battery"),
+    avg_latency=Avg("ping")
+)
+
+# 2. Annotate: Injects a dynamic field into every model instance
+sectors = await Sector.query().annotate(
+    drone_count=Count("drones")
+).all()
+
+print(f"Sector drones: {sectors[0].drone_count}")
+```
+
+---
+
+## ✅ Verification
+
+To verify your QuerySet mastery:
+
+1. **Test Filtering**: Create a route that filters Sectors by name using `__icontains`.
+2. **Test Relationships**: Use `.prefetch()` and verify only a single query is executed (check Telemetry in Phase 10).
+3. **Test Aggregation**: Verify `count()` matches the number of seeded records.
+
+If your queries are fluid and efficient, your QuerySet knowledge is **100% Verified**. You are ready for **Phase 4: Premium UI & Templating**.

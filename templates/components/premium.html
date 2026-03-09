@@ -1,0 +1,50 @@
+@fragment("EliteCard") {
+<div class="bg-slate-900/50 backdrop-blur-md border border-slate-700/50 rounded-xl overflow-hidden
+            transition-all duration-500 hover:border-blue-500/30 group
+            shadow-lg shadow-black/20 hover:shadow-blue-500/10 hover:-translate-y-1">
+    <div class="px-6 py-4 border-b border-slate-700/30 flex items-center justify-between bg-slate-800/20">
+        <div>
+            <h3 class="text-lg font-semibold text-white tracking-tight">{{ title }}</h3>
+            @if (subtitle) {
+                <p class="text-sm text-slate-400 mt-0.5">{{ subtitle }}</p>
+            }
+        </div>
+        @if (header_action) {
+            <div>{{ header_action }}</div>
+        }
+    </div>
+    <div class="px-6 py-5 text-slate-300">
+        {{ caller() if caller else content }}
+    </div>
+    @if (footer) {
+        <div class="px-6 py-3 bg-slate-900/40 border-t border-slate-700/30">
+            {{ footer }}
+        </div>
+    }
+</div>
+}
+
+@fragment("PremiumTable") {
+<div class="overflow-hidden rounded-xl border border-slate-700/50 bg-slate-900/20 backdrop-blur-sm">
+    <table class="w-full text-left border-collapse">
+        <thead>
+            <tr class="bg-slate-800/40 border-b border-slate-700/50">
+                @for (col in columns) {
+                    <th class="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">{{ col }}</th>
+                }
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-800/50">
+            @for (row in rows) {
+                <tr class="transition-colors hover:bg-blue-500/5 group">
+                    @for (col in columns) {
+                        <td class="px-6 py-4 text-sm text-slate-300 group-hover:text-white transition-colors">
+                            {{ row[col] if row is mapping else getattr(row, col, '') }}
+                        </td>
+                    }
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+}

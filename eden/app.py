@@ -1,0 +1,1121 @@
+"""
+Eden — Application
+
+The main `Eden` class: your entry point for building an ASGI web application.
+Combines routing, middleware, dependency injection, exception handling,
+and lifespan management into a clean, decorator-driven API.
+"""
+
+from __future__ import annotations
+
+import inspect
+from collections.abc import AsyncGenerator, Callable
+from contextlib import asynccontextmanager
+from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Type, Union
+from starlette.applications import Starlette
+from starlette.datastructures import State
+from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.middleware import Middleware
+from starlette.requests import Request as StarletteRequest
+from starlette.responses import Response as StarletteResponse
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
+
+if TYPE_CHECKING:
+    from eden.cache import CacheBackend
+
+import os
+import asyncio
+from eden.exceptions import EdenException
+from eden.middleware import get_middleware_class
+from eden.requests import Request
+from eden.responses import HtmlResponse, JsonResponse
+from eden.routing import Router
+from eden.storage import LocalStorageBackend
+from eden.storage import storage as eden_storage
+from eden.tasks import EdenBroker, create_broker
+from eden.templating import EdenTemplates
+
+
+class Eden:
+    """
+    The Eden application.
+
+    A high-level ASGI app that wraps Starlette with an ergonomic,
+    decorator-driven API — similar to Flask/FastAPI but with its
+    own identity.
+
+    Usage:
+        app = Eden()
+
+        @app.get("/")
+        async def index():
+            return {"message": "Hello, Eden! 🌿"}
+
+        app.run()
+    """
+
+    def __init__(
+        self,
+        title: str = "Eden",
+        version: str = "0.1.0",
+        debug: bool = False,
+        description: str = "",
+        secret_key: str = "",
+    ) -> None:
+        self.title = title
+        self.version = version
+        self.description = description
+        self.secret_key = secret_key
+        self.debug = debug
+        self.browser_reload = os.getenv("EDEN_BROWSER_RELOAD", "true").lower() == "true"
+        self.template_dir = "templates"
+        self.media_dir = "media"
+        self.static_dir = "static"
+        self.static_url = "/static"
+
+        # Internal routing
+        self._router = Router()
+        self._middleware_stack: list[tuple[type, dict[str, Any]]] = []
+        self._exception_handlers: dict[type, Callable] = {}
+        self._startup_handlers: list[Callable] = []
+        self._shutdown_handlers: list[Callable] = []
+
+        # Task Queue
+        self._raw_broker = create_broker()
+        self._eden_broker = EdenBroker(self._raw_broker)
+        self.broker = self._eden_broker
+
+        # Templating
+        self._templates: EdenTemplates | None = None
+
+        # Storage
+        self.storage = eden_storage
+        self.storage.register(
+            "local",
+            LocalStorageBackend(base_path=self.media_dir, base_url="/media/"),
+            default=True
+        )
+
+        # Built ASGI app (lazy)
+        self._app: Starlette | None = None
+        self._build_lock = asyncio.Lock()
+
+        # Health checks
+        self.state = State()
+        self._health_checks: list[tuple[str, Callable]] = []
+        self._health_enabled: bool = False
+
+        # Mail (ConsoleBackend default)
+        from eden.mail import ConsoleBackend as _ConsoleBackend
+        from eden.mail import configure_mail as _configure_mail
+        self.mail = _ConsoleBackend()
+        _configure_mail(self.mail)
+
+        # Payments
+        self.payments = None
+
+        # Caching
+        self.cache: Optional["CacheBackend"] = None
+
+
+
+    # ── Health Checks ─────────────────────────────────────────────────────
+
+    def enable_health_checks(
+        self,
+        health_path: str = "/health",
+        ready_path: str = "/ready",
+    ) -> None:
+        """
+        Register /health and /ready endpoints.
+
+        The /health endpoint returns basic app info.
+        The /ready endpoint runs all registered readiness checks
+        and returns their individual statuses.
+
+        Usage:
+            app.enable_health_checks()
+            app.add_readiness_check("database", check_db_connection)
+        """
+        self._health_enabled = True
+
+        @self._router.get(health_path, name="health")
+        async def health_check() -> dict:
+            return {
+                "status": "healthy",
+                "app": self.title,
+                "version": self.version,
+                "description": self.description,
+            }
+
+        @self._router.get(ready_path, name="ready")
+        async def readiness_check() -> dict:
+            import asyncio
+            results: dict[str, Any] = {}
+            all_ok = True
+            for name, check_fn in self._health_checks:
+                try:
+                    if asyncio.iscoroutinefunction(check_fn):
+                        result = await check_fn()
+                    else:
+                        result = check_fn()
+                    results[name] = {"status": "ok"} if result else {"status": "fail"}
+                    if not result:
+                        all_ok = False
+                except Exception as e:
+                    results[name] = {"status": "fail", "error": str(e)}
+                    all_ok = False
+
+            return {
+                "status": "ready" if all_ok else "not_ready",
+                "checks": results,
+            }
+
+    def add_readiness_check(self, name: str, check_fn: Callable) -> None:
+        """
+        Register a readiness check function.
+
+        The function should return True if the service is ready,
+        or raise an exception / return False if not.
+
+        Args:
+            name: Human-readable name for the check (e.g., "database").
+            check_fn: Sync or async callable that returns a boolean.
+        """
+        self._health_checks.append((name, check_fn))
+
+    # ── Route Decorators ─────────────────────────────────────────────────
+
+    def route(
+        self,
+        path: str,
+        methods: list[str] | None = None,
+        name: str | None = None,
+        middleware: list[Any] | None = None,
+    ) -> Callable:
+        """Register a route for any HTTP method(s)."""
+        return self._router.route(path, methods=methods, name=name, middleware=middleware)
+
+    def get(self, path: str, **kwargs: Any) -> Callable:
+        """Register a GET route."""
+        return self._router.get(path, **kwargs)
+
+    def post(self, path: str, **kwargs: Any) -> Callable:
+        """Register a POST route."""
+        return self._router.post(path, **kwargs)
+
+    def put(self, path: str, **kwargs: Any) -> Callable:
+        """Register a PUT route."""
+        return self._router.put(path, **kwargs)
+
+    def patch(self, path: str, **kwargs: Any) -> Callable:
+        """Register a PATCH route."""
+        return self._router.patch(path, **kwargs)
+
+    def delete(self, path: str, **kwargs: Any) -> Callable:
+        """Register a DELETE route."""
+        return self._router.delete(path, **kwargs)
+
+    # ── Task Decorators ──────────────────────────────────────────────────
+    # Removed redundant task method to favor property below.
+
+    # ── Templating ───────────────────────────────────────────────────────
+
+    @property
+    def templates(self) -> EdenTemplates:
+        """Access the templating engine."""
+        if self._templates is None:
+            directories = [self.template_dir]
+            
+            # Add built-in framework templates if they exist
+            import eden.auth
+            auth_templates = os.path.join(os.path.dirname(eden.auth.__file__ or ""), "templates")
+            if os.path.isdir(auth_templates):
+                directories.append(auth_templates)
+                
+            self._templates = EdenTemplates(directory=directories)
+        return self._templates
+
+    def render(self, template_name: str, context: dict[str, Any] | None = None, **kwargs: Any) -> Any:
+        """Short helper to render a template."""
+        ctx = context or {}
+        ctx.update(kwargs)
+        return self.templates.TemplateResponse(template_name, ctx)
+
+    # ── Sub-Router ───────────────────────────────────────────────────────
+
+    def include_router(self, router: Router) -> None:
+        """Mount a sub-router's routes into this app."""
+        self._router.include_router(router)
+
+    def mount_resource(self, resource_cls: Any, prefix: Optional[str] = None) -> None:
+        """
+        Mount a Resource into the application.
+        Automatically registers all CRUD endpoints and custom actions.
+        """
+        router = resource_cls.router(prefix=prefix)
+        self.include_router(router)
+
+    def get_routes(self) -> list[dict[str, Any]]:
+        """
+        Returns a list of all registered routes and their metadata.
+        Useful for debugging or generating sitemaps.
+        """
+        routes_info = []
+        for route in self._router.routes:
+            from eden.routing import WebSocketRoute
+            is_ws = isinstance(route, WebSocketRoute)
+            routes_info.append({
+                "path": route.path,
+                "name": route.name,
+                "type": "websocket" if is_ws else "http",
+                "methods": [] if is_ws else getattr(route, "methods", ["GET"]),
+                "summary": getattr(route, "summary", None),
+            })
+        return routes_info
+
+    # ── SaaS Features ────────────────────────────────────────────────────
+
+    def mount_admin(self, path: str = "/admin", admin_site=None) -> None:
+        """
+        Mount the admin panel at the given path.
+
+        Usage:
+            from eden.admin import admin
+            admin.register(User, UserAdmin)
+            app.mount_admin()
+        """
+        from eden.admin import admin as default_admin
+        site = admin_site or default_admin
+        router = site.build_router(prefix=path)
+        self.include_router(router)
+
+    def configure_mail(self, backend) -> None:
+        """Set the email backend for this app."""
+        from eden.mail import configure_mail as _configure_mail
+        self.mail = backend
+        _configure_mail(backend)
+
+    def configure_payments(self, provider) -> None:
+        """Set the payment provider for this app."""
+        self.payments = provider
+
+    @property
+    def task(self) -> EdenBroker:
+        """Access the task broker as a decorator or utility."""
+        return self._eden_broker
+
+    def mount_webhooks(self, path: str = "/webhooks/stripe", webhook_router=None) -> None:
+        """Mount the payment webhook endpoint."""
+        if webhook_router:
+            route = webhook_router.build_route(path)
+            self._router.routes.append(route)
+
+
+    def add_middleware(self, middleware: str | type, **kwargs: Any) -> None:
+        """
+        Add middleware to the application.
+
+        Args:
+            middleware: Either a middleware class or a string shorthand
+                        ("cors", "gzip", "session", "csrf").
+            **kwargs: Configuration for the middleware.
+        """
+        if isinstance(middleware, str):
+            cls = get_middleware_class(middleware)
+        else:
+            cls = middleware
+        self._middleware_stack.append((cls, kwargs))
+
+    # ── Lifespan Hooks ───────────────────────────────────────────────────
+
+    def on_startup(self, func: Callable) -> Callable:
+        """Register a startup handler."""
+        self._startup_handlers.append(func)
+        return func
+
+    def on_shutdown(self, func: Callable) -> Callable:
+        """Register a shutdown handler."""
+        self._shutdown_handlers.append(func)
+        return func
+
+    # ── Exception Handlers ───────────────────────────────────────────────
+
+    def exception_handler(self, exc_class: type) -> Callable:
+        """Register a custom exception handler."""
+
+        def decorator(func: Callable) -> Callable:
+            self._exception_handlers[exc_class] = func
+            return func
+
+        return decorator
+
+    # ── ASGI Interface ───────────────────────────────────────────────────
+
+    async def build(self) -> Starlette:
+        """Build the Starlette ASGI application from registered routes and middleware."""
+        if self._app is not None:
+            return self._app
+
+        async with self._build_lock:
+            # Multi-check
+            if self._app is not None:
+                return self._app
+
+            # Convert Eden routes to Starlette routes
+            starlette_routes = self._router.to_starlette_routes()
+
+            # Add system reload WebSocket route if in debug mode
+            if self.debug and self.browser_reload:
+                from starlette.routing import WebSocketRoute
+                from starlette.websockets import WebSocket
+
+                async def reload_websocket(websocket: WebSocket) -> None:
+                    await websocket.accept()
+                    try:
+                        # Keep connection alive until server restarts or client disconnects
+                        while True:
+                            await websocket.receive_text()
+                    except Exception:
+                        pass
+
+                starlette_routes.append(WebSocketRoute("/_eden/reload", reload_websocket))
+
+        # Build middleware list
+        middleware = [
+            Middleware(cls, **kwargs) for cls, kwargs in self._middleware_stack
+        ]
+
+        # Auto-configure database if state.database_url is set
+        db_url = getattr(self.state, "database_url", None)
+        if db_url:
+            from eden.db import Model, init_db
+            # Check if already bound to avoid double init
+            if not hasattr(Model, "_db") or Model._db is None:
+                db = init_db(db_url, self)
+                Model._bind_db(db)
+
+                # Connect to DB on startup
+                @self.on_startup
+                async def _connect_db():
+                    # For dev: auto-create tables if URL contains sqlite
+                    await db.connect(create_tables="sqlite" in db_url)
+
+        # Auto-configure Redis Cache if REDIS_URL is set
+        redis_url = os.environ.get("REDIS_URL") or getattr(self.state, "redis_url", None)
+        if redis_url and not self.cache:
+            from eden.cache.redis import RedisCache
+            self.cache = RedisCache(url=redis_url)
+            self.cache.mount(self)
+
+        # Always include RequestContextMiddleware as the outermost middleware
+        # to ensure get_request() works in all other middlewares, views, and templates.
+        middleware.insert(0, Middleware(get_middleware_class("request")))
+
+        if self.debug and self.browser_reload:
+            middleware.insert(0, Middleware(get_middleware_class("browser_reload")))
+
+        # Prepare exception handlers for Starlette
+        exception_handlers = {
+            exc_cls: self._wrap_exception_handler(handler)
+            for exc_cls, handler in self._exception_handlers.items()
+        }
+
+        # Add default handles for EdenException and Exception if not provided
+        if EdenException not in exception_handlers:
+            exception_handlers[EdenException] = self._handle_eden_exception
+        if Exception not in exception_handlers:
+            exception_handlers[Exception] = self._handle_unhandled_exception
+
+        # Explicitly register for Jinja2 template errors to override generic exception handling
+        from jinja2.exceptions import TemplateError as JinjaTemplateError
+        if JinjaTemplateError not in exception_handlers:
+            exception_handlers[JinjaTemplateError] = self._render_enhanced_template_error
+
+        # Add handler for Starlette's internal HTTPExceptions (e.g. 404, 405)
+        if StarletteHTTPException not in exception_handlers:
+            exception_handlers[StarletteHTTPException] = self._handle_starlette_http_exception
+
+        # Lifespan
+        @asynccontextmanager
+        async def lifespan(app: Starlette) -> AsyncGenerator[None, None]:
+            # Start broker
+            await self.broker.startup()
+            for handler in self._startup_handlers:
+                result = handler()
+                if inspect.isawaitable(result):
+                    await result
+            yield
+            # Stop broker
+            await self.broker.shutdown()
+            for handler in self._shutdown_handlers:
+                result = handler()
+                if inspect.isawaitable(result):
+                    await result
+
+        # Mount static files if the directory exists
+        if os.path.isdir(self.static_dir):
+            from starlette.routing import Mount
+            from starlette.staticfiles import StaticFiles
+            starlette_routes.append(
+                Mount(self.static_url, app=StaticFiles(directory=self.static_dir), name="static")
+            )
+
+        self._app = Starlette(
+            debug=self.debug,
+            routes=starlette_routes,
+            middleware=middleware,
+            exception_handlers=exception_handlers,  # type: ignore
+            lifespan=lifespan,
+        )
+        # Synchronize Eden attributes to Starlette app
+        self._app.eden = self # type: ignore
+        if self.cache:
+            self._app.cache = self.cache # type: ignore
+            
+        return self._app
+
+    def _wrap_exception_handler(self, handler: Callable) -> Callable:
+        """Ensure exception handlers receive Eden Request objects."""
+        async def wrapped(request: StarletteRequest, exc: Exception) -> StarletteResponse:
+            eden_request = Request(request.scope, request.receive, request._send)
+            result = handler(eden_request, exc)
+            if inspect.isawaitable(result):
+                return await result
+            return result
+        return wrapped
+
+    async def _handle_request(self, request: Request) -> StarletteResponse:
+        """
+        Original route resolution is now handled by Starlette.
+        This method is kept for backwards compatibility or manual calls.
+        """
+        # Note: If this is called, it might not use the optimized Starlette router!
+        # It's better to let Starlette's __call__ handle the request.
+        app = await self.build()
+        return await app.__call__(request.scope, request.receive, request._send) # type: ignore
+
+    async def _handle_eden_exception(
+        self, request: Request, exc: EdenException
+    ) -> StarletteResponse:
+        """Handle Eden-specific exceptions, with custom handler support."""
+        handler = self._exception_handlers.get(type(exc))
+        if handler:
+            result = handler(request, exc)
+            if inspect.isawaitable(result):
+                result = await result
+            return result
+
+        return self._error_response(
+            request=request,
+            detail=exc.detail,
+            status_code=exc.status_code,
+            extra=exc.extra if exc.extra else None,
+        )
+
+    async def _handle_unhandled_exception(
+        self, request: Request, exc: Exception
+    ) -> StarletteResponse:
+        """Handle unexpected exceptions."""
+        from jinja2.exceptions import TemplateError as JinjaTemplateError
+
+        # Check for a generic Exception handler
+        handler = self._exception_handlers.get(Exception)
+        if handler:
+            result = handler(request, exc)
+            if inspect.isawaitable(result):
+                result = await result
+            return result
+
+        # Special handling for Template errors in debug mode
+        if self.debug and isinstance(exc, JinjaTemplateError):
+            return self._render_enhanced_template_error(request, exc)
+
+        detail = str(exc) if self.debug else "Internal server error."
+        traceback_text = None
+        if self.debug:
+            import traceback
+            traceback_text = traceback.format_exc()
+        return self._error_response(
+            request=request, detail=detail, status_code=500,
+            traceback_text=traceback_text,
+        )
+
+    def _render_enhanced_template_error(self, request: Request, exc: Exception) -> StarletteResponse:
+        """Render a high-fidelity debug page for template errors."""
+        import difflib
+        import html as html_mod
+
+        from jinja2.exceptions import TemplateSyntaxError, UndefinedError
+        from starlette.responses import HTMLResponse
+
+        status_code = 500
+        title = "Template Error"
+        name = getattr(exc, "name", "Unknown Template")
+        lineno = getattr(exc, "lineno", 0)
+        message = str(exc)
+        
+        # Initialize diagnostic context early
+        found_context = {}
+        from jinja2.exceptions import TemplateSyntaxError, UndefinedError
+        import difflib
+
+        # Determine specific error type for badge
+        badge = "Template Error"
+        if isinstance(exc, TemplateSyntaxError):
+            badge = "Syntax Error"
+        elif isinstance(exc, UndefinedError):
+            badge = "Undefined Variable"
+
+        # Fuzzy suggestions for UndefinedError
+        if isinstance(exc, UndefinedError):
+            import re
+            match = re.search(r"'([^']+)' is undefined", message)
+            if match:
+                missing_var = match.group(1)
+                # We'll re-check found_context later if we find it in the stack
+                # For now, just prep common globals
+                candidates = ["request", "user", "url_for", "static"]
+                matches = difflib.get_close_matches(missing_var, candidates, n=3, cutoff=0.6)
+                if matches:
+                    message += f" (Did you mean: {', '.join(matches)}?)"
+
+        # Try to read the original template
+        code_frame = ""
+
+        # Find the template file
+        search_dirs = [self.template_dir] if isinstance(self.template_dir, str) else (self.template_dir or [])
+        template_path = None
+        if name and name != "Unknown Template":
+            for d in search_dirs:
+                if not d: continue
+                p = os.path.join(d, name)
+                if os.path.exists(p):
+                    template_path = p
+                    break
+
+        if template_path:
+            try:
+                with open(template_path, encoding="utf-8") as f:
+                    source_lines = f.readlines()
+
+                    if lineno > 0 and lineno <= len(source_lines):
+                        start = max(0, lineno - 6)
+                        end = min(len(source_lines), lineno + 5)
+
+                        # Generate code frame with line numbers
+                        frame_lines = []
+                        for i in range(start, end):
+                            curr_lineno = i + 1
+                            is_error = curr_lineno == lineno
+                            line_content = source_lines[i].rstrip()
+                            prefix = " > " if is_error else "   "
+                            frame_lines.append(f"{curr_lineno:4}{prefix}{line_content}")
+
+                        code_frame = "\n".join(frame_lines)
+
+                        # Apply Pygments if available
+                        try:
+                            from pygments import highlight
+                            from pygments.formatters import HtmlFormatter
+                            from pygments.lexers import get_lexer_for_filename
+
+                            lexer = get_lexer_for_filename(template_path)
+                            formatter = HtmlFormatter(style="monokai", nowrap=True)
+
+                            highlighted_lines = []
+                            for i in range(start, end):
+                                curr_lineno = i + 1
+                                is_error = curr_lineno == lineno
+                                raw_line = source_lines[i]
+                                html_line = highlight(raw_line, lexer, formatter)
+                                klass = "error-line" if is_error else "normal-line"
+                                highlighted_lines.append(
+                                    f'<div class="{klass}"><span class="line-no">{curr_lineno:4}</span>{html_line}</div>'
+                                )
+                            code_frame = "".join(highlighted_lines)
+                        except Exception:
+                            # Fallback to escaped text if Pygments fails
+                            code_frame = f"<pre><code>{html_mod.escape(code_frame)}</code></pre>"
+            except Exception as read_exc:
+                code_frame = f"<p class='text-red-500'>Could not read template source: {read_exc}</p>"
+
+        # Extract context if available (Jinja2 internal context)
+        import inspect
+        try:
+            for frame_info in inspect.trace():
+                if "context" in frame_info.frame.f_locals:
+                    ctx = frame_info.frame.f_locals["context"]
+                    if hasattr(ctx, "get_all"):
+                        found_context = ctx.get_all()
+                        break
+        except Exception:
+            pass
+
+        # Filter out noisy internal globals
+        context_vars = {k: v for k, v in found_context.items()
+                       if not k.startswith("__") and k not in ("range", "dict", "request")}
+
+
+        # Render the premium debug page
+        return self._render_premium_debug_page(
+            title=title,
+            message=message,
+            filename=name,
+            lineno=lineno,
+            code_frame=code_frame,
+            context_vars=context_vars,
+            is_htmx=getattr(request, "headers", {}).get("HX-Request") == "true",
+            badge=badge
+        )
+
+    def _render_premium_debug_page(
+        self,
+        title: str,
+        message: str,
+        filename: str,
+        lineno: int,
+        code_frame: str,
+        context_vars: dict,
+        is_htmx: bool,
+        badge: str
+    ) -> HTMLResponse:
+        """Renders the high-fidelity Eden debug/error page."""
+        from starlette.responses import HTMLResponse
+
+        Jakarta_Sans = "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+        Outfit = "https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700&display=swap"
+        
+        # Determine if we have Pygments code or raw pre
+        is_raw = code_frame.strip().startswith("<pre>")
+
+        template = f"""
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eden - {title}</title>
+    <link href="{Jakarta_Sans}" rel="stylesheet">
+    <link href="{Outfit}" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {{
+            --bg-slate-900: #0f172a;
+            --bg-slate-800: #1e293b;
+            --accent-blue: #2563eb;
+        }}
+        body {{ 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            background-color: var(--bg-slate-900);
+            color: #f8fafc;
+            margin: 0;
+            line-height: 1.5;
+        }}
+        .premium-card {{
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }}
+        .error-badge {{
+            background: rgba(239, 68, 68, 0.15);
+            color: #fca5a5;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            font-family: 'Outfit', sans-serif;
+            letter-spacing: 0.05em;
+        }}
+        .highlight {{ background: transparent !important; }}
+        pre {{ margin: 0; padding: 1.5rem; overflow-x: auto; background: rgba(15, 23, 42, 0.5) !important; border-radius: 0.75rem; }}
+        code {{ font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.9em; }}
+        .line-no {{ color: #475569; padding-right: 1.5rem; user-select: none; display: inline-block; width: 3rem; text-align: right; }}
+        .error-line {{ background: rgba(239, 68, 68, 0.15) !important; display: block; width: 100%; border-left: 3px solid #ef4444; }}
+        .normal-line {{ display: block; width: 100%; border-left: 3px solid transparent; }}
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {{ width: 8px; height: 8px; }}
+        ::-webkit-scrollbar-track {{ background: rgba(15, 23, 42, 0.1); }}
+        ::-webkit-scrollbar-thumb {{ background: rgba(255, 255, 255, 0.1); border-radius: 4px; }}
+        ::-webkit-scrollbar-thumb:hover {{ background: rgba(255, 255, 255, 0.2); }}
+
+        @keyframes slideUp {{
+            from {{ opacity: 0; transform: translateY(20px); }}
+            to {{ opacity: 1; transform: translateY(0); }}
+        }}
+        .animate-slide-up {{ animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1); }}
+    </style>
+</head>
+<body class="min-h-screen py-16 px-4 selection:bg-blue-500/30">
+    <div class="max-w-5xl mx-auto space-y-10 animate-slide-up">
+        
+        <!-- Header Section -->
+        <div class="space-y-4">
+            <div class="flex items-center gap-3">
+                <span class="px-3 py-1 text-[10px] font-black uppercase rounded-full error-badge tracking-[0.2em]">
+                    {badge}
+                </span>
+            </div>
+            <h1 class="text-5xl font-black tracking-tighter text-white font-['Outfit']">
+                {title}
+            </h1>
+            <div class="flex items-center gap-2 text-slate-400 font-medium bg-slate-800/30 w-fit px-3 py-1.5 rounded-lg border border-white/5">
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <span class="text-xs font-mono">{filename or "inline template"}</span>
+                <span class="text-slate-600">•</span>
+                <span class="text-xs">Line {lineno}</span>
+            </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="premium-card rounded-3xl overflow-hidden">
+            <!-- Error Banner -->
+            <div class="bg-red-500/10 border-b border-white/5 p-8">
+                <div class="text-slate-100 text-lg font-medium leading-relaxed">
+                    {message}
+                </div>
+            </div>
+
+            <!-- Code Explorer -->
+            <div class="p-8 space-y-6">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                        <span class="w-1.5 h-1.5 rounded-full bg-slate-600"></span>
+                        Context Explorer
+                    </h3>
+                </div>
+                
+                <div class="rounded-2xl overflow-hidden bg-slate-900/50 border border-white/5 shadow-inner">
+                    {code_frame if not is_raw else f'<div class="p-4">{code_frame}</div>'}
+                </div>
+            </div>
+
+            <!-- Environment Footer within Card -->
+            <div class="bg-slate-900/40 p-8 border-t border-white/5">
+                 <h3 class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-6 flex items-center gap-2">
+                    <span class="w-1.5 h-1.5 rounded-full bg-slate-600"></span>
+                    Environment Snapshot
+                </h3>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="bg-slate-800/40 p-4 rounded-2xl border border-white/5">
+                        <p class="text-[10px] uppercase font-bold text-slate-500 mb-1">OS</p>
+                        <p class="text-slate-200 font-semibold text-xs">Windows 11</p>
+                    </div>
+                    <div class="bg-slate-800/40 p-4 rounded-2xl border border-white/5">
+                        <p class="text-[10px] uppercase font-bold text-slate-500 mb-1">Python</p>
+                        <p class="text-slate-200 font-semibold text-xs">3.13.9</p>
+                    </div>
+                    <div class="bg-slate-800/40 p-4 rounded-2xl border border-white/5">
+                        <p class="text-[10px] uppercase font-bold text-slate-500 mb-1">Eden</p>
+                        <p class="text-slate-200 font-semibold text-xs">v0.1.0</p>
+                    </div>
+                    <div class="bg-slate-800/40 p-4 rounded-2xl border border-white/5">
+                        <p class="text-[10px] uppercase font-bold text-slate-500 mb-1">Status</p>
+                        <div class="flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]"></span>
+                            <span class="text-emerald-400 font-bold text-xs uppercase italic">Debug On</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Feedback Footer -->
+        <div class="flex justify-center pt-4">
+            <p class="text-slate-600 text-[10px] font-medium uppercase tracking-[0.3em]">
+                Eden Framework • Premium Debug Engine
+            </p>
+        </div>
+    </div>
+</body>
+</html>
+"""
+        return HTMLResponse(content=template, status_code=500)
+
+    async def _handle_starlette_http_exception(
+        self, request: Request, exc: StarletteHTTPException
+    ) -> StarletteResponse:
+        """Handle Starlette-level HTTP errors (404, 405) to return styled pages or JSON."""
+        return self._error_response(
+            request=request,
+            detail=exc.detail or "Not found",
+            status_code=exc.status_code,
+        )
+
+    @staticmethod
+    def _is_html_request(request: Any) -> bool:
+        """Check if the client prefers HTML (browser) over JSON (API)."""
+        try:
+            accept = ""
+            if hasattr(request, "headers"):
+                accept = request.headers.get("accept", "")
+            return "text/html" in accept
+        except Exception:
+            return False
+
+    def _error_response(
+        self,
+        detail: str,
+        status_code: int,
+        extra: dict[str, Any] | None = None,
+        request: Any = None,
+        traceback_text: str | None = None,
+    ) -> StarletteResponse:
+        """Unified error response — styled HTML for browsers, JSON for APIs."""
+        from starlette.responses import HTMLResponse
+
+        # If the client accepts HTML, render a styled error page
+        if request and self._is_html_request(request):
+            return HTMLResponse(
+                content=self._render_error_page(status_code, detail, traceback_text),
+                status_code=status_code,
+            )
+
+        # Default: JSON response for API clients
+        content = {
+            "error": True,
+            "status_code": status_code,
+            "detail": detail,
+        }
+        if extra:
+            content["extra"] = extra
+        return JsonResponse(content=content, status_code=status_code)
+
+    @staticmethod
+    def _render_error_page(
+        status_code: int, detail: str, traceback_text: str | None = None
+    ) -> str:
+        """Render a styled HTML error page matching Eden's dark theme."""
+        import html as html_mod
+
+        STATUS_MESSAGES = {
+            400: "Bad Request",
+            401: "Unauthorized",
+            403: "Forbidden",
+            404: "Page Not Found",
+            405: "Method Not Allowed",
+            408: "Request Timeout",
+            409: "Conflict",
+            422: "Unprocessable Entity",
+            429: "Too Many Requests",
+            500: "Internal Server Error",
+            502: "Bad Gateway",
+            503: "Service Unavailable",
+        }
+
+        STATUS_ICONS = {
+            400: "⚠️", 401: "🔒", 403: "🚫", 404: "🔍",
+            405: "🚧", 422: "📋", 429: "🐢", 500: "💥",
+            502: "🔌", 503: "🛠️",
+        }
+
+        title = STATUS_MESSAGES.get(status_code, "Error")
+        icon = STATUS_ICONS.get(status_code, "❌")
+        safe_detail = html_mod.escape(detail)
+
+        traceback_html = ""
+        if traceback_text:
+            safe_tb = html_mod.escape(traceback_text)
+            traceback_html = f"""
+            <details class="traceback">
+                <summary>Stack Trace (debug mode)</summary>
+                <pre>{safe_tb}</pre>
+            </details>
+            """
+
+        return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{status_code} — {title}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+        body {{
+            font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+            background: #0F172A;
+            color: #e2e8f0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }}
+        .error-container {{
+            text-align: center;
+            max-width: 520px;
+            width: 100%;
+        }}
+        .error-icon {{
+            font-size: 4rem;
+            margin-bottom: 16px;
+            filter: drop-shadow(0 0 24px rgba(37, 99, 235, 0.3));
+            animation: float 3s ease-in-out infinite;
+        }}
+        @keyframes float {{
+            0%, 100% {{ transform: translateY(0); }}
+            50% {{ transform: translateY(-8px); }}
+        }}
+        .error-code {{
+            font-size: 6rem;
+            font-weight: 800;
+            letter-spacing: -2px;
+            background: linear-gradient(135deg, #2563EB, #7c3aed);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1;
+            margin-bottom: 8px;
+        }}
+        .error-title {{
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: #f1f5f9;
+            margin-bottom: 12px;
+        }}
+        .error-detail {{
+            font-size: 0.95rem;
+            color: #94a3b8;
+            line-height: 1.6;
+            margin-bottom: 28px;
+            padding: 0 12px;
+        }}
+        .btn-home {{
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 28px;
+            background: #2563EB;
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+        }}
+        .btn-home:hover {{
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(37, 99, 235, 0.4);
+        }}
+        .btn-secondary {{
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 28px;
+            background: transparent;
+            color: #94a3b8;
+            border: 1px solid #334155;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            text-decoration: none;
+            cursor: pointer;
+            margin-left: 10px;
+            transition: all 0.3s ease;
+        }}
+        .btn-secondary:hover {{
+            border-color: #475569;
+            color: #e2e8f0;
+        }}
+        .actions {{ margin-bottom: 32px; }}
+        .brand {{
+            font-size: 0.78rem;
+            color: #475569;
+            letter-spacing: 0.5px;
+        }}
+        .brand span {{ color: #2563EB; }}
+        .traceback {{
+            text-align: left;
+            margin-top: 28px;
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 10px;
+            padding: 4px;
+            max-width: 100%;
+        }}
+        .traceback summary {{
+            padding: 10px 14px;
+            cursor: pointer;
+            font-size: 0.82rem;
+            color: #f59e0b;
+            font-weight: 500;
+            user-select: none;
+        }}
+        .traceback pre {{
+            padding: 12px 14px;
+            font-size: 0.75rem;
+            line-height: 1.5;
+            color: #94a3b8;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+            max-height: 320px;
+            overflow-y: auto;
+        }}
+    </style>
+</head>
+<body>
+    <div class="error-container">
+        <div class="error-icon">{icon}</div>
+        <div class="error-code">{status_code}</div>
+        <div class="error-title">{title}</div>
+        <div class="error-detail">{safe_detail}</div>
+        <div class="actions">
+            <a href="/" class="btn-home">← Go Home</a>
+            <a href="javascript:history.back()" class="btn-secondary">Go Back</a>
+        </div>
+        {traceback_html}
+        <div class="brand">Powered by <span>Eden 🌿</span></div>
+    </div>
+</body>
+</html>"""
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        """ASGI entry point."""
+        app = await self.build()
+        await app(scope, receive, send)
+
+    # ── Dev Server ───────────────────────────────────────────────────────
+
+    def run(
+        self,
+        host: str = "127.0.0.1",
+        port: int = 8000,
+        reload: bool = True,
+        workers: int = 1,
+        log_level: str = "info",
+    ) -> None:
+        """
+        Start the development server via Uvicorn.
+
+        Args:
+            host: Bind address.
+            port: Bind port.
+            reload: Enable auto-reload on code changes.
+            workers: Number of worker processes.
+            log_level: Logging level.
+        """
+        from eden.port import find_available_port
+
+        resolved_port = find_available_port(host, port)
+        if resolved_port != port:
+            print(f"\n  ⚠️  Port {port} in use → using {resolved_port}")
+
+        print(f"\n  🌿 Eden v{self.version}")
+        print(f"  📡 Running on http://{host}:{resolved_port}")
+        print(f"  🔄 Auto-reload: {'enabled' if reload else 'disabled'}\n")
+
+        uvicorn.run(
+            self,
+            host=host,
+            port=resolved_port,
+            reload=reload,
+            workers=workers,
+            log_level=log_level,
+        )

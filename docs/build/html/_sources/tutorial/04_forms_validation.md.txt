@@ -1,0 +1,291 @@
+# Phase 4: Forms & Validation
+
+This phase covers form handling and data validation using Pydantic.
+
+---
+
+## What You'll Learn
+
+- Pydantic-based validation
+- Creating forms with BaseForm
+- Form fields and schemas
+- Custom validators
+- Form rendering
+- Handling form submissions
+
+---
+
+## 4.1 Pydantic Basics
+
+Forms use Pydantic for validation:
+
+```python
+from pydantic import BaseModel, Field
+from typing import Optional
+
+class UserSchema(BaseModel):
+    username: str = Field(..., min_length=3, max_length=50)
+    email: str = Field(..., pattern=r"^[\w\.-]+@[\w\.-]+\.\w+$")
+    age: Optional[int] = Field(None, ge=0, le=150)
+    bio: Optional[str] = Field(None, max_length=500)
+```
+
+---
+
+## 4.2 Eden Form Class
+
+**Basic** - Create a form:
+
+```python
+from eden.forms import BaseForm
+
+class UserForm(BaseForm):
+    schema = UserSchema
+```
+
+---
+
+## 4.3 Form in Routes
+
+**Basic** - Handle form submission:
+
+```python
+@router.post("/register")
+async def register(request):
+    data = await request.form_data()
+    form = UserForm(data=data)
+    
+    if await form.validate():
+        # Form is valid - create user
+        user = await User.create(**form.validated_data)
+        return redirect("/dashboard")
+    
+    # Invalid - return form with errors
+    return {"errors": form.errors}
+```
+
+---
+
+## 4.4 Validation Types
+
+**Basic** - String validation:
+
+```python
+class ContactForm(BaseModel):
+    name: str = Field(..., min_length=1)
+    email: str = Field(..., pattern=r"^[\w\.-]+@[\w\.-]+\.\w+$")
+    message: str = Field(..., min_length=10, max_length=1000)
+```
+
+**Intermediate** - Numeric validation:
+
+```python
+class OrderForm(BaseModel):
+    quantity: int = Field(..., ge=1, le=100)
+    price: float = Field(..., gt=0)
+    discount: float = Field(0, ge=0, le=1)
+```
+
+---
+
+## 4.5 Custom Validators
+
+**Intermediate** - Field validator:
+
+```python
+from pydantic import field_validator
+
+class RegistrationForm(BaseModel):
+    password: str
+    confirm_password: str
+    
+    @field_validator("confirm_password")
+    @classmethod
+    def passwords_match(cls, v, info):
+        if "password" in info.data and v != info.data["password"]:
+            raise ValueError("Passwords don't match")
+        return v
+```
+
+**Intermediate** - Model validator:
+
+```python
+from pydantic import model_validator
+
+class EventForm(BaseModel):
+    start_date: datetime
+    end_date: datetime
+    
+    @model_validator(mode="after")
+    def dates_order(self):
+        if self.end_date <= self.start_date:
+            raise ValueError("End date must be after start date")
+        return self
+```
+
+---
+
+## 4.6 File Uploads
+
+**Intermediate** - Handling files:
+
+```python
+from starlette.datastructures import UploadFile
+
+class ProfileForm(BaseModel):
+    username: str
+    avatar: UploadFile
+    
+    @field_validator("avatar")
+    @classmethod
+    def validate_avatar(cls, v):
+        if v and not v.content_type.startswith("image/"):
+            raise ValueError("Must be an image file")
+        return v
+```
+
+---
+
+## 4.7 Form Rendering
+
+**Basic** - Auto-render:
+
+```html
+<form method="POST">
+    @csrf
+    @for(field in form) {
+        <div>
+            <label>{{ field.label }}</label>
+            @render_field(field)
+            @if(field.error) {
+                <span class="error">{{ field.error }}</span>
+            }
+        </div>
+    }
+    <button type="submit">Submit</button>
+</form>
+```
+
+**Intermediate** - Custom rendering:
+
+```html
+<input 
+    type="text" 
+    name="{{ form.username.name }}"
+    value="{{ form.username.value or '' }}"
+    class="{{ 'error' if form.username.error else '' }}"
+>
+```
+
+---
+
+## 4.8 Widget Tweaks
+
+**Intermediate** - Modify fields:
+
+```python
+class ContactForm(BaseForm):
+    schema = ContactSchema
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.name.add_class("form-control")
+        self.email.add_class("form-control")
+        self.message.widget = "textarea"
+```
+
+---
+
+## 4.9 JSON API Validation
+
+**Basic** - JSON body validation:
+
+```python
+@router.post("/api/users")
+async def create_user(request):
+    data = await request.json()
+    form = UserForm(data=data)
+    
+    if not await form.validate():
+        return {"errors": form.errors}, 400
+    
+    user = await User.create(**form.validated_data)
+    return user.to_dict(), 201
+```
+
+---
+
+## 4.10 Complete Example
+
+**forms.py**:
+```python
+from pydantic import BaseModel, Field, field_validator
+from eden.forms import BaseForm
+
+class PostFormSchema(BaseModel):
+    title: str = Field(..., min_length=5, max_length=200)
+    content: str = Field(..., min_length=50)
+    category: str = Field(..., pattern="^(news|opinion|tutorial)$")
+    tags: str = Field("", max_length=200)
+    
+    @field_validator("tags")
+    @classmethod
+    def parse_tags(cls, v):
+        if v:
+            return ",".join([t.strip() for t in v.split(",")])
+        return ""
+
+class PostForm(BaseForm):
+    schema = PostFormSchema
+```
+
+**routes.py**:
+```python
+@router.get("/posts/new")
+async def new_post(request):
+    form = PostForm()
+    return {"form": form}
+
+@router.post("/posts")
+async def create_post(request):
+    data = await request.form_data()
+    form = PostForm(data=data)
+    
+    if not await form.validate():
+        return {"form": form, "errors": form.errors}
+    
+    post = await Post.create(
+        title=form.validated_data["title"],
+        content=form.validated_data["content"],
+        category=form.validated_data["category"],
+        tags=form.validated_data["tags"]
+    )
+    return redirect(f"/posts/{post.id}")
+```
+
+---
+
+## Summary
+
+You learned:
+- Pydantic validation basics
+- Creating Eden forms with BaseForm
+- Handling form submissions
+- Validation types (string, numeric)
+- Custom validators
+- File uploads
+- Form rendering in templates
+- Widget tweaks
+- JSON API validation
+
+---
+
+## Next Steps
+
+Continue to **Phase 5: Authentication**
+
+```{toctree}
+:maxdepth: 1
+
+tutorial/05_authentication
+```

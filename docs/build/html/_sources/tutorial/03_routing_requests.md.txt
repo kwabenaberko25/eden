@@ -1,0 +1,404 @@
+# Phase 3: Routing & Requests
+
+This phase covers routing, request handling, and response management in detail.
+
+---
+
+## What You'll Learn
+
+- Modular routing with Router class
+- Path parameters and type conversion
+- Request object usage
+- Response types and handling
+- Exception handling
+- Dependency injection
+- WebSocket routes
+
+---
+
+## 3.1 Modular Routers
+
+Instead of defining all routes on the app, use modular routers:
+
+```python
+# routes/posts.py
+from eden import Router
+
+router = Router(prefix="/posts", tags=["Posts"])
+
+@router.get("/")
+async def list_posts():
+    return {"posts": []}
+
+@router.get("/{post_id}")
+async def get_post(post_id: int):
+    return {"id": post_id}
+```
+
+```python
+# app.py
+from eden import Eden
+from routes.posts import router as posts_router
+
+app = Eden(title="My Blog")
+app.include_router(posts_router)
+```
+
+---
+
+## 3.2 Path Parameters
+
+**Basic** - Simple parameter:
+
+```python
+@app.get("/users/{user_id}")
+async def get_user(user_id: int):
+    return {"user_id": user_id}
+```
+
+**Supported types:**
+| Type | Example |
+|------|---------|
+| `int` | `/users/42` → `42` |
+| `str` | `/users/alice` → `"alice"` |
+| `uuid.UUID` | `/items/abc...` |
+| `float` | `/price/19.99` |
+
+**Basic** - Multiple parameters:
+
+```python
+@app.get("/posts/{post_id}/comments/{comment_id}")
+async def get_comment(post_id: int, comment_id: int):
+    return {"post_id": post_id, "comment_id": comment_id}
+```
+
+---
+
+## 3.3 The Request Object
+
+Access request data through the `request` parameter:
+
+```python
+@app.get("/example")
+async def example(request):
+    # Headers
+    user_agent = request.headers.get("user-agent")
+    
+    # Query params
+    query = request.query_params.get("q", "")
+    page = request.query_params.get("page", "1")
+    
+    # Path params
+    path_id = request.path_params.get("id")
+    
+    # Method
+    method = request.method
+    
+    return {"data": "example"}
+```
+
+---
+
+## 3.4 Request Body
+
+**Basic** - JSON body:
+
+```python
+@app.post("/users")
+async def create_user(request):
+    data = await request.json()
+    return {"user": data}
+```
+
+**Basic** - Form data:
+
+```python
+@app.post("/contact")
+async def contact_form(request):
+    data = await request.form_data()
+    name = data.get("name")
+    email = data.get("email")
+    return {"name": name, "email": email}
+```
+
+---
+
+## 3.5 Response Types
+
+### JSON Response
+
+```python
+from eden import JsonResponse, json
+
+# Explicit
+return JsonResponse({"key": "value"})
+
+# Auto-wrapped (dict/list)
+return {"key": "value"}
+```
+
+### HTML Response
+
+```python
+from eden import HtmlResponse, html
+
+return HtmlResponse("<h1>Hello</h1>")
+return "<h1>Hello</h1>"  # Auto-wrapped
+```
+
+### Redirect Response
+
+```python
+from eden import RedirectResponse, redirect
+
+return RedirectResponse(url="/other", status_code=302)
+return redirect("/other")
+```
+
+### File Response
+
+```python
+from eden import FileResponse
+
+return FileResponse("path/to/file.pdf")
+```
+
+### Streaming Response
+
+```python
+from eden import StreamingResponse
+
+async def data_generator():
+    for i in range(100):
+        yield f"data {i}\n"
+
+return StreamingResponse(data_generator())
+```
+
+---
+
+## 3.6 Status Codes
+
+```python
+return {"error": "Not found"}, 404
+return {"created": True}, 201
+return {"accepted": True}, 202
+return "", 204
+```
+
+---
+
+## 3.7 Exception Handling
+
+**Basic** - Raise HTTP exceptions:
+
+```python
+from starlette.exceptions import HTTPException
+
+@app.get("/user/{user_id}")
+async def get_user(user_id: int):
+    user = await User.get_or_none(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user.to_dict()
+```
+
+**Intermediate** - Custom handlers:
+
+```python
+from starlette.exceptions import HTTPException
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request, exc):
+    return JsonResponse(
+        {"error": exc.detail, "status": exc.status_code},
+        status_code=exc.status_code
+    )
+
+@app.exception_handler(Exception)
+async def general_exception_handler(request, exc):
+    return JsonResponse(
+        {"error": "Internal server error"},
+        status_code=500
+    )
+```
+
+---
+
+## 3.8 Dependency Injection
+
+**Basic** - Simple dependency:
+
+```python
+from eden.dependencies import get_db
+
+@app.get("/items")
+async def list_items(db = Depends(get_db)):
+    return {"items": []}
+```
+
+**Intermediate** - Custom dependency:
+
+```python
+async def get_current_user(request):
+    user_id = request.session.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=401)
+    return await User.get(user_id)
+
+@app.get("/profile")
+async def profile(user = Depends(get_current_user)):
+    return {"user": user.to_dict()}
+```
+
+---
+
+## 3.9 WebSocket Routes
+
+**Basic** - WebSocket endpoint:
+
+```python
+@router.websocket("/ws")
+async def websocket_endpoint(websocket):
+    await websocket.accept()
+    
+    while True:
+        data = await websocket.receive_text()
+        await websocket.send_text(f"Echo: {data}")
+```
+
+**Intermediate** - With authentication:
+
+```python
+@router.websocket("/ws")
+async def websocket_chat(websocket):
+    # Authenticate
+    token = websocket.query_params.get("token")
+    if not validate_token(token):
+        await websocket.close(code=4001)
+        return
+    
+    await websocket.accept()
+    
+    while True:
+        data = await websocket.receive_json()
+        await broadcast(data)
+```
+
+---
+
+## 3.10 Route Groups
+
+**Intermediate** - Nested routers:
+
+```python
+# api.py
+api = Router(prefix="/api")
+
+@api.get("/version")
+async def version():
+    return {"version": "1.0"}
+```
+
+```python
+# app.py
+app.include_router(api)
+```
+
+---
+
+## 3.11 URL Reversing
+
+**Intermediate** - Named routes:
+
+```python
+@router.get("/users/{user_id}", name="user_detail")
+async def user_detail(user_id: int):
+    return {"id": user_id}
+
+# Generate URL
+url = request.url_for("user_detail", user_id=123)
+# Result: "/users/123"
+```
+
+---
+
+## 3.12 Complete Example
+
+```python
+# app.py
+from eden import Eden
+from eden import Router
+from starlette.exceptions import HTTPException
+from eden.dependencies import get_db
+
+app = Eden(title="Blog API")
+router = Router(prefix="/api", tags=["Blog"])
+
+# Get all posts
+@router.get("/posts")
+async def list_posts(db = Depends(get_db)):
+    posts = await Post.query().filter(published=True).order_by("-created_at").all()
+    return {"posts": [p.to_dict() for p in posts]}
+
+# Get single post
+@router.get("/posts/{post_id}")
+async def get_post(post_id: int, db = Depends(get_db)):
+    post = await Post.get_or_none(post_id)
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    return post.to_dict()
+
+# Create post
+@router.post("/posts")
+async def create_post(request, db = Depends(get_db)):
+    data = await request.json()
+    post = await Post.create(**data)
+    return post.to_dict(), 201
+
+# Update post
+@router.patch("/posts/{post_id}")
+async def update_post(post_id: int, request, db = Depends(get_db)):
+    post = await Post.get_or_404(post_id)
+    data = await request.json()
+    await post.update(**data)
+    return post.to_dict()
+
+# Delete post
+@router.delete("/posts/{post_id}")
+async def delete_post(post_id: int, db = Depends(get_db)):
+    post = await Post.get_or_404(post_id)
+    await post.delete()
+    return {"deleted": True}
+
+app.include_router(router)
+
+if __name__ == "__main__":
+    app.run()
+```
+
+---
+
+## Summary
+
+You learned:
+- Modular routers with prefixes
+- Path parameters with type conversion
+- Request object (headers, query, body)
+- Response types (JSON, HTML, Redirect, File, Streaming)
+- Exception handling
+- Dependency injection
+- WebSocket routes
+- URL reversing
+
+---
+
+## Next Steps
+
+Continue to **Phase 4: Forms & Validation**
+
+```{toctree}
+:maxdepth: 1
+
+tutorial/04_forms_validation
+```

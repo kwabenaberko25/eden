@@ -1,0 +1,92 @@
+# Phase 1: First Application (The Nexus Heart) 🏗️
+
+Welcome to the **Eden Framework**. In this phase, we will establish your first application, **Eden Nexus**, using the professional CLI tools and understand the heart of an Eden system.
+
+---
+
+## 🌌 The Eden Philosophy
+
+Eden is built for developers who demand **Django's features**, **FastAPI's speed**, and **Flask's simplicity**. It achieves this through **Modular Excellence** and a security-first architecture.
+
+---
+
+## 🛠️ Installation & Scaffolding
+
+To begin, we recommend using `uv` for lightning-fast dependency management.
+
+### 1. Unified Installation
+
+Install the Eden Framework globally or in your project environment:
+
+```bash
+uv pip install eden-framework
+```
+
+### 2. Scaffolding the Nexus
+
+Use the `eden new` command to generate a professional, Docker-ready project structure.
+
+```bash
+eden new eden_nexus
+cd eden_nexus
+```
+
+This creates the "Elite" scaffold:
+- `app.py`: The Nexus Heart (Application Entry).
+- `models.py`: The Data Forge (Entity Definitions).
+- `routers/`: Modular Sector Control.
+- `templates/`: Premium UI.
+
+---
+
+## ❤️‍🔥 The Task Manager API
+
+Let's build a simple Task Manager to understand routing and responses. Open `app.py` and implement the following:
+
+```python
+from eden import Eden
+
+# 🌿 Create the Nexus Heart
+app = Eden(
+    title="Eden Nexus",
+    description="Task Management Hub",
+    debug=True
+)
+
+# 🚦 Memory storage for our tasks
+tasks = [
+    {"id": 1, "title": "Secure Sector Alpha", "done": False},
+    {"id": 2, "title": "Calibrate Sensors", "done": True},
+]
+
+@app.get("/tasks")
+async def list_tasks():
+    """Retrieve all active tasks."""
+    return {"tasks": tasks}
+
+@app.get("/tasks/{task_id}")
+async def get_task(task_id: int):
+    """Fetch a specific task by ID."""
+    for task in tasks:
+        if task["id"] == task_id:
+            return task
+    return {"error": "Task not found"}, 404
+
+if __name__ == "__main__":
+    # 🚀 Launch the Nexus
+    app.run(port=8080)
+```
+
+---
+
+## ✅ Verification
+
+To verify your first application:
+
+1. **Run the Server**:
+   ```bash
+   eden run
+   ```
+2. **Signal Check**: Open `http://localhost:8080/tasks` in your browser.
+
+If you see the JSON response of your tasks, your foundation is **100% Verified**. You are ready for **Phase 2: The Data Forge**.

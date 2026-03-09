@@ -1,0 +1,63 @@
+# Phase 9: Universal Reach (Internationalization) 🌍
+
+In an interstellar network, communication must be universal. In this phase, we master **Eden i18n**—a gettext-powered internationalization system that makes your Eden accessible in any language.
+
+---
+
+## 🏗️ The Translations Manager
+
+Eden uses standard `.po` and `.mo` catalogs. The `Translations` manager handles locale detection and catalog loading.
+
+```python
+from eden.i18n import Translations
+
+i18n = Translations(
+    locale_dir="locales",
+    default_locale="en"
+)
+
+# Mount to app
+i18n.mount(app)
+```
+
+---
+
+## ✍️ Marking Strings
+
+Use the `_()` helper to mark strings for translation in your Python code and templates.
+
+### 1. In Views
+```python
+from eden.i18n import _
+
+@app.get("/")
+async def welcome():
+    return {"message": _("Welcome to the Eden")}
+```
+
+### 2. In Templates
+```html
+<h1>{{ _("System Status") }}</h1>
+```
+
+---
+
+## 🛰️ Locale Detection
+
+Eden automatically detects the user's preferred language using:
+1. **Query Param**: `?lang=fr`
+2. **Header**: `Accept-Language: fr-FR,fr;q=0.9`
+3. **Default**: Fallback to your configured default.
+
+---
+
+## ✅ Verification
+
+To verify your Universal Reach:
+
+1. **Test Translation**: Add a `lang=fr` parameter and verify the translated strings appear (if catalogs exist).
+2. **Test Default**: Ensure the default locale is used when no language info is provided.
+3. **Test Template Registration**: Verify that `_()` is available globally in your Eden Templates.
+
+If your Eden speaks every language in the quadrant, your i18n engine is **100% Verified**. You are ready for **Phase 10: High-Performance Optimization**.
+

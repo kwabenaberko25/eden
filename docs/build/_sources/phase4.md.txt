@@ -1,0 +1,85 @@
+# Phase 4: Premium UI & Templating 🎨
+
+The user interface of an interstellar Eden must be as clean and fluid as the vacuum of space. In this phase, we master **Eden Templates**—a modern, directive-based engine that brings "Blade-like" elegance to Python.
+
+---
+
+## 🏗️ The Eden Directive System
+
+Eden avoids the clunky `{% %}` syntax of traditional Jinja2. Instead, it uses clean `@` directives that are easier to read and maintain.
+
+### 1. Basic Directives
+
+```html
+@extends('layouts/base.html')
+
+@block('content') {
+    <h1 class="text-4xl font-bold">Sector Telemetry</h1>
+    
+    @if(sectors) {
+        <div class="grid gap-4">
+            @for(sector in sectors) {
+                <div class="card">
+                    <h2>{{ sector.name }}</h2>
+                    <p>Status: {{ 'Active' if sector.is_active else 'Inactive' }}</p>
+                </div>
+            }
+        </div>
+    } @else {
+        <p class="text-slate-500">No sectors detected in this quadrant.</p>
+    }
+}
+```
+
+### 2. Layouts & Inheritance
+
+Eden layouts are defined using blocks. You can @extends a base layout and fill in the designated @blocks.
+
+```html
+<!-- layouts/base.html -->
+<html>
+<head>
+    <title>Eden</title>
+</head>
+<body>
+    @block('content') {
+        <h1>Welcome</h1>
+    }
+</body>
+</html>
+```
+
+---
+
+## 🛠️ Elite Filters
+
+Eden includes several built-in filters to handle common data transformations with "Elite" formatting.
+
+| Filter     | Description                       | Example                            |
+| :--------- | :-------------------------------- | :--------------------------------- |
+| `time_ago` | Relative time (e.g., "5m ago")    | `{{ sector.last_sync\|time_ago }}` |
+| `currency` | Professional currency formatting  | `{{ budget\|currency }}`           |
+| `json`     | Secure JSON serialization         | `{{ config\|json }}`               |
+
+---
+
+### 3. Summary of Directives
+
+| Directive | Description |
+| :--- | :--- |
+| `@extends(path)` | Defines the parent template to inherit from. |
+| `@block(name) { ... }` | Defines a replaceable section of content. |
+| `@yield(name, default)` | Injects a block from a child template. |
+
+---
+
+## ✅ Verification
+
+To verify your Premium UI engine:
+
+1. **Test Directives**: Ensure your `@if` and `@for` loops render correctly with braces.
+2. **Test Layouts**: Verify that `@extends` properly wraps your content in the base layout.
+3. **Test Filters**: Check that `time_ago` correctly formats your model timestamps.
+
+If your templates are clean and your UI is rendered with modular precision, your Templating engine is **100% Verified**. You are ready for **Phase 5: Reactive Interactivity (HTMX)**.
+

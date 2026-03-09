@@ -1,0 +1,23 @@
+<div class="divide-y divide-gray-700 border border-gray-700 rounded-xl overflow-hidden"
+     x-data="{ open: @if (multiple) { [] } @else { null } }">
+  @for (item in items) {
+  <div>
+    <button
+      @click="@if (multiple) { open.includes({{ loop.index0 }}) ? open = open.filter(i => i !== {{ loop.index0 }}) : open.push({{ loop.index0 }}) } @else { open = open === {{ loop.index0 }} ? null : {{ loop.index0 }} }"
+      class="w-full flex items-center justify-between px-5 py-4 text-left text-slate-200 hover:bg-gray-800/60
+             transition-all duration-200 cursor-pointer">
+      <span class="font-medium">{{ item.title }}</span>
+      <svg :class="@if (multiple) { open.includes({{ loop.index0 }}) } @else { open === {{ loop.index0 }} } ? 'rotate-180' : ''"
+           class="w-4 h-4 text-slate-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+      </svg>
+    </button>
+    <div x-show="@if (multiple) { open.includes({{ loop.index0 }}) } @else { open === {{ loop.index0 }} }"
+         x-collapse
+         class="px-5 pb-4 text-slate-400 text-sm">
+      {{ item.content }}
+      @if (slots['item_' ~ loop.index0]) { {{ slots['item_' ~ loop.index0] }} }
+    </div>
+  </div>
+  }
+</div>

@@ -1,0 +1,83 @@
+# Eden Framework Tutorial
+
+A comprehensive, structured learning pathway from beginner to expert.
+
+---
+
+## How to Use This Tutorial
+
+This tutorial is organized into **8 progressive phases**. Each phase builds upon the previous one, so we recommend working through them in order.
+
+### Learning Pathway
+
+```{toctree}
+:maxdepth: 2
+:numbered:
+
+01_first_application
+02_data_modeling
+03_routing_requests
+04_forms_validation
+05_authentication
+06_permissions
+07_templating
+08_realworld_patterns
+```
+
+### Phase Overview
+
+| Phase | Topic | Level | Description |
+|-------|-------|-------|-------------|
+| 1 | First Application | Beginner | Your first Eden app, project structure, running the server |
+| 2 | Data Modeling | Beginner-Intermediate | Models, fields, relationships, database operations |
+| 3 | Routing & Requests | Intermediate | Routes, path parameters, request/response handling |
+| 4 | Forms & Validation | Intermediate | Form handling, Pydantic validation, widget customization |
+| 5 | Authentication | Advanced | User sessions, login/logout, password management |
+| 6 | Permissions | Advanced | Role-based access control, authorization decorators |
+| 7 | Templating | Advanced | Templates, components, HTMX integration |
+| 8 | Real-World Patterns | Expert | Production patterns, optimization, deployment |
+
+### What You'll Build
+
+By the end of this tutorial, you'll have built a complete **blog application** with:
+- User authentication and registration
+- CRUD operations for posts
+- Role-based permissions (admin, author, reader)
+- Rich templating with components
+- Form validation and error handling
+
+---
+
+## Prerequisites
+
+- Python 3.11 or higher installed
+- Basic understanding of Python
+- Familiarity with web concepts (HTTP, HTML)
+
+---
+
+## Code Examples
+
+All code examples in this tutorial are **complete and executable**. You can copy them directly into your project.
+
+### Conventions Used
+
+```{admonition} Note
+:class: tip
+
+Code blocks marked with **Basic** show minimal implementations.
+```
+
+```{admonition} Tip
+:class: tip
+
+Code blocks marked with **Intermediate** show enhanced patterns.
+```
+
+```{admonition} Warning
+:class: warning
+
+Code blocks marked with **Advanced** show production-ready patterns.
+```
+
+Let's begin with **Phase 1: First Application**!

@@ -1,0 +1,11 @@
+<div class="inline-flex items-center justify-center {{ size_class }} rounded-full
+            bg-gradient-to-br from-blue-600 to-blue-800 text-white font-semibold
+            overflow-hidden ring-2 ring-gray-700 transition-all duration-200">
+  @if (src) {
+  <img src="{{ src }}" alt="{{ alt }}" class="w-full h-full object-cover"
+       onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+  <span class="hidden items-center justify-center w-full h-full">{{ initials }}</span>
+  } @else {
+  <span>{{ initials }}</span>
+  }
+</div>

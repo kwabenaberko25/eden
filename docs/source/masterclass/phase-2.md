@@ -1,0 +1,267 @@
+# Phase 2: The Soil (Data & Modeling) 🌍
+
+The foundation of any powerful web application is its data layer. Eden provides a robust, async-first ORM built on top of SQLAlchemy, but designed with the simplicity and developer experience of Django.
+
+In this phase, we'll cover how to define models, establish complex relationships, utilize lifecycle hooks, query data efficiently, and rapidly scaffold UIs using Eden's `Resource` pattern.
+
+---
+
+## 🏗️ 1. Defining Models
+
+Eden models inherit from `eden.db.Model`. We use python type hints alongside concise helpers (like `f()`, `StringField()`) to define our schema.
+
+```python
+import uuid
+from datetime import datetime
+from eden.db import Model, f, Mapped
+
+class Organization(Model):
+    # UUIDs are often used as primary keys
+    id: Mapped[uuid.UUID] = f(primary_key=True, default=uuid.uuid4)
+    
+    # f() intelligently maps to String based on the max_length constraint
+    name: Mapped[str] = f(max_length=255, required=True, unique=True)
+    
+    # Text fields for long, boundless content
+    description: Mapped[str | None] = f(nullable=True)
+
+    # Boolean flags
+    is_active: Mapped[bool] = f(default=True)
+```
+
+### The Zen of `f()`
+
+The `f()` helper is Eden's intelligent inference engine. It analyzes your type hints (`str`, `int`, `bool`, `datetime`, `uuid.UUID`) and combines them with parameters to generate the perfect SQLAlchemy column.
+
+| Parameter | Description | UI/Form Effect |
+| :--- | :--- | :--- |
+| `max_length` | Maximum character length | Adds `maxlength` attribute and `MaxLength` validator. |
+| `required` | Database NOT NULL | Adds `required` attribute and `DataRequired` validator. |
+| `unique` | Database UNIQUE constraint | Adds uniqueness validation on the server. |
+| `default` | Default value | Pre-fills the form with this value. |
+| `widget` | Explicit UI widget control | Force use of `textarea`, `select`, `checkbox`, etc. |
+| `index` | Database index | Significant performance boost for filtered queries. |
+
+**Comprehensive Field Types:**
+For stricter control, you can bypass `f()` and use explicit field definitions imported from `eden.db.fields`:
+
+* **StringField(max_length, ...)**: Maps to `VARCHAR`. E.g., `StringField(100, unique=True)`
+* **TextField(...)**: Maps to unbounded `TEXT`. E.g., `TextField(nullable=True)`
+* **IntField(...)**: Maps to `INTEGER`. E.g., `IntField(default=0)`
+* **FloatField(...)**: Maps to `FLOAT`. E.g., `FloatField(required=True)`
+* **BoolField(...)**: Maps to `BOOLEAN`. E.g., `BoolField(default=False)`
+* **DateTimeField(...)**: Maps to `DATETIME`. Supports automated timestamps perfectly:
+
+    ```python
+    from eden.db import DateTimeField
+    
+    created_at: Mapped[datetime] = DateTimeField(auto_now_add=True)  # Set once on creation
+    updated_at: Mapped[datetime] = DateTimeField(auto_now=True)      # Updated on every save
+    ```
+
+* **UUIDField(...)**: Maps to `UUID`. Great for Primary Keys or external reference tokens.
+* **FileField(...)**: Special string field that stores a file path. Supports HTMX frontend widgets automatically! E.g., `FileField(upload_to="avatars")`.
+
+---
+
+## 🔗 2. Mastering Relationships
+
+User belongs to one Organization.
+
+```python
+from eden.db import Model, f, ForeignKeyField
+
+class User(Model):
+    name: Mapped[str] = f(max_length=100)
+    
+    # 1. The explicit Foreign Key column
+    organization_id: Mapped[uuid.UUID] = ForeignKeyField("organizations.id", required=True, ondelete="CASCADE")
+    
+    # 2. The SQLAlchemy Relationship mapping
+    # Note how we use `f()` here with back_populates! It infers a Relationship.
+    organization: Mapped["Organization"] = f(back_populates="users")
+
+class Organization(Model):
+    name: Mapped[str] = f(max_length=100)
+    
+    # The reverse side of the relationship
+    users: Mapped[list["User"]] = f(back_populates="organization")
+```
+
+**The `Reference` Shortcut Strategy:**
+Eden provides an even faster way to define both the foreign key column *and* the relationship object in one line using `Reference()`:
+
+```python
+from eden.db import Reference
+
+class Project(Model):
+    name: Mapped[str] = f(max_length=100)
+    
+    # Automatically creates `tenant_id` ForeignKey column AND the `tenant` relationship!
+    tenant: Mapped["Tenant"] = Reference("Tenant", back_populates="projects")
+```
+
+### One-to-One
+
+A One-to-One relationship is virtually identical, but the list typing changes. For example, a `User` has one `Profile`:
+
+```python
+class Profile(Model):
+    bio: Mapped[str] = f(max_length=500)
+    user_id: Mapped[uuid.UUID] = ForeignKeyField("users.id", unique=True) # Must be unique!
+    user: Mapped["User"] = f(back_populates="profile")
+
+class User(Model):
+    # Notice we type hint "Profile" NOT list["Profile"]
+    profile: Mapped["Profile"] = f(back_populates="user", uselist=False) 
+```
+
+### Many-to-Many
+
+For Many-to-Many setups (like a Post having multiple Tags), use `ManyToManyField`. Eden can automatically infer and create the hidden joining table!
+
+```python
+from eden.db import ManyToManyField
+
+class Post(Model):
+    title: Mapped[str] = f(...)
+    
+    # 'tags' relationship mapping through an auto-generated association table
+    tags: Mapped[list["Tag"]] = ManyToManyField("Tag", back_populates="posts")
+
+class Tag(Model):
+    name: Mapped[str] = f(...)
+    
+    posts: Mapped[list["Post"]] = ManyToManyField("Post", back_populates="tags")
+```
+
+---
+
+## ⚡ 3. Lifecycle Hooks
+
+Sometimes you need business logic to run automatically before or after a record is saved to the database. Instead of burying this in your route handlers, attach it directly to the model using async lifecycle hooks:
+
+```python
+class User(Model):
+    email: Mapped[str] = f(max_length=255)
+    search_vector: Mapped[str | None] = f(nullable=True)
+    
+    # Hook triggers right before standard SQL INSERT or UPDATE operations
+    async def before_save(self):
+        # Always ensure emails are lowercase in the database
+        if self.email:
+            self.email = self.email.lower().strip()
+            
+        # Automatically compute a caching column based on other fields
+        self.search_vector = f"user-{self.email}"
+        
+    # After save logic
+    async def after_create(self):
+
+```python
+
+## 🚀 4. Rapid Scaffolding with the `Resource` Pattern
+
+If standard MVC development feels slow, Eden offers the `Resource` pattern. By simply inheriting from `Resource` instead of `Model`, Eden dynamically generates a fully functional UI and API for that model based entirely on your field definitions!
+
+```python
+from eden import Resource
+from eden.db import f
+
+# By inheriting from Resource, this model gains magical routing powers.
+class Task(Resource):
+    title: Mapped[str] = f(max_length=100, required=True)
+    description: Mapped[str] = f(widget="textarea", nullable=True) # Tells the UI to use a textarea!
+    is_completed: Mapped[bool] = f(default=False)
+```
+
+With just that simple definition, Eden has created:
+1.  **Form Schemas:** Pydantic forms for validation (Create/Update).
+2.  **HTML Views:** Pre-designed Jinja templates for DataTables, Create Forms, and Edit modal forms.
+3.  **Controllers:** Automatic HTMX-powered FastAPI routes.
+
+### Mounting the Resource
+
+To expose the auto-generated views, mount the Resource's router onto your main app:
+
+```python
+# main.py
+from eden.core import Eden
+from my_app.models import Task
+
+app = Eden()
+app.include_router(Task.router()) 
+```
+
+You can now visit `/tasks` in your browser and see a complete, styled administrative interface. 
+
+### Customizing Resource Actions
+
+What if you need a custom button on the table, or a unique API route? You can extend the Resource router easily.
+
+**Finding the URL:**
+Resources automatically generate standardized URLs. For the `Task` model, the routes are named:
+- `task_list`: `/tasks` (GET)
+- `task_create`: `/tasks/create` (GET/POST)
+- `task_update`: `/tasks/{id}/edit` (GET/POST)
+- `task_delete`: `/tasks/{id}/delete` (POST/DELETE)
+
+You can reference these in templates using the `@url` directive: `<a href="@url('task_update', id=task.id)">Edit</a>`.
+
+**Adding a Custom Action:**
+```python
+from eden import Request, HtmxResponse
+
+class Task(Resource):
+    # (fields go here...)
+
+    @classmethod
+    def setup_router(cls, router):
+        # Call super to generate the default CRUD routes
+        super().setup_router(router)
+        
+        # Add your own custom route to the router
+        @router.post("/{id}/complete", name="task_complete")
+        async def mark_complete(request: Request, id: str):
+            task = await cls.get(id=id)
+            await task.update(is_completed=True)
+            
+            # Using HTMX to automatically update the UI without reloading
+            return (
+                HtmxResponse("<span class='text-green-500'>Done!</span>")
+                .trigger("taskUpdated")
+            )
+```
+
+---
+
+## 🏗️ 5. Migrations (Alembic)
+
+When you modify your `Model` definitions, Eden needs to translate those changes into SQL commands to update your live database structure. Eden wraps Python's powerful **Alembic** migration tool.
+
+1.  **Make changes:** Modify `models.py`.
+2.  **Generate Migration:** From your terminal, run `eden db generate -m "added user profile"`.
+    *   Eden scans your models and generates a new Python file in the `migrations/versions/` folder containing the necessary `CREATE TABLE` or `ALTER TABLE` SQL commands.
+3.  **Apply Migration:** Run `eden db migrate`.
+    *   This executes the SQL against your Postgres/SQLite database.
+
+---
+
+## 🎓 Interactive Exercise: Master the ORM
+
+Now it's your turn to get your hands dirty! Open your terminal and experiment with these Eden ORM features.
+
+### Exercise 1: Advanced Filtering
+Try to find all tasks that are linked to a specific project and are NOT completed.
+*Hint: Use `.filter(project_id=..., is_completed=False)`.*
+
+### Exercise 2: Aggregations
+Calculate the total number of tasks in your database using the lifecycle hooks to auto-populate a "task_count" on the Project model.
+*Challenge: Can you use `Sum` or `Avg` to find the average completion rate of tasks?*
+
+### Exercise 3: JSON Mutations
+Create a model with a `JSON` field (e.g., `UserPreferences`). Update a nested key (like `theme: "dark" -> "light"`) and ensure it persists after a `.save()`.
+
+---
+
+**Up Next: [Phase 3: The Trunk (Forms, Templates & HTMX)](./phase-3.md)**

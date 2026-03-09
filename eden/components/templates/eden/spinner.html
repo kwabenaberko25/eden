@@ -1,0 +1,14 @@
+{# Eden — Spinner Component Template #}
+<div class="@if (center) { flex flex-col items-center justify-center gap-2 } @unless (center) { inline-flex items-center gap-2 }">
+
+  <div
+    class="{{ size_class }} rounded-full {{ color_class }} border-t-transparent animate-spin"
+    role="status"
+    aria-label="{{ label or 'Loading' }}">
+  </div>
+
+  @if (label) {
+  <span class="text-sm text-slate-400 animate-pulse">{{ label }}</span>
+  }
+
+</div>

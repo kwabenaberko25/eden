@@ -1,0 +1,79 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# --- Environments ---
+.venv/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.env
+.flaskenv
+
+# --- Dependency Managers ---
+# uv
+.uv/
+
+# --- Testing & Linting ---
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+nosetests.xml
+coverage.xml
+*.cover
+htmlcov/
+.hypothesis/
+
+# --- IDEs ---
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# --- Project Specific (Eden) ---
+*.sqlite
+*.sqlite3
+media/
+tmp/
+docs/build/
+# Debug/Trace files found in root
+debug_keys.txt
+full_trace.txt
+error_output.html
+queryset_errors.txt
+tenancy_errors.txt
+report.xml
+pytest_debug.log
+plan_*.md
+
+# --- AI Assistant Data ---
+.agent/logs/
+.agent/.metadata/

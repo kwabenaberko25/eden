@@ -1,0 +1,72 @@
+# Phase 14: Mission-Critical Testing 🧪
+
+In space, a single bug can be fatal. In this phase, we master **Eden Testing**—using `pytest` and `httpx` to build a bulletproof test suite for your Nexus.
+
+---
+
+## 🏗️ The Testing Architecture
+
+Eden is designed for testability. We use `AsyncClient` and `ASGITransport` to run full integration tests without a real web server.
+
+### 1. The App Fixture
+
+In your `tests/conftest.py`, define your application and client fixtures.
+
+```python
+import pytest
+from httpx import ASGITransport, AsyncClient
+from eden import Eden
+
+@pytest.fixture
+def app():
+    return Eden(title="Test Nexus", debug=True)
+
+@pytest.fixture
+async def client(app):
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as c:
+        yield c
+```
+
+---
+
+## ✍️ Writing Functional Tests
+
+Use the `client` fixture to simulate user interactions and verify responses.
+
+```python
+@pytest.mark.asyncio
+async def test_sector_creation(client):
+    response = await client.post("/api/sectors", json={"name": "Alpha-X"})
+    assert response.status_code == 201
+    assert response.json()["name"] == "Alpha-X"
+```
+
+---
+
+## 🛰️ Database Testing
+
+For database tests, use an in-memory SQLite instance to ensure speed and isolation.
+
+```python
+from eden import Database
+
+@pytest.fixture
+async def db():
+    database = Database("sqlite+aiosqlite:///:memory:")
+    await database.connect(create_tables=True)
+    yield database
+    await database.disconnect()
+```
+
+---
+
+## ✅ Verification
+
+To verify your Mission-Critical Testing:
+
+1. **Test Runner**: Run `pytest` in your terminal and ensure it discovers your tests.
+2. **Test Coverage**: Use `pytest-cov` to verify that your core logic is protected by "Elite" coverage.
+3. **Test Isolation**: Ensure that your database tests don't leak data between runs.
+
+If your test suite is green and your Nexus is bulletproof, your Testing engine is **100% Verified**. You are ready for the final mission: **Phase 15: Deep Space Production**.

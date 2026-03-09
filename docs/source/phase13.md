@@ -1,0 +1,76 @@
+# Phase 13: Interstellar Logistics (Payments) 💳
+
+Monetizing your Eden is a critical mission. In this phase, we master **Eden Payments**—a unified interface for handling subscriptions, checkouts, and webhooks with Stripe.
+
+---
+
+## 🏗️ The Payment Provider
+
+Eden encapsulates provider-specific logic into a `PaymentProvider`. Stripe is supported out-of-the-box.
+
+```python
+from eden.payments import StripeProvider
+
+provider = StripeProvider(
+    api_key="sk_test_...",
+    webhook_secret="whsec_..."
+)
+
+# Configure app-wide
+app.configure_payments(provider)
+```
+
+---
+
+## 🚀 Creating a Checkout
+
+Launch a pre-built Stripe Checkout session with a single command.
+
+```python
+from eden.responses import RedirectResponse
+
+@app.get("/subscribe")
+async def start_checkout(request):
+    checkout_url = await app.payments.create_checkout_session(
+        customer_id=user.stripe_id,
+        price_id="price_premium_123",
+        success_url="https://Eden.io/success",
+        cancel_url="https://Eden.io/cancel"
+    )
+    return RedirectResponse(checkout_url)
+```
+
+---
+
+## 🛰️ The Webhook Router
+
+Webhooks are the heartbeat of payment processing. Eden's `WebhookRouter` handles signature verification and event dispatching automatically.
+
+```python
+from eden.payments import WebhookRouter
+
+webhooks = WebhookRouter()
+
+@webhooks.on("checkout.session.completed")
+async def handle_completion(event_data: dict):
+    # Grant user access to premium sectors
+    ...
+
+# Mount the webhook endpoint
+app.mount_webhooks("/webhooks/stripe", webhooks)
+```
+
+**Note**: Eden automatically deduplicates events using a `PaymentEvent` model to prevent double-processing.
+
+---
+
+## ✅ Verification
+
+To verify your Interstellar Logistics:
+
+1. **Test Checkout Redirect**: Ensure the `/subscribe` route redirects to the Stripe hosted page.
+2. **Test Webhook Signature**: Use the Stripe CLI to send a test webhook and verify it passes signature check.
+3. **Test Deduplication**: Send the same event ID twice and verify that the second attempt returns `already_processed`.
+
+If your Eden is successfully processing credits across the galaxy, your Payments engine is **100% Verified**. You are ready for **Phase 14: Mission-Critical Testing**.
+

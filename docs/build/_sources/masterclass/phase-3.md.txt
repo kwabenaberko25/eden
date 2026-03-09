@@ -1,0 +1,424 @@
+# Phase 3: The Trunk (Forms, Templates & HTMX) 🌳
+
+While producing JSON APIs is crucial, Eden shines brightest as a full-stack framework. In this phase, we master the "Trunk" of our application: the user interface. 
+
+Eden merges **Pydantic Validation**, **Modern Template Directives**, and **HTMX Interactivity** to build dynamic Single Page Applications (SPAs) without writing a single line of custom JavaScript.
+
+---
+
+## 🏗️ 1. Pydantic-Powered Forms
+
+Let's start by safely accepting user input. Eden's `BaseForm` bridges the gap between Python types, HTML rendering, and validation.
+
+### Generating Forms from Resources
+
+If you are using the `Resource` pattern from Phase 2, form creation is incredibly integrated.
+
+```python
+from eden.resources import Resource
+from eden.db import f
+
+class Task(Resource):
+    title: Mapped[str] = f()
+    completed: Mapped[bool] = f(default=False)
+```
+
+In your view logic, you can easily access an empty or populated form:
+
+```python
+# Create an empty form structure for creation
+form = Task.get_form()
+
+# Create a form pre-populated with an existing instance's data for editing
+existing_task = await Task.get(id="...")
+form = existing_task.Form
+```
+
+### Manual Forms with `BaseModel`
+
+You are not tied to the database! You can use raw Pydantic schemas to construct entirely custom logic forms (like login, filters, or search forms):
+
+```python
+from pydantic import BaseModel
+from eden.forms import BaseForm
+
+class ContactSchema(BaseModel):
+    name: str
+    message: str
+
+# Inside your route
+async def contact_post(request):
+    # BaseForm automatically handles standard layout data OR multipart uploads
+    form = await BaseForm.from_multipart(ContactSchema, request)
+    
+    if form.is_valid():
+        print(f"Validated! {form.model_instance.name}")
+        # Proceed with business logic...
+    else:
+        # Re-render the form. Form errors are gracefully attached to `form.errors`
+        return request.app.render("contact.html", {"form": form})
+```
+
+---
+
+## 🎨 2. Form Rendering in Templates
+
+Eden templates give you immense flexibility in how you display forms. Fields automatically receive HTML attributes (like `required`) based on your Pydantic boundaries.
+
+### Method 1: The Magic `@render_field`
+
+The absolute fastest way to render a field. This directive outputs the complete package: the `<label>`, the actual `<input>` (or `<textarea>`, `<select>`), and any `<span class="error">` validation messages underneath.
+
+```html
+<form method="POST">
+    @csrf
+    
+    <!-- Automatically infers it's a Text input -->
+    @render_field(form['title'], class="input-modern", placeholder="Task Title")
+    
+    <button type="submit">Save File</button>
+</form>
+```
+
+### Method 2: High-Control Individual Rendering
+
+For complex CSS designs, you might not want the composite wrapper. You can access methods on individual form fields via `#{{ form['field_name'] }}`.
+
+```html
+<form method="POST">
+    @csrf
+    
+    <div class="custom-layout">
+        <div class="label-wrapper">
+            {{ form['description'].render_label()|safe }}
+        </div>
+        
+        <div class="input-wrapper">
+            <!-- Explicit widget overrides -->
+            {{ form['description'].as_textarea(rows="4", class="textarea-premium") }}
+            
+            @if(form['description'].error) {
+                <p class="text-red-500 font-bold mb-2">{{ form['description'].error }}</p>
+            }
+        </div>
+    </div>
+</form>
+```
+
+**Available Field Modifiers:**
+Eden's `FormField` includes several `.as_XXX()` casting methods and CSS modifiers to build precise UIs:
+- `{{ form['field'].render(class="foo") }}`: Standard text input rendering.
+- `{{ form['field'].as_hidden() }}`: `<input type="hidden">`
+- `{{ form['field'].as_textarea(rows=5) }}`: Multi-line `<textarea>`
+- `{{ form['field'].as_select(choices) }}`: `<select>` dropdown.
+- `{{ form['field'].as_file(accept='image/*') }}`: File upload input.
+- `{{ form['field'].add_class("font-bold") }}`: Appends Tailwind classes cleanly.
+- `{{ form['field'].add_error_class("border-red-500") }}`: Applies a class *only* if the field failed Pydantic validation.
+
+### Method 3: Iterate and Automatic `render_all()`
+
+If you just need a functional admin screen immediately:
+```html
+<form method="POST">
+    @csrf
+    {{ form.render_all()|safe }}
+    <button>Submit</button>
+</form>
+```
+Or iterate over them for custom layout rules:
+```html
+@for(field in form) {
+    <div class="col-span-12">
+        @render_field(field)
+    </div>
+}
+```
+
+---
+
+## ✨ 3. Modern Templating: Eden Directives
+
+Eden extends Jinja2 with a fast, modern "Directive" syntax heavily inspired by Blade and modern frontend frameworks. This cleans up templating significantly, removing the clunky `{% %}` syntax for logic.
+
+### Structural Directives
+
+Instead of verbose inheritance `{% extends 'base.html' %}`, you write:
+
+```html
+@extends("base.html")
+
+<!-- @section acts as your content blocks -->
+@section("content") {
+    <h1>Welcome to the Sector</h1>
+}
+
+<!-- Use @include to pull in sub-templates quickly -->
+@include("partials/navbar.html")
+```
+
+### Control Flow
+
+Notice the usage of scope braces `{}` rather than `endif` / `endfor`.
+
+```html
+<!-- Conditionals -->
+@if(user.is_admin) {
+    <button>Delete Sector</button>
+} @else if(user.role == 'manager') {
+    <button>Archive</button>
+} @else {
+    <button disabled>Restricted</button>
+}
+
+<!-- Loops. The 'as' keyword is fully supported! -->
+<ul>
+@for(task in tasks) {
+    <li>{{ task.title }}</li>
+} @empty {
+    <li>No tasks found today!</li>
+}
+</ul>
+```
+
+### Security & State Checks
+
+```html
+<!-- Auth checks -->
+@auth {
+    <p>Welcome back, {{ request.user.email }}</p>
+}
+@guest {
+    <a href="/login">Please Sign In</a>
+}
+
+<!-- Generate URLs effortlessly. 'core_dashboard' resolves mapped endpoints -->
+<a href="@url('core_dashboard')">Home</a>
+
+<!-- Active Link Checks - Applies the class ONLY if the current URL matches the route -->
+<a href="@url('tasks')" @active_link('tasks', 'border-b-2 border-blue-500')>
+    View Tasks
+</a>
+```
+
+### Component Architecture (`@component`, `@slot`)
+
+Eden possesses a rich component system allowing you to build reusable UI elements without duplicating HTML. 
+
+**Define the Component (`components/card.html`):**
+```html
+<div class="bg-gray-800 shadow-lg rounded-xl p-6">
+    <div class="card-header text-blue-500 font-bold">
+        <!-- A named slot -->
+        @slot("header") {
+            Default Title
+        }
+    </div>
+    
+    <div class="card-body">
+        <!-- The default anonymous slot -->
+        @yield("content")
+    </div>
+</div>
+```
+
+**Use the Component (`dashboard.html`):**
+```html
+@component("components/card.html", class="mt-4") {
+    
+    <!-- Injecting into the named slot -->
+    @slot("header") {
+        <h3>Server Metrics</h3>
+    }
+    
+    <!-- Everything else falls into the anonymous slot -->
+    <p>CPU Usage: 45%</p>
+    <p>Memory: 1.2GB</p>
+}
+```
+
+---
+
+## ⚡ 4. HTMX Integration: The Premium SPA Experience
+
+Eden treats HTTP requests as capable UI events. We leverage HTMX heavily to achieve Single Page Application (SPA) reactivity without bulky frontend JavaScript payloads like React or Vue.
+
+Eden is "HTMX-Native". It automatically detects HTMX requests and provides a fluent API for controlling the client from the server.
+
+### 4.1 The `HtmxResponse` Fluent API
+
+When returning responses from a server action, `HtmxResponse` gives you chainable methods to control the browser directly from your Python route.
+
+```python
+from eden.htmx import HtmxResponse, is_htmx
+from eden import Router
+
+router = Router()
+
+@router.post("/tasks/{id}/toggle")
+async def toggle_task(request, id: str):
+    task = await Task.get(id=id)
+    await task.update(completed=not task.completed)
+    
+    # Standard HTML response
+    html = f"<button class='success'>{'Done' if task.completed else 'Pending'}</button>"
+    
+    if is_htmx(request):
+        # We can control the browser directly from the server!
+        return (
+            HtmxResponse(html)
+            .trigger("taskToggled", {"task_id": id}) # Fires a JS event on the client
+            .swap("outerHTML")                       # Instructs HTMX how to swap the HTML
+            .retarget(f"#task-btn-{id}")             # Changes where the HTML is injected
+            # .hx_redirect("/success")               # (Optional) Native client-side redirect
+        )
+    return html
+```
+
+### 4.2 The Auto-Fragment Power (`@fragment`)
+
+What if you have a massive page, but you only want to update a small table inside it when an HTMX request is triggered?
+
+In other frameworks, you have to write *two* routes: one for the full page, one for the partial table. **Not in Eden.**
+
+**In your template (`dashboard.html`):**
+
+```html
+@extends("base.html")
+
+<div class="sidebar">...</div>
+
+<div class="main-content">
+    <!-- Notice this fragment block wrapper -->
+    @fragment("table_chunk") {
+        <table id="task-table">
+            @for(task in tasks) {
+                <tr><td>{{ task.title }}</td></tr>
+            }
+        </table>
+    }
+</div>
+```
+
+**In your view:**
+```python
+@router.get("/dashboard")
+async def dashboard(request):
+    tasks = await Task.all()
+    # 1. If a standard request hits this, it renders the FULL page.
+    # 2. If an HTMX request specifies `hx-target="#task-table"`, OR explicitly passes
+    #    the fragment name in the context, Eden automatically intercepts it and ONLY
+    #    renders the "table_chunk" fragment, saving huge amounts of bandwidth!
+    return request.app.render("dashboard.html", {"tasks": tasks})
+```
+
+---
+
+### 4.3 Practical Example: Active Search
+
+Here is how you build a lightning-fast live search that filters a table as the user types, using Eden and HTMX.
+
+**The Search Input (HTML):**
+```html
+<!-- 
+  hx-get: Where to send the request
+  hx-target: Where to put the results
+  hx-trigger: Fire on 'keyup', but wait 300ms (debounce) to avoid spamming the server
+-->
+<input type="search" 
+       name="q" 
+       placeholder="Search tasks..." 
+       class="input-premium"
+       hx-get="/tasks/search" 
+       hx-trigger="keyup changed delay:300ms, search" 
+       hx-target="#search-results">
+
+<div id="search-results">
+    <!-- Results inject here -->
+</div>
+```
+
+**The Server Route (Python):**
+```python
+@router.get("/tasks/search")
+async def search_tasks(request, q: str = ""):
+    # Query your Eden Models
+    tasks = await Task.filter(Task.title.ilike(f"%{q}%"))
+    
+    # Return just a partial fragment!
+    return request.app.render("partials/task_list.html", {"tasks": tasks})
+```
+
+### 4.4 Practical Example: Infinite Scroll
+
+To build infinite scroll (like Twitter or Instagram) without JavaScript, you just trigger an HTMX request when the last element enters the viewport.
+
+**The Template (`partials/task_list.html`):**
+```html
+@for(task in tasks) {
+    <!-- 
+      For the LAST item in the loop, we add HTMX attributes.
+      'revealed' means HTMX fires when this element scrolls into view.
+      'hx-swap="afterend"' appends the new results to the bottom of the list.
+    -->
+    @if(loop.last and has_more_pages) {
+        <div class="task-card"
+             hx-get="/tasks?page={{ current_page + 1 }}"
+             hx-trigger="revealed"
+             hx-swap="afterend">
+            {{ task.title }}
+        </div>
+    } @else {
+        <div class="task-card">
+            {{ task.title }}
+        </div>
+    }
+}
+```
+
+### 4.5 Practical Example: Inline Form Validation
+
+You can validate Pydantic forms instantly as the user types.
+
+**The Form:**
+```html
+<form hx-post="/users/create" hx-target="this" hx-swap="outerHTML">
+    @csrf
+    
+    <!-- Validate the email field when the user clicks away (blur) -->
+    <div hx-target="this" hx-swap="outerHTML">
+        <label>Email</label>
+        <input type="email" name="email" value="{{ form['email'].value }}"
+               hx-post="/users/validate-email">
+        
+        @if(form['email'].error) {
+            <span class="text-red-500 text-sm">{{ form['email'].error }}</span>
+        }
+    </div>
+    
+    <button type="submit">Create User</button>
+</form>
+```
+
+**The Server Route:**
+```python
+@router.post("/users/validate-email")
+async def validate_email(request):
+    # BaseForm can validate single fields out of a larger schema
+    form = await BaseForm.from_multipart(UserSchema, request)
+    
+    # Even if other fields are missing, we only care if 'email' is valid for this check
+    form.validate_field('email') 
+    
+    # Return just the Email input HTML snippet (with or without the error span!)
+    return request.app.render("partials/email_input.html", {"form": form})
+```
+
+---
+
+### 🎉 Phase 3 Complete
+
+You now have a deep understanding of standardizing input with Pydantic Forms, writing clean UIs with Eden Template Directives, and supercharging interactivity with HTMX!
+
+Your frontend logic is **100% Verified**. Next, we lock down our system to secure our sectors.
+
+**Up Next: [Phase 4: The Branches (Security, RBAC & Isolation)](./phase-4.md)**

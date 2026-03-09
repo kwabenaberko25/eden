@@ -1,0 +1,258 @@
+# Phase 7: Templating
+
+This phase covers Eden's template engine, including standard HTML and framework-specific syntax.
+
+---
+
+## What You'll Learn
+
+- Template setup and configuration
+- Eden template syntax (@extends, @block, @if, @for)
+- Template inheritance
+- Custom filters
+- HTMX integration
+- Static files
+
+---
+
+## 7.1 Template Setup
+
+**Basic** - Configure templates:
+
+```python
+from eden import Eden
+
+app = Eden(title="My App")
+app.template_dir = "templates"
+```
+
+---
+
+## 7.2 Eden Template Syntax
+
+Eden uses clean directive-based syntax:
+
+### Template Inheritance
+
+**Base template** (`templates/base.html`):
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>@yield('title', 'My App')</title>
+</head>
+<body>
+    @yield('content')
+</body>
+</html>
+```
+
+**Child template**:
+```html
+@extends('base.html')
+
+@block('title') {
+    Home Page
+}
+
+@block('content') {
+    <h1>Welcome!</h1>
+}
+```
+
+---
+
+## 7.3 Conditionals
+
+```html
+@if(user.is_logged_in) {
+    <p>Welcome, {{ user.name }}!</p>
+} @else {
+    <p><a href="/login">Login</a></p>
+}
+```
+
+---
+
+## 7.4 Loops
+
+```html
+@for(post in posts) {
+    <article>
+        <h2>{{ post.title }}</h2>
+        <p>{{ post.excerpt }}</p>
+    </article>
+}
+```
+
+---
+
+## 7.5 Template Context
+
+**Basic** - Pass data to templates:
+
+```python
+@router.get("/")
+async def index(request):
+    return app.render("index.html", {
+        "user": {"name": "Alice", "is_logged_in": True},
+        "posts": [
+            {"title": "Hello", "excerpt": "World"},
+            {"title": "Eden", "excerpt": "Framework"}
+        ]
+    })
+```
+
+---
+
+## 7.6 Filters
+
+**Built-in filters**:
+
+```html
+{{ post.created_at|time_ago }}
+{{ data|json }}
+{{ price|currency }}
+{{ text|truncate(50) }}
+```
+
+---
+
+## 7.7 CSRF Protection
+
+```html
+<form method="POST" action="/submit">
+    @csrf
+    <input type="text" name="message">
+    <button type="submit">Submit</button>
+</form>
+```
+
+---
+
+## 7.8 HTMX Integration
+
+**Partial rendering with @fragment**:
+
+```html
+@block('content') {
+    <div id="counter">
+        @fragment('counter') {
+            <p>Count: {{ count }}</p>
+            <button hx-get="/increment" hx-target="#counter">
+                Increment
+            </button>
+        }
+    </div>
+}
+```
+
+**Conditional rendering**:
+
+```html
+@htmx {
+    <div class="toast">Saved!</div>
+}
+
+@non_htmx {
+    <p>Form saved successfully!</p>
+}
+```
+
+---
+
+## 7.9 Static Files
+
+**Basic** - Serve static files:
+
+```python
+app.static_dir = "static"
+```
+
+```html
+<link rel="stylesheet" href="/static/css/style.css">
+<script src="/static/js/app.js"></script>
+```
+
+---
+
+## 7.10 Complete Example
+
+**templates/base.html**:
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>@yield('title', 'Blog')</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <nav>
+        <a href="/">Home</a>
+        @if(user.is_logged_in) {
+            <a href="/dashboard">Dashboard</a>
+            <a href="/logout">Logout</a>
+        } @else {
+            <a href="/login">Login</a>
+        }
+    </nav>
+    
+    <main>
+        @yield('content')
+    </main>
+    
+    <script src="/static/js/main.js"></script>
+</body>
+</html>
+```
+
+**templates/posts/list.html**:
+```html
+@extends('base.html')
+
+@block('title') {
+    All Posts
+}
+
+@block('content') {
+    <h1>Blog Posts</h1>
+    
+    @if(posts) {
+        @for(post in posts) {
+            <article class="post">
+                <h2><a href="/posts/{{ post.id }}">{{ post.title }}</a></h2>
+                <p>{{ post.excerpt }}</p>
+                <small>By {{ post.author.name }} on {{ post.created_at|date }}</small>
+            </article>
+        }
+    } @else {
+        <p>No posts yet.</p>
+    }
+}
+```
+
+---
+
+## Summary
+
+You learned:
+- Template setup and configuration
+- Eden template syntax (@extends, @block, @if, @for)
+- Template inheritance
+- Passing context to templates
+- Built-in filters
+- CSRF protection
+- HTMX integration
+- Static files
+
+---
+
+## Next Steps
+
+Continue to **Phase 8: Real-World Patterns**
+
+```{toctree}
+:maxdepth: 1
+
+tutorial/08_realworld_patterns
+```

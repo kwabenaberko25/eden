@@ -1,0 +1,10 @@
+# Introduction
+
+Welcome to the Eden Framework documentation. This section covers everything you need to get started.
+
+```{toctree}
+:maxdepth: 1
+
+quickstart
+installation
+```

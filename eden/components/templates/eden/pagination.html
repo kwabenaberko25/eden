@@ -1,0 +1,75 @@
+{# Eden — Pagination Component Template #}
+<nav aria-label="Pagination" class="flex items-center justify-between gap-4 flex-wrap mt-4">
+
+  {# Page Info #}
+  @if (show_info) {
+  <p class="text-sm text-slate-400">
+    Page <span class="text-slate-200 font-medium">{{ page.page }}</span>
+    of <span class="text-slate-200 font-medium">{{ page.total_pages }}</span>
+    &nbsp;·&nbsp; {{ page.total }} total
+  </p>
+  }
+
+  {# Page Number Buttons #}
+  @if (page_range) {
+  <div class="flex items-center gap-1">
+
+    {# Prev #}
+    @if (page.has_prev) {
+    <a href="?{{ url_param }}={{ page.page - 1 }}"
+       @if (htmx) { hx-get="?{{ url_param }}={{ page.page - 1 }}" hx-target="{{ target }}" hx-push-url="true" }
+       class="px-3 py-1.5 rounded-lg text-sm text-slate-300 bg-gray-800 border border-gray-700
+              hover:bg-gray-700 hover:text-slate-100 transition-colors duration-200"
+       aria-label="Previous page">
+      ← Prev
+    </a>
+    }
+    @unless (page.has_prev) {
+    <span class="px-3 py-1.5 rounded-lg text-sm text-slate-600 bg-gray-900 border border-gray-800 cursor-not-allowed">
+      ← Prev
+    </span>
+    }
+
+    {# Page numbers #}
+    @for (p in page_range) {
+      @if (p is none) {
+      <span class="px-2 py-1.5 text-slate-500 select-none">…</span>
+      }
+      @unless (p is none) {
+        @if (p == page.page) {
+        <span class="px-3 py-1.5 rounded-lg text-sm font-semibold bg-blue-600 text-white
+                    border border-blue-500 shadow shadow-blue-500/25">
+          {{ p }}
+        </span>
+        }
+        @unless (p == page.page) {
+        <a href="?{{ url_param }}={{ p }}"
+           @if (htmx) { hx-get="?{{ url_param }}={{ p }}" hx-target="{{ target }}" hx-push-url="true" }
+           class="px-3 py-1.5 rounded-lg text-sm text-slate-300 bg-gray-800 border border-gray-700
+                  hover:bg-gray-700 hover:text-slate-100 transition-colors duration-200">
+          {{ p }}
+        </a>
+        }
+      }
+    }
+
+    {# Next #}
+    @if (page.has_next) {
+    <a href="?{{ url_param }}={{ page.page + 1 }}"
+       @if (htmx) { hx-get="?{{ url_param }}={{ page.page + 1 }}" hx-target="{{ target }}" hx-push-url="true" }
+       class="px-3 py-1.5 rounded-lg text-sm text-slate-300 bg-gray-800 border border-gray-700
+              hover:bg-gray-700 hover:text-slate-100 transition-colors duration-200"
+       aria-label="Next page">
+      Next →
+    </a>
+    }
+    @unless (page.has_next) {
+    <span class="px-3 py-1.5 rounded-lg text-sm text-slate-600 bg-gray-900 border border-gray-800 cursor-not-allowed">
+      Next →
+    </span>
+    }
+
+  </div>
+  }
+
+</nav>

@@ -1,0 +1,54 @@
+{# Eden — Data Table Component Template #}
+<div class="w-full overflow-x-auto rounded-xl border border-gray-700">
+  <table class="w-full text-sm text-left">
+
+    {# Header #}
+    <thead class="bg-gray-900/60 border-b border-gray-700">
+      <tr>
+        @for (col in headers) {
+        <th scope="col"
+            class="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-slate-400
+                   @if (sortable) { cursor-pointer hover:text-slate-200 hover:bg-gray-800/60 transition-colors select-none }">
+          @if (sortable and sort_url) {
+          <a href="{{ sort_url }}{{ col | lower | replace(' ', '_') }}"
+             class="flex items-center gap-1.5 group">
+            {{ col }}
+            <span class="opacity-30 group-hover:opacity-100 transition-opacity">↕</span>
+          </a>
+          }
+          @unless (sortable and sort_url) {
+          {{ col }}
+          }
+        </th>
+        }
+      </tr>
+    </thead>
+
+    {# Body #}
+    <tbody class="divide-y divide-gray-800">
+
+      @if (rows) {
+        @for (row in rows) {
+        <tr class="@if (striped and loop.index is odd) { bg-gray-800/30 }
+                   @if (hoverable) { hover:bg-gray-700/40 }
+                   transition-colors duration-150">
+          @for (cell in row) {
+          <td class="px-5 py-3.5 text-slate-300 whitespace-nowrap">{{ cell }}</td>
+          }
+        </tr>
+        }
+      }
+
+      @unless (rows) {
+      <tr>
+        <td colspan="{{ headers | length }}"
+            class="px-5 py-12 text-center text-slate-500">
+          {{ empty_message }}
+        </td>
+      </tr>
+      }
+
+    </tbody>
+
+  </table>
+</div>

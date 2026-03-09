@@ -1,0 +1,171 @@
+# Phase 2: The Data Forge (ORM & Evolution) ⚒️
+
+Data is the lifeblood of **Eden Nexus**. In this phase, we will master the **Eden ORM**—a high-performance, asynchronous engine powered by SQLAlchemy 2.0 but optimized for elite developer productivity. This phase now covers both schema definition and evolution.
+
+---
+
+## 🏗️ Connecting to the Core
+
+Before we define our entities, we must establish a link to the persistent storage. Eden supports SQLite (local) and PostgreSQL (production) with the same "Elite" interface.
+
+### 1. Initializing the Database
+
+In your `app.py`, initialize the `Database` manager.
+
+```python
+from eden.db import Database
+
+# 🔌 Initialize the local database link
+db = Database("sqlite+aiosqlite:///nexus.db")
+```
+
+### 2. The Connection Lifecycle
+
+To ensure the database is ready when requests arrive, hook it into Eden's startup event.
+
+```python
+from eden import Eden
+app = Eden(debug=True, title="Eden Nexus")
+
+@app.on_startup
+async def startup_db():
+    # 🚀 Ignite the database connection
+    await db.connect()
+
+@app.on_shutdown
+async def shutdown_db():
+    # 💤 Gracefully close the connection
+    await db.disconnect()
+```
+
+---
+
+## 🧱 Defining Portal Entities
+
+Modify your `models.py` file to define the core entities of the Nexus. Eden models use **SQLAlchemy 2.0's Mapped** syntax combined with Eden's field helpers.
+
+### 1. Elite Field Types
+
+Eden provides clean helpers in `eden.db` that return configured `mapped_column` instances.
+
+| Helper | Type | Common Arguments |
+| :--- | :--- | :--- |
+| `StringField` | `str` | `max_length`, `unique`, `required` |
+| `IntField` | `int` | `index`, `unique`, `default` |
+| `BoolField` | `bool` | `default` |
+| `DateTimeField` | `datetime` | `auto_now`, `auto_now_add` |
+| `UUIDField` | `uuid.UUID` | `primary_key`, `default_factory` |
+| `JSONField` | `dict` | `default` |
+
+### 3. The Zen Helper `f()` 🧘
+
+For the most compact and "Elite" experience, Eden provides the `f()` helper. It intelligently infers types and sets up common metadata for forms and validation.
+
+```python
+from eden.db import EdenModel, Mapped, f
+
+class Sector(EdenModel):
+    __tablename__ = "sectors"
+    
+    # Intelligently inferred from arguments
+    name: Mapped[str] = f(max_length=150, required=True, unique=True)
+    description: Mapped[str] = f(widget="textarea")
+    launch_date: Mapped[datetime] = f(auto_now_add=True)
+    capacity: Mapped[int] = f(default=100, min=0, max=500)
+```
+
+---
+
+### 2. The Sector Entity (Expanded)
+
+```python
+from eden.db import EdenModel, Mapped, StringField, BoolField, DateTimeField, IntField
+
+class Sector(EdenModel):
+    """Persistent storage for Sector metadata."""
+    __tablename__ = "sectors"
+    
+    # Required field (nullable=False)
+    name: Mapped[str] = StringField(max_length=150, required=True, unique=True)
+    slug: Mapped[str] = StringField(max_length=50, required=True, unique=True, index=True)
+    
+    # Field with default
+    is_active: Mapped[bool] = BoolField(default=True)
+    
+    # Auto-timestamps
+    created_at: Mapped[datetime] = DateTimeField(auto_now_add=True)
+    last_sync: Mapped[datetime] = DateTimeField(auto_now=True)
+```
+
+---
+
+## 🔗 Forging Relationships
+
+Eden simplifies relationship management with intelligent late-binding.
+
+### 1. One-to-Many
+
+Suppose every **Sector** has multiple **Drones**.
+
+```python
+from eden.db import ForeignKeyField, Relationship
+
+class Drone(EdenModel):
+    __tablename__ = "drones"
+    
+    serial_number: Mapped[str] = StringField(unique=True)
+    # Link to Sector
+    sector_id: Mapped[uuid.UUID] = ForeignKeyField("sectors.id", required=True)
+    
+    # The back-reference
+    sector: Mapped["Sector"] = Relationship("Sector", back_populates="drones")
+
+# Update Sector to include the collection
+class Sector(EdenModel):
+    # ... previous fields ...
+    drones: Mapped[list["Drone"]] = Relationship("Drone", back_populates="sector")
+```
+
+### 2. Many-to-Many
+
+For complex systems, use `ManyToManyField`. For example, **Sectors** can have multiple **Security Protocols**.
+
+```python
+from eden.db import ManyToManyField
+
+class Protocol(EdenModel):
+    __tablename__ = "protocols"
+    name: Mapped[str] = StringField(unique=True)
+    
+    sectors: Mapped[list["Sector"]] = ManyToManyField("Sector", through="rel_sector_protocols")
+```
+
+---
+
+## 🧬 Forge Evolutions (Migrations)
+
+As the Nexus grows, use **Forge** to evolve your schema safely.
+
+### 1. Generating a Migration
+
+When you change a model, detect the diff automatically:
+
+```bash
+uv run eden forge generate -m "Add telemetry fields to sector"
+```
+
+### 2. Applying the Change
+
+```bash
+uv run eden forge migrate
+```
+
+---
+
+## ✅ Verification
+
+1. **Verify Connection**: Run `python app.py` and check for `nexus.db`.
+2. **Verify Schema**: Run `eden forge migrate` and inspect the tables.
+3. **Verify Modeling**: Ensure `models.py` imports `EdenModel` and uses `Mapped` consistently.
+
+If all pass, your Data Forge is **100% Verified**. You are ready for **Phase 3: The QuerySet API**.

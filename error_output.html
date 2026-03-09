@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <title>Eden — Template Error</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Outfit:wght@600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0F172A;
+            --surface: rgba(30, 41, 59, 0.7);
+            --primary: #2563EB;
+            --danger: #EF4444;
+            --warning: #F59E0B;
+            --text-main: #E2E8F0;
+            --text-muted: #94A3B8;
+            --border: rgba(255, 255, 255, 0.1);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text-main);
+            line-height: 1.6;
+            padding: 40px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .container { max-width: 1000px; width: 100%; }
+        .header { margin-bottom: 32px; }
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--danger);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 99px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-bottom: 12px;
+        }
+        h1 { font-family: 'Outfit', sans-serif; font-size: 2.5rem; letter-spacing: -1px; margin-bottom: 8px; }
+        .sub-header { color: var(--text-muted); font-size: 1.1rem; }
+        .sub-header b { color: var(--text-main); }
+
+        .glass-panel {
+            background: var(--surface);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 32px;
+            margin-bottom: 24px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+        }
+
+        .error-message {
+            font-family: 'JetBrains Mono', monospace;
+            background: rgba(239, 68, 68, 0.1);
+            border-left: 4px solid var(--danger);
+            padding: 16px;
+            border-radius: 4px;
+            font-size: 0.95rem;
+            margin-bottom: 24px;
+            color: #fca5a5;
+        }
+
+        .code-frame {
+            background: #0a0f1d;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+        }
+        .code-header {
+            background: rgba(255,255,255,0.05);
+            padding: 10px 16px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            color: var(--text-muted);
+            font-size: 0.75rem;
+        }
+        .code-body { padding: 16px 0; overflow-x: auto; }
+        .error-line { background: rgba(239, 68, 68, 0.2); border-left: 3px solid var(--danger); }
+        .normal-line { opacity: 0.7; border-left: 3px solid transparent; }
+        .line-no { 
+            display: inline-block; 
+            width: 45px; 
+            text-align: right; 
+            padding-right: 15px; 
+            color: #4b5563; 
+            user-select: none;
+        }
+        
+        .debug-section { margin-top: 32px; }
+        .debug-section h3 { font-size: 1.1rem; margin-bottom: 16px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
+        
+        .vars-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; font-family: 'JetBrains Mono', monospace; }
+        .vars-table td { padding: 8px 12px; border-bottom: 1px solid var(--border); }
+        .vars-table .key { color: var(--primary); font-weight: 600; width: 25%; }
+        .vars-table .val { color: #a5b4fc; word-break: break-all; opacity: 0.9; }
+        .table-wrapper { 
+            background: rgba(0,0,0,0.2); 
+            border-radius: 8px; 
+            overflow: hidden; 
+            border: 1px solid var(--border); 
+        }
+
+        .health-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+        .health-item {
+            background: rgba(255,255,255,0.03);
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            font-size: 0.8rem;
+        }
+        .health-item .lb { color: var(--text-muted); display: block; font-size: 0.7rem; text-transform: uppercase; margin-bottom: 4px; }
+
+        .footer { text-align: center; margin-top: 40px; color: var(--text-muted); font-size: 0.85rem; }
+        .footer span { color: var(--primary); font-weight: 600; }
+        
+        /* Pygments Overrides for Dark */
+        .err { color: var(--danger); }
+        .k { color: #c678dd; } /* Keyword */
+        .s { color: #98c379; } /* String */
+        .na { color: #d19a66; } /* Attribute */
+        .cp { color: #e5c07b; } /* Directive/Comment */
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <span class="badge">Syntax Error</span>
+            <h1>Template Error</h1>
+            <p class="sub-header">In <b>error_test.html</b> on line <b>7</b></p>
+        </div>
+
+        <div class="glass-panel">
+            <div class="error-message">
+                Encountered unknown tag &#x27;invalid_jinja_tag&#x27;. Jinja was looking for the following tags: &#x27;elif&#x27; or &#x27;else&#x27; or &#x27;endif&#x27;. The innermost block that needs to be closed is &#x27;if&#x27;.
+            </div>
+
+            <div class="code-frame">
+                <div class="code-header">
+                    <span>error_test.html</span>
+                    <span>Line 7</span>
+                </div>
+                <div class="code-body">
+                    <div class="normal-line"><span class="line-no">   2</span><span class="p">&lt;</span><span class="nt">html</span><span class="p">&gt;</span>
+</div><div class="normal-line"><span class="line-no">   3</span><span class="p">&lt;</span><span class="nt">body</span><span class="p">&gt;</span>
+</div><div class="normal-line"><span class="line-no">   4</span>    <span class="p">&lt;</span><span class="nt">h1</span><span class="p">&gt;</span>Hello {{ name }}<span class="p">&lt;/</span><span class="nt">h1</span><span class="p">&gt;</span>
+</div><div class="normal-line"><span class="line-no">   5</span>    @if (user.is_admin) {
+</div><div class="normal-line"><span class="line-no">   6</span>        <span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>Admin panel<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+</div><div class="error-line"><span class="line-no">   7</span>        {% invalid_jinja_tag %}
+</div><div class="normal-line"><span class="line-no">   8</span>    }
+</div><div class="normal-line"><span class="line-no">   9</span><span class="p">&lt;/</span><span class="nt">body</span><span class="p">&gt;</span>
+</div><div class="normal-line"><span class="line-no">  10</span><span class="p">&lt;/</span><span class="nt">html</span><span class="p">&gt;</span>
+</div>
+                </div>
+            </div>
+
+            
+            
+        <div class='debug-section'>
+            <h3>Environment Details</h3>
+            <div class='health-grid'>
+                <div class='health-item'><span class='lb'>Platform</span> Windows 11</div>
+                <div class='health-item'><span class='lb'>Python</span> 3.13.9</div>
+                <div class='health-item'><span class='lb'>Eden Version</span> 0.1.0</div>
+                <div class='health-item'><span class='lb'>Debug Mode</span> ON</div>
+            </div>
+        </div>
+        
+        </div>
+
+        <div class="footer">
+            Powered by <span>Eden 🌿</span> — <a href="/" style="color: inherit; text-decoration: none;">Go Home</a>
+        </div>
+    </div>
+</body>
+</html>
