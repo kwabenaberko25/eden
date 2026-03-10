@@ -125,8 +125,18 @@ class AdminSite:
 # Global default admin site
 admin = AdminSite()
 
+class TabularInline:
+    """
+    Stub for TabularInline admin classes.
+    Allows defining related models to be edited inline on the parent page.
+    """
+    model: type | None = None
+    extra: int = 3
+
+
 __all__ = [
     "admin",
     "AdminSite",
     "ModelAdmin",
+    "TabularInline",
 ]

@@ -106,6 +106,19 @@ class Router:
         self.middleware = middleware or []
         self.routes: list[Route | WebSocketRoute] = []
 
+    def add_middleware(self, middleware: Any) -> None:
+        """
+        Add middleware to all routes in this router.
+        
+        Usage:
+            router.add_middleware(MyMiddleware)
+        """
+        self.middleware.append(middleware)
+        # Apply to existing routes as well
+        for route in self.routes:
+            if middleware not in route.middleware:
+                route.middleware.append(middleware)
+
     def _add_route(
         self,
         path: str,
@@ -258,12 +271,22 @@ class Router:
 
         return decorator
 
-    def include_router(self, router: Router) -> None:
+    def include_router(self, router: Router, prefix: str = "") -> None:
         """Merge another router's routes into this one."""
+        prefix = prefix.rstrip("/")
         for route in router.routes:
-            # Note: We don't join prefixes here anymore, we'll do it
-            # during Starlette route conversion to maintain hierarchy.
-            route.middleware = self.middleware + route.middleware
+            # Join prefixes and ensure no double slashes
+            new_path = prefix + route.path
+            if not new_path.startswith("/"):
+                new_path = "/" + new_path
+                
+            route.path = new_path
+            
+            # Merge middleware
+            for m in self.middleware:
+                if m not in route.middleware:
+                    route.middleware.insert(0, m)
+                    
             self.routes.append(route)
 
     def to_starlette_routes(self) -> list[Any]:

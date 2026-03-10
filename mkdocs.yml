@@ -37,6 +37,17 @@ nav:
     - Installation: getting-started/installation.md
     - Quick Start: getting-started/quickstart.md
     - Project Structure: getting-started/structure.md
+  - Tutorial (Task-Based):
+    - 1. Environment Setup: tutorial/task1_setup.md
+    - 2. App Configuration: tutorial/task2_core.md
+    - 3. Data Models (ORM): tutorial/task3_orm.md
+    - 4. Routes & Views: tutorial/task4_routing.md
+    - 5. Premium Templating: tutorial/task5_templating.md
+    - 6. Forms & Validation: tutorial/task6_forms.md
+    - 7. Security & RBAC: tutorial/task7_security.md
+    - 8. SaaS Features: tutorial/task8_saas.md
+    - 9. Deployment: tutorial/task9_deployment.md
+    - 10. Testing: tutorial/task10_testing.md
   - Guides:
     - Core Application: guides/core-app.md
     - Routing System: guides/routing.md

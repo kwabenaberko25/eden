@@ -19,6 +19,12 @@ class Request(StarletteRequest):
     Wraps Starlette's Request to provide a cleaner API for common
     operations like reading JSON, form data, and uploaded files.
     """
+    @property
+    def app(self) -> Any:
+        """
+        Return the Eden application instance.
+        """
+        return self.scope.get("eden_app") or super().app
 
     async def json_body(self) -> Any:
         """

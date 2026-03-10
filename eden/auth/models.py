@@ -48,7 +48,9 @@ class BaseUser:
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__}(email='{self.email}')>"
 
-class User(Model, BaseUser):
+from eden.payments import CustomerMixin
+
+class User(Model, BaseUser, CustomerMixin):
     """
     Main User model for the application.
     Linked to the 'eden_users' table.

@@ -15,16 +15,34 @@ from eden.requests import Request
 class JWTBackend(AuthBackend[User]):
     """
     Stateless JWT authentication.
+
+    Usage::
+
+        from eden.auth.providers import JWTProvider
+
+        provider = JWTProvider(secret="top-secret", algorithm="HS256")
+
+        # Create a token
+        token = provider.encode({"sub": user.id, "scope": "admin"}, expires_in=3600)
+
+        # Verify a token
+        payload = provider.decode(token)
     """
 
     def __init__(
         self,
-        secret_key: str,
+        secret_key: str | None = None,
         algorithm: str = "HS256",
         access_token_expire_minutes: int = 30,
         refresh_token_expire_days: int = 7,
+        *,
+        secret: str | None = None,
     ):
-        self.secret_key = secret_key
+        # Support both 'secret_key' and 'secret' param names for convenience
+        resolved_key = secret_key or secret
+        if not resolved_key:
+            raise ValueError("Either 'secret_key' or 'secret' must be provided.")
+        self.secret_key = resolved_key
         self.algorithm = algorithm
         self.access_token_expire_minutes = access_token_expire_minutes
         self.refresh_token_expire_days = refresh_token_expire_days
@@ -84,3 +102,50 @@ class JWTBackend(AuthBackend[User]):
     def decode_token(self, token: str) -> dict[str, Any]:
         """Decode and verify a JWT."""
         return jwt.decode(token, self.secret_key, algorithms=[self.algorithm])
+
+    # ── Documented Aliases ────────────────────────────────────────────────
+
+    def encode(
+        self,
+        data: dict[str, Any],
+        expires_in: int | None = None,
+        token_type: str = "access",
+    ) -> str:
+        """
+        Encode a payload into a JWT.
+
+        This is the documented convenience method. Use ``create_access_token``
+        or ``create_refresh_token`` if you prefer explicit control.
+
+        Args:
+            data: Payload dictionary (must contain ``sub``).
+            expires_in: Override expiry in seconds. Defaults to
+                ``access_token_expire_minutes * 60``.
+            token_type: ``"access"`` or ``"refresh"``.
+
+        Returns:
+            Encoded JWT string.
+        """
+        to_encode = data.copy()
+        if expires_in is not None:
+            expire = datetime.datetime.now(datetime.UTC) + datetime.timedelta(
+                seconds=expires_in
+            )
+        elif token_type == "refresh":
+            expire = datetime.datetime.now(datetime.UTC) + datetime.timedelta(
+                days=self.refresh_token_expire_days
+            )
+        else:
+            expire = datetime.datetime.now(datetime.UTC) + datetime.timedelta(
+                minutes=self.access_token_expire_minutes
+            )
+        to_encode.update({"exp": expire, "type": token_type})
+        return jwt.encode(to_encode, self.secret_key, algorithm=self.algorithm)
+
+    def decode(self, token: str) -> dict[str, Any]:
+        """
+        Decode and verify a JWT.
+
+        Alias for ``decode_token``. This is the documented convenience method.
+        """
+        return self.decode_token(token)

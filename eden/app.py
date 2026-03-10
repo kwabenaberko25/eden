@@ -171,9 +171,10 @@ class Eden:
                 "checks": results,
             }
 
-    def add_readiness_check(self, name: str, check_fn: Callable) -> None:
+    def add_readiness_check(self, name: str, check_fn: Callable | None = None) -> Callable | None:
         """
         Register a readiness check function.
+        Can be used as a direct call or as a decorator.
 
         The function should return True if the service is ready,
         or raise an exception / return False if not.
@@ -182,7 +183,14 @@ class Eden:
             name: Human-readable name for the check (e.g., "database").
             check_fn: Sync or async callable that returns a boolean.
         """
+        if check_fn is None:
+            def decorator(func: Callable) -> Callable:
+                self._health_checks.append((name, func))
+                return func
+            return decorator
+            
         self._health_checks.append((name, check_fn))
+
 
     # ── Route Decorators ─────────────────────────────────────────────────
 
@@ -216,6 +224,10 @@ class Eden:
         """Register a DELETE route."""
         return self._router.delete(path, **kwargs)
 
+    def websocket(self, path: str, **kwargs: Any) -> Callable:
+        """Register a WebSocket route."""
+        return self._router.websocket(path, **kwargs)
+
     # ── Task Decorators ──────────────────────────────────────────────────
     # Removed redundant task method to favor property below.
 
@@ -244,9 +256,9 @@ class Eden:
 
     # ── Sub-Router ───────────────────────────────────────────────────────
 
-    def include_router(self, router: Router) -> None:
+    def include_router(self, router: Router, prefix: str = "") -> None:
         """Mount a sub-router's routes into this app."""
-        self._router.include_router(router)
+        self._router.include_router(router, prefix=prefix)
 
     def mount_resource(self, resource_cls: Any, prefix: Optional[str] = None) -> None:
         """
@@ -1078,6 +1090,7 @@ class Eden:
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         """ASGI entry point."""
+        scope["eden_app"] = self
         app = await self.build()
         await app(scope, receive, send)
 

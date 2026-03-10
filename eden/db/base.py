@@ -377,7 +377,6 @@ class Model(Base, AccessControl):
         target_name = data["target_name"]
         cls_snake = data["cls_snake"]
 
-        print(f"DEBUG: Creating M2M table '{table_name}' for {source_cls.__name__} -> {target_name}")
 
         target_cls = None
         for sub in Model.__subclasses__():
@@ -388,7 +387,6 @@ class Model(Base, AccessControl):
         # Process M2M table
         existing = cls.registry.metadata.tables.get(table_name)
         if existing is not None:
-            print(f"DEBUG: M2M table '{table_name}' already exists in metadata.")
             return
 
         try:
@@ -568,6 +566,59 @@ class Model(Base, AccessControl):
     async def count(cls, *args, **kwargs) -> int:
         """Return the total number of records matching the criteria."""
         return await cls.filter(*args, **kwargs).count()
+
+    @classmethod
+    async def search(
+        cls,
+        query: Optional[str],
+        fields: Optional[List[str]] = None,
+        session: Optional[Any] = None,
+    ) -> List[T]:
+        """
+        Search records by matching a query string across text columns.
+
+        If ``fields`` is not specified, all String/Text columns are searched.
+        Uses case-insensitive ``LIKE`` (icontains) matching.
+
+        Args:
+            query: The search term. Returns all records if empty/None.
+            fields: Explicit list of column names to search.
+            session: Optional database session.
+
+        Returns:
+            List of matching model instances.
+
+        Usage::
+
+            results = await Post.search("django")
+            results = await Post.search("hello", fields=["title", "body"])
+        """
+        if not query or not query.strip():
+            return await cls.all(session=session)
+
+        from eden.db.lookups import Q
+
+        # Determine searchable fields
+        if fields:
+            search_fields = fields
+        else:
+            from sqlalchemy import String as SAString, Text as SAText
+
+            search_fields = []
+            for col in cls.__table__.columns:
+                if isinstance(col.type, (SAString, SAText)):
+                    search_fields.append(col.name)
+
+        if not search_fields:
+            return []
+
+        # Build OR query across all searchable fields
+        q_obj = None
+        for field_name in search_fields:
+            lookup = Q(**{f"{field_name}__icontains": query.strip()})
+            q_obj = lookup if q_obj is None else (q_obj | lookup)
+
+        return await cls.filter(q_obj, session=session).all()
 
     @classmethod
     async def paginate(cls, *args, **kwargs) -> Any:

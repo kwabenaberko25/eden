@@ -55,6 +55,17 @@ def db_migrate(db_url: str) -> None:
     click.echo("  ✅ Database migrated.")
 
 
+@db.command("apply")
+@click.option(
+    "--db-url",
+    default="sqlite+aiosqlite:///db.sqlite3",
+    help="Database URL.",
+)
+def db_apply(db_url: str) -> None:
+    """Apply pending migrations (alias for migrate)."""
+    db_migrate(db_url)
+
+
 @db.command("upgrade")
 @click.option("--revision", default="head", help="Target revision.")
 @click.option(

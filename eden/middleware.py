@@ -7,10 +7,12 @@ All middleware wraps Starlette's implementations with Eden-friendly configuratio
 
 from __future__ import annotations
 
+import functools
 import hmac
 import importlib
 import re
 import secrets
+from collections.abc import Callable
 from typing import Any, Optional, Sequence
 from starlette.middleware.cors import CORSMiddleware as StarletteCORS
 from starlette.middleware.gzip import GZipMiddleware as StarletteGZip
@@ -481,6 +483,35 @@ def ratelimit(max_requests: int = 100, window_seconds: int = 60):
             return await func(*args, **kwargs)
         return wrapper
     return decorator
+
+
+def limiter(rate: str):
+    """
+    View decorator for rate limiting with a string rate.
+    
+    Usage:
+        @limiter("5/minute")
+        async def my_view(request):
+            ...
+    """
+    # Parse rate like "5/minute"
+    try:
+        count, period = rate.split("/")
+        max_requests = int(count)
+        
+        # Mapping periods to seconds
+        periods = {
+            "second": 1,
+            "minute": 60,
+            "hour": 3600,
+            "day": 86400
+        }
+        window_seconds = periods.get(period.lower(), 60)
+        
+        return ratelimit(max_requests=max_requests, window_seconds=window_seconds)
+    except (ValueError, AttributeError):
+        # Fallback to defaults if parsing fails
+        return ratelimit(max_requests=100, window_seconds=60)
 
 
 class BrowserReloadMiddleware:

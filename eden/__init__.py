@@ -28,8 +28,10 @@ from eden.db import (
     StringField,
     TextField,
     UUIDField,
+    FileField,
     get_db,
 )
+from eden.services import Service
 from eden.db.fields import ForeignKeyField, Relationship
 from eden.db.fields import ForeignKeyField, Relationship
 from eden.forms import BaseForm
@@ -59,14 +61,15 @@ from eden.responses import (
     redirect,
 )
 from eden.cache import cache_view
+from eden.templating import EdenTemplates, render_template
 from eden.components import Component, render_component
 from eden.payments.providers import StripeProvider
 from eden.resources import Resource, TenantResource, action
 from eden.routing import Route, Router, WebSocketRoute
 from eden.websocket import WebSocket, WebSocketDisconnect, WebSocketRouter, ConnectionManager
 from eden.context import request, user
-from eden.storage import StorageBackend, StorageManager, storage
-from eden.storage_backends import S3StorageBackend
+from eden.storage import LocalStorageBackend, StorageBackend, StorageManager, storage
+from eden.storage_backends import S3StorageBackend, SupabaseStorageBackend
 from eden.tenancy.middleware import TenantMiddleware
 from eden.tenancy.models import AnonymousTenant, Tenant
 from eden.tenancy.context import get_current_tenant
@@ -140,10 +143,13 @@ __all__ = [
     "RedirectResponse",
     "FileResponse",
     "StreamingResponse",
+    "FileField",
+    "Service",
     # Response shortcuts
     "json",
     "html",
     "redirect",
+    "render_template",
     # Exceptions
     "EdenException",
     "HttpException",
@@ -184,7 +190,9 @@ __all__ = [
     # Storage
     "storage",
     "StorageBackend",
+    "LocalStorageBackend",
     "S3StorageBackend",
+    "SupabaseStorageBackend",
     "request",
     "user",
     "BaseForm",

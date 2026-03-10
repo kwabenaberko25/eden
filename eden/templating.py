@@ -646,3 +646,23 @@ class EdenTemplates(StarletteJinja2Templates):
         """
         ctx = {"request": request, **context, **kwargs}
         return self.TemplateResponse(template_name, ctx)
+
+
+def render_template(template_name: str, **context: Any) -> Any:
+    """
+    Render an HTML template using the current request context.
+
+    This is a shortcut for ``request.app.render(template_name, **context)``.
+    It automatically handles HTMX fragment rendering and injects standard
+    context variables (request, user, tenant).
+
+    Usage:
+        return render_template("home.html", title="Home Page")
+    """
+    from eden.context import get_request
+    request = get_request()
+    if request is None:
+        raise RuntimeError("render_template() must be called within a request context.")
+
+    return request.app.render(template_name, **context)
+

@@ -30,7 +30,7 @@ def cli() -> None:
 @click.option("--reload/--no-reload", default=True, help="Enable auto-reload.")
 @click.option("--no-browser-reload", is_flag=True, help="Disable browser auto-reload.")
 @click.option("--workers", default=1, type=int, help="Number of workers.")
-@click.option("--app", "app_path", default=None, help="App import path (module:variable).")
+@click.option("--app", "--app-path", "app_path", default=None, help="App import path (module:variable).")
 def run(host: str, port: int, reload: bool, no_browser_reload: bool, workers: int, app_path: str | None) -> None:
     """Start the Eden development server."""
     import subprocess
@@ -81,6 +81,11 @@ def run(host: str, port: int, reload: bool, no_browser_reload: bool, workers: in
         # Ensure templates also trigger a reload
         cmd.extend(["--reload-include", "*.html"])
         cmd.extend(["--reload-include", "*.j2"])
+        # Exclude noisy files that cause reload loops (like the DB or venv)
+        cmd.extend(["--reload-exclude", "*.sqlite3"])
+        cmd.extend(["--reload-exclude", ".venv"])
+        cmd.extend(["--reload-exclude", ".git"])
+        cmd.extend(["--reload-exclude", "__pycache__"])
 
     if workers > 1:
         cmd.extend(["--workers", str(workers)])
@@ -390,6 +395,7 @@ from eden.cli.tasks import scheduler, worker
 
 cli.add_command(auth_cli)
 cli.add_command(db_cli)
+cli.add_command(generate_cli, name="generate")
 cli.add_command(generate_cli, name="forge")
 cli.add_command(worker)
 cli.add_command(scheduler)

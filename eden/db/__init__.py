@@ -18,6 +18,7 @@ from eden.db.fields import (
     StringField,
     TextField,
     UUIDField,
+    FileField,
     f,
 )
 from sqlalchemy import (
@@ -126,6 +127,7 @@ __all__ = [
     "Relationship",
     "Reference",
     "ManyToManyField",
+    "FileField",
     "QuerySet",
     "Mapped",
     "mapped_column",
