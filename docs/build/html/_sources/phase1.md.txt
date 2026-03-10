@@ -1,6 +1,6 @@
-# Phase 1: First Application (The Nexus Heart) 🏗️
+# Phase 1: First Application (The Eden Heart) 🏗️
 
-Welcome to the **Eden Framework**. In this phase, we will establish your first application, **Eden Nexus**, using the professional CLI tools and understand the heart of an Eden system.
+Welcome to the **Eden Framework**. In this phase, we will establish your first application, **Eden**, using the professional CLI tools and understand the heart of an Eden system.
 
 ---
 
@@ -22,17 +22,17 @@ Install the Eden Framework globally or in your project environment:
 uv pip install eden-framework
 ```
 
-### 2. Scaffolding the Nexus
+### 2. Scaffolding the Eden
 
 Use the `eden new` command to generate a professional, Docker-ready project structure.
 
 ```bash
-eden new eden_nexus
-cd eden_nexus
+eden new my_app
+cd my_app
 ```
 
 This creates the "Elite" scaffold:
-- `app.py`: The Nexus Heart (Application Entry).
+- `app.py`: The Eden Heart (Application Entry).
 - `models.py`: The Data Forge (Entity Definitions).
 - `routers/`: Modular Sector Control.
 - `templates/`: Premium UI.
@@ -46,9 +46,9 @@ Let's build a simple Task Manager to understand routing and responses. Open `app
 ```python
 from eden import Eden
 
-# 🌿 Create the Nexus Heart
+# 🌿 Create the Eden Heart
 app = Eden(
-    title="Eden Nexus",
+    title="Eden Hub",
     description="Task Management Hub",
     debug=True
 )
@@ -73,7 +73,7 @@ async def get_task(task_id: int):
     return {"error": "Task not found"}, 404
 
 if __name__ == "__main__":
-    # 🚀 Launch the Nexus
+    # 🚀 Launch the Eden
     app.run(port=8080)
 ```
 
@@ -83,10 +83,8 @@ if __name__ == "__main__":
 
 To verify your first application:
 
-1. **Run the Server**:
-   ```bash
-   eden run
-   ```
-2. **Signal Check**: Open `http://localhost:8080/tasks` in your browser.
+1. **Install Eden**: Get the core engine via `pip` or `uv`.
+2. **Initialize Workspace**: Run `eden new` to scaffold your structure.
+3. **Ignite the Pulse**: Start the development server and see your first Eden live.
+Your foundation is **100% Verified**. You are ready for **Phase 2: The Data Forge**.
 
-If you see the JSON response of your tasks, your foundation is **100% Verified**. You are ready for **Phase 2: The Data Forge**.

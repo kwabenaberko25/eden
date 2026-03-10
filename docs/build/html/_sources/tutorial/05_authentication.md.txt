@@ -28,6 +28,7 @@ class User(Model, BaseUser):
 ```
 
 This adds:
+
 - `email` - Unique email
 - `password_hash` - Hashed password
 - `full_name` - Optional name
@@ -65,7 +66,7 @@ else:
 ```python
 from eden import Eden
 
-app = Eden(title="My App")
+app = Eden\(title="My App")
 app.add_middleware("session", secret_key="your-secret-key")
 ```
 
@@ -211,24 +212,26 @@ async def login(request):
 ## 5.9 Complete Auth Example
 
 **models.py**:
+
 ```python
 from eden.db import Model
 from eden.auth.models import BaseUser
-from eden.db.fields import StringField
+from eden.db.fields import f
 
 class User(Model, BaseUser):
     __tablename__ = "users"
-    username: Mapped[str] = StringField(max_length=50, unique=True)
+    username: str = f(max_length=50, unique=True)
 ```
 
 **app.py**:
+
 ```python
 from eden import Eden, Router
 from eden.auth.decorators import login_required
 from eden.dependencies import get_db
 from eden.db import Database
 
-app = Eden(title="Auth Demo")
+app = Eden\(title="Auth Demo")
 app.add_middleware("session", secret_key="secret-key-change-me")
 
 db = Database("sqlite+aiosqlite:///app.db")
@@ -296,3 +299,4 @@ Continue to **Phase 6: Permissions**
 
 tutorial/06_permissions
 ```
+

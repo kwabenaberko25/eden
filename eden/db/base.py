@@ -197,9 +197,24 @@ class Model(Base, AccessControl):
                 continue
 
             # Auto-infer relationship OR process Reference
-            if is_list:
+            if is_list and is_m2m_explicit:
                 cls._setup_m2m(name, target_name)
+            elif is_list:
+                # One-to-Many (One side)
+                backref_name = _camel_to_snake(cls.__name__)
+                _back_populates_val = ref_info.get("back_populates")
+                
+                kwargs = {
+                    "back_populates": _back_populates_val,
+                    "lazy": ref_info.get("lazy", "selectin"),
+                    "overlaps": "*"
+                }
+                if not _back_populates_val:
+                    kwargs["backref"] = backref_name + "s"
+                
+                setattr(cls, name, sa_rel(target_name, **kwargs))
             else:
+                # Single relationship (Many side)
                 fk_col = f"{name}_id"
                 
                 # Check for Reference metadata override

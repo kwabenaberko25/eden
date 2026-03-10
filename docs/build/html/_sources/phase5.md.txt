@@ -69,7 +69,8 @@ Always provide feedback to your users during async operations.
 To verify your Reactive Interactivity:
 
 1. **Test Fragments**: Verify that `hx-get` correctly swaps the fragment content.
-2. **Test Guards**: Ensure the `@non_htmx` content does not appear in HTMX partial responses.
+2. **Test Guards**: Ensure the `@non_htmx` content does not appear in Eden partial responses.
 3. **Test Indicators**: Verify that loaders appear during server communication.
 
 If your UI feels fluid and reactive with zero JavaScript, your HTMX integration is **100% Verified**. You are ready for **Phase 6: Input Governance (Forms)**.
+

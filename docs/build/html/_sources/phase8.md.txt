@@ -15,9 +15,9 @@ Add the `TenantMixin` to any model that belongs to a specific tenant (e.g., an O
 ```python
 from eden.db.mixins import TenantMixin
 
-class Drone(EdenModel, TenantMixin):
+class Drone(Model, TenantMixin):
     __tablename__ = "drones"
-    serial_number: Mapped[str] = StringField()
+    serial_number: str = f()
     # 🔒 Automatic 'tenant_id' field is added and managed!
 ```
 
@@ -30,7 +30,7 @@ Beyond multi-tenancy, you need to control which *users within a tenant* can perf
 ```python
 from eden.db.access import AccessControl, AllowRoles, AllowOwner
 
-class Document(EdenModel, AccessControl):
+class Document(Model, AccessControl):
     __tablename__ = "documents"
     
     __rbac__ = {
@@ -91,3 +91,4 @@ To verify your Fortress:
 3. **Test Automatic Filtering**: Verify that `Drone.query().all()` automatically filters by the current authenticated tenant.
 
 If your data is isolated and your permissions are absolute, your Fortress is **100% Verified**. You are ready for **Phase 9: Ecosystem Integrations**.
+

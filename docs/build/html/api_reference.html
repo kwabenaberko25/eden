@@ -3,7 +3,7 @@
   <head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="prev" title="10. Phase 10: Performance &amp; Production 🚀" href="phase10.html">
+<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="prev" title="Deployment &amp; DevOps 🚢" href="deployment.html">
 
     <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
         <title>Eden Framework API Reference - Eden Framework 1.0.0 documentation</title>
@@ -190,32 +190,20 @@
   <input type="hidden" name="area" value="default">
 </form>
 <div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
-  <ul>
-<li class="toctree-l1 has-children"><a class="reference internal" href="intro/index.html">Introduction</a><input aria-label="Toggle navigation of Introduction" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
-<li class="toctree-l2"><a class="reference internal" href="intro/quickstart.html">Quick Start</a></li>
-<li class="toctree-l2"><a class="reference internal" href="intro/installation.html">Installation</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="cli/index.html">Eden CLI Reference</a></li>
-</ul>
-<ul>
-<li class="toctree-l1 has-children"><a class="reference internal" href="tutorial/index.html">Eden Framework Tutorial</a><input aria-label="Toggle navigation of Eden Framework Tutorial" class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul class="simple">
-</ul>
-</li>
-</ul>
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="phase1.html">1. Phase 1: First Application (The Nexus Heart) 🏗️</a></li>
-<li class="toctree-l1"><a class="reference internal" href="phase2.html">2. Phase 2: The Data Forge (ORM &amp; Evolution) ⚒️</a></li>
-<li class="toctree-l1"><a class="reference internal" href="phase3.html">3. Phase 3: The QuerySet API (Fluid Intelligence) 🔍</a></li>
-<li class="toctree-l1"><a class="reference internal" href="phase4.html">4. Phase 4: Premium UI &amp; Templating 🎨</a></li>
-<li class="toctree-l1"><a class="reference internal" href="phase5.html">5. Phase 5: Reactive Interactivity (HTMX) ⚡</a></li>
-<li class="toctree-l1"><a class="reference internal" href="phase6.html">6. Phase 6: Input Governance (Forms) 📋</a></li>
-<li class="toctree-l1"><a class="reference internal" href="phase7.html">7. Phase 7: The Unified Layer (Resources) 🏛️</a></li>
-<li class="toctree-l1"><a class="reference internal" href="phase8.html">8. Phase 8: The Fortress (Security &amp; Multi-Tenancy) 🛡️</a></li>
-<li class="toctree-l1"><a class="reference internal" href="phase9.html">9. Phase 9: Ecosystem Integrations (Interstellar Logistics) 🛰️</a></li>
-<li class="toctree-l1"><a class="reference internal" href="phase10.html">10. Phase 10: Performance &amp; Production 🚀</a></li>
-</ul>
-<ul class="current">
+  <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="introduction.html">Introduction 🌿</a></li>
+<li class="toctree-l1"><a class="reference internal" href="getting_started.html">Getting Started 🚀</a></li>
+<li class="toctree-l1"><a class="reference internal" href="forms_and_validation.html">Forms &amp; Validation 📝</a></li>
+<li class="toctree-l1"><a class="reference internal" href="authentication_security.html">Authentication &amp; Security 🔐</a></li>
+<li class="toctree-l1"><a class="reference internal" href="middleware_and_events.html">Middleware &amp; Events 🛰️</a></li>
+<li class="toctree-l1"><a class="reference internal" href="admin_panel.html">Admin Panel 🏛️</a></li>
+<li class="toctree-l1"><a class="reference internal" href="background_tasks.html">Background Tasks 🛰️</a></li>
+<li class="toctree-l1"><a class="reference internal" href="websockets_realtime.html">WebSockets &amp; Real-time 📡</a></li>
+<li class="toctree-l1"><a class="reference internal" href="caching.html">Caching &amp; Optimization ⚡</a></li>
+<li class="toctree-l1"><a class="reference internal" href="storage_automation.html">Storage Automation 💾</a></li>
+<li class="toctree-l1"><a class="reference internal" href="communications_engine.html">Communications Engine 📧</a></li>
+<li class="toctree-l1"><a class="reference internal" href="payments.html">Payments &amp; Billing 💳</a></li>
+<li class="toctree-l1"><a class="reference internal" href="deployment.html">Deployment &amp; DevOps 🚢</a></li>
 <li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Eden Framework API Reference</a></li>
 </ul>
 
@@ -395,7 +383,7 @@
 <h4>Example<a class="headerlink" href="#example" title="Link to this heading">¶</a></h4>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eden</span><span class="w"> </span><span class="kn">import</span> <span class="n">Eden</span>
 
-<span class="n">app</span> <span class="o">=</span> <span class="n">Eden</span><span class="p">(</span>
+<span class="n">app</span> <span class="o">=</span> <span class="n">Eden</span>\<span class="p">(</span>
     <span class="n">title</span><span class="o">=</span><span class="s2">&quot;My API&quot;</span><span class="p">,</span>
     <span class="n">version</span><span class="o">=</span><span class="s2">&quot;1.0.0&quot;</span><span class="p">,</span>
     <span class="n">debug</span><span class="o">=</span><span class="kc">True</span>
@@ -463,8 +451,8 @@
 <h2>Database &amp; ORM<a class="headerlink" href="#database-orm" title="Link to this heading">¶</a></h2>
 <section id="models">
 <h3>Models<a class="headerlink" href="#models" title="Link to this heading">¶</a></h3>
-<section id="eden-model-eden-edenmodel">
-<h4><code class="docutils literal notranslate"><span class="pre">eden.Model</span></code> / <code class="docutils literal notranslate"><span class="pre">eden.EdenModel</span></code><a class="headerlink" href="#eden-model-eden-edenmodel" title="Link to this heading">¶</a></h4>
+<section id="eden-model-eden-model">
+<h4><code class="docutils literal notranslate"><span class="pre">eden.Model</span></code> / <code class="docutils literal notranslate"><span class="pre">eden.Model</span></code><a class="headerlink" href="#eden-model-eden-model" title="Link to this heading">¶</a></h4>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eden</span><span class="w"> </span><span class="kn">import</span> <span class="n">Model</span>
 </pre></div>
 </div>
@@ -472,9 +460,9 @@
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">User</span><span class="p">(</span><span class="n">Model</span><span class="p">):</span>
     <span class="n">__tablename__</span> <span class="o">=</span> <span class="s2">&quot;users&quot;</span>
     
-    <span class="n">email</span><span class="p">:</span> <span class="n">Mapped</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">StringField</span><span class="p">(</span><span class="n">unique</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-    <span class="n">name</span><span class="p">:</span> <span class="n">Mapped</span><span class="p">[</span><span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="n">StringField</span><span class="p">(</span><span class="n">nullable</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-    <span class="n">is_active</span><span class="p">:</span> <span class="n">Mapped</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="n">BoolField</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">email</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">f</span><span class="p">(</span><span class="n">unique</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">name</span><span class="p">:</span> <span class="n">Mapped</span><span class="p">[</span><span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="n">f</span><span class="p">(</span><span class="n">nullable</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">is_active</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="n">f</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </pre></div>
 </div>
 </section>
@@ -489,15 +477,15 @@
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">StringField</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">f</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">VARCHAR</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">max_length</span></code>, <code class="docutils literal notranslate"><span class="pre">unique</span></code>, <code class="docutils literal notranslate"><span class="pre">index</span></code>, <code class="docutils literal notranslate"><span class="pre">nullable</span></code>, <code class="docutils literal notranslate"><span class="pre">default</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">IntField</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">f</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">INTEGER</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">index</span></code>, <code class="docutils literal notranslate"><span class="pre">unique</span></code>, <code class="docutils literal notranslate"><span class="pre">default</span></code>, <code class="docutils literal notranslate"><span class="pre">autoincrement</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">BoolField</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">f</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">BOOLEAN</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">default</span></code></p></td>
 </tr>
@@ -509,17 +497,44 @@
 <td><p><code class="docutils literal notranslate"><span class="pre">TEXT</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">nullable</span></code>, <code class="docutils literal notranslate"><span class="pre">default</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">DateTimeField</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">f</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">DATETIME</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">auto_now</span></code>, <code class="docutils literal notranslate"><span class="pre">auto_now_add</span></code>, <code class="docutils literal notranslate"><span class="pre">nullable</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">UUIDField</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">f</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">UUID</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">primary_key</span></code>, <code class="docutils literal notranslate"><span class="pre">default_factory</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">ForeignKeyField</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">INTEGER/UUID</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">references</span></code>, <code class="docutils literal notranslate"><span class="pre">ondelete</span></code>, <code class="docutils literal notranslate"><span class="pre">nullable</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="unified-database-primitives-eden-db">
+<h4>Unified Database Primitives (<code class="docutils literal notranslate"><span class="pre">eden.db</span></code>)<a class="headerlink" href="#unified-database-primitives-eden-db" title="Link to this heading">¶</a></h4>
+<p>Eden 1.0 exports all essential SQLAlchemy and ORM primitives directly from <code class="docutils literal notranslate"><span class="pre">eden.db</span></code>. You should avoid importing from <code class="docutils literal notranslate"><span class="pre">sqlalchemy</span></code> directly.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head text-left"><p>Category</p></th>
+<th class="head text-left"><p>Primitives exported from <code class="docutils literal notranslate"><span class="pre">eden.db</span></code></p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td class="text-left"><p><strong>ORM</strong></p></td>
+<td class="text-left"><p><code class="docutils literal notranslate"><span class="pre">Mapped</span></code>, <code class="docutils literal notranslate"><span class="pre">mapped_column</span></code>, <code class="docutils literal notranslate"><span class="pre">relationship</span></code>, <code class="docutils literal notranslate"><span class="pre">selectinload</span></code>, <code class="docutils literal notranslate"><span class="pre">joinedload</span></code>, <code class="docutils literal notranslate"><span class="pre">AsyncSession</span></code></p></td>
+</tr>
+<tr class="row-odd"><td class="text-left"><p><strong>Query</strong></p></td>
+<td class="text-left"><p><code class="docutils literal notranslate"><span class="pre">select</span></code>, <code class="docutils literal notranslate"><span class="pre">update</span></code>, <code class="docutils literal notranslate"><span class="pre">delete</span></code>, <code class="docutils literal notranslate"><span class="pre">insert</span></code>, <code class="docutils literal notranslate"><span class="pre">func</span></code>, <code class="docutils literal notranslate"><span class="pre">text</span></code>, <code class="docutils literal notranslate"><span class="pre">inspect</span></code>, <code class="docutils literal notranslate"><span class="pre">event</span></code></p></td>
+</tr>
+<tr class="row-even"><td class="text-left"><p><strong>Schema</strong></p></td>
+<td class="text-left"><p><code class="docutils literal notranslate"><span class="pre">MetaData</span></code>, <code class="docutils literal notranslate"><span class="pre">Table</span></code>, <code class="docutils literal notranslate"><span class="pre">Column</span></code>, <code class="docutils literal notranslate"><span class="pre">ForeignKey</span></code>, <code class="docutils literal notranslate"><span class="pre">Index</span></code>, <code class="docutils literal notranslate"><span class="pre">UniqueConstraint</span></code>, <code class="docutils literal notranslate"><span class="pre">CheckConstraint</span></code>, <code class="docutils literal notranslate"><span class="pre">PrimaryKeyConstraint</span></code>, <code class="docutils literal notranslate"><span class="pre">ForeignKeyConstraint</span></code>, <code class="docutils literal notranslate"><span class="pre">Sequence</span></code>, <code class="docutils literal notranslate"><span class="pre">Identity</span></code>, <code class="docutils literal notranslate"><span class="pre">Computed</span></code>, <code class="docutils literal notranslate"><span class="pre">DefaultClause</span></code></p></td>
+</tr>
+<tr class="row-odd"><td class="text-left"><p><strong>Types</strong></p></td>
+<td class="text-left"><p><code class="docutils literal notranslate"><span class="pre">String</span></code>, <code class="docutils literal notranslate"><span class="pre">Integer</span></code>, <code class="docutils literal notranslate"><span class="pre">SmallInteger</span></code>, <code class="docutils literal notranslate"><span class="pre">BigInteger</span></code>, <code class="docutils literal notranslate"><span class="pre">Numeric</span></code>, <code class="docutils literal notranslate"><span class="pre">Float</span></code>, <code class="docutils literal notranslate"><span class="pre">Boolean</span></code>, <code class="docutils literal notranslate"><span class="pre">DateTime</span></code>, <code class="docutils literal notranslate"><span class="pre">Date</span></code>, <code class="docutils literal notranslate"><span class="pre">Time</span></code>, <code class="docutils literal notranslate"><span class="pre">Interval</span></code>, <code class="docutils literal notranslate"><span class="pre">Uuid</span></code>, <code class="docutils literal notranslate"><span class="pre">JSON</span></code>, <code class="docutils literal notranslate"><span class="pre">Enum</span></code>, <code class="docutils literal notranslate"><span class="pre">ARRAY</span></code>, <code class="docutils literal notranslate"><span class="pre">Unicode</span></code>, <code class="docutils literal notranslate"><span class="pre">UnicodeText</span></code>, <code class="docutils literal notranslate"><span class="pre">LargeBinary</span></code>, <code class="docutils literal notranslate"><span class="pre">TypeDecorator</span></code></p></td>
 </tr>
 </tbody>
 </table>
@@ -532,15 +547,15 @@
 <span class="k">class</span><span class="w"> </span><span class="nc">Post</span><span class="p">(</span><span class="n">Model</span><span class="p">):</span>
     <span class="n">__tablename__</span> <span class="o">=</span> <span class="s2">&quot;posts&quot;</span>
     
-    <span class="n">title</span><span class="p">:</span> <span class="n">Mapped</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">StringField</span><span class="p">()</span>
+    <span class="n">title</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">f</span><span class="p">()</span>
     <span class="n">author_id</span><span class="p">:</span> <span class="n">Mapped</span><span class="p">[</span><span class="n">uuid</span><span class="o">.</span><span class="n">UUID</span><span class="p">]</span> <span class="o">=</span> <span class="n">ForeignKeyField</span><span class="p">(</span><span class="s2">&quot;users.id&quot;</span><span class="p">)</span>
     
-    <span class="n">author</span><span class="p">:</span> <span class="n">Mapped</span><span class="p">[</span><span class="s2">&quot;User&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">Relationship</span><span class="p">(</span><span class="s2">&quot;User&quot;</span><span class="p">,</span> <span class="n">back_populates</span><span class="o">=</span><span class="s2">&quot;posts&quot;</span><span class="p">)</span>
+    <span class="n">author</span><span class="p">:</span> <span class="s2">&quot;User&quot;</span> <span class="o">=</span> <span class="n">Relationship</span><span class="p">(</span><span class="s2">&quot;User&quot;</span><span class="p">,</span> <span class="n">back_populates</span><span class="o">=</span><span class="s2">&quot;posts&quot;</span><span class="p">)</span>
 
 <span class="k">class</span><span class="w"> </span><span class="nc">User</span><span class="p">(</span><span class="n">Model</span><span class="p">):</span>
     <span class="n">__tablename__</span> <span class="o">=</span> <span class="s2">&quot;users&quot;</span>
     
-    <span class="n">posts</span><span class="p">:</span> <span class="n">Mapped</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="s2">&quot;Post&quot;</span><span class="p">]]</span> <span class="o">=</span> <span class="n">Relationship</span><span class="p">(</span><span class="s2">&quot;Post&quot;</span><span class="p">,</span> <span class="n">back_populates</span><span class="o">=</span><span class="s2">&quot;author&quot;</span><span class="p">)</span>
+    <span class="n">posts</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="s2">&quot;Post&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">Relationship</span><span class="p">(</span><span class="s2">&quot;Post&quot;</span><span class="p">,</span> <span class="n">back_populates</span><span class="o">=</span><span class="s2">&quot;author&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
 </section>
@@ -628,6 +643,18 @@
     <span class="k">await</span> <span class="n">db</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
 </pre></div>
 </div>
+<section id="advanced-session-resolution-safety">
+<h4>Advanced: Session Resolution &amp; Safety<a class="headerlink" href="#advanced-session-resolution-safety" title="Link to this heading">¶</a></h4>
+<p>Eden provides a dual-layer session safety net to ensure that ORM operations always have access to a valid transaction:</p>
+<ol class="arabic simple">
+<li><p><strong>Request State</strong>: By default, Eden looks for a session in <code class="docutils literal notranslate"><span class="pre">request.state.db</span></code>. This is managed automatically by the <code class="docutils literal notranslate"><span class="pre">DatabaseMiddleware</span></code>.</p></li>
+<li><p><strong>Context-Var Fallback</strong>: If a request object is not available (e.g., in background tasks or complex nested calls), Eden falls back to a thread-safe <code class="docutils literal notranslate"><span class="pre">ContextVar</span></code>.</p></li>
+</ol>
+<blockquote>
+<div><p>[!NOTE]
+This ensures that <code class="docutils literal notranslate"><span class="pre">Model.session()</span></code> and all query methods are safe to use even in edge cases where the request context might be detached or missing.</p>
+</div></blockquote>
+</section>
 </section>
 </section>
 <hr class="docutils" />
@@ -902,7 +929,7 @@
 <h3>Task Definition<a class="headerlink" href="#task-definition" title="Link to this heading">¶</a></h3>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">eden</span><span class="w"> </span><span class="kn">import</span> <span class="n">Eden</span>
 
-<span class="n">app</span> <span class="o">=</span> <span class="n">Eden</span><span class="p">()</span>
+<span class="n">app</span> <span class="o">=</span> <span class="n">Eden</span>\<span class="p">()</span>
 
 <span class="nd">@app</span><span class="o">.</span><span class="n">task</span>
 <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">send_welcome_email</span><span class="p">(</span><span class="n">user_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
@@ -983,14 +1010,14 @@
         
         <div class="related-pages">
           
-          <a class="prev-page" href="phase10.html">
+          <a class="prev-page" href="deployment.html">
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
               <div class="page-info">
                 <div class="context">
                   <span>Previous</span>
                 </div>
                 
-                <div class="title"><span class="section-number">10. </span>Phase 10: Performance &amp; Production 🚀</div>
+                <div class="title">Deployment &amp; DevOps 🚢</div>
                 
               </div>
             </a>
@@ -1052,8 +1079,9 @@
 </li>
 <li><a class="reference internal" href="#database-orm">Database &amp; ORM</a><ul>
 <li><a class="reference internal" href="#models">Models</a><ul>
-<li><a class="reference internal" href="#eden-model-eden-edenmodel"><code class="docutils literal notranslate"><span class="pre">eden.Model</span></code> / <code class="docutils literal notranslate"><span class="pre">eden.EdenModel</span></code></a></li>
+<li><a class="reference internal" href="#eden-model-eden-model"><code class="docutils literal notranslate"><span class="pre">eden.Model</span></code> / <code class="docutils literal notranslate"><span class="pre">eden.Model</span></code></a></li>
 <li><a class="reference internal" href="#field-types">Field Types</a></li>
+<li><a class="reference internal" href="#unified-database-primitives-eden-db">Unified Database Primitives (<code class="docutils literal notranslate"><span class="pre">eden.db</span></code>)</a></li>
 <li><a class="reference internal" href="#relationships">Relationships</a></li>
 </ul>
 </li>
@@ -1064,7 +1092,10 @@
 <li><a class="reference internal" href="#aggregations">Aggregations</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#database-session">Database Session</a></li>
+<li><a class="reference internal" href="#database-session">Database Session</a><ul>
+<li><a class="reference internal" href="#advanced-session-resolution-safety">Advanced: Session Resolution &amp; Safety</a></li>
+</ul>
+</li>
 </ul>
 </li>
 <li><a class="reference internal" href="#authentication">Authentication</a><ul>

@@ -1,6 +1,6 @@
 # Phase 4: Premium UI & Templating 🎨
 
-The user interface of an interstellar nexus must be as clean and fluid as the vacuum of space. In this phase, we master **Eden Templates**—a modern, directive-based engine that brings "Blade-like" elegance to Python.
+The user interface of an interstellar Eden must be as clean and fluid as the vacuum of space. In this phase, we master **Eden Templates**—a modern, directive-based engine that brings "Blade-like" elegance to Python.
 
 ---
 
@@ -39,10 +39,12 @@ Eden layouts are defined using blocks. You can @extends a base layout and fill i
 <!-- layouts/base.html -->
 <html>
 <head>
-    <title>Eden Nexus</title>
+    <title>Eden</title>
 </head>
 <body>
-    @block('content')
+    @block('content') {
+        <h1>Welcome</h1>
+    }
 </body>
 </html>
 ```
@@ -53,11 +55,21 @@ Eden layouts are defined using blocks. You can @extends a base layout and fill i
 
 Eden includes several built-in filters to handle common data transformations with "Elite" formatting.
 
-| Filter | Description | Example |
-| :--- | :--- | :--- |
-| `time_ago` | Relative time (e.g., "5m ago") | `{{ sector.last_sync|time_ago }}` |
-| `currency` | Professional currency formatting | `{{ budget|currency }}` |
-| `json` | Secure JSON serialization | `{{ config|json }}` |
+| Filter     | Description                       | Example                            |
+| :--------- | :-------------------------------- | :--------------------------------- |
+| `time_ago` | Relative time (e.g., "5m ago")    | `{{ sector.last_sync\|time_ago }}` |
+| `currency` | Professional currency formatting  | `{{ budget\|currency }}`           |
+| `json`     | Secure JSON serialization         | `{{ config\|json }}`               |
+
+---
+
+### 3. Summary of Directives
+
+| Directive | Description |
+| :--- | :--- |
+| `@extends(path)` | Defines the parent template to inherit from. |
+| `@block(name) { ... }` | Defines a replaceable section of content. |
+| `@yield(name, default)` | Injects a block from a child template. |
 
 ---
 
@@ -65,8 +77,9 @@ Eden includes several built-in filters to handle common data transformations wit
 
 To verify your Premium UI engine:
 
-1. **Test Directives**: Ensure your `@if` and `@for` loops render correctly.
+1. **Test Directives**: Ensure your `@if` and `@for` loops render correctly with braces.
 2. **Test Layouts**: Verify that `@extends` properly wraps your content in the base layout.
 3. **Test Filters**: Check that `time_ago` correctly formats your model timestamps.
 
 If your templates are clean and your UI is rendered with modular precision, your Templating engine is **100% Verified**. You are ready for **Phase 5: Reactive Interactivity (HTMX)**.
+

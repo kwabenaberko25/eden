@@ -64,6 +64,7 @@ Desktop.ini
 media/
 tmp/
 docs/build/
+site/
 # Debug/Trace files found in root
 debug_keys.txt
 full_trace.txt

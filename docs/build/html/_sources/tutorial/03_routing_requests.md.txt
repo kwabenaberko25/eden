@@ -40,7 +40,7 @@ async def get_post(post_id: int):
 from eden import Eden
 from routes.posts import router as posts_router
 
-app = Eden(title="My Blog")
+app = Eden\(title="My Blog")
 app.include_router(posts_router)
 ```
 
@@ -57,12 +57,13 @@ async def get_user(user_id: int):
 ```
 
 **Supported types:**
-| Type | Example |
-|------|---------|
-| `int` | `/users/42` → `42` |
-| `str` | `/users/alice` → `"alice"` |
-| `uuid.UUID` | `/items/abc...` |
-| `float` | `/price/19.99` |
+
+| Type          | Example         |
+|---------------|-----------------|
+| `int`         | `/users/42`     |
+| `str`         | `/users/alice`  |
+| `uuid.UUID`   | `/items/abc...` |
+| `float`       | `/price/19.99`  |
 
 **Basic** - Multiple parameters:
 
@@ -332,7 +333,7 @@ from eden import Router
 from starlette.exceptions import HTTPException
 from eden.dependencies import get_db
 
-app = Eden(title="Blog API")
+app = Eden\(title="Blog API")
 router = Router(prefix="/api", tags=["Blog"])
 
 # Get all posts
@@ -382,6 +383,7 @@ if __name__ == "__main__":
 ## Summary
 
 You learned:
+
 - Modular routers with prefixes
 - Path parameters with type conversion
 - Request object (headers, query, body)
@@ -402,3 +404,4 @@ Continue to **Phase 4: Forms & Validation**
 
 tutorial/04_forms_validation
 ```
+

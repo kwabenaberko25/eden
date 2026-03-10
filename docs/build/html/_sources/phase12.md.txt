@@ -1,6 +1,6 @@
 # Phase 12: Administrative Excellence (Admin Panel) 🏛️
 
-A Nexus is only as good as its management console. In this phase, we master the **Eden Admin Panel**—a beautiful, auto-generated interface for managing your application's data.
+A Eden is only as good as its management console. In this phase, we master the **Eden Admin Panel**—a beautiful, auto-generated interface for managing your application's data.
 
 ---
 
@@ -59,3 +59,4 @@ To verify your Administrative Excellence:
 3. **Test Customization**: Verify that `list_display` correctly shows your chosen columns.
 
 If your management portal is sleek, secure, and functional, your Admin engine is **100% Verified**. You are ready for **Phase 13: Interstellar Logistics (Payments)**.
+

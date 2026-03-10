@@ -3,6 +3,7 @@ site_description: A batteries-included async Python web framework
 site_url: https://eden-framework.dev
 repo_url: https://github.com/eden-framework/eden
 repo_name: eden-framework/eden
+use_directory_urls: false
 
 theme:
   name: material
@@ -32,16 +33,27 @@ theme:
 nav:
   - Home: index.md
   - Getting Started:
+    - The Eden Ethos: getting-started/philosophy.md
     - Installation: getting-started/installation.md
     - Quick Start: getting-started/quickstart.md
     - Project Structure: getting-started/structure.md
   - Guides:
-    - Routing: guides/routing.md
+    - Core Application: guides/core-app.md
+    - Routing System: guides/routing.md
+    - WebSockets: guides/websockets.md
+    - Middleware & Security: guides/middleware.md
+    - Exception Handling: guides/exceptions.md
+    - CLI Suite: guides/cli.md
     - Database & ORM: guides/orm.md
     - Authentication: guides/auth.md
-    - Middleware: guides/middleware.md
     - Templates: guides/templating.md
-    - Forms: guides/forms.md
+    - Forms & Validation: guides/forms.md
+    - Multi-Tenancy: guides/tenancy.md
+    - Internationalization: guides/i18n.md
+    - Background Tasks: guides/background-tasks.md
+    - Integrated Services: guides/services.md
+    - Admin Panel: guides/admin.md
+    - Deployment & Observability: guides/deployment.md
 
 markdown_extensions:
   - pymdownx.highlight:

@@ -55,7 +55,7 @@ To execute the dispatched tasks, you must run the Eden worker process.
 
 ```bash
 # Run the worker for your application
-eden worker --modules app.tasks
+Eden worker --modules app.tasks
 ```
 
 ---
@@ -64,8 +64,9 @@ eden worker --modules app.tasks
 
 To verify your Task Sovereignty:
 
-1. **Test Registration**: Verify the task appears when you run `eden worker --help`.
+1. **Test Registration**: Verify the task appears when you run `Eden worker --help`.
 2. **Test Dispatch**: Trigger a task from a view and check the worker logs for execution.
 3. **Test Scheduling**: Schedule a task with a 10-second delay and verify its delayed start.
 
-If your Nexus handles heavy lifting without breaking a sweat, your Task engine is **100% Verified**. You are ready for **Phase 12: Administrative Excellence**.
+If your Eden handles heavy lifting without breaking a sweat, your Task engine is **100% Verified**. You are ready for **Phase 12: Administrative Excellence**.
+

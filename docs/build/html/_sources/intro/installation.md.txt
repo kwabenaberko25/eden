@@ -117,7 +117,7 @@ For more control:
 # app.py
 from eden import Eden
 
-app = Eden(title="My App", debug=True)
+app = Eden\(title="My App", debug=True)
 ```
 
 2. **Create requirements.txt**:
@@ -202,3 +202,4 @@ Should output:
 - [Quick Start](quickstart.md) - Create your first app
 - [CLI Reference](cli/index.md) - Learn all commands
 - [Phase 1 Tutorial](phase1.md) - Build a complete app
+

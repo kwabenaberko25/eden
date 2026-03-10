@@ -1,6 +1,6 @@
 # Phase 15: Deep Space Production 🚀
 
-Your Nexus is active. Your data is secured. Your tests are green. In this final phase, we master **Deep Space Production**—the hardening and deployment of your application for the interstellar stage.
+Your Eden is active. Your data is secured. Your tests are green. In this final phase, we master **Deep Space Production**—the hardening and deployment of your application for the interstellar stage.
 
 ---
 
@@ -12,7 +12,7 @@ Before lift-off, you must disable the development safety nets and secure your co
 
 ```python
 # Create your production instance
-app = Eden(
+app = Eden\(
     debug=False,
     secret_key=os.getenv("EDEN_SECRET_KEY")
 )
@@ -34,7 +34,7 @@ Use `uvicorn` or `gunicorn` with multiple workers to handle high-volume telemetr
 
 ```bash
 # Recommended launch command
-uv run uvicorn nexus:app --host 0.0.0.0 --port 80 --workers 4
+uv run uvicorn Eden:app --host 0.0.0.0 --port 80 --workers 4
 ```
 
 ---
@@ -61,6 +61,7 @@ Now your orchestrator can verify:
 2. **Verify Load Handling**: Verify that multiple workers are successfully spawned and balanced.
 3. **Verify Reliability**: Check the `/ready` endpoint to ensure all systems are "GO".
 
-**Your Eden Nexus is cleared for launch into deep space.**
+**Your Eden is cleared for launch into deep space.**
 
 **Stay Elite. Stay Antigravity.**
+

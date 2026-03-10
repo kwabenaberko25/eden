@@ -10,7 +10,7 @@ The `eden` command provides a complete toolkit for developing, deploying, and ma
   - [`eden run`](#eden-run)
   - [`eden new`](#eden-new)
   - [`eden version`](#eden-version)
-  - [`eden forge`](#eden-forge)
+  - [`eden db`](#eden-forge)
   - [`eden auth`](#eden-auth)
   - [`eden worker`](#eden-worker)
   - [`eden scheduler`](#eden-scheduler)
@@ -82,7 +82,7 @@ eden run --app myapp:app
 The `run` command automatically discovers your application file. It searches for:
 1. `app.py`
 2. `main.py`
-3. `nexus.py`
+3. `Eden.py`
 4. `run.py`
 
 It looks for `app = Eden(` or `app: Eden =` within the file.
@@ -161,22 +161,22 @@ Output:
 
 ---
 
-### `eden forge`
+### `eden db`
 
 Database migration management. A wrapper around Alembic with Eden-friendly commands.
 
 ```bash
-eden forge <subcommand>
+eden db <subcommand>
 ```
 
 #### Subcommands
 
-##### `eden forge init`
+##### `eden db init`
 
 Initialize the migrations directory.
 
 ```bash
-eden forge init [OPTIONS]
+eden db init [OPTIONS]
 ```
 
 | Option | Description | Default |
@@ -185,15 +185,15 @@ eden forge init [OPTIONS]
 
 Example:
 ```bash
-eden forge init --db-url postgresql://user:pass@localhost/mydb
+eden db init --db-url postgresql://user:pass@localhost/mydb
 ```
 
-##### `eden forge generate`
+##### `eden db generate`
 
 Generate a new migration based on model changes.
 
 ```bash
-eden forge generate -m "MESSAGE" [OPTIONS]
+eden db generate -m "MESSAGE" [OPTIONS]
 ```
 
 | Option | Description | Required |
@@ -203,16 +203,16 @@ eden forge generate -m "MESSAGE" [OPTIONS]
 
 Example:
 ```bash
-eden forge generate -m "Add user avatar field"
-eden forge generate -m "Create products table" --db-url postgresql://localhost/mydb
+eden db generate -m "Add user avatar field"
+eden db generate -m "Create products table" --db-url postgresql://localhost/mydb
 ```
 
-##### `eden forge migrate`
+##### `eden db migrate`
 
 Apply all pending migrations.
 
 ```bash
-eden forge migrate [OPTIONS]
+eden db migrate [OPTIONS]
 ```
 
 | Option | Description | Default |
@@ -221,15 +221,15 @@ eden forge migrate [OPTIONS]
 
 Example:
 ```bash
-eden forge migrate
+eden db migrate
 ```
 
-##### `eden forge upgrade`
+##### `eden db upgrade`
 
 Upgrade to a specific migration revision.
 
 ```bash
-eden forge upgrade [OPTIONS]
+eden db upgrade [OPTIONS]
 ```
 
 | Option | Description | Default |
@@ -240,18 +240,18 @@ eden forge upgrade [OPTIONS]
 Example:
 ```bash
 # Upgrade to latest
-eden forge upgrade
+eden db upgrade
 
 # Upgrade to specific revision
-eden forge upgrade --revision abc123
+eden db upgrade --revision abc123
 ```
 
-##### `eden forge downgrade`
+##### `eden db downgrade`
 
 Revert migrations.
 
 ```bash
-eden forge downgrade [OPTIONS]
+eden db downgrade [OPTIONS]
 ```
 
 | Option | Description | Default |
@@ -262,18 +262,18 @@ eden forge downgrade [OPTIONS]
 Example:
 ```bash
 # Revert one migration
-eden forge downgrade
+eden db downgrade
 
 # Revert to specific revision
-eden forge downgrade --revision abc123
+eden db downgrade --revision abc123
 ```
 
-##### `eden forge history`
+##### `eden db history`
 
 Show all migrations with their status.
 
 ```bash
-eden forge history [OPTIONS]
+eden db history [OPTIONS]
 ```
 
 | Option | Description | Default |
@@ -282,7 +282,7 @@ eden forge history [OPTIONS]
 
 Example:
 ```bash
-eden forge history
+eden db history
 ```
 
 ---
@@ -417,6 +417,7 @@ Eden will automatically find an available port if the default is taken:
 ### Migration errors
 
 If migrations fail to generate, ensure:
-1. You've run `eden forge init` first
-2. Your models inherit from `EdenModel`
+1. You've run `eden db init` first
+2. Your models inherit from `Model`
 3. Models are imported in `migrations/env.py`
+

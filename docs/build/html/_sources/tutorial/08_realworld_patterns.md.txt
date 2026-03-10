@@ -23,7 +23,7 @@ This phase covers production-ready patterns, optimization, and deployment strate
 ```python
 from eden import Eden
 
-app = Eden(
+app = Eden\(
     title="Production App",
     debug=False,  # Never True in production!
     secret_key="secure-random-key-from-env"
@@ -101,7 +101,7 @@ async def stats(request):
 from eden import Eden
 from taskiq import InMemoryBroker
 
-app = Eden()
+app = Eden\()
 
 @app.task
 async def send_welcome_email(user_id: int):
@@ -156,7 +156,7 @@ from eden import Eden
 
 @pytest.fixture
 def app():
-    test_app = Eden(title="Test App")
+    test_app = Eden\(title="Test App")
     return test_app
 
 @pytest.fixture
@@ -252,7 +252,7 @@ from eden.logging import setup_logging
 # Configure logging
 setup_logging(level="INFO", json_format=False)
 
-app = Eden(
+app = Eden\(
     title="Production Blog",
     debug=False,
     secret_key="CHANGE-THIS-IN-PRODUCTION"
@@ -308,3 +308,4 @@ You now have a comprehensive understanding of:
 - Production patterns
 
 **Keep building with Eden!**
+

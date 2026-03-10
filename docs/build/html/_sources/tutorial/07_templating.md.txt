@@ -22,7 +22,7 @@ This phase covers Eden's template engine, including standard HTML and framework-
 ```python
 from eden import Eden
 
-app = Eden(title="My App")
+app = Eden\(title="My App")
 app.template_dir = "templates"
 ```
 
@@ -35,6 +35,7 @@ Eden uses clean directive-based syntax:
 ### Template Inheritance
 
 **Base template** (`templates/base.html`):
+
 ```html
 <!DOCTYPE html>
 <html>
@@ -48,6 +49,7 @@ Eden uses clean directive-based syntax:
 ```
 
 **Child template**:
+
 ```html
 @extends('base.html')
 
@@ -207,6 +209,7 @@ app.static_dir = "static"
 ```
 
 **templates/posts/list.html**:
+
 ```html
 @extends('base.html')
 
@@ -237,7 +240,7 @@ app.static_dir = "static"
 
 You learned:
 - Template setup and configuration
-- Eden template syntax (@extends, @block, @if, @for)
+- Eden Template syntax (@extends, @block, @if, @for)
 - Template inheritance
 - Passing context to templates
 - Built-in filters
@@ -256,3 +259,4 @@ Continue to **Phase 8: Real-World Patterns**
 
 tutorial/08_realworld_patterns
 ```
+

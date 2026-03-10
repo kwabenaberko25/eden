@@ -1,6 +1,6 @@
 # Phase 3: The QuerySet API (Fluid Intelligence) 🔍
 
-Data without retrieval is just noise. In this phase, we master the **QuerySet API**—a fluent, chainable, and lazy-loading interface that allows you to query your interstellar nexus with surgical precision.
+Data without retrieval is just noise. In this phase, we master the **QuerySet API**—a fluent, chainable, and lazy-loading interface that allows you to query your interstellar Eden with surgical precision.
 
 ---
 
@@ -90,3 +90,4 @@ To verify your QuerySet mastery:
 3. **Test Aggregation**: Verify `count()` matches the number of seeded records.
 
 If your queries are fluid and efficient, your QuerySet knowledge is **100% Verified**. You are ready for **Phase 4: Premium UI & Templating**.
+

@@ -38,7 +38,7 @@ Create a new file called `app.py`:
 from eden import Eden
 
 # Create the application
-app = Eden(title="My First App")
+app = Eden\(title="My First App")
 
 # Define a route
 @app.get("/")
@@ -64,7 +64,7 @@ You'll see:
 🔄 Auto-reload: enabled
 ```
 
-Open http://127.0.0.1:8000 in your browser!
+Open [http://127.0.0.1:8000](http://127.0.0.1:8000) in your browser!
 
 ---
 
@@ -75,7 +75,7 @@ Let's break down each part:
 ### The Application
 
 ```python
-app = Eden(title="My First App")
+app = Eden\(title="My First App")
 ```
 
 The `Eden` class is your application instance. It handles:
@@ -100,13 +100,13 @@ async def index():
 
 Eden provides decorators for each HTTP method:
 
-| Decorator | HTTP Method | Use Case |
-|-----------|-------------|----------|
-| `@app.get()` | GET | Retrieve data |
-| `@app.post()` | POST | Create resources |
-| `@app.put()` | PUT | Replace resources |
-| `@app.patch()` | PATCH | Partial update |
-| `@app.delete()` | DELETE | Remove resources |
+| Decorator     | Method | Use Case           |
+|---------------|--------|--------------------|
+| `@app.get()`  | GET    | Retrieve data      |
+| `@app.post()` | POST   | Create resources   |
+| `@app.put()`  | PUT    | Replace resources  |
+| `@app.patch()`| PATCH  | Partial update     |
+| `@app.delete()`| DELETE | Remove resources   |
 
 ### Return Values
 
@@ -163,12 +163,12 @@ Try visiting `/users/42` - it returns `{"user_id": 42}`
 
 Eden automatically converts path parameters:
 
-| Type | Example URL | Converted Value |
-|------|-------------|-----------------|
-| `int` | `/users/42` | `42` |
-| `str` | `/users/alice` | `"alice"` |
-| `uuid.UUID` | `/items/abc...` | UUID object |
-| `float` | `/price/19.99` | `19.99` |
+| Type          | Example URL    | Converted Value |
+|---------------|----------------|-----------------|
+| `int`         | `/users/42`    | `42`            |
+| `str`         | `/users/alice` | `"alice"`       |
+| `uuid.UUID`   | `/items/abc...`| UUID object     |
+| `float`       | `/price/19.99` | `19.99`         |
 
 **Basic** - Multiple parameters:
 
@@ -226,7 +226,7 @@ For larger apps, organize your code:
 
 ### The Recommended Structure
 
-```
+```text
 myblog/
 ├── app.py              # Main application
 ├── models.py           # Database models
@@ -271,7 +271,7 @@ from eden import Eden
 from routes import main_router
 from routes.posts import router as posts_router
 
-app = Eden(title="My Blog")
+app = Eden\(title="My Blog")
 app.include_router(main_router)
 app.include_router(posts_router)
 
@@ -280,6 +280,7 @@ if __name__ == "__main__":
 ```
 
 **Why organize this way?**
+
 - Separation of concerns
 - Easier to maintain
 - Team collaboration
@@ -313,6 +314,7 @@ eden run
 ```
 
 This scaffolds a complete project with:
+
 - Organized directory structure
 - Pre-configured middleware
 - Database configuration
@@ -327,7 +329,7 @@ This scaffolds a complete project with:
 ```python
 from eden import Eden
 
-app = Eden(
+app = Eden\(
     title="My Blog",
     version="1.0.0",
     debug=True,           # Show detailed errors
@@ -357,7 +359,7 @@ from eden import Eden
 from typing import Optional
 
 # Create application
-app = Eden(
+app = Eden\(
     title="Task Manager",
     version="1.0.0",
     debug=True
@@ -451,7 +453,7 @@ curl -X DELETE "http://localhost:8000/tasks/1"
 
 In this phase, you learned:
 
-- ✅ Creating an Eden application
+- ✅ Creating a Eden application
 - ✅ Defining routes with decorators
 - ✅ Working with path parameters
 - ✅ Handling query parameters
@@ -469,3 +471,4 @@ Now that you can create basic applications, let's learn about **data modeling** 
 
 tutorial/02_data_modeling
 ```
+

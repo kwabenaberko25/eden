@@ -366,6 +366,7 @@ def f(
     min: Any = None,
     max: Any = None,
     foreign_key: str | None = None,
+    on_delete: str = "CASCADE",
     json: bool = False,
     **kwargs: Any,
 ) -> Any:
@@ -397,9 +398,21 @@ def f(
     if meta:
         kw["info"] = meta
 
-    # If it looks like a relationship
+    # If it looks like a relationship (one-liner support)
     if back_populates:
-        return Relationship(back_populates=back_populates, **kw)
+        # If it's a relationship, we flag it as a reference so Model auto-creates the _id column.
+        # This allows: organization: Mapped["Organization"] = f(back_populates="members")
+        meta["is_reference"] = True
+        meta["on_delete"] = on_delete
+        meta["required"] = not kw.get("nullable", True)
+        
+        # We only pass info and any other non-column kwargs to Relationship
+        rel_kw = {"info": meta}
+        for k in ["lazy", "overlaps", "uselist", "secondary", "order_by"]:
+            if k in kwargs:
+                rel_kw[k] = kwargs[k]
+        
+        return Relationship(back_populates=back_populates, **rel_kw)
 
     # Standard columns
     if json:

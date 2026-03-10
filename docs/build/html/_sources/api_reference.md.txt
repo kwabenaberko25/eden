@@ -58,6 +58,7 @@ app.add_middleware(middleware: str | type, **kwargs)
 ```
 
 Supported middleware strings:
+
 - `"cors"` - CORS handling
 - `"gzip"` - GZip compression
 - `"session"` - Session management
@@ -110,7 +111,7 @@ async def shutdown():
 ```python
 from eden import Eden
 
-app = Eden(
+app = Eden\(
     title="My API",
     version="1.0.0",
     debug=True
@@ -178,7 +179,7 @@ async def get_user(user_id: int):
 
 ### Models
 
-#### `eden.Model` / `eden.EdenModel`
+#### `eden.Model` / `eden.Model`
 
 ```python
 from eden import Model
@@ -190,23 +191,34 @@ Base class for all database models.
 class User(Model):
     __tablename__ = "users"
     
-    email: Mapped[str] = StringField(unique=True, index=True)
-    name: Mapped[str | None] = StringField(nullable=True)
-    is_active: Mapped[bool] = BoolField(default=True)
+    email: str = f(unique=True, index=True)
+    name: Mapped[str | None] = f(nullable=True)
+    is_active: bool = f(default=True)
 ```
 
 #### Field Types
 
 | Field | SQL Type | Arguments |
 |-------|----------|------------|
-| `StringField` | `VARCHAR` | `max_length`, `unique`, `index`, `nullable`, `default` |
-| `IntField` | `INTEGER` | `index`, `unique`, `default`, `autoincrement` |
-| `BoolField` | `BOOLEAN` | `default` |
+| `f` | `VARCHAR` | `max_length`, `unique`, `index`, `nullable`, `default` |
+| `f` | `INTEGER` | `index`, `unique`, `default`, `autoincrement` |
+| `f` | `BOOLEAN` | `default` |
 | `FloatField` | `FLOAT` | `default` |
 | `TextField` | `TEXT` | `nullable`, `default` |
-| `DateTimeField` | `DATETIME` | `auto_now`, `auto_now_add`, `nullable` |
-| `UUIDField` | `UUID` | `primary_key`, `default_factory` |
+| `f` | `DATETIME` | `auto_now`, `auto_now_add`, `nullable` |
+| `f` | `UUID` | `primary_key`, `default_factory` |
 | `ForeignKeyField` | `INTEGER/UUID` | `references`, `ondelete`, `nullable` |
+
+#### Unified Database Primitives (`eden.db`)
+
+Eden 1.0 exports all essential SQLAlchemy and ORM primitives directly from `eden.db`. You should avoid importing from `sqlalchemy` directly.
+
+| Category | Primitives exported from `eden.db` |
+| :--- | :--- |
+| **ORM** | `Mapped`, `mapped_column`, `relationship`, `selectinload`, `joinedload`, `AsyncSession` |
+| **Query** | `select`, `update`, `delete`, `insert`, `func`, `text`, `inspect`, `event` |
+| **Schema** | `MetaData`, `Table`, `Column`, `ForeignKey`, `Index`, `UniqueConstraint`, `CheckConstraint`, `PrimaryKeyConstraint`, `ForeignKeyConstraint`, `Sequence`, `Identity`, `Computed`, `DefaultClause` |
+| **Types** | `String`, `Integer`, `SmallInteger`, `BigInteger`, `Numeric`, `Float`, `Boolean`, `DateTime`, `Date`, `Time`, `Interval`, `Uuid`, `JSON`, `Enum`, `ARRAY`, `Unicode`, `UnicodeText`, `LargeBinary`, `TypeDecorator` |
 
 #### Relationships
 
@@ -216,15 +228,15 @@ from eden import ForeignKeyField, Relationship
 class Post(Model):
     __tablename__ = "posts"
     
-    title: Mapped[str] = StringField()
+    title: str = f()
     author_id: Mapped[uuid.UUID] = ForeignKeyField("users.id")
     
-    author: Mapped["User"] = Relationship("User", back_populates="posts")
+    author: "User" = Relationship("User", back_populates="posts")
 
 class User(Model):
     __tablename__ = "users"
     
-    posts: Mapped[list["Post"]] = Relationship("Post", back_populates="author")
+    posts: list["Post"] = Relationship("Post", back_populates="author")
 ```
 
 ### Query Operations
@@ -309,6 +321,16 @@ db = Database("sqlite+aiosqlite:///db.sqlite3")
 async def route(db = Depends(get_db)):
     await db.execute(...)
 ```
+
+#### Advanced: Session Resolution & Safety
+
+Eden provides a dual-layer session safety net to ensure that ORM operations always have access to a valid transaction:
+
+1. **Request State**: By default, Eden looks for a session in `request.state.db`. This is managed automatically by the `DatabaseMiddleware`.
+2. **Context-Var Fallback**: If a request object is not available (e.g., in background tasks or complex nested calls), Eden falls back to a thread-safe `ContextVar`.
+
+> [!NOTE]
+> This ensures that `Model.session()` and all query methods are safe to use even in edge cases where the request context might be detached or missing.
 
 ---
 
@@ -585,7 +607,7 @@ await msg.send()
 ```python
 from eden import Eden
 
-app = Eden()
+app = Eden\()
 
 @app.task
 async def send_welcome_email(user_id: int):
@@ -636,3 +658,4 @@ logger.info("Message")
 | `DATABASE_URL` | Database connection |
 | `LOG_LEVEL` | Logging level |
 | `REDIS_URL` | Redis for tasks/cache |
+

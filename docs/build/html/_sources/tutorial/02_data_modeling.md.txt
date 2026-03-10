@@ -26,7 +26,7 @@ from eden.db import Database
 
 db = Database("sqlite+aiosqlite:///myblog.db")
 
-app = Eden(title="My Blog")
+app = Eden\(title="My Blog")
 
 @app.on_startup
 async def startup():
@@ -55,15 +55,15 @@ if __name__ == "__main__":
 **Basic** - Simple model:
 
 ```python
-from eden.db import Model, Mapped
-from eden.db.fields import StringField, IntField, BoolField
+from eden.db import Model
+from eden.db.fields import f
 
 class Post(Model):
     __tablename__ = "posts"
     
-    title: Mapped[str] = StringField(max_length=200)
-    content: Mapped[str] = StringField()
-    published: Mapped[bool] = BoolField(default=False)
+    title: str = f(max_length=200)
+    content: str = f()
+    published: bool = f(default=False)
 ```
 
 ### How It Works
@@ -71,7 +71,7 @@ class Post(Model):
 Eden models use SQLAlchemy 2.0's `Mapped` type annotations:
 
 ```python
-field_name: Mapped[python_type] = FieldHelper(**options)
+field_name: python_type = FieldHelper(**options)
 ```
 
 ---
@@ -84,7 +84,7 @@ field_name: Mapped[python_type] = FieldHelper(**options)
 class User(Model):
     __tablename__ = "users"
     
-    username: Mapped[str] = StringField(
+    username: str = f(
         max_length=50,
         unique=True,
         index=True,
@@ -96,13 +96,13 @@ class User(Model):
 ### Numeric Fields
 
 ```python
-from eden.db.fields import IntField, FloatField
+from eden.db.fields import f, FloatField
 
 class Product(Model):
     __tablename__ = "products"
     
-    price: Mapped[float] = FloatField(default=0.0)
-    quantity: Mapped[int] = IntField(default=0)
+    price: float = FloatField(default=0.0)
+    quantity: int = f(default=0)
 ```
 
 ### Boolean Field
@@ -111,21 +111,21 @@ class Product(Model):
 class User(Model):
     __tablename__ = "users"
     
-    is_active: Mapped[bool] = BoolField(default=True)
-    is_admin: Mapped[bool] = BoolField(default=False)
+    is_active: bool = f(default=True)
+    is_admin: bool = f(default=False)
 ```
 
 ### DateTime Fields
 
 ```python
 from datetime import datetime
-from eden.db.fields import DateTimeField
+from eden.db.fields import f
 
 class Post(Model):
     __tablename__ = "posts"
     
-    created_at: Mapped[datetime] = DateTimeField(auto_now_add=True)
-    updated_at: Mapped[datetime] = DateTimeField(auto_now=True)
+    created_at: datetime = f(auto_now_add=True)
+    updated_at: datetime = f(auto_now=True)
 ```
 
 | Option | Description |
@@ -137,12 +137,12 @@ class Post(Model):
 
 ```python
 import uuid
-from eden.db.fields import UUIDField
+from eden.db.fields import f
 
 class Post(Model):
     __tablename__ = "posts"
     
-    id: Mapped[uuid.UUID] = UUIDField(primary_key=True, default_factory=uuid.uuid4)
+    id: Mapped[uuid.UUID] = f(primary_key=True, default_factory=uuid.uuid4)
 ```
 
 ### Text Field
@@ -153,7 +153,7 @@ from eden.db.fields import TextField
 class Post(Model):
     __tablename__ = "posts"
     
-    content: Mapped[str] = TextField()
+    content: str = TextField()
 ```
 
 ---
@@ -174,7 +174,7 @@ class Post(Model):
 import uuid
 class Post(Model):
     __tablename__ = "posts"
-    id: Mapped[uuid.UUID] = UUIDField(primary_key=True, default_factory=uuid.uuid4)
+    id: Mapped[uuid.UUID] = f(primary_key=True, default_factory=uuid.uuid4)
 ```
 
 ---
@@ -249,14 +249,14 @@ await Post.query().filter(status="draft").delete()
 ```python
 class Comment(Model):
     __tablename__ = "comments"
-    content: Mapped[str] = TextField()
-    post_id: Mapped[int] = ForeignKeyField("posts.id", ondelete="CASCADE")
-    post: Mapped["Post"] = Relationship("Post", back_populates="comments")
+    content: str = TextField()
+    post_id: int = ForeignKeyField("posts.id", ondelete="CASCADE")
+    post: "Post" = Relationship("Post", back_populates="comments")
 
 class Post(Model):
     __tablename__ = "posts"
-    title: Mapped[str] = StringField()
-    comments: Mapped[list["Comment"]] = Relationship("Comment", back_populates="post")
+    title: str = f()
+    comments: list["Comment"] = Relationship("Comment", back_populates="post")
 ```
 
 ### Many-to-Many
@@ -264,13 +264,13 @@ class Post(Model):
 ```python
 class Tag(Model):
     __tablename__ = "tags"
-    name: Mapped[str] = StringField(unique=True)
-    posts: Mapped[list["Post"]] = ManyToManyField("Post", through="post_tags")
+    name: str = f(unique=True)
+    posts: list["Post"] = ManyToManyField("Post", through="post_tags")
 
 class Post(Model):
     __tablename__ = "posts"
-    title: Mapped[str] = StringField()
-    tags: Mapped[list["Tag"]] = ManyToManyField("Tag", through="post_tags")
+    title: str = f()
+    tags: list["Tag"] = ManyToManyField("Tag", through="post_tags")
 ```
 
 ---
@@ -363,26 +363,26 @@ await Post.query().filter(id=post_id).update(view_count=F("view_count") + 1)
 import uuid
 from datetime import datetime
 from eden.db import Model
-from eden.db.fields import StringField, TextField, BoolField, DateTimeField, UUIDField, ForeignKeyField
+from eden.db.fields import f, TextField, f, ForeignKeyField
 
 class User(Model):
     __tablename__ = "users"
-    username: Mapped[str] = StringField(max_length=50, unique=True, index=True)
-    email: Mapped[str] = StringField(max_length=255, unique=True)
-    bio: Mapped[str] = TextField(nullable=True)
-    is_active: Mapped[bool] = BoolField(default=True)
-    created_at: Mapped[datetime] = DateTimeField(auto_now_add=True)
+    username: str = f(max_length=50, unique=True, index=True)
+    email: str = f(max_length=255, unique=True)
+    bio: str = TextField(nullable=True)
+    is_active: bool = f(default=True)
+    created_at: datetime = f(auto_now_add=True)
 
 class Post(Model):
     __tablename__ = "posts"
-    title: Mapped[str] = StringField(max_length=200)
-    slug: Mapped[str] = StringField(max_length=200, unique=True, index=True)
-    content: Mapped[str] = TextField()
-    published: Mapped[bool] = BoolField(default=False)
-    view_count: Mapped[int] = IntField(default=0)
+    title: str = f(max_length=200)
+    slug: str = f(max_length=200, unique=True, index=True)
+    content: str = TextField()
+    published: bool = f(default=False)
+    view_count: int = f(default=0)
     author_id: Mapped[uuid.UUID] = ForeignKeyField("users.id", ondelete="CASCADE")
-    created_at: Mapped[datetime] = DateTimeField(auto_now_add=True)
-    updated_at: Mapped[datetime] = DateTimeField(auto_now=True)
+    created_at: datetime = f(auto_now_add=True)
+    updated_at: datetime = f(auto_now=True)
 ```
 
 ---
@@ -411,3 +411,4 @@ Continue to **Phase 3: Routing & Requests**
 
 tutorial/03_routing_requests
 ```
+

@@ -1,6 +1,6 @@
 # Phase 7: The Unified Layer (Resources) 🏛️
 
-As your Interstellar Nexus scales, you need a way to group logic, data, and access control into a single, cohesive unit. In this phase, we master **Eden Resources**—the ultimate abstraction for building mission-critical REST APIs.
+As your Interstellar Eden scales, you need a way to group logic, data, and access control into a single, cohesive unit. In this phase, we master **Eden Resources**—the ultimate abstraction for building mission-critical REST APIs.
 
 ---
 
@@ -9,15 +9,15 @@ As your Interstellar Nexus scales, you need a way to group logic, data, and acce
 A `Resource` in Eden **inherits directly from `Model`**, creating a "Unified" structure where your data schema, API logic, and forms live together in a single class. This eliminates the boilerplate of mapping separate models to controllers.
 
 ```python
-from eden import Resource, action, f, Mapped
+from eden import Resource, action, f
 
 class SectorResource(Resource):
     """Unified controller for Sector management."""
     __tablename__ = "sectors"
     
     # 🧬 Data Schema (Inherited from Model)
-    name: Mapped[str] = f(max_length=100, required=True)
-    status: Mapped[str] = f(default="active", choices=["active", "dormant"])
+    name: str = f(max_length=100, required=True)
+    status: str = f(default="active", choices=["active", "dormant"])
     
     # ⚡ Custom behavior
     async def get_pulse(self):
@@ -56,3 +56,4 @@ To verify your Unified Layer:
 3. **Test Automatic Schemas**: Visit `/docs` and verify the Resource endpoints are correctly identified.
 
 If your system architecture is clean, modular, and self-documenting, your Unified Layer is **100% Verified**. You are ready for **Phase 8: The Fortress (Security)**.
+

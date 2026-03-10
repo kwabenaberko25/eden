@@ -14,14 +14,14 @@ This tutorial is organized into **8 progressive phases**. Each phase builds upon
 :maxdepth: 2
 :numbered:
 
-tutorial/01_first_application
-tutorial/02_data_modeling
-tutorial/03_routing_requests
-tutorial/04_forms_validation
-tutorial/05_authentication
-tutorial/06_permissions
-tutorial/07_templating
-tutorial/08_realworld_patterns
+01_first_application
+02_data_modeling
+03_routing_requests
+04_forms_validation
+05_authentication
+06_permissions
+07_templating
+08_realworld_patterns
 ```
 
 ### Phase Overview

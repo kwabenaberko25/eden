@@ -1,53 +1,33 @@
 # 🌿 Eden Framework Documentation
 
-Welcome to the **Eden Framework** documentation. This is your comprehensive guide to mastering Eden—a high-performance, asynchronous Python web framework that combines **Django's features**, **FastAPI's speed**, and **Flask's simplicity**.
+Welcome to the **Eden Framework** documentation. This is your comprehensive guide to mastering Eden—a high-performance, asynchronous Python web framework built for modular excellence.
 
 ---
 
-## Quick Navigation
+## 🎓 The Journey: Zero to Production
+
+Follow this complete, step-by-step journey to build a production-grade, multi-tenant application from the ground up.
 
 ```{toctree}
-:maxdepth: 2
+:maxdepth: 1
 
-intro/index
-cli/index
-```
-
----
-
-## 🚀 The 15-Phase Learning Journey
-
-Follow the modular phases below to build your application from the ground up.
-
-```{toctree}
-:caption: Eden Framework Tutorial
-:maxdepth: 2
-:numbered:
-
-phase1
-phase2
-phase3
-phase4
-phase5
-phase6
-phase7
-phase8
-phase9
-phase10
-phase11
-phase12
-phase13
-phase14
-phase15
-```
-
----
-
-## 📚 Reference Documentation
-
-```{toctree}
-:maxdepth: 2
-
+introduction
+getting_started
+data_forge_orm
+routing_and_navigation
+templating_and_components
+forms_and_validation
+authentication_security
+multi_tenancy_isolation
+middleware_and_events
+admin_panel
+background_tasks
+websockets_realtime
+caching
+storage_automation
+communications_engine
+payments
+deployment
 api_reference
 ```
 
@@ -57,14 +37,15 @@ api_reference
 
 Eden is architected around the principle of **Modular Excellence**. Every component, from the core ASGI heart to the Data Forge, is designed to be isolated yet perfectly synchronized.
 
-| Module | Description |
-|--------|-------------|
-| **Core** | Application, Routing, Requests, Responses |
-| **Database** | ORM, Models, Queries, Migrations |
-| **Auth** | Authentication, RBAC, Security |
-| **UI** | Templates, Forms, Components |
-| **Admin** | Auto-generated admin panel |
-| **Integrations** | Payments, Storage, Email, Tasks |
+| Feature | Component | Eden implementation |
+| :--- | :--- | :--- |
+| **Routing** | `Resource` | Automatic class-based routing |
+| **Modeling** | `Model` | Pydantic-powered ORM |
+| **Logic** | `Eden` | The central application engine |
+| **Auth** | `RBAC` | Enterprise-grade access control |
+| **UI** | `Template` | Jinja2, Forms, Components |
+| **Admin** | `AdminPanel` | Auto-generated admin interface |
+| **Integrations** | `Service` | Payments, Storage, Email, Tasks |
 
 ---
 
@@ -73,7 +54,9 @@ Eden is architected around the principle of **Modular Excellence**. Every compon
 ### Installation
 
 ```bash
-pip install eden-framework
+npx eden new colony_manager
+cd colony_manager
+uv run eden run
 ```
 
 ### Your First App
@@ -90,24 +73,18 @@ async def hello():
 app.run()
 ```
 
-Run with:
-```bash
-eden run
-```
-
 ---
 
 ## Key Features
 
-- **Async-First**: Built on Starlette for high performance
-- **Type Safety**: Full Pydantic v2 integration
-- **Database**: SQLAlchemy 2.0 with async support
-- **Security**: Built-in RBAC, CSRF, and multi-tenancy
-- **DX**: Hot reload, beautiful error pages, CLI tooling
+- **Async-First**: Built for maximum throughput with standard ASGI support.
+- **Type Safety**: Full Pydantic v2 integration for schema-driven development.
+- **Database**: SQLAlchemy 2.0 with first-class async support and multi-tenancy.
+- **Security**: Built-in RBAC, CSRF protection, and Argon2 password hashing.
 
 ---
 
 ## Community & Support
 
-- **GitHub**: https://github.com/eden-framework/eden
-- **Issues**: https://github.com/eden-framework/eden/issues
+- **GitHub**: [Eden on GitHub](https://github.com/eden-framework/eden)
+- **Issues**: [Support & Issues](https://github.com/eden-framework/eden/issues)

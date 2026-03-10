@@ -1,6 +1,6 @@
 # Phase 10: Performance & Production 🚀
 
-Congratulations! Your **Eden Nexus** is now a fully secured, multi-tenant portal. In this final phase, we optimize for the "Elite" performance and prepare for the cold vacuum of production.
+Congratulations! Your **Eden** is now a fully secured, multi-tenant portal. In this final phase, we optimize for the "Elite" performance and prepare for the cold vacuum of production.
 
 ---
 
@@ -11,7 +11,7 @@ Eden includes a built-in observability layer. In `app.py`, enable the `Performan
 ```python
 from eden.middleware import PerformanceTelemetryMiddleware
 
-app = Eden(debug=True)
+app = Eden\(debug=True)
 app.add_middleware(PerformanceTelemetryMiddleware)
 ```
 
@@ -44,4 +44,5 @@ async def sector_summary(request):
 1. **Verify Telemetry**: Check for `Server-Timing` headers in your telemetry route.
 2. **Verify Caching**: Ensure cached data returns `source: cache` and stays isolated.
 
-If your Nexus is optimized for "Elite" speeds, your Performance engine is **100% Verified**. You are ready for **Phase 11: Task Sovereignty (Background Tasks)**.
+If your Eden is optimized for "Elite" speeds, your Performance engine is **100% Verified**. You are ready for **Phase 11: Task Sovereignty (Background Tasks)**.
+

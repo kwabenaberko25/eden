@@ -1,6 +1,6 @@
 # Phase 9: Universal Reach (Internationalization) 🌍
 
-In an interstellar network, communication must be universal. In this phase, we master **Eden i18n**—a gettext-powered internationalization system that makes your Nexus accessible in any language.
+In an interstellar network, communication must be universal. In this phase, we master **Eden i18n**—a gettext-powered internationalization system that makes your Eden accessible in any language.
 
 ---
 
@@ -32,7 +32,7 @@ from eden.i18n import _
 
 @app.get("/")
 async def welcome():
-    return {"message": _("Welcome to the Nexus")}
+    return {"message": _("Welcome to the Eden")}
 ```
 
 ### 2. In Templates
@@ -57,6 +57,7 @@ To verify your Universal Reach:
 
 1. **Test Translation**: Add a `lang=fr` parameter and verify the translated strings appear (if catalogs exist).
 2. **Test Default**: Ensure the default locale is used when no language info is provided.
-3. **Test Template Registration**: Verify that `_()` is available globally in your Eden templates.
+3. **Test Template Registration**: Verify that `_()` is available globally in your Eden Templates.
 
-If your Nexus speaks every language in the quadrant, your i18n engine is **100% Verified**. You are ready for **Phase 10: High-Performance Optimization**.
+If your Eden speaks every language in the quadrant, your i18n engine is **100% Verified**. You are ready for **Phase 10: High-Performance Optimization**.
+

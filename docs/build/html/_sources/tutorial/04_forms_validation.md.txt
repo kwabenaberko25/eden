@@ -218,6 +218,7 @@ async def create_user(request):
 ## 4.10 Complete Example
 
 **forms.py**:
+
 ```python
 from pydantic import BaseModel, Field, field_validator
 from eden.forms import BaseForm
@@ -240,6 +241,7 @@ class PostForm(BaseForm):
 ```
 
 **routes.py**:
+
 ```python
 @router.get("/posts/new")
 async def new_post(request):
@@ -267,7 +269,6 @@ async def create_post(request):
 
 ## Summary
 
-You learned:
 - Pydantic validation basics
 - Creating Eden forms with BaseForm
 - Handling form submissions
@@ -283,9 +284,9 @@ You learned:
 ## Next Steps
 
 Continue to **Phase 5: Authentication**
-
 ```{toctree}
 :maxdepth: 1
 
 tutorial/05_authentication
 ```
+

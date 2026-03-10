@@ -1,6 +1,6 @@
 # Phase 13: Interstellar Logistics (Payments) 💳
 
-Monetizing your Nexus is a critical mission. In this phase, we master **Eden Payments**—a unified interface for handling subscriptions, checkouts, and webhooks with Stripe.
+Monetizing your Eden is a critical mission. In this phase, we master **Eden Payments**—a unified interface for handling subscriptions, checkouts, and webhooks with Stripe.
 
 ---
 
@@ -34,8 +34,8 @@ async def start_checkout(request):
     checkout_url = await app.payments.create_checkout_session(
         customer_id=user.stripe_id,
         price_id="price_premium_123",
-        success_url="https://nexus.io/success",
-        cancel_url="https://nexus.io/cancel"
+        success_url="https://Eden.io/success",
+        cancel_url="https://Eden.io/cancel"
     )
     return RedirectResponse(checkout_url)
 ```
@@ -72,4 +72,5 @@ To verify your Interstellar Logistics:
 2. **Test Webhook Signature**: Use the Stripe CLI to send a test webhook and verify it passes signature check.
 3. **Test Deduplication**: Send the same event ID twice and verify that the second attempt returns `already_processed`.
 
-If your Nexus is successfully processing credits across the galaxy, your Payments engine is **100% Verified**. You are ready for **Phase 14: Mission-Critical Testing**.
+If your Eden is successfully processing credits across the galaxy, your Payments engine is **100% Verified**. You are ready for **Phase 14: Mission-Critical Testing**.
+

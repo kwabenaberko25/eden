@@ -1,6 +1,6 @@
 # Phase 6: Input Governance (Forms) 📋
 
-Securely capturing user input is the shield of every interstellar nexus. In this phase, we master **Eden Forms**—a powerful, Pydantic-driven system that handles validation, serialization, and rendering with "Elite" precision.
+Securely capturing user input is the shield of every interstellar Eden. In this phase, we master **Eden forms**—a powerful, Pydantic-driven system that handles validation, serialization, and rendering with "Elite" precision.
 
 ---
 
@@ -47,7 +47,7 @@ Eden forms handle their own rendering, injecting the necessary HTML, classes, an
 
 ## 🚦 Form Processing
 
-Processing an Eden form is a synchronous, high-speed operation once the data has been retrieved from the request.
+Processing a Eden Form is a synchronous, high-speed operation once the data has been retrieved from the request.
 
 ```python
 @app.post("/sectors/create")
@@ -78,3 +78,4 @@ To verify your Input Governance:
 3. **Test HTMX Integration**: Use the form with HTMX to verify that only the form fragment is updated on validation Failure.
 
 If your system remains secure and your input is strictly governed, your Forms engine is **100% Verified**. You are ready for **Phase 7: The Unified Layer (Resources)**.
+

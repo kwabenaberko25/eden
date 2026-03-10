@@ -27,7 +27,7 @@ Create a new file called `app.py`:
 ```python
 from eden import Eden
 
-app = Eden(
+app = Eden\(
     title="My First App",
     debug=True
 )
@@ -53,13 +53,14 @@ eden run
 
 You should see:
 
+```text
+🌿 Eden Framework
+🚀 Starting development server...
+📡 Listening at: http://127.0.0.1:8000
 ```
-🌿 Eden v0.1.0
-📡 Running on http://127.0.0.1:8000
 🔄 Auto-reload: enabled
-```
 
-Open http://127.0.0.1:8000 in your browser!
+Open [http://127.0.0.1:8000](http://127.0.0.1:8000) in your browser!
 
 ---
 
@@ -86,3 +87,4 @@ This creates a complete project structure with:
 - **Learn the fundamentals**: Start with [Phase 1](phase1.md)
 - **Explore the CLI**: See [`cli/index.md`](../cli/index.md)
 - **API Reference**: Check [`api_reference.md`](../api_reference.md)
+

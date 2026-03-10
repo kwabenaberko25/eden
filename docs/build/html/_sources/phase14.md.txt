@@ -1,6 +1,6 @@
 # Phase 14: Mission-Critical Testing 🧪
 
-In space, a single bug can be fatal. In this phase, we master **Eden Testing**—using `pytest` and `httpx` to build a bulletproof test suite for your Nexus.
+In space, a single bug can be fatal. In this phase, we master **Eden Testing**—using `pytest` and `httpx` to build a bulletproof test suite for your Eden.
 
 ---
 
@@ -19,7 +19,7 @@ from eden import Eden
 
 @pytest.fixture
 def app():
-    return Eden(title="Test Nexus", debug=True)
+    return Eden(title="Test Eden", debug=True)
 
 @pytest.fixture
 async def client(app):
@@ -69,4 +69,5 @@ To verify your Mission-Critical Testing:
 2. **Test Coverage**: Use `pytest-cov` to verify that your core logic is protected by "Elite" coverage.
 3. **Test Isolation**: Ensure that your database tests don't leak data between runs.
 
-If your test suite is green and your Nexus is bulletproof, your Testing engine is **100% Verified**. You are ready for the final mission: **Phase 15: Deep Space Production**.
+If your test suite is green and your Eden is bulletproof, your Testing engine is **100% Verified**. You are ready for the final mission: **Phase 15: Deep Space Production**.
+
