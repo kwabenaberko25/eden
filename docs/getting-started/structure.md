@@ -4,7 +4,7 @@ A standard Eden project follows a clean, modular layout designed for both small 
 
 ## The Default Layout
 
-When you run `npx eden new`, your project will look like this:
+When you run `eden new`, your project will look like this:
 
 ```text
 ```mermaid

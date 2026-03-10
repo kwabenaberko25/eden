@@ -33,7 +33,7 @@ Content:
 - Field helpers: `StringField`, `IntField`, `BoolField`, `DateTimeField`, `UUIDField`, `TextField`, `FloatField`
 - Primary keys and UUID defaults
 - CRUD operations: `create`, `read`, `update`, `delete`
-- Automatic migrations with `eden forge migrate`
+- Automatic migrations with `eden db migrate`
 - Complete example: Blog models
 
 ---

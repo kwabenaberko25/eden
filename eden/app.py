@@ -193,6 +193,90 @@ class Eden:
 
 
     # ── Route Decorators ─────────────────────────────────────────────────
+    
+    def validate(self, schema: Type[Any], template: str | None = None) -> Callable:
+        """
+        Decorator for automatic form validation.
+        
+        Args:
+            schema: The Schema or Pydantic class to validate against.
+            template: Optional template to re-render on failure.
+            
+        Usage:
+            @app.post("/login")
+            @app.validate(LoginSchema, template="login.html")
+            async def login(credentials: LoginSchema):
+                # Only runs if valid
+                ...
+        """
+        import functools
+        from eden.forms import BaseForm, Schema
+
+        def decorator(func: Callable) -> Callable:
+            @functools.wraps(func)
+            async def wrapper(*args, **kwargs):
+                # Find request in args or kwargs
+                request = None
+                for arg in args:
+                    if hasattr(arg, "scope"):
+                        request = arg
+                        break
+                if not request:
+                    request = kwargs.get("request")
+                
+                if not request:
+                    from eden.requests import get_request
+                    request = get_request()
+
+                # 1. Parse data
+                if issubclass(schema, Schema):
+                    form = await schema.from_request(request)
+                else:
+                    # Fallback for plain Pydantic models
+                    data = {}
+                    try:
+                        data = await request.json()
+                    except:
+                        try:
+                            data = dict(await request.form())
+                        except:
+                            pass
+                    form = BaseForm(schema=schema, data=data)
+
+                # 2. Validate
+                if form.is_valid():
+                    # 2.1 Prepare arguments for the handler
+                    sig = inspect.signature(func)
+                    
+                    # Inject credentials
+                    for param_name, param in sig.parameters.items():
+                        if param.annotation == schema or param_name == "credentials":
+                            kwargs[param_name] = form.model_instance
+                            break
+                    
+                    # Filter kwargs to only those the handler expects
+                    handler_kwargs = {
+                        k: v for k, v in kwargs.items() 
+                        if k in sig.parameters
+                    }
+                    
+                    return await func(*args, **handler_kwargs)
+                
+                # 3. Handle failure
+                if template:
+                    # Save old input for the @old directive
+                    if hasattr(request, "session"):
+                        request.session["_old_input"] = form.data
+                    
+                    # Inject form into context
+                    return self.render(template, form=form)
+                
+                # Default JSON error response
+                from eden.responses import JsonResponse
+                return JsonResponse({"errors": form.errors}, status_code=400)
+
+            return wrapper
+        return decorator
 
     def route(
         self,

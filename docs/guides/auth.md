@@ -14,7 +14,10 @@ from eden.auth import User
 # Properties
 user.is_authenticated  # True/False
 user.email
-user.role              # 'admin', 'editor', 'user'
+user.roles             # ['admin', 'user']
+user.permissions       # ['can_edit', 'can_delete']
+user.is_superuser      # True if superuser
+
 ```
 
 ### Social Accounts
@@ -28,25 +31,32 @@ Eden uses a simple yet powerful role-based system. Roles are strings, and you ca
 
 ### Restricting Access
 
+| Decorator | Argument | Description |
+| :--- | :--- | :--- |
+| `@login_required` | None | Requires any authenticated user. |
+| `@roles_required` | `list[str]` | Requires at least one of these roles. |
+| `@permissions_required` | `list[str]` | Requires ALL of these permissions. |
+| `@require_permission` | `str` | Checks hierarchy (admin > manager). |
+
+### Roles & Permissions
+
+You can secure endpoints using roles and permissions.
+
 ```python
-from eden.auth import roles_required, permissions_required
+from eden.auth import roles_required
 
 @app.get("/admin")
 @roles_required(["admin"])
 async def admin_dashboard(request):
     return render_template("admin.html")
-
-@app.post("/delete-entry")
-@permissions_required(["can_delete"])
-async def delete_entry(request):
-    ...
 ```
+
 
 ---
 
-## OAuth & Social Login 🌐
+## Social Login (OAuth)
 
-Eden currently supports **Google** and **GitHub** out of the box.
+Eden supports Google and GitHub OAuth out of the box.
 
 ### Configuration
 
@@ -59,17 +69,27 @@ GITHUB_CLIENT_ID=...
 GITHUB_CLIENT_SECRET=...
 ```
 
-### The Login Flow
-```python
-@app.get("/login/google")
-async def google_login(request):
-    return await app.auth.redirect_to_provider("google", request)
+### Automatic Configuration
 
-@app.get("/auth/callback/google")
-async def google_callback(request):
-    user = await app.auth.handle_callback("google", request)
-    return RedirectResponse("/")
+The easiest way to use social login is to let Eden handle the routes.
+
+```python
+from eden.auth.oauth import OAuthManager
+
+oauth = OAuthManager()
+oauth.register_google(
+    client_id=os.getenv("GOOGLE_ID"),
+    client_secret=os.getenv("GOOGLE_SECRET")
+)
+
+# Mounts routes at /auth/oauth/google/login etc.
+oauth.mount(app)
 ```
+
+### Profile & Unlinking
+
+Once mounted, Eden provides a `/profile` view where users can see linked accounts and unlink them. Note that unlinking the last remaining login method (if no password is set) is prevented for security.
+
 
 ---
 
@@ -83,11 +103,13 @@ For stateless API access, Eden provides a secure, hashed API Key system.
 from eden import APIKey
 
 # Generates a key object and the raw string (show this only once!)
-key_obj, raw_key = await APIKey.generate(
-    user_id=user.id, 
+api_key, raw_key = await APIKey.generate(
+    session,
+    user=request.user, 
     name="Mobile App Token"
 )
 ```
+
 
 ### Using the Key
 Clients should send the key in the `Authorization` header:
@@ -157,12 +179,12 @@ Eden uses **Argon2** (via `argon2-cffi`) by default for industry-leading passwor
 
 ---
 
-## Example: Custom JWT Provider 🛡️
+## JWT Provider
 
-If your application needs custom JWT tokens (e.g., for short-lived access), you can use the built-in `JWTProvider`.
+For stateless API authentication, Eden ships with a `JWTProvider` (aliased from `JWTBackend`).
 
 ```python
-from eden.auth import JWTProvider
+from eden.auth.providers import JWTProvider
 
 provider = JWTProvider(secret="top-secret", algorithm="HS256")
 
@@ -172,5 +194,9 @@ token = provider.encode({"sub": user.id, "scope": "admin"}, expires_in=3600)
 # Verifying a token
 payload = provider.decode(token)
 ```
+
+> **Note**: `encode()` accepts an optional `expires_in` parameter (in seconds).
+> You can also use `create_access_token()` and `create_refresh_token()` for
+> fine-grained control over token types.
 
 **Next Steps**: [Templating Directives](templating.md)

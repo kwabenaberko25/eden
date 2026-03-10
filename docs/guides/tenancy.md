@@ -65,17 +65,19 @@ async with set_current_tenant(org.id):
 
 ---
 
-## Bypassing Isolation 🔑
-
-In rare cases (like global analytics or superuser tools), you may need to query across all tenants.
+In rare cases, you may need to query across all tenants. This is done by clearing the tenant context.
 
 ```python
-from eden.tenancy import ignore_tenant
+from eden.tenancy import set_current_tenant
 
-async with ignore_tenant():
-    # This query bypasses all row-level security
+# Setting to None bypasses isolation in the current context
+token = set_current_tenant(None)
+try:
     all_projects = await Project.all()
+finally:
+    reset_current_tenant(token)
 ```
+
 
 ---
 

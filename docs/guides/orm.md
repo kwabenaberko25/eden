@@ -14,6 +14,8 @@ class User(Model):
     name: Mapped[str] = f(max_length=100)
     age: Mapped[int] = f(nullable=True)
     is_active: Mapped[bool] = f(default=True)
+    avatar: Mapped[str] = f(upload_to="avatars") # File upload support
+
 ```
 
 ---
@@ -28,8 +30,8 @@ Eden eliminates the need for manual session handling for standard operations.
 # Get all active users
 users = await User.filter(is_active=True)
 
-# Get a single user by ID
-user = await User.get(id=1)
+# Get a single user by Primary Key
+user = await User.get(1)
 
 # Get all users (returns a list)
 all_users = await User.all()
@@ -49,6 +51,63 @@ await new_user.update(age=26)
 
 # Delete a record
 await new_user.delete()
+```
+
+## 🏗️ Unified Schema Integration
+
+Eden bridges the gap between your **Validation Layer** (Schemas/Forms) and your **Data Layer** (Models). This integration ensures that user input is safely and efficiently ingested into your database.
+
+### 1. Creating from User Input (`create_from`)
+
+The `create_from` class method allows you to take a validated schema or form and create a database record in one step. It is **security-aware**: it automatically filters out any fields present in the schema that are not defined on the model (e.g., a "confirm_password" field used only for UI validation).
+
+```python
+@app.post("/signup")
+@app.validate(SignupSchema, template="signup.html")
+async def signup(credentials: SignupSchema):
+    # 'credentials' has confirmation fields and UI flags.
+    # User.create_from pulls ONLY the fields that match the User model.
+    user = await User.create_from(credentials)
+    
+    # You can still pass manual overrides
+    # user = await User.create_from(credentials, is_admin=False)
+    
+    return redirect("/login")
+```
+
+### 2. Safeguarded Updates (`update_from`)
+
+Similar to creation, `update_from` allows you to apply updates to an existing instance. This is ideal for profile edits or settings pages.
+
+```python
+@app.post("/profile/edit")
+@app.validate(ProfileSchema, template="profile.html")
+async def profile_update(request, credentials: ProfileSchema):
+    user = await User.get(request.user.id)
+    
+    # Applies changes and saves to DB automatically.
+    # Only fields with values in the schema are updated.
+    await user.update_from(credentials)
+    
+    return redirect("/profile")
+```
+
+### 3. Smart Extraction (`to_schema`)
+
+Every model can generate a **Schema** (Pydantic model) that carries over its constraints and **UI metadata** defined via the `f()` helper.
+
+| Feature | Description |
+| :--- | :--- |
+| **Constraint Sync** | `max_length` and `nullable` constraints in SQL are mirrored in the Schema. |
+| **Aesthetic Persistence** | Your `label`, `widget`, and `placeholder` settings follow the field. |
+| **Lazy Generation** | Generate schemas on-the-fly for dynamic API responses or filters. |
+
+```python
+# Create a schema for a specific administrative view
+AdminUserSchema = User.to_schema(exclude=["password_hash", "last_login"])
+
+# Use it as a form for rendering an admin edit page
+form = AdminUserSchema.as_form()
 ```
 
 ---
@@ -161,6 +220,35 @@ class Task(Model, TenantMixin):
 tasks = await Task.all() 
 ```
 
+### Advanced Field Options
+
+The `f()` helper supports advanced options for rapid development:
+
+| Option | Description | Example |
+| :--- | :--- | :--- |
+| `json=True` | Stores data as a JSON blob. | `data: dict = f(json=True)` |
+| `foreign_key` | Explicitly define a FK. | `user_id = f(foreign_key="users.id")` |
+| `org_id=True` | Marks field as an Organization identifier. | `org = f(org_id=True)` |
+| `choices` | Limits valid values. | `status = f(choices=["draft", "live"])` |
+
+### Specialized Field Types
+
+For more precision, Eden exports specialized field helpers:
+
+```python
+from eden.db import ManyToManyField, Reference, FileField
+
+class Project(Model):
+    # Reference is a one-liner for FK + Relationship
+    owner: Mapped["User"] = Reference(back_populates="projects")
+    
+    # Many-to-Many with automatic association table inference
+    members: Mapped[list["User"]] = ManyToManyField("User")
+    
+    # FileField for managed uploads
+    logo: Mapped[str] = FileField(upload_to="logos")
+```
+
 ---
 
 ## The `Resource` Pattern 📦
@@ -178,17 +266,21 @@ class Invoice(Resource):
 
 ---
 
-## Transactions ⚡
+### Database Sessions
 
-Group multiple operations into an atomic unit.
+For operations that require manual session management (like transactions), use the `db.session()` context manager.
 
 ```python
-from eden.db import transaction
+from eden.db import get_db
 
-async with transaction():
-    user = await User.create(name="Atomic")
-    await Profile.create(user_id=user.id, bio="Core bio")
-# If any operation fails, both are rolled back automatically.
+async def process_order(request):
+    db = get_db(request)
+    async with db.session() as session:
+        # Pass session to model methods if needed, though most
+        # Eden methods auto-detect the active session.
+        order = await Order.create(status="paid")
+        await Inventory.filter(product_id=1).update(stock=F("stock") - 1)
+        # Session is committed automatically if no exception occurs.
 ```
 
 ---

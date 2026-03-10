@@ -94,7 +94,7 @@ Eden is architected around the principle of **Modular Excellence**. Every compon
 ### Installation
 
 ```bash
-npx eden new colony_manager
+eden new colony_manager
 cd colony_manager
 uv run uvicorn Eden:app --reload
 ```

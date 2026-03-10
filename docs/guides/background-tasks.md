@@ -8,26 +8,38 @@ Eden uses a "Broker" to manage tasks. By default, we recommend using **Redis** f
 
 ### Configuration
 
-```python
-from eden.tasks import EdenBroker
+### Configuration
 
-broker = EdenBroker("redis://localhost:6379")
-app.broker = broker
+Eden's entry point is the `broker` instance on the `app` object.
+
+```python
+from eden import Eden
+from eden.tasks import create_broker
+
+app = Eden()
+
+# Development (In-memory)
+app.broker = create_broker()
+
+# Production (Redis)
+app.broker = create_broker(redis_url="redis://localhost:6379")
 ```
+
 
 ---
 
 ## Defining Tasks
 
-Tasks are simple Python functions decorated with `@broker.task`.
+Tasks are simple Python functions decorated with `@app.broker()`.
 
 ```python
-@broker.task
+@app.broker()
 async def send_welcome_email(user_id: int):
     user = await User.get(id=user_id)
     # ... expensive email logic ...
     print(f"Welcome email sent to {user.email}")
 ```
+
 
 ---
 
@@ -59,40 +71,48 @@ result = await task.wait_result()
 
 ## Error Handling & Retries 🔁
 
-Eden tasks support automatic retries for flaky operations (like external APIs).
+Eden tasks support automatic retries for flaky operations. Note that retry parameters are passed to the decorator.
 
 ```python
-@broker.task(retries=3, retry_delay=5)
+@app.broker(retries=3, retry_delay=5)
 async def process_payment(order_id: int):
     # If this fails, it will retry 3 times with 5s delay
     pass
 ```
 
+
 ---
 
-## Running the Worker
-
-To execute background tasks, you must run the task worker in a separate process or container.
+To execute background tasks, you must run the task worker:
 
 ```bash
-eden tasks run
+eden worker --workers 2
 ```
+
+For scheduled/periodic tasks, you also need the scheduler:
+
+```bash
+eden scheduler
+```
+
 
 ---
 
-## Elite Pattern: Periodic Tasks & Monitoring 🕰️
+## Elite Pattern: Periodic Tasks 🕰️
 
-Use tasks for recurring system maintenance or high-frequency data processing.
+Use `.every()` for recurring system maintenance.
 
 ```python
-from eden.tasks import schedule
-
-@broker.task
-@schedule(cron="0 0 * * *") # Every night at midnight
+@app.broker.every(hours=24)
 async def cleanup_expired_sessions():
-    count = await Session.filter(expires_at__lt=datetime.now()).delete()
-    print(f"Cleaned up {count} sessions.")
+    # Eden handles the background loop
+    ...
+
+@app.broker.every(cron="0 0 * * *") # Every night at midnight
+async def daily_report():
+    ...
 ```
+
 
 ### Task Monitoring
 

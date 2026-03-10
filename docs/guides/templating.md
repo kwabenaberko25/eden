@@ -6,12 +6,6 @@ Eden replaces the verbose Jinja2 tags with a clean, brace-based `@directive` syn
 
 Unlike traditional templates that use `{% ... %}`, Eden uses `@` followed by the directive name and optional parentheses for arguments.
 
-```html
-@if (user.is_authenticated) {
-    <p>Hello, {{ user.name }}!</p>
-}
-```
-
 ---
 
 ## Control Flow 🎢
@@ -21,10 +15,23 @@ Unlike traditional templates that use `{% ... %}`, Eden uses `@` followed by the
 ```html
 @for (item in items) {
     <li>{{ item }}</li>
+    @even { <span class="badge">Even Row</span> }
+    @odd { <span class="badge">Odd Row</span> }
 } @empty {
     <p>Nothing to show.</p>
 }
 ```
+
+### Loop Helpers
+
+Beyond the `$loop` object, Eden provides clean directives for conditional rendering within loops:
+
+| Directive | Description |
+| :--- | :--- |
+| `@even { ... }` | Renders only on even iterations. |
+| `@odd { ... }` | Renders only on odd iterations. |
+| `@first { ... }` | Renders only on the first iteration. |
+| `@last { ... }` | Renders only on the last iteration. |
 
 #### The `$loop` Object
 
@@ -68,22 +75,13 @@ Example usage:
 | | `@non_htmx` | None | Only for standard (non-HTMX) requests. |
 | | `@fragment(id)` | `id`: String | Defines a targetable partial. |
 | **Forms** | `@csrf` | None | Emits hidden CSRF input. |
-| | `@method(verb)` | `verb`: HTTP Method | Spoof `PUT`, `PATCH`, `DELETE`. |
-| | `@old(key)` | `key`: Field name | Returns previous input value. |
-| | `@error(key)` | `key`: Field name | Block for validation errors. |
-| **Assets** | `@css(path)` | `path`: String | Inject stylesheet. |
-| | `@js(path)` | `path`: String | Inject script. |
-| | `@vite(list)` | `list`: List[str] | Vite manifest bundle loader. |
 | **Logic** | `@let var = val` | `var`, `val` | Inline variable assignment. |
-| | `@json(data)` | `data`: Any | Outputs safe JSON string. |
-| | `@dump(obj)` | `obj`: Any | Pretty-prints object for debugging. |
-
-
-```html
-@while (count > 0) {
-    <span>{{ count }}</span>
-}
-```
+| | `@url(name)` | `name`: String | Generates a URL for a route. |
+| | `@active_link(name, cls)` | `name`, `cls` | Emits `cls` if route is active. |
+| **Logic** | `@even` | None | Content for even loop rows. |
+| | `@odd` | None | Content for odd loop rows. |
+| | `@first` | None | Content for the first loop row. |
+| | `@last` | None | Content for the last loop row. |
 
 ---
 
@@ -99,7 +97,9 @@ Example usage:
 }
 ```
 
+
 ### Reusable Components
+
 Components allow you to encapsulate both logic and UI.
 
 ```html
@@ -122,14 +122,22 @@ Secure your forms with zero effort.
     @csrf
     @method("PUT")  <!-- Spoof PUT/PATCH/DELETE methods -->
     
-    <div class="space-y-4">
-        <label>Email</label>
-        <input type="text" name="email" value="@old('email')" 
-               class="w-full rounded bg-slate-800 border-slate-700">
-        
-        @error("email") {
-            <span class="text-xs text-emerald-500">{{ message }}</span>
-        }
+    <div class="space-y-6">
+        <!-- Method 1: The Magic @render_field directive -->
+        <div class="field-wrapper">
+            @render_field(form['email'], class="w-full rounded bg-slate-800 border-slate-700")
+        </div>
+
+        <!-- Method 2: Manual field construction using @old and @error -->
+        <div class="manual-field-group">
+            <label>Email</label>
+            <input type="text" name="email" value="@old('email')" 
+                   class="w-full rounded bg-slate-800 border-slate-700">
+            
+            @error("email") {
+                <span class="text-xs text-emerald-500">{{ message }}</span>
+            }
+        </div>
     </div>
     
     <button type="submit">Update</button>
@@ -158,11 +166,24 @@ In your Python route, you can render **just the fragment** without the surroundi
 
 ```python
 @app.get("/users")
-async def list_users():
+async def list_users(request):
     users = await User.all()
     # Renders ONLY the <ul>, not the <h1> or layout!
-    return render_template("index.html", users=users, fragment="user-list")
+    return request.app.render("index.html", users=users, fragment="user-list")
 ```
+
+### The `render_template` Global Helper
+
+For the ultimate clean syntax, you can use the `render_template` global helper from anywhere in your route handlers without needing to reference the `app` or `request` object directly.
+
+```python
+from eden import render_template
+
+@app.get("/")
+async def home():
+    return render_template("home.html", title="Welcome Home")
+```
+
 
 ---
 
@@ -202,10 +223,10 @@ Eden includes Jinja2 filters that map directly to the **Elite** design tokens an
 
 | Filter | Description | Example |
 | :--- | :--- | :--- |
-| `time_ago` | Human-readable time. | `{{ task.created_at\|time_ago }}` |
-| `money` | Currency formatting. | `{{ 1500\|money }}` |
-| `slugify` | URL slug generator. | `{{ "My Title"\|slugify }}` |
-| `truncate(n)` | Truncate to $n$ chars. | `{{ bio\|truncate(20) }}` |
+| `date` | Locale-aware date. | `{{ task.due_at\|date }}` |
+| `time` | Locale-aware time. | `{{ task.due_at\|time }}` |
+| `number` | Thousand separators. | `{{ 1500000\|number }}` |
+| `currency` | Localized symbol. | `{{ 50\|currency }}` |
 | `json_encode` | Safe JSON encoding. | `x-data="{{ data\|json_encode }}"` |
 | `mask` | Mask sensitive data. | `{{ "cobby@eden.dev"\|mask }}` |
 | `file_size` | Human file size. | `{{ 1048576\|file_size }}` |

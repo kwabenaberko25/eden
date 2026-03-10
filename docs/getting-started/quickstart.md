@@ -47,7 +47,7 @@ You should see output indicating that the server is running. Open your browser t
 
 ## 3. Using the CLI
 
-If you used `npx eden new`, you can also use the `eden` command-line tool:
+If you used `eden new`, you can also use the `eden` command-line tool:
 
 ```bash
 # Run the development server

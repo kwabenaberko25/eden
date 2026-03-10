@@ -353,6 +353,9 @@ def FileField(
 def f(
     max_length: int | None = None,
     *,
+    label: str | None = None,
+    placeholder: str | None = None,
+    help_text: str | None = None,
     nullable: Any = _UNSET,
     required: bool | None = None,
     unique: bool = False,
@@ -386,6 +389,9 @@ def f(
     
     # Store metadata for form generation/validation
     meta = {}
+    if label: meta["label"] = label
+    if placeholder: meta["placeholder"] = placeholder
+    if help_text: meta["help_text"] = help_text
     if choices: meta["choices"] = choices
     if widget: meta["widget"] = widget
     if min is not None: meta["min"] = min
@@ -396,7 +402,11 @@ def f(
         meta["widget"] = "file"
     
     if meta:
-        kw["info"] = meta
+        # Merge existing info if present in kwargs via _process_field_args
+        if "info" in kw:
+            kw["info"].update(meta)
+        else:
+            kw["info"] = meta
 
     # If it looks like a relationship (one-liner support)
     if back_populates:

@@ -1,87 +1,98 @@
 # CLI Suite 🛠️
 
-The Eden CLI is your essential companion for project management, code generation, and database administration. It is designed to be fast, discoverable, and powerful.
+The Eden CLI is your essential companion for project management, code generation, and database administration.
 
 ## Core Commands
-
-These commands handle the basic lifecycle of your Eden projects.
 
 ### `eden version`
 Displays the current version of the Eden Framework.
 
 ### `eden run`
-Starts the development server. By default, it looks for an `app.py` file and enables hot-reloading.
+Starts the development server with auto-discovery and hot-reloading.
 
 ```bash
-# Start on default port (8000)
+# Start auto-detecting app.py/main.py
 eden run
 
-# Start on a custom port
-eden run --port 9000
+# Specify app instance manually
+eden run --app main:app --port 8000
+```
+
+### `eden new`
+Scaffolds a premium, production-ready Eden project with Docker and Pytest.
+
+```bash
+eden new my_awesome_app
 ```
 
 ---
 
 ## The Forge ⚒️
 
-"The Forge" is Eden's code generation and project scaffolding tool.
-
-### `eden new`
-Creates a new project from a standard template.
-
-```bash
-npx eden new my_app
-```
-
-### `eden db history`
-Lists all migrations applied to the current database.
-
-### `eden db generate`
-Generates a raw SQL script for the current state of the database. Useful for deployments without Alembic.
-
-### `eden db check`
-Verifies if the database schema is in sync with your models without applying any changes.
-
----
-
-## The Forge ⚒️ (Scaffolding Reference)
-
-The Forge is your rapid-prototyping engine. It identifies your dependencies and generates best-practice code.
+"The Forge" is Eden's rapid scaffolding engine for models, routes, and components.
 
 | Command | Usage | Output |
 | :--- | :--- | :--- |
-| `generate model` | `eden forge generate model Profile` | A new `EdenModel` file in `models/`. |
-| `generate resource` | `eden forge generate resource Post` | A full `Resource` class with CRUD logic. |
-| `generate route` | `eden forge generate route Search` | A new `Router` with boilerplate handlers. |
-| `generate schema` | `eden forge generate schema User` | A Pydantic schema for API validation. |
+| `model` | `eden forge model Post` | Creates a new model in `app/models/`. |
+| `route` | `eden forge route Blog` | Creates a router in `app/routes/`. |
+| `component` | `eden forge component Navbar` | Creates a UI component (logic + template). |
+| `entity` | `eden forge entity Product` | Full stack: Model + Schema + CRUD Router. |
+| `resource` | `eden forge resource Post` | Unified Resource: Model + Resource + Templates. |
 
 ---
 
-## User Management (`eden auth`) 🔑
+## Database Management (`eden db`) 🗄️
 
-Manage your application's users directly from the terminal.
+Manage migrations and schema drift across all tenants.
 
-### `eden auth create-user`
-Creates a new user account.
+### `eden db init`
+Initializes the `migrations/` directory and `alembic.ini`.
+
+### `eden db generate`
+Generates a new versioned migration script based on model changes.
 
 ```bash
-eden auth create-user --email admin@eden.dev --admin
+eden db generate -m "add_user_profile"
 ```
 
-### `eden auth list-users`
-Lists all registered users.
+### `eden db migrate`
+Applies all pending migrations to the database.
+
+### `eden db check`
+🕵️ Detects schema drift between your models and the actual database state across all tenants.
 
 ---
 
-## Background Tasks (`eden tasks`) ⚙️
+## Authentication (`eden auth`) 🔑
 
-Monitor and manage your background workers.
+### `eden auth createsuperuser`
+Creates an administrative user with full permissions.
 
-### `eden tasks run`
-Starts the task worker (EdenBroker).
+```bash
+eden auth createsuperuser
+```
 
-### `eden tasks status`
-Checks the health and status of the task queue.
+---
+
+## Background Workers ⚙️
+
+Eden uses a distributed task queue for background processing.
+
+### `eden worker`
+
+Starts one or more worker processes to consume tasks.
+
+```bash
+eden worker --workers 4
+```
+
+### `eden scheduler`
+
+Starts the periodic task scheduler for cron-style jobs.
+
+```bash
+eden scheduler
+```
 
 ---
 

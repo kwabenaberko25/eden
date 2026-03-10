@@ -8,13 +8,12 @@ Send beautiful, template-based emails with zero boilerplate.
 
 ### Configuration
 
+Eden uses the `EDEN_SMTP_URL` environment variable for production mail.
+
 ```text
-MAIL_BACKEND=smtp
-MAIL_SERVER=smtp.gmail.com
-MAIL_PORT=587
-MAIL_USER=...
-MAIL_PASSWORD=...
+EDEN_SMTP_URL=smtp://user:pass@smtp.gmail.com:587
 ```
+
 
 ### Basic Usage
 
@@ -22,8 +21,8 @@ MAIL_PASSWORD=...
 from eden import send_mail
 
 await send_mail(
+    to="customer@example.com",
     subject="Subscription Active",
-    recipient="customer@example.com",
     template="emails/invoice.html",
     context={"amount": "$19.00"}
 )
@@ -62,11 +61,23 @@ async def stripe_webhook(request):
 
 Manage file uploads across different backends. Configuration is handled in the environment.
 
-| Backend | Description | Requirements |
+| Backend | Class | Requirements |
 | :--- | :--- | :--- |
-| `local` | Default. Saves to the app's `storage/` dir. | None. |
-| `s3` | AWS S3 or compatible (MinIO, DigitalOcean). | `boto3`, keys/bucket config. |
-| `supabase` | Supabase Storage. | `supabase` client keys. |
+| `local` | `eden.storage.LocalStorageBackend` | None (built-in). |
+| `s3` | `eden.storage_backends.S3StorageBackend` | `aioboto3`, AWS keys/bucket config. |
+| `supabase` | `eden.storage_backends.SupabaseStorageBackend` | `supabase`, project URL/key. |
+
+```python
+from eden.storage import LocalStorageBackend, storage
+
+# Register the local backend (default)
+local = LocalStorageBackend(base_path="./media", base_url="/media/")
+storage.register("local", local, default=True)
+
+# Save a file
+path = await storage.get("local").save(upload_file)
+url = storage.get("local").url(path)
+```
 
 ---
 
@@ -119,10 +130,10 @@ Speed up your application by caching expensive views or data.
 ### View Decorator
 
 ```python
-from eden.cache import cache
+from eden.cache import cache_view
 
 @app.get("/stats")
-@cache(expire=300) # Cache for 5 minutes
+@cache_view(ttl=300) # Cache for 5 minutes
 async def stats(request):
     return {"data": await get_slow_stats()}
 ```
@@ -130,8 +141,9 @@ async def stats(request):
 ### Manual Caching
 
 ```python
-await app.cache.set("key", "value", expire=60)
+await app.cache.set("key", "value", ttl=60)
 val = await app.cache.get("key")
 ```
+
 
 **Next Steps**: [The Admin Panel](admin.md)

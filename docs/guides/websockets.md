@@ -67,38 +67,28 @@ async def secure_socket(websocket):
 
 ---
 
-## Connection Manager 📡
+## WebSocket Router 📡
 
-For complex applications, Eden recommends a dedicated manager pattern to handle groups and broadcasting.
+For complex applications, use the `WebSocketRouter` to organize events and rooms.
 
 ```python
-class ConnectionManager:
-    def __init__(self):
-        self.active_connections: list[WebSocket] = []
+from eden.websocket import WebSocketRouter
 
-    async def connect(self, websocket: WebSocket):
-        await websocket.accept()
-        self.active_connections.append(websocket)
+ws = WebSocketRouter(prefix="/chat")
 
-    def disconnect(self, websocket: WebSocket):
-        self.active_connections.remove(websocket)
+@ws.on_connect
+async def on_connect(socket, manager):
+    await manager.broadcast({"event": "join", "user": "Someone joined!"})
 
-    async def broadcast(self, message: str):
-        for connection in self.active_connections:
-            await connection.send_text(message)
+@ws.on("message")
+async def handle_message(socket, data, manager):
+    # 'data' is automatically parsed from JSON
+    await manager.broadcast({"event": "message", "text": data["text"]})
 
-manager = ConnectionManager()
-
-@app.websocket("/chat/{room}")
-async def chat_room(websocket, room: str):
-    await manager.connect(websocket)
-    try:
-        while True:
-            data = await websocket.receive_text()
-            await manager.broadcast(f"Room {room}: {data}")
-    except WebSocketDisconnect:
-        manager.disconnect(websocket)
+# Mount the router
+ws.mount(app)
 ```
+
 
 ---
 

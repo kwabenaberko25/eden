@@ -22,7 +22,7 @@ Eden is a high-performance, async-first web framework designed for developers wh
 ## 🛠️ Installation
 
 ```bash
-pip install eden-web
+pip install eden-framework
 ```
 
 ---

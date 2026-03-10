@@ -73,25 +73,26 @@ app.include_router(auth_router, prefix="/auth")
 Eden's most powerful routing feature is the `Resource`. It automatically generates CRUD routes for a given model.
 
 ```python
-from eden import Resource
+from eden import Resource, action
 from models import Post
 
 class PostResource(Resource):
     model = Post
     
     # Custom Action
-    @Resource.action(methods=["POST"])
+    @action(methods=["POST"])
     async def publish(self, request, pk):
         post = await self.get_object(pk)
         await post.update(status="published")
         return {"published": True}
 
-app.add_resource(PostResource, prefix="/posts")
+app.mount_resource(PostResource, prefix="/posts")
+
 ```
 
 ### Generated Resource Routes
 
-By default, `add_resource` generates the following endpoints for your model:
+By default, `mount_resource` generates the following endpoints for your model:
 
 | Method | Path | Action | Role |
 | :--- | :--- | :--- | :--- |
@@ -131,9 +132,9 @@ async def search(request):
     
     if request.headers.get("HX-Request"):
         # Returns ONLY the <ul> part of the template
-        return render_template("search.html", {"results": results}, fragment="result-list")
+        return request.app.render("search.html", {"results": results}, fragment="result-list")
         
-    return render_template("search.html", {"results": results})
+    return request.app.render("search.html", {"results": results})
 ```
 
 ---
@@ -157,11 +158,11 @@ async def info(request):
 Eden provides a range of response types.
 
 ```python
-from eden import JSONResponse, RedirectResponse, HTMLResponse
+from eden import json, redirect, html
 
 @app.get("/redirect")
 async def do_redirect(request):
-    return RedirectResponse(url="/")
+    return redirect(url="/")
 ```
 
 ---
@@ -172,16 +173,15 @@ For enterprise applications, Eden supports sophisticated routing patterns using 
 
 ```python
 from eden import Router
-from eden.tenancy import tenant_middleware
 
 # Sub-domain routing for SaaS tenants
 api_router = Router(prefix="/api/v1")
-api_router.add_middleware(tenant_middleware)
+api_router.add_middleware("tenant")
 
 @api_router.get("/metrics")
 async def get_tenant_metrics(request):
-    # request.tenant is populated by the middleware
-    return {"tenant": request.tenant.id}
+    # request.state.tenant is populated by the middleware
+    return {"tenant": request.state.tenant.id}
 
 # Registering the router
 app.include_router(api_router)

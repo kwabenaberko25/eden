@@ -47,12 +47,12 @@ class FormField:
     """
     Representation of a single form field with rendering helpers.
     """
-    def __init__(self, name: str, value: Any = None, error: str = None, required: bool = False, label: str = None, widget: str = None, **kwargs):
-        self.name = name
+    def __init__(self, name: Optional[str] = None, value: Any = None, error: str = None, required: bool = False, label: str = None, widget: str = None, **kwargs):
+        self.name = name or ""
         self.value = value
         self.error = error
         self.required = required
-        self.label = label or name.replace("_", " ").title()
+        self.label = label or (name.replace("_", " ").title() if name else "")
         self.widget = widget or kwargs.pop("widget", "input")
         self.attributes = kwargs
         if "input_type" in self.attributes:
@@ -119,8 +119,16 @@ class FormField:
         return f'<label for="id_{self.name}">{self.label}</label>'
 
     def render(self, **kwargs) -> str:
-        # Combine overrides with default attributes
-        # Putting kwargs first allows as_hidden to put type="hidden" at the start
+        """Render the field using its associated widget."""
+        if self.widget == "textarea":
+            return self.as_textarea(**kwargs)
+        if self.widget == "select":
+            choices = kwargs.pop("choices", self.attributes.get("choices", []))
+            return self.as_select(choices, **kwargs)
+        if self.widget == "file":
+            return self.as_file(**kwargs)
+            
+        # Default to input
         attrs = {**kwargs}
         if "name" not in attrs:
             attrs["name"] = self.name
@@ -136,7 +144,7 @@ class FormField:
         if classes:
             attrs["class"] = " ".join(classes)
         
-        attr_str = " ".join([f'{k}="{v}"' for k, v in attrs.items()])
+        attr_str = " ".join([f'{k}="{v}"' for k, v in attrs.items() if k != "choices"])
         val_str = f'value="{self.value}"' if self.value is not None else ""
         
         return Markup(f'<input {attr_str} {val_str} />')
@@ -225,38 +233,31 @@ class BaseForm:
     """
     Base class for Eden forms, wrapping Pydantic schemas.
     """
-    def __init__(self, schema: Type[BaseModel], data: Optional[Dict[str, Any]] = None):
+    def __init__(self, schema: Type[BaseModel] | Type[Schema], data: Optional[Dict[str, Any]] = None):
         self.schema = schema
         self.data = data or {}
         self.errors = {}
         self.model_instance = None
         self._fields = {}
+        self.files: dict[str, UploadedFile] = {}
 
     def is_valid(self) -> bool:
         """Validates the form data against the Pydantic schema."""
         try:
-            self.model_instance = self.schema(**self.data)
+            # Pydantic 2.0+ uses model_validate
+            if hasattr(self.schema, "model_validate"):
+                self.model_instance = self.schema.model_validate(self.data)
+            else:
+                self.model_instance = self.schema(**self.data)
             self.errors = {}
             return True
         except ValidationError as e:
             for err in e.errors():
-                field_name = str(err["loc"][0])
-                self.errors[field_name] = err["msg"]
+                # Handle nested locations or missing loc
+                loc = err.get("loc", ["__all__"])
+                field_name = str(loc[0]) if loc else "__all__"
+                self.errors[field_name] = err.get("msg", "Validation error")
             return False
-
-    def __getitem__(self, name: str) -> FormField:
-        """Access a FormField by name."""
-        if name not in self._fields:
-            field_def = self.schema.model_fields.get(name)
-            if not field_def:
-                raise KeyError(name)
-            self._fields[name] = FormField(
-                name=name,
-                value=self.data.get(name),
-                error=self.errors.get(name),
-                required=field_def.is_required()
-            )
-        return self._fields[name]
 
     @classmethod
     def from_model(cls, instance: Any) -> BaseForm:
@@ -270,6 +271,10 @@ class BaseForm:
             schema = getattr(instance.__class__, "__pydantic_model__", None)
 
         if not schema or schema is BaseModel:
+            # Fallback to UserSchema detection for typical models in tests/docs
+            schema = getattr(instance, "__pydantic_model__", None)
+
+        if not schema:
             raise ValueError(f"Could not determine Pydantic schema for {instance.__class__.__name__}")
 
         return cls(schema=schema, data=data)
@@ -286,17 +291,6 @@ class BaseForm:
         Args:
             schema:  The Pydantic schema to validate against.
             request: The Eden/Starlette Request object.
-
-        Usage::
-
-            @app.post("/profile")
-            async def update_profile(request):
-                form = await BaseForm.from_multipart(ProfileSchema, request)
-                if form.is_valid():
-                    avatar: UploadedFile = form.files.get("avatar")
-                    if avatar:
-                        await storage.save(avatar.filename, avatar.data)
-                    await Profile.update(...)
         """
         multipart = await request.form()
 
@@ -318,18 +312,218 @@ class BaseForm:
                 data[key] = value
 
         instance = cls(schema=schema, data=data)
-        instance.files: dict[str, UploadedFile] = files  # type: ignore[attr-defined]
+        instance.files: dict[str, UploadedFile] = files
         return instance
+
+    @classmethod
+    async def from_request(cls, schema: Type[BaseModel], request: Any) -> BaseForm:
+        """Create a bound form directly from a request."""
+        # Detect content type
+        content_type = request.headers.get("content-type", "")
+        if "multipart/form-data" in content_type:
+            return await cls.from_multipart(schema, request)
+        
+        # Try JSON first, then Form data
+        data = {}
+        try:
+            data = await request.json()
+        except Exception:
+            try:
+                data = dict(await request.form())
+            except Exception:
+                pass
+        
+        return cls(schema=schema, data=data)
+
+    def __getitem__(self, name: str) -> FormField:
+        """Access a FormField by name and handle overrides."""
+        if name not in self._fields:
+            # Check for class attribute override
+            class_field = getattr(self.__class__, name, None)
+            
+            # Check schema for field definition
+            field_def = None
+            if hasattr(self.schema, "model_fields"):
+                field_def = self.schema.model_fields.get(name)
+            
+            if not field_def and not isinstance(class_field, FormField):
+                # If it's not in schema and not an override, it might be a missing field
+                # For Schema subclasses, they might define fields directly
+                raise KeyError(name)
+            
+            if isinstance(class_field, FormField):
+                # Use the provided FormField object but update it with dynamic data
+                field = class_field._clone()
+                field.name = name
+                field.value = self.data.get(name)
+                field.error = self.errors.get(name)
+                # If required wasn't explicitly set on the override, check the schema
+                if "required" not in class_field.__dict__ and field_def:
+                    field.required = field_def.is_required()
+                self._fields[name] = field
+            else:
+                # Inherit from schema/f() metadata if available
+                kwargs = {}
+                if field_def and hasattr(field_def, "json_schema_extra") and field_def.json_schema_extra:
+                    # Pass through info/metadata from f()
+                    kwargs.update(field_def.json_schema_extra)
+                
+                # Check for pydantic field metadata (min_length, etc.)
+                if field_def:
+                    if hasattr(field_def, "metadata"):
+                        for m in field_def.metadata:
+                            if hasattr(m, "max_length"): kwargs["max_length"] = m.max_length
+                            if hasattr(m, "min_length"): kwargs["min_length"] = m.min_length
+                            if hasattr(m, "ge"): kwargs["min"] = m.ge
+                            if hasattr(m, "le"): kwargs["max"] = m.le
+
+                self._fields[name] = FormField(
+                    name=name,
+                    value=self.data.get(name),
+                    error=self.errors.get(name),
+                    required=field_def.is_required() if field_def else False,
+                    **kwargs
+                )
+        return self._fields[name]
 
     def render_all(self) -> str:
         """Renders all fields in the form."""
         html = ""
-        for name in self.schema.model_fields:
+        # Check if schema has model_fields (Pydantic 2.0)
+        fields = getattr(self.schema, "model_fields", {})
+        for name in fields:
             html += self[name].render_composite()
             html += "\n"
         return html
 
     def __iter__(self) -> Iterator[FormField]:
         """Allows iterating over form fields in a template."""
-        for name in self.schema.model_fields:
+        fields = getattr(self.schema, "model_fields", {})
+        for name in fields:
             yield self[name]
+
+class Schema(BaseModel):
+    """
+    Unified Schema for Eden. 
+    Combines Pydantic validation with Eden Form rendering.
+    
+    Usage:
+        class SignupSchema(Schema):
+            email: str = f(max_length=255, widget="email")
+            ...
+            
+        form = SignupSchema.as_form(data)
+
+    Declarative Model Integration:
+        class ProductSchema(Schema):
+            class Meta:
+                model = Product
+                include = ["title", "price"]
+    """
+    model_config = {"extra": "ignore", "arbitrary_types_allowed": True}
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        
+        # Declarative Model Integration
+        meta = getattr(cls, "Meta", None)
+        if meta and hasattr(meta, "model"):
+            model = meta.model
+            include = getattr(meta, "include", None)
+            exclude = set(getattr(meta, "exclude", []))
+            
+            # Use model metadata to populate fields
+            # We bypass Pydantic's normal class creation and inject fields
+            dynamic_schema = model.to_schema(include=include, exclude=exclude)
+            
+            # Pull fields from generated schema and inject them into this class
+            for name, field in dynamic_schema.model_fields.items():
+                if name not in cls.__annotations__:
+                    cls.__annotations__[name] = field.annotation
+                    setattr(cls, name, field)
+            
+            # Rebuild model if needed - pydantic usually handles this automatically
+            # if we modify annotations before Pydantic finishes its logic.
+            # However, since __init_subclass__ runs after, we might need to 
+            # trigger model rebuild.
+            if hasattr(cls, "model_rebuild"):
+                cls.model_rebuild(force=True)
+
+    @classmethod
+    def as_form(cls, data: Optional[Dict[str, Any]] = None) -> BaseForm:
+        """Create a BaseForm instance from this schema."""
+        return BaseForm(schema=cls, data=data)
+
+    @classmethod
+    async def from_request(cls, request: Any) -> BaseForm:
+        """Create a bound form directly from a request."""
+        return await BaseForm.from_request(cls, request)
+
+    @classmethod
+    def from_model(cls, instance: Any) -> BaseForm:
+        """Creates a form instance populated with data from a model record."""
+        return BaseForm.from_model(instance)
+
+
+class ModelForm(BaseForm):
+    """
+    Model-bound form that automatically syncs with ORM models.
+    Provides a Django-like declarative API for building forms from models.
+
+    Usage::
+
+        class TaskForm(ModelForm):
+            class Meta:
+                model = Task
+                fields = ["title", "description", "due_at"]
+
+            description = FormField(widget="textarea", placeholder="Task details...")
+
+    """
+    def __init__(self, data: Optional[Dict[str, Any]] = None, instance: Optional[Any] = None):
+        meta = getattr(self, "Meta", None)
+        if not meta or not hasattr(meta, "model"):
+            raise ValueError(f"{self.__class__.__name__} must define a 'Meta' class with a 'model' attribute.")
+
+        self.model_class = meta.model
+        self.instance = instance
+        exclude = set(getattr(meta, "exclude", []))
+        fields = getattr(meta, "fields", "__all__")
+
+        # Determine include list
+        include_list = None
+        if fields != "__all__":
+            include_list = fields
+
+        # Generate schema from model (B2/B3)
+        schema = self.model_class.to_schema(include=include_list, exclude=exclude, only_columns=True)
+
+        # Populate initial data from instance
+        if instance and data is None:
+            data = instance.to_dict(exclude=exclude)
+
+        super().__init__(schema=schema, data=data)
+
+    async def save(self, commit: bool = True) -> Any:
+        """
+        Validates and saves the form data to a model instance.
+        """
+        if not self.is_valid():
+            raise ValueError(f"Cannot save {self.__class__.__name__}: form is invalid.")
+
+        # Data from Pydantic model
+        data = self.model_instance.model_dump()
+
+        if self.instance:
+            if commit:
+                await self.instance.update(**data)
+            else:
+                for key, value in data.items():
+                    setattr(self.instance, key, value)
+        else:
+            if commit:
+                self.instance = await self.model_class.create(**data)
+            else:
+                self.instance = self.model_class(**data)
+
+        return self.instance

@@ -31,28 +31,40 @@ Eden comes pre-configured with a suite of high-performance middleware.
 | :--- | :--- |
 | `security` | Injects CSP, HSTS, and XSS protection headers. |
 | `csrf` | Protects your app from Cross-Site Request Forgery. |
-| `ratelimit` | Prevents abuse by limiting requests per IP. |
+| `ratelimit` | In-memory token-bucket rate limiter per IP. |
+| `redis_ratelimit`| Redis-backed rate limiter for distributed setups. |
 | `cors` | Configures Cross-Origin Resource Sharing. |
 | `session` | Provides secure, cookie-based session persistence. |
 | `gzip` | Compresses responses to save bandwidth. |
-| `tenancy` | Scopes database queries to the current tenant. |
+| `tenant` | Scopes database queries to the current tenant. |
+| `telemetry` | Real-time performance metrics and Server-Timing. |
+| `cache` | Full-page caching for GET/HEAD requests. |
+| `request` | Global request context (required for some helpers). |
+
 
 ---
 
-## Rate Limiting 🚦
-
-Eden provides granular rate limiting via the `ratelimit` middleware and the `@limiter` decorator.
+### Global Rate Limiting
 
 ```python
-# Enable globally
-app.add_middleware("ratelimit", requests_per_minute=60)
+# Enable globally (100 requests per minute)
+app.add_middleware("ratelimit", max_requests=100, window_seconds=60)
+```
 
-# Override for specific routes
+### Route-Specific Limiting
+
+You can also apply limits to individual views using the `@ratelimit` decorator.
+
+```python
+from eden.middleware import ratelimit
+
 @app.get("/api/login")
-@limiter("5/minute")
+@ratelimit(max_requests=5, window_seconds=60)
 async def login(request):
+    # Logic for login
     ...
 ```
+
 
 ---
 

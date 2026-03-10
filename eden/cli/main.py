@@ -79,6 +79,7 @@ def run(host: str, port: int, reload: bool, no_browser_reload: bool, workers: in
     if reload:
         cmd.append("--reload")
         # Ensure templates also trigger a reload
+        cmd.extend(["--reload-dir", "."])
         cmd.extend(["--reload-include", "*.html"])
         cmd.extend(["--reload-include", "*.j2"])
         # Exclude noisy files that cause reload loops (like the DB or venv)

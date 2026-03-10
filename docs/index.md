@@ -22,8 +22,9 @@ Ready to dive in? Follow these steps to get your first Eden application up and r
 
 1. **[Philosophy](getting-started/philosophy.md)**: Understand the "Elite-First" mindset behind Eden.
 2. **[Installation](getting-started/installation.md)**: Set up your environment.
-3. **[Quick Start](getting-started/quickstart.md)**: Build your first "Hello World" in 60 seconds.
-4. **[Project Structure](getting-started/structure.md)**: Explore the recommended layout for scalable apps.
+3. **[Tutorial (Step-by-Step)](tutorial/task1_setup.md)**: Build a professional SaaS engine in 10 tasks.
+4. **[Quick Start](getting-started/quickstart.md)**: Build your first "Hello World" in 60 seconds.
+5. **[Project Structure](getting-started/structure.md)**: Explore the recommended layout for scalable apps.
 
 ---
 

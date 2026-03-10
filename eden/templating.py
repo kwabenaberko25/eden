@@ -58,6 +58,30 @@ class EdenDirectivesExtension(Extension):
         source = re.sub(r'@include\s*\(\s*([\'"].+?[\'"])\s*\)', _simple_replacer, source)
         source = re.sub(r'@super\s*\(\s*\)|@super(?![\w(])', _simple_replacer, source)
 
+        # CSRF and Method
+        source = re.sub(r'@method\s*\(\s*[\'"](.+?)[\'"]\s*\)', r'<input type="hidden" name="_method" value="\1" />', source)
+
+        # Asset helpers
+        # @css("path") -> <link rel="stylesheet" href="{{ url_for('static', path='path') }}">
+        source = re.sub(r'@css\s*\(\s*[\'"](.+?)[\'"]\s*\)', r'<link rel="stylesheet" href="{{ url_for("static", path="\1") }}" />', source)
+        # @js("path") -> <script src="{{ url_for('static', path='path') }}"></script>
+        source = re.sub(r'@js\s*\(\s*[\'"](.+?)[\'"]\s*\)', r'<script src="{{ url_for("static", path="\1") }}"></script>', source)
+        # @vite(["path1", "path2"]) -> {{ vite(["path1", "path2"]) }}
+        source = re.sub(r'@vite\s*\(\s*(.+?)\s*\)', r'{{ vite(\1) }}', source)
+
+        # Value helpers
+        # @old("field", "default") -> {{ old("field", "default") }}
+        def _old_replacer(m):
+            field = m.group(1).replace("'", '"')
+            default = m.group(2) or '""'
+            return f'{{{{ old("{field}", {default}) }}}}'
+        source = re.sub(r'@old\s*\(\s*[\'"](.+?)[\'"]\s*(?:,\s*(.+?))?\s*\)', _old_replacer, source)
+        
+        # @json(val)
+        source = re.sub(r'@json\s*\((.+?)\)', r'{{ \1 | json_encode }}', source)
+        # @dump(val)
+        source = re.sub(r'@dump\s*\((.+?)\)', r'<div class="eden-dump p-4 bg-gray-950 text-gray-300 rounded-lg overflow-auto text-xs font-mono border border-gray-800 my-4"><pre>{{ \1 | json_encode(indent=4) }}</pre></div>', source)
+
         # Inline attribute directives
         def _attr_replacer(m):
             attr_dir = m.group(1)
@@ -122,10 +146,16 @@ class EdenDirectivesExtension(Extension):
              r'{% block \1 %}{{ super() }}', "endblock"),
             ("fragment", r'@fragment\s*\(\s*[\'"](.+?)[\'"]\s*\)\s*\{', 
              r'{% block fragment_\1 %}', "endblock"),
+            ("even", r'@even\s*\{', r'{% if loop.index is even %}', "endif"),
+            ("odd", r'@odd\s*\{', r'{% if loop.index is odd %}', "endif"),
+            ("first", r'@first\s*\{', r'{% if loop.first %}', "endif"),
+            ("last", r'@last\s*\{', r'{% if loop.last %}', "endif"),
             ("slot", r'@slot\s*\(\s*[\'"]([^\'"]+)[\'"]\s*\)\s*\{', 
              r'{% slot "\1" %}', "endslot"),
             ("component", r'@component\s*\(\s*[\'"]([^\'"]+)[\'"]\s*(?:,\s*(.+?))?\s*\)\s*\{', 
              None, "endcomponent"),
+            ("error", r'@error\s*\(\s*[\'"]?([^\'"\)]+?)[\'"]?\s*\)\s*\{', 
+             r'{% if form and form.errors and "\1" in form.errors %}{% set message = form.errors["\1"] %}', "endif"),
         ]
 
         def find_balancing_brace(text, start_pos):
@@ -556,6 +586,8 @@ class EdenTemplates(StarletteJinja2Templates):
             "alpine_version": ALPINE_VERSION,
             "htmx_version": HTMX_VERSION,
             "tailwind_version": TAILWIND_VERSION,
+            "old": self._old_helper,
+            "vite": self._vite_helper,
         })
 
     def TemplateResponse(
@@ -633,6 +665,37 @@ class EdenTemplates(StarletteJinja2Templates):
         return super().TemplateResponse(
             name, context, status_code, headers, media_type, background
         )
+
+    def _old_helper(self, name: str, default: Any = "") -> Any:
+        """Helper for @old directive to retrieve previous form data."""
+        from eden.context import get_request
+        request = get_request()
+        # 1. Check form in context (passed by app.validate)
+        # We need to access the active context. Jinja globals don't have it easily.
+        # But we can try to get it from a thread-local or the request itself.
+        # For now, let's assume 'form' might be in the current rendering context.
+        # However, TemplateResponse doesn't store the context it's currently rendering.
+        # A better way is to use a contextfilter but we are in a global.
+        
+        # Fallback: check session if available
+        if request and hasattr(request, "session"):
+            old_data = request.session.get("_old_input", {})
+            return old_data.get(name, default)
+        
+        return default
+
+    def _vite_helper(self, inputs: str | list[str]) -> Markup:
+        """Placeholder for Vite asset loading."""
+        if isinstance(inputs, str):
+            inputs = [inputs]
+        
+        tags = []
+        for inp in inputs:
+            if inp.endswith(".css"):
+                tags.append(f'<link rel="stylesheet" href="/{inp}">')
+            else:
+                tags.append(f'<script type="module" src="/{inp}"></script>')
+        return Markup("\n".join(tags))
 
     def render(self, request: Any, template_name: str, context: dict[str, Any], **kwargs: Any) -> Any:
         """

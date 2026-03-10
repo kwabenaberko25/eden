@@ -150,16 +150,23 @@ class Model(Base, AccessControl):
                 except (IndexError, AttributeError):
                     pass
 
+            # Extract name and check for basic types properly
             match = re.search(r"['\"](\w+)['\"]", content)
             if match:
                 target_name = match.group(1)
             else:
-                # Stronger fallback for type objects or non-quoted strings
-                target_name = content.split('.')[-1].replace("]", "").replace("[", "").split("[")[-1].strip()
-            
-            # Skip basic types
-            basic_types = ("str", "int", "float", "bool", "uuid.UUID", "datetime", "dict", "list", "Any", "None")
-            if any(bt == target_name for bt in basic_types) or (target_name and target_name[0].islower()):
+                # Robust extraction: "typing.Optional[Project]" -> "Project"
+                # "typing.List['Task']" -> "Task"
+                target_name = content
+                if "[" in target_name:
+                    target_name = target_name.split("[")[-1].split("]")[0]
+                if "." in target_name:
+                    target_name = target_name.split(".")[-1]
+                target_name = target_name.strip("'\" ")
+
+            # Skip basic types and lowercase names
+            basic_types = ("str", "int", "float", "bool", "uuid.UUID", "datetime", "dict", "list", "Any", "None", "uuid")
+            if not target_name or any(bt.lower() == target_name.lower() for bt in basic_types) or target_name[0].islower():
                 continue
             
             if not target_name or not target_name[0].isupper() or "." in target_name:
@@ -650,6 +657,59 @@ class Model(Base, AccessControl):
         return instance
 
     @classmethod
+    async def create_from(cls, source: Any, session: Optional[Any] = None) -> T:
+        """
+        Create a new model instance from a validated Form, Schema, or dict.
+        Matches keys in the source against model field names.
+        """
+        # Data extraction
+        if hasattr(source, "model_instance") and source.model_instance:
+            # It's a bound Form
+            data = source.model_instance.model_dump()
+        elif hasattr(source, "model_dump"):
+            # It's a Schema/BaseModel instance
+            data = source.model_dump()
+        elif isinstance(source, dict):
+            data = source
+        else:
+            raise TypeError(f"Cannot create {cls.__name__} from {type(source)}")
+
+        # Filter only valid fields
+        from sqlalchemy import inspect
+        mapper = inspect(cls)
+        valid_keys = set(mapper.columns.keys()) | set(mapper.relationships.keys())
+        
+        filtered_data = {k: v for k, v in data.items() if k in valid_keys and k != "id"}
+        
+        return await cls.create(session=session, **filtered_data)
+
+    async def update_from(self, source: Any, session: Optional[Any] = None) -> Any:
+        """
+        Update this model instance from a validated Form, Schema, or dict.
+        Matches keys in the source against model field names.
+        """
+        # Data extraction
+        if hasattr(source, "model_instance") and source.model_instance:
+            data = source.model_instance.model_dump()
+        elif hasattr(source, "model_dump"):
+            data = source.model_dump()
+        elif isinstance(source, dict):
+            data = source
+        else:
+            raise TypeError(f"Cannot update {self.__class__.__name__} from {type(source)}")
+
+        from sqlalchemy import inspect
+        mapper = inspect(self.__class__)
+        valid_keys = set(mapper.columns.keys()) | set(mapper.relationships.keys())
+        
+        for k, v in data.items():
+            if k in valid_keys and k != "id":
+                setattr(self, k, v)
+        
+        await self.save(session)
+        return self
+
+    @classmethod
     async def get_or_create(cls, session: Optional[Any] = None, defaults: Optional[Dict[str, Any]] = None, **kwargs) -> tuple[T, bool]:
         """Fetch a record or create it if not found."""
         obj = await cls.filter_one(session=session, **kwargs)
@@ -908,10 +968,9 @@ class Model(Base, AccessControl):
             raise ValidationError(detail="ORM validation failed", errors=errors)
 
     @classmethod
-    def to_schema(cls, exclude: Optional[set] = None, only_columns: bool = False) -> Type[pydantic.BaseModel]:
+    def to_schema(cls, include: Optional[List[str]] = None, exclude: Optional[set] = None, only_columns: bool = False) -> Type[pydantic.BaseModel]:
         """Automatically generate a Pydantic schema from the model definition (B2)."""
         from pydantic import create_model, ConfigDict, Field
-        from sqlalchemy import String
         
         exclude = exclude or set()
         fields = {}
@@ -922,6 +981,9 @@ class Model(Base, AccessControl):
             
         for name, hint in annotations.items():
             if name.startswith("_") or name in ("registry", "metadata") or name in exclude:
+                continue
+                
+            if include is not None and name not in include:
                 continue
                 
             # Intelligently assign defaults based on column properties
@@ -939,8 +1001,13 @@ class Model(Base, AccessControl):
             has_default = col is not None and (getattr(col, "default", None) is not None or getattr(col, "server_default", None) is not None)
             
             field_kwargs = {}
-            if col is not None and isinstance(col.type, String) and col.type.length:
-                field_kwargs["max_length"] = col.type.length
+            if col is not None:
+                if isinstance(col.type, String) and col.type.length:
+                    field_kwargs["max_length"] = col.type.length
+                
+                # Propagate Eden metadata (label, widget, etc.)
+                if col.info:
+                    field_kwargs["json_schema_extra"] = col.info
 
             # If not a database column (e.g., relationship), make it optional
             if col is None or name in ("id", "created_at", "updated_at") or is_nullable or has_default:
@@ -951,4 +1018,8 @@ class Model(Base, AccessControl):
             fields[name] = (hint, Field(default_val, **field_kwargs))
             
         config = ConfigDict(arbitrary_types_allowed=True)
-        return create_model(f"{cls.__name__}Schema", __config__=config, **fields)
+        # Use dynamic type to avoid circular imports, but ensure it behaves like Eden Schema
+        from eden.forms import Schema as EdenSchema
+        
+        dynamic_model = create_model(f"{cls.__name__}Schema", __config__=config, __base__=EdenSchema, **fields)
+        return dynamic_model

@@ -549,20 +549,39 @@ class BrowserReloadMiddleware:
 
             if message["type"] == "http.response.body" and should_inject[0]:
                 body = message.get("body", b"")
-                if b"</body>" in body:
+                # Case-insensitive check for closing body tag
+                body_match = re.search(b"</body\\s*>", body, re.IGNORECASE)
+                if body_match:
                     script_text = """
 <script id="eden-live-reload">
     (function() {
+        let isReloading = false;
         function connect() {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const url = `${protocol}//${window.location.host}/_eden/reload`;
             const socket = new WebSocket(url);
-            socket.onmessage = (e) => { if (e.data === 'reload') location.reload(); };
+            
+            socket.onopen = () => console.log('🌿 Eden: Live-reload connected.');
+            
+            socket.onmessage = (e) => { 
+                if (e.data === 'reload' && !isReloading) {
+                    isReloading = true;
+                    location.reload(); 
+                }
+            };
+
             socket.onclose = () => {
-                console.log('🌿 Eden: Connection lost. Reconnecting...');
+                console.log('🌿 Eden: Server disconnected. Polling for restart...');
                 const timer = setInterval(() => {
                     fetch(window.location.href, { mode: 'no-cors', cache: 'no-cache' })
-                        .then(() => { clearInterval(timer); location.reload(); })
+                        .then(res => {
+                            if (res.ok && !isReloading) {
+                                isReloading = true;
+                                clearInterval(timer);
+                                // Small delay to ensure server is fully ready
+                                setTimeout(() => location.reload(), 200);
+                            }
+                        })
                         .catch(() => {});
                 }, 500);
             };
@@ -572,7 +591,11 @@ class BrowserReloadMiddleware:
 </script>
 """
                     script = script_text.encode("utf-8")
-                    message["body"] = body.replace(b"</body>", script + b"</body>")
+                    idx = body_match.start()
+                    # Inject BEFORE the closing body tag
+                    message["body"] = body[:idx] + script + body[idx:]
+                    # Ensure we don't inject again if there are multiple body chunks
+                    should_inject[0] = False
 
             await send(message)
 
