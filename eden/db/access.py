@@ -6,7 +6,7 @@ class PermissionRule:
     Base class for RBAC permission rules.
     """
     def resolve(self, model_cls: Type, user: Any) -> Union[bool, ColumnElement[bool]]:
-        raise NotImplementedError("Permission rules must implement resolve().")
+        return False
 
 class AllowAll(PermissionRule):
     """Grants access to all authenticated users."""

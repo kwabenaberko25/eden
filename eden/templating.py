@@ -272,6 +272,17 @@ class EdenDirectivesExtension(Extension):
 
         source = _active_re.sub(_active_replacer, source)
 
+        # ── Security: Automate target="_blank" protection ─────────────────────
+        # Automatically append rel="noopener noreferrer" if missing
+        def _enforce_noopener(m):
+            tag = m.group(0)
+            if 'rel=' not in tag.lower():
+                # Extract the tag contents except the closing bracket
+                return tag[:-1] + ' rel="noopener noreferrer">'
+            return tag
+
+        source = re.sub(r'<a\s+[^>]*?target=[\'"]_blank[\'"][^>]*>', _enforce_noopener, source, flags=re.IGNORECASE)
+
         return source
 
 
