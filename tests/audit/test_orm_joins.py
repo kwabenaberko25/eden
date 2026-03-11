@@ -3,28 +3,28 @@ import asyncio
 import uuid
 from typing import List
 from sqlalchemy.orm import Mapped
-from eden.db import Model, f, Database
+from eden.orm import Model, f, Database
 
 # ── Audit Models ──────────────────────────────────────────────────────────
 
-class GrandParent(Model):
-    __tablename__ = "grandparents"
+class AuditGrandParent(Model):
+    __tablename__ = "audit_grandparents"
     name: Mapped[str] = f()
     # Explicitly use Relationship to avoid SA 2.0 ArgumentError in tests
-    children: Mapped[List["Parent"]] = f(back_populates="grandparent")
+    children: Mapped[List["AuditParent"]] = f(back_populates="grandparent")
 
-class Parent(Model):
-    __tablename__ = "parents"
+class AuditParent(Model):
+    __tablename__ = "audit_parents"
     name: Mapped[str] = f()
-    grandparent_id: Mapped[uuid.UUID] = f(foreign_key="grandparents.id")
-    grandparent: Mapped["GrandParent"] = f(back_populates="children")
-    children: Mapped[List["Child"]] = f(back_populates="parent")
+    grandparent_id: Mapped[uuid.UUID] = f(foreign_key="audit_grandparents.id")
+    grandparent: Mapped["AuditGrandParent"] = f(back_populates="children")
+    children: Mapped[List["AuditChild"]] = f(back_populates="parent")
 
-class Child(Model):
-    __tablename__ = "children"
+class AuditChild(Model):
+    __tablename__ = "audit_children"
     name: Mapped[str] = f()
-    parent_id: Mapped[uuid.UUID] = f(foreign_key="parents.id")
-    parent: Mapped["Parent"] = f(back_populates="children")
+    parent_id: Mapped[uuid.UUID] = f(foreign_key="audit_parents.id")
+    parent: Mapped["AuditParent"] = f(back_populates="children")
 
 # ── Audit Tests ───────────────────────────────────────────────────────────
 
@@ -37,9 +37,9 @@ async def join_db():
         await conn.run_sync(Model.metadata.create_all)
         
     async with db.session() as session:
-        gp = await GrandParent.create(session, name="GP1")
-        p = await Parent.create(session, name="P1", grandparent_id=gp.id)
-        c = await Child.create(session, name="C1", parent_id=p.id)
+        gp = await AuditGrandParent.create(session, name="GP1")
+        p = await AuditParent.create(session, name="P1", grandparent_id=gp.id)
+        c = await AuditChild.create(session, name="C1", parent_id=p.id)
         await session.commit()
         
     yield db
@@ -53,8 +53,8 @@ async def test_auto_join_involvement(join_db):
     """
     async with join_db.session() as session:
         # Test 1: Direct model attribute in filter (Supported by Eden's involvement detection)
-        # This should trigger select(Child).join(Parent).join(GrandParent).where(GrandParent.name == "GP1")
-        children = await Child.query(session).filter(GrandParent.name == "GP1").all()
+        # This should trigger select(AuditChild).join(AuditParent).join(AuditGrandParent).where(AuditGrandParent.name == "GP1")
+        children = await AuditChild.query(session).filter(AuditGrandParent.name == "GP1").all()
         assert len(children) == 1
         assert children[0].name == "C1"
         
@@ -65,7 +65,7 @@ async def test_auto_join_performance(join_db):
     """
     async with join_db.session() as session:
         # Use prefetch to see if deep paths work
-        results = await GrandParent.query(session).prefetch("children.children").all()
+        results = await AuditGrandParent.query(session).prefetch("children.children").all()
         assert len(results) == 1
         assert len(results[0].children) == 1
         assert len(results[0].children[0].children) == 1

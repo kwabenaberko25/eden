@@ -210,4 +210,38 @@ async def get_tenant_metrics(request):
 app.include_router(api_router)
 ```
 
+---
+
+## 🏗️ Best Practices: Professional Namespacing
+
+For large applications like a **School Management System**, namespacing is your best friend. It prevents name collisions and makes your code self-documenting.
+
+### 1. The Multi-Level Pattern
+Don't be afraid to nest namespaces. It makes your `@url` calls incredibly clear.
+
+```python
+# routes/admin/students.py
+router = Router(name="students")
+
+# routes/admin/__init__.py
+admin_router = Router(name="admin")
+admin_router.include_router(student_router, prefix="/students")
+
+# app.py
+app.include_router(admin_router, prefix="/admin")
+```
+
+Now, in your templates, you can call:
+`@url('admin:students:list')`
+
+### 2. Namespace vs. Prefix
+- **Prefix**: The physical URL path (e.g., `/api/v1`).
+- **Namespace**: The logical name used for code (e.g., `api`).
+Always keep them synchronized for the easiest developer experience.
+
+### 3. Use trailing slashes consistently
+Eden handles trailing slashes automatically, but for the best SEO and consistency, stick to the pattern defined in your `prefix`.
+
+---
+
 **Next Steps**: [Modern Templating Architecture](templating.md)

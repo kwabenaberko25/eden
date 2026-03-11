@@ -1,6 +1,6 @@
 import pytest
 from uuid import uuid4
-from eden.db import Model, f
+from eden.orm import Model, f
 
 class QSUser(Model):
     name: str = f(max_length=50)

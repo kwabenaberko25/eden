@@ -5,7 +5,7 @@ import asyncio
 from datetime import datetime
 from pydantic import ValidationError
 
-from eden.db import Model, Database
+from eden.orm import Model, Database
 from sqlalchemy.orm import mapped_column, Mapped
 from sqlalchemy import String, Integer, inspect
 

@@ -104,8 +104,29 @@ async def test_template_url():
     assert '{{ url_for("users:new_user", id=1) }}' in processed
     print("@url directive test passed!")
 
+async def test_router_crud_generation():
+    print("\nTesting Router CRUD auto-generation...")
+    from eden.routing import Router
+    from eden.orm import Model, f
+    
+    class MockModel(Model):
+        __tablename__ = "mock_models"
+        name: str = f(max_length=20)
+    
+    router = Router(name="mocks", model=MockModel)
+    
+    routes = router.routes
+    names = [r.name for r in routes]
+    assert "list" in names
+    assert "create" in names
+    assert "show" in names
+    assert "update" in names
+    assert "destroy" in names
+    print("Router CRUD generation test passed!")
+
 if __name__ == "__main__":
     asyncio.run(test_form_helpers())
     asyncio.run(test_request_render())
     asyncio.run(test_named_routes())
     asyncio.run(test_template_url())
+    asyncio.run(test_router_crud_generation())

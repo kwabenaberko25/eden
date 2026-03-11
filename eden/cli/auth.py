@@ -7,7 +7,7 @@ import asyncio
 import click
 
 from eden.auth.models import User
-from eden.db import Database
+from eden.orm import Database
 
 
 @click.group()

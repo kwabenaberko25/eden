@@ -62,7 +62,7 @@ class TenantMiddleware(BaseHTTPMiddleware):
             if schema_name:
                 db_session = getattr(request.state, "db", None)
                 if db_session:
-                    from eden.db import get_db
+                    from eden.orm import get_db
                     db_manager = get_db(request)
                     await db_manager.set_schema(db_session, schema_name)
 
@@ -80,7 +80,7 @@ class TenantMiddleware(BaseHTTPMiddleware):
                 db_session = getattr(request.state, "db", None)
                 if db_session:
                     try:
-                        from eden.db import get_db
+                        from eden.orm import get_db
                         db_manager = get_db(request)
                         await db_manager.set_schema(db_session, "public")
                     except Exception:

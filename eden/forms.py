@@ -156,12 +156,55 @@ class FormField:
         self.label = label or (name.replace("_", " ").title() if name else "")
         self.widget = widget or kwargs.get("widget", "input")
         self.attributes = kwargs
+        # Keys that should not be rendered as HTML attributes on the input tag
+        self._metadata_keys = {
+            "widget", "label", "help_text", "choices", "org_id", "is_reference"
+        }
+        
         # If widget is set but type isn't, use widget as type
         if "type" not in self.attributes and self.widget:
             self.attributes["type"] = self.widget
         if "input_type" in self.attributes:
             self.attributes["type"] = self.attributes.pop("input_type")
         self.css_classes = []
+
+    def _get_render_attrs(self, **kwargs) -> dict[str, Any]:
+        """Merge and filter attributes for HTML rendering."""
+        attrs = {**self.attributes, **kwargs}
+        if "name" not in attrs:
+            attrs["name"] = self.name
+        if "id" not in attrs:
+            attrs["id"] = f"id_{self.name}"
+            
+        classes = list(self.css_classes)
+        if self.error:
+            classes.append("border-red-500")
+            
+        if classes:
+            attrs["class"] = " ".join(classes)
+            
+        if self.required and "required" not in attrs:
+            attrs["required"] = "required"
+            
+        # Filter out metadata
+        return {k: v for k, v in attrs.items() if k not in self._metadata_keys}
+
+    def _render_attr_str(self, attrs: dict[str, Any], exclude: list[str] | None = None) -> str:
+        """Convert attribute dict to string."""
+        exclude = exclude or []
+        parts = []
+        for k, v in attrs.items():
+            if k in exclude:
+                continue
+            if v is True:
+                parts.append(k)
+            elif v is False or v is None:
+                continue
+            else:
+                # Handle special attributes like 'choices' (already filtered but safe)
+                if k == "choices": continue
+                parts.append(f'{k}="{v}"')
+        return " ".join(parts)
 
     @property
     def field_type(self) -> str:
@@ -234,47 +277,26 @@ class FormField:
             return self.as_file(**kwargs)
 
         # Default to input
-        attrs = {**kwargs}
-        if "name" not in attrs:
-            attrs["name"] = self.name
-        if "id" not in attrs:
-            attrs["id"] = f"id_{self.name}"
-
-        attrs.update(self.attributes)
-
-        classes = list(self.css_classes)
-        if self.error:
-            classes.append("border-red-500")
-
-        if classes:
-            attrs["class"] = " ".join(classes)
-
-        attr_str = " ".join([f'{k}="{v}"' for k, v in attrs.items() if k != "choices"])
-        val_str = f'value="{self.value}"' if self.value is not None else ""
+        attrs = self._get_render_attrs(**kwargs)
+        attr_str = self._render_attr_str(attrs)
+        
+        # value is handled specially for inputs
+        val_str = f'value="{self.value}"' if self.value is not None and self.value != "" else ""
 
         return Markup(f"<input {attr_str} {val_str} />")
 
     def as_textarea(self, **kwargs) -> Markup:
-        attrs = {**self.attributes, **kwargs}
-        classes = list(self.css_classes)
-        if self.error:
-            classes.append("border-red-500")
-        if classes:
-            attrs["class"] = " ".join(classes)
-        attr_str = " ".join([f'{k}="{v}"' for k, v in attrs.items()])
+        attrs = self._get_render_attrs(**kwargs)
+        attr_str = self._render_attr_str(attrs, exclude=["type"])
         content = self.value or ""
         return Markup(
-            f'<textarea name="{self.name}" id="id_{self.name}" {attr_str}>{content}</textarea>'
+            f'<textarea {attr_str}>{content}</textarea>'
         )
 
     def as_select(self, choices: List[tuple[str, str]], **kwargs) -> Markup:
-        attrs = {**self.attributes, **kwargs}
-        classes = list(self.css_classes)
-        if self.error:
-            classes.append("border-red-500")
-        if classes:
-            attrs["class"] = " ".join(classes)
-        attr_str = " ".join([f'{k}="{v}"' for k, v in attrs.items()])
+        attrs = self._get_render_attrs(**kwargs)
+        # Remove max_length and type from select tag
+        attr_str = self._render_attr_str(attrs, exclude=["max_length", "type"])
 
         options = []
         for val, label in choices:
@@ -282,7 +304,7 @@ class FormField:
             options.append(f'<option value="{val}"{selected}>{label}</option>')
 
         return Markup(
-            f'<select name="{self.name}" id="id_{self.name}" {attr_str}>\n  '
+            f'<select {attr_str}>\n  '
             + "\n  ".join(options)
             + "\n</select>"
         )

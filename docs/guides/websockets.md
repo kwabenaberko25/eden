@@ -1,6 +1,6 @@
 # WebSockets 🔌
 
-Eden provides native support for WebSockets, allowing you to build real-time, reactive applications with ease.
+Eden provides native support for WebSockets, allowing you to build real-time, reactive applications with ease. For the best experience, we recommend using the **Native Real-time Sync** layer, but you can also manage raw sockets manually.
 
 ## Basic Usage
 
@@ -94,22 +94,98 @@ ws.mount(app)
 
 ---
 
-## Elite Pattern: Real-Time Notifications 🔔
+## 🔄 Real-Time ORM Sync
 
-Combine WebSockets with Background Tasks to send instant UI updates.
+Eden's **Reactive Layer** automatically broadcasts database events to connected WebSocket clients. This allows for zero-configuration real-time updates.
+
+### 1. Making a Model Reactive
+
+Just set `__reactive__ = True` on your model. Eden handles the rest.
 
 ```python
-@broker.task
-async def notify_user(user_id: int, message: str):
-    # Retrieve the manager from app state
-    manager = app.state.ws_manager
-    await manager.send_to_user(user_id, message)
+class Task(Model):
+    __reactive__ = True
+    title: Mapped[str] = f()
+    is_completed: Mapped[bool] = f(default=False)
+```
 
-# In your route
-@app.post("/events")
-async def create_event(request):
-    await notify_user.kiq(request.user.id, "New event created!")
+### 2. Listening for Updates in Templates
+
+Use the `hx-sync` attribute (via our HTMX integration) to listen for specific model updates.
+
+#### Way 1: Reload a List
+```html
+<div hx-sync="tasks" 
+     hx-trigger="tasks:created, tasks:deleted" 
+     hx-get="/tasks/list" 
+     hx-target="#task-container">
+    <div id="task-container">...</div>
+</div>
+```
+
+#### Way 2: Single Item Update
+```html
+<div id="task-{{ task.id }}" 
+     hx-sync="tasks:{{ task.id }}" 
+     hx-trigger="tasks:updated" 
+     hx-get="/tasks/{{ task.id }}">
+    {{ task.title }}
+</div>
+```
+
+### 3. Manual Broadcasting
+
+For custom events that aren't tied directly to a model save:
+
+```python
+from eden import manager
+
+async def notify_all():
+    await manager.broadcast("global-alerts", {"message": "System Maintenance!"})
+```
+
+---
+
+## 🏫 Real-World Scenario: Live Attendance Tracker
+
+In a School Management System, you might want a "Live Attendance" dashboard that updates instantly as students tap their ID cards.
+
+### 1. The Model
+```python
+class Attendance(Model):
+    __reactive__ = True  # Enable real-time broadcasting
+    student_name: Mapped[str] = f()
+    timestamp: Mapped[datetime] = f(default=datetime.now)
+```
+
+### 2. The Teacher's View
+```html
+<div class="eden-card p-6">
+    <h3 class="premium-heading">Live Attendance Feed</h3>
+    
+    <div id="attendance-feed" 
+         hx-sync="attendance" 
+         hx-trigger="attendance:created" 
+         hx-get="/attendance/latest-list" 
+         hx-swap="afterbegin">
+        <!-- New items will appear at the top automatically -->
+    </div>
+</div>
+```
+
+### 3. The Backend Logic (When a student taps)
+```python
+@app.post("/api/tap")
+async def record_tap(request):
+    data = await request.json()
+    # Saving the model automatically triggers the WebSocket broadcast
+    await Attendance.create(student_name=data['name'])
     return {"status": "ok"}
 ```
+
+---
+
+> [!TIP]
+> **Performance**: Native Sync is extremely efficient and uses Redis or an in-memory bus to keep overhead minimal even with thousands of concurrent updates.
 
 **Next Steps**: [Exception Handling](exceptions.md)

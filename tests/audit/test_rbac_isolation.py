@@ -2,8 +2,8 @@ import pytest
 import uuid
 from typing import List, Dict
 from sqlalchemy.orm import Mapped
-from eden.db import Model, f, Database
-from eden.db.access import AccessControl, AllowOwner
+from eden.orm import Model, f, Database
+from eden.orm import AccessControl, AllowOwner
 
 # ── Audit Models ──────────────────────────────────────────────────────────
 

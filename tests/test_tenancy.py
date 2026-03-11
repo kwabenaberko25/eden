@@ -1,6 +1,6 @@
 import pytest
 import uuid
-from eden.db import Model, f
+from eden.orm import Model, f
 from eden.tenancy.models import Tenant
 from eden.tenancy.mixins import TenantMixin
 from eden.tenancy.context import set_current_tenant, reset_current_tenant
@@ -107,12 +107,11 @@ async def test_global_access_no_context(tenant_a, tenant_b):
     finally:
         reset_current_tenant(token_b)
         
-    # Query without tenant context (Global context)
-    # The default behavior of TenantMixin._base_select is to omit filter if no tenant in context
+    # Query without tenant context (Fail-Secure)
+    # The default behavior of TenantMixin._base_select is to enforce isolation
+    # and return an empty result if no tenant is found in the context.
     tasks = await TenantTask.all()
-    assert len(tasks) == 2
-    titles = {t.title for t in tasks}
-    assert titles == {"Task A", "Task B"}
+    assert len(tasks) == 0
 
 @pytest.mark.asyncio
 async def test_manual_tenant_assignment(tenant_a, tenant_b):

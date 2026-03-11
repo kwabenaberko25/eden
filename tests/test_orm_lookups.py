@@ -1,7 +1,7 @@
 import pytest
 from typing import Any, List, Optional
 from sqlalchemy.orm import Mapped, Relationship
-from eden.db import Model, f, Database, Reference, Q
+from eden.orm import Model, f, Database, Reference, Q
 
 # Models for testing multi-level joins
 class Author(Model):

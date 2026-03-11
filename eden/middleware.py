@@ -762,11 +762,67 @@ class CacheMiddleware:
 
 # ── Middleware Registry ──────────────────────────────────────────────────────
 
+
+class EdenFunctionMiddleware:
+    """
+    Adapter for functional middleware.
+    Allows middleware to be defined as a simple async function:
+    async def my_middleware(request, call_next):
+        ...
+    """
+
+    def __init__(self, app: ASGIApp, handler: Callable) -> None:
+        from starlette.middleware.base import BaseHTTPMiddleware
+        
+        # We wrap the Starlette BaseHTTPMiddleware
+        self.app = app
+        self.handler = handler
+        
+        # Create an internal dispatcher that wraps Starlette's Request
+        async def dispatch(request, call_next):
+            from eden.requests import Request
+            eden_request = Request(request.scope, request.receive, request._send)
+            
+            async def eden_call_next(req):
+                # Ensure we are passing back to Starlette's call_next
+                return await call_next(req)
+                
+            return await self.handler(eden_request, eden_call_next)
+
+        self._base_middleware = BaseHTTPMiddleware(app, dispatch=dispatch)
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        await self._base_middleware(scope, receive, send)
+
+
+class MessageMiddleware:
+    """
+    Middleware that ensures messages are loaded from the session
+    and made available on the request.
+    """
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        # Request.messages is a lazy property on EdenRequest,
+        # so we don't need to do anything here except pass through.
+        # This middleware exists to provide a clean configuration point
+        # and to ensure it's placed after SessionMiddleware.
+        await self.app(scope, receive, send)
+
+
 MIDDLEWARE_REGISTRY: dict[str, type] = {
+
     "cors": CORSMiddleware,
     "gzip": GZipMiddleware,
     "session": SessionMiddleware,
     "csrf": CSRFMiddleware,
+    "messages": MessageMiddleware,
     "security": SecurityHeadersMiddleware,
     "ratelimit": RateLimitMiddleware,
     "redis_ratelimit": RedisRateLimitMiddleware,

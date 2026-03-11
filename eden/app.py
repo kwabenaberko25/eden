@@ -62,6 +62,9 @@ class Eden:
         description: str = "",
         secret_key: str = "",
     ) -> None:
+        from eden.context import set_app
+        set_app(self)
+
         self.title = title
         self.version = version
         self.description = description
@@ -116,6 +119,13 @@ class Eden:
 
         # Caching
         self.cache: Optional["CacheBackend"] = None
+
+    @classmethod
+    def get_current(cls) -> Eden:
+        """Get the current active Eden application instance."""
+        from eden.context import get_app
+        return get_app()
+
 
 
 
@@ -344,14 +354,6 @@ class Eden:
         """Mount a sub-router's routes into this app."""
         self._router.include_router(router, prefix=prefix)
 
-    def mount_resource(self, resource_cls: Any, prefix: Optional[str] = None) -> None:
-        """
-        Mount a Resource into the application.
-        Automatically registers all CRUD endpoints and custom actions.
-        """
-        router = resource_cls.router(prefix=prefix)
-        self.include_router(router)
-
     def get_routes(self) -> list[dict[str, Any]]:
         """
         Returns a list of all registered routes and their metadata.
@@ -417,11 +419,17 @@ class Eden:
                         ("cors", "gzip", "session", "csrf").
             **kwargs: Configuration for the middleware.
         """
+
         if isinstance(middleware, str):
             cls = get_middleware_class(middleware)
+        elif not inspect.isclass(middleware) and callable(middleware):
+            from eden.middleware import EdenFunctionMiddleware
+            cls = EdenFunctionMiddleware
+            kwargs = {"handler": middleware, **kwargs}
         else:
             cls = middleware
         self._middleware_stack.append((cls, kwargs))
+
 
     # ── Lifespan Hooks ───────────────────────────────────────────────────
 
@@ -463,7 +471,7 @@ class Eden:
 
             # Add system reload WebSocket route if in debug mode
             if self.debug and self.browser_reload:
-                from starlette.routing import WebSocketRoute
+                from starlette.routing import WebSocketRoute as StarletteWebSocketRoute
                 from starlette.websockets import WebSocket
 
                 async def reload_websocket(websocket: WebSocket) -> None:
@@ -475,7 +483,37 @@ class Eden:
                     except Exception:
                         pass
 
-                starlette_routes.append(WebSocketRoute("/_eden/reload", reload_websocket))
+                starlette_routes.append(StarletteWebSocketRoute("/_eden/reload", reload_websocket))
+
+            # Add Real-time Sync WebSocket route
+            from starlette.routing import WebSocketRoute as StarletteWebSocketRoute
+            from starlette.websockets import WebSocket
+            from eden.realtime import manager
+
+            async def sync_websocket(websocket: WebSocket) -> None:
+                await manager.connect(websocket)
+                try:
+                    while True:
+                        data = await websocket.receive_json()
+                        action = data.get("action")
+                        channel = data.get("channel")
+                        
+                        if action == "subscribe" and channel:
+                            await manager.subscribe(websocket, channel)
+                        elif action == "unsubscribe" and channel:
+                            await manager.unsubscribe(websocket, channel)
+                except Exception:
+                    pass
+                finally:
+                    await manager.disconnect(websocket)
+
+            starlette_routes.append(StarletteWebSocketRoute("/_eden/sync", sync_websocket, name="eden:sync"))
+
+            # Include Component Actions Router
+            from eden.components import get_component_router
+            comp_router = get_component_router()
+            starlette_routes.extend(comp_router.to_starlette_routes())
+
 
         # Build middleware list
         middleware = [
@@ -485,7 +523,7 @@ class Eden:
         # Auto-configure database if state.database_url is set
         db_url = getattr(self.state, "database_url", None)
         if db_url:
-            from eden.db import Model, init_db
+            from eden.orm import Model, init_db
             # Check if already bound to avoid double init
             if not hasattr(Model, "_db") or Model._db is None:
                 db = init_db(db_url, self)

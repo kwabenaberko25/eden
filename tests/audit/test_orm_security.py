@@ -1,7 +1,7 @@
 import pytest
 import uuid
 from sqlalchemy.orm import Mapped
-from eden.db import Model, f, Database, Q
+from eden.orm import Model, f, Database, Q
 
 # ── Audit Models ──────────────────────────────────────────────────────────
 

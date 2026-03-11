@@ -77,8 +77,6 @@ class EdenDirectivesExtension(Extension):
             return f'{{{{ old("{field}", {default}) }}}}'
         source = re.sub(r'@old\s*\(\s*[\'"](.+?)[\'"]\s*(?:,\s*(.+?))?\s*\)', _old_replacer, source)
         
-        # @url("name", id=1) -> {{ url_for("name", id=1) }}
-        source = re.sub(r'@url\s*\((.+?)\)', r'{{ url_for(\1) }}', source)
         
         # @json(val)
         source = re.sub(r'@json\s*\((.+?)\)', r'{{ \1 | json_encode }}', source)
@@ -159,6 +157,8 @@ class EdenDirectivesExtension(Extension):
              None, "endcomponent"),
             ("error", r'@error\s*\(\s*[\'"]?([^\'"\)]+?)[\'"]?\s*\)\s*\{', 
              r'{% if form and form.errors and "\1" in form.errors %}{% set message = form.errors["\1"] %}', "endif"),
+            ("messages", r'@messages\s*\{', 
+             r'{% for message in eden_messages() %}', "endfor"),
         ]
 
         def find_balancing_brace(text, start_pos):
@@ -245,10 +245,22 @@ class EdenDirectivesExtension(Extension):
         )
 
         def _url_replacer(m):
-            raw_name  = _normalise_route(m.group(1))
-            kwargs    = m.group(2)  # may be None
-            alias     = m.group(3)  # may be None
-            call_args = f'"{raw_name}"' + (f', {kwargs.strip()}' if kwargs else '')
+            raw_name = m.group(1)
+            kwargs   = m.group(2)  # may be None
+            alias    = m.group(3)  # may be None
+            
+            if raw_name.startswith("component:"):
+                # Handle simplified @url("component:action-slug")
+                action_slug = raw_name.replace("component:", "")
+                # Map to the internal 'component:dispatch' route defined in get_component_router()
+                call_args = f'"component:dispatch", action_slug="{action_slug}"'
+                if kwargs:
+                    call_args += f', {kwargs.strip()}'
+            else:
+                # Standard normalized route name
+                norm_name = _normalise_route(raw_name)
+                call_args = f'"{norm_name}"' + (f', {kwargs.strip()}' if kwargs else '')
+                
             if alias:
                 res = f'{{% set {alias} = url_for({call_args}) %}}'
             else:
@@ -603,6 +615,17 @@ class EdenTemplates(StarletteJinja2Templates):
             "old": self._old_helper,
             "vite": self._vite_helper,
         })
+
+        # ── Messaging helper ──────────────────────────────────────────────────
+        def eden_messages() -> list:
+            """Retrieve and clear messages from the current request."""
+            from eden.context import get_request
+            request = get_request()
+            if request:
+                return list(request.messages)
+            return []
+
+        self.env.globals["eden_messages"] = eden_messages
 
     def TemplateResponse(
         self,

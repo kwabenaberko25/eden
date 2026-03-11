@@ -1,7 +1,7 @@
 import pytest
 from uuid import uuid4
 from datetime import datetime
-from eden.db import Model, f, QuerySet, Sum, Avg, Max, Q
+from eden.orm import Model, f, QuerySet, Sum, Avg, Max, Q
 from sqlalchemy import func
 from sqlalchemy.orm import Mapped
 
@@ -11,14 +11,14 @@ class EnhancedUser(Model):
     score: int = f(default=0)
     tags: list = f(json=True, default=[])
 
-class Parent(Model):
+class EnhancedParent(Model):
     name: str = f()
-    children: Mapped[list["Child"]] = f(back_populates="parent")
+    children: Mapped[list["EnhancedChild"]] = f(back_populates="parent")
 
-class Child(Model):
+class EnhancedChild(Model):
     name: str = f()
     # One-liner relationship with auto-FK (parent_id)
-    parent: Mapped["Parent"] = f(back_populates="children")
+    parent: Mapped["EnhancedParent"] = f(back_populates="children")
 
 @pytest.fixture(autouse=True)
 async def setup_db(db):
@@ -114,16 +114,16 @@ async def test_queryset_delete():
 
 @pytest.mark.asyncio
 async def test_orm_f_relationship_oneliner():
-    # Test that Child model has parent_id automatically created
-    parent = await Parent.create(name="Parent 1")
-    child = await Child.create(name="Child 1", parent_id=parent.id)
+    # Test that EnhancedChild model has parent_id automatically created
+    parent = await EnhancedParent.create(name="EnhancedParent 1")
+    child = await EnhancedChild.create(name="EnhancedChild 1", parent_id=parent.id)
     
     # Reload and check relationship
-    fetched_child = await Child.query().prefetch("parent").filter(id=child.id).first()
-    assert fetched_child.parent.name == "Parent 1"
+    fetched_child = await EnhancedChild.query().prefetch("parent").filter(id=child.id).first()
+    assert fetched_child.parent.name == "EnhancedParent 1"
     assert fetched_child.parent_id == parent.id
     
     # Check parent's children
-    fetched_parent = await Parent.query().prefetch("children").filter(id=parent.id).first()
+    fetched_parent = await EnhancedParent.query().prefetch("children").filter(id=parent.id).first()
     assert len(fetched_parent.children) == 1
-    assert fetched_parent.children[0].name == "Child 1"
+    assert fetched_parent.children[0].name == "EnhancedChild 1"

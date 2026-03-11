@@ -13,6 +13,7 @@ Built on top of **Starlette** and **SQLAlchemy 2.0**, Eden provides a curated su
 - **🏗️ Conventional ORM**: A Django-inspired interface for SQLAlchemy.
 - **🏢 Native Multi-Tenancy**: Column-level isolation built into the core.
 - **🚥 Premium Debug UI**: A stunning error interface that makes debugging a joy.
+- **🚀 [Killer Features](guides/killer-features.md)**: Real-time sync, AI Vectors, and Full-Stack Components.
 
 ---
 
@@ -37,6 +38,7 @@ Ready to dive in? Follow these steps to get your first Eden application up and r
 | **[Authentication](guides/auth.md)** | Session, JWT, and Social login backends out of the box. |
 | **[Templating](guides/templating.md)** | Clean, directive-based syntax built on Jinja2. |
 | **[Forms](guides/forms.md)** | Pydantic-powered validation and rapid rendering. |
+| **[🚀 Killer Features](guides/killer-features.md)** | Deep-dive into Real-time Sync, AI, and Components. |
 
 ---
 

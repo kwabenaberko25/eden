@@ -100,6 +100,8 @@ from eden.db.pagination import Page
 from eden.db.query import QuerySet
 from eden.db.session import Database, get_db, init_db
 from eden.context import request, user
+from eden.db.ai import VectorModel, VectorField
+
 
 __all__ = [
     "Model",
@@ -198,4 +200,7 @@ __all__ = [
     "validates",
     "request",
     "user",
+    "VectorModel",
+    "VectorField",
 ]
+

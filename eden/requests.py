@@ -117,3 +117,13 @@ class Request(StarletteRequest):
     def get_query_list(self, name: str) -> list[str]:
         """Get all values for a query parameter (multi-valued)."""
         return self.query_params.getlist(name)
+
+    @property
+    def messages(self) -> Any:
+        """
+        Access the messaging container for this request.
+        """
+        if not hasattr(self, "_messages"):
+            from eden.messages import MessageContainer
+            self._messages = MessageContainer(self)
+        return self._messages

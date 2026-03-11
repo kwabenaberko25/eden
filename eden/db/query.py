@@ -355,10 +355,21 @@ class QuerySet(Generic[T]):
 
         for rel_path in self._prefetch_paths:
             parts = rel_path.split(".")
-            loader = selectinload(getattr(self._model_cls, parts[0]))
-            for part in parts[1:]:
-                loader = loader.selectinload(part)
-            stmt = stmt.options(loader)
+            current_model = self._model_cls
+            loader = None
+            
+            for part in parts:
+                attr = getattr(current_model, part)
+                if loader is None:
+                    loader = selectinload(attr)
+                else:
+                    loader = loader.selectinload(attr)
+                
+                # Move to the target model for the next segment
+                current_model = attr.property.mapper.class_
+                
+            if loader:
+                stmt = stmt.options(loader)
         return stmt
 
     @contextlib.asynccontextmanager

@@ -235,7 +235,7 @@ class TestBuiltinComponents:
 
     def test_pagination_renders(self, tmp_path):
         from eden.templating import EdenTemplates
-        from eden.db.query import Page
+        from eden.orm import Page
 
         template_dir = tmp_path / "templates"
         template_dir.mkdir()

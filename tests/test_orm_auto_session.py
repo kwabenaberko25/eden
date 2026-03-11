@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import MagicMock
 from sqlalchemy.ext.asyncio import AsyncSession
-from eden.db import Model, Database
+from eden.orm import Model, Database
 from eden.context import set_request
 from eden.requests import Request
 

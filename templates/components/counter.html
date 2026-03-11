@@ -1,0 +1,9 @@
+<div class="counter" id="counter-{{ id }}" {{ component_attrs() }}>
+    <span>Count: {{ count }}</span>
+    <button hx-post="{{ action_url('increment') }}" 
+            hx-target="closest .counter"
+            hx-swap="outerHTML">
+        +
+    </button>
+</div>
+

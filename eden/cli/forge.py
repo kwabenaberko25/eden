@@ -44,7 +44,7 @@ def model(name: str) -> None:
         return
 
     # 1. Create the model file
-    content = f'''from eden.db import Model, f
+    content = f'''from eden.orm import Model, f
  
 class {class_name}(Model):
     """
@@ -253,7 +253,7 @@ def entity(name: str) -> None:
     # 2. Scaffold Model
     model_file = models_dir / f"{snake_name}.py"
     if not model_file.exists():
-        model_content = f'''from eden.db import Model, f
+        model_content = f'''from eden.orm import Model, f
 
 class {class_name}(Model):
     """
@@ -404,7 +404,7 @@ def resource(name: str, tenant: bool) -> None:
     # 2. Scaffold Model
     model_file = models_dir / f"{snake_name}.py"
     if not model_file.exists():
-        model_content = f'''from eden.db import Model, f
+        model_content = f'''from eden.orm import Model, f
 
 class {class_name}(Model):
     """
@@ -429,27 +429,22 @@ class {class_name}(Model):
                 init_file.write_text(current_init + init_line, encoding="utf-8")
         click.echo(f"  ✨ Created model: app/models/{snake_name}.py")
 
-    # 3. Scaffold Resource Class
+    # 3. Scaffold Router
     res_file = res_dir / f"{snake_name}.py"
     if not res_file.exists():
-        res_content = f'''from eden.resources import {base_class}, action
+        res_content = f'''from eden.routing import Router
 from app.models.{snake_name} import {class_name}
 
-class {class_name}Resource({base_class}):
-    """
-    {class_name} domain logic and views.
-    """
-    model = {class_name}
-    template_prefix = "resources/{snake_name}"
+{snake_name}_router = Router(prefix="/{snake_name}s", model={class_name})
 
-    @action("/stats", detail=False)
-    async def stats(self):
-        """Custom collection-level action."""
-        count = await {class_name}.count()
-        return {{"total": count}}
+@{snake_name}_router.get("/stats")
+async def stats(request):
+    """Custom collection-level action."""
+    count = await {class_name}.count()
+    return {{"total": count}}
 '''
         res_file.write_text(res_content, encoding="utf-8")
-        click.echo(f"  ✨ Created resource: app/resources/{snake_name}.py")
+        click.echo(f"  ✨ Created router: app/resources/{snake_name}.py")
 
     # 4. Scaffold Templates (Premium Obsidian)
     templates = {
@@ -511,8 +506,8 @@ class {class_name}Resource({base_class}):
     # 5. Auto-register in routes/__init__.py
     if routes_init.exists():
         content = routes_init.read_text(encoding="utf-8")
-        import_line = f"from app.resources.{snake_name} import {class_name}Resource"
-        reg_line = f"main_router.include_router({class_name}Resource.router())"
+        import_line = f"from app.resources.{snake_name} import {snake_name}_router"
+        reg_line = f"main_router.include_router({snake_name}_router)"
         
         if import_line not in content:
             lines = content.splitlines()
@@ -525,10 +520,10 @@ class {class_name}Resource({base_class}):
             
             # Add registration
             if reg_line not in "".join(lines):
-                lines.append(f"\n# Auto-registered Resource\n{reg_line}")
+                lines.append(f"\n# Auto-registered Router\n{reg_line}")
                 
             routes_init.write_text("\n".join(lines) + "\n", encoding="utf-8")
-            click.echo("  📝 Auto-registered resource in app/routes/__init__.py")
+            click.echo("  📝 Auto-registered router in app/routes/__init__.py")
 
 
 if __name__ == "__main__":

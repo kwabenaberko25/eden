@@ -8,7 +8,7 @@ from sqlalchemy import JSON, Integer
 from sqlalchemy.orm import mapped_column, Mapped, declared_attr
 
 from eden.auth.hashers import check_password, hash_password
-from eden.db import Model, f, Relationship, Reference
+from eden.orm import Model, f, Relationship, Reference
 
 
 class BaseUser:
@@ -67,9 +67,10 @@ class SocialAccount(Model):
     __tablename__ = "eden_social_accounts"
 
     id: Mapped[int] = f(primary_key=True)
-    provider: str = f(max_length=50)  # e.g., "google", "github"
-    provider_user_id: str = f(max_length=255, index=True) # ID from the provider
-    provider_metadata: dict = f(json=True, nullable=True)
+    provider: Mapped[str] = f(max_length=50)  # e.g., "google", "github"
+    provider_user_id: Mapped[str] = f(max_length=255, index=True) # ID from the provider
+    provider_metadata: Mapped[dict] = f(json=True, nullable=True)
+
 
     # Relationships (One-liner)
     user: Mapped["User"] = Reference(back_populates="social_accounts", fk_type=Integer, overlaps="social_accounts")

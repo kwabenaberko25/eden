@@ -18,6 +18,7 @@ from markupsafe import Markup
 # ── Registry ──────────────────────────────────────────────────────────────────
 
 _registry: dict[str, type["Component"]] = {}
+_action_registry: dict[str, tuple[type["Component"], str]] = {}
 _slots_stack: contextvars.ContextVar[list] = contextvars.ContextVar(
     "eden_slots_stack", default=[]
 )
@@ -30,21 +31,104 @@ class Component:
     """
     Base class for defining an Eden UI Component.
 
-    Sub-classes must set ``template_name`` and optionally override
-    ``get_context_data`` to enrich the template context.
+    Components are pure-Python classes that handle their own rendering and actions.
+    When an action is triggered via HTMX, Eden re-instantiates the component,
+    populated with any request data, and calls the action method.
     """
     template_name: str = ""
+    _component_name: str = ""
+
+    def __init__(self, **kwargs: Any):
+        # Allow passing state via __init__
+        for k, v in kwargs.items():
+            setattr(self, k, v)
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
-        return kwargs
+        """
+        Prepare the context for template rendering.
+        By default, includes all instance attributes.
+        """
+        ctx = self.__dict__.copy()
+        ctx.pop("_component_name", None)
+        ctx["component"] = self
+        ctx["action_url"] = self.action_url
+        ctx["component_attrs"] = self.get_hx_attrs
+        ctx.update(kwargs)
+        return ctx
+
+
+    @property
+    def request(self) -> Optional[Any]:
+        """Accessor for the current request."""
+        from eden.context import get_request
+        return get_request()
+
+    def get_state(self) -> dict[str, Any]:
+        """
+        Returns the serializable state of the component.
+        Excludes framework-injected objects like 'request', 'component', 'slots', etc.
+        """
+        exclude = {"request", "component", "slots", "action_url", "component_attrs"}
+        return {
+            k: v for k, v in self.__dict__.items()
+            if not k.startswith("_") and k not in exclude
+        }
+
+
+    def get_hx_attrs(self) -> Markup:
+        """
+        Returns the HTMX attributes required for state persistence.
+        """
+        import json
+        state = self.get_state()
+        return Markup(f'hx-vals=\'{json.dumps(state)}\'')
+
+
+    async def render(self, **kwargs: Any) -> Markup:
+        """Render the component using its template."""
+        from eden.components import render_component
+        return render_component(self._component_name, **self.get_context_data(**kwargs))
+
+    def action_url(self, action_name: str) -> str:
+        """Return the URL to trigger an action on this component."""
+        return f"/_eden/component/{self._component_name}/{action_name}"
+
 
 
 def register(name: str):
     """Decorator to register a component class by name."""
     def decorator(cls: type[Component]) -> type[Component]:
+        cls._component_name = name
         _registry[name] = cls
+        
+        # Also register any methods marked with @action and a slug
+        import inspect
+        for m_name, m_obj in inspect.getmembers(cls, predicate=inspect.isfunction):
+            if hasattr(m_obj, "_action_slug"):
+                _action_registry[m_obj._action_slug] = (cls, m_name)
+                
         return cls
     return decorator
+
+
+def action(arg=None):
+    """
+    Decorator to mark a component method as an HTMX-callable action.
+    Can be used as @action or @action("slug").
+    """
+    if callable(arg): # Used as @action (no parentheses)
+        func = arg
+        func._is_eden_action = True
+        func._action_slug = func.__name__ # Default slug to method name
+        return func
+    
+    # Used as @action("slug")
+    def decorator(func):
+        func._is_eden_action = True
+        func._action_slug = arg
+        return func
+    return decorator
+
 
 
 def get_component(name: str) -> type[Component] | None:
@@ -128,12 +212,13 @@ class ComponentExtension(Extension):
         if not comp_cls:
             return Markup(f"<!-- Component '{name}' not found -->")
 
-        inst = comp_cls()
+        inst = comp_cls(**kwargs)
         ctx = inst.get_context_data(**kwargs)
         ctx["slots"] = slots_dict
 
         tmpl = self.environment.get_template(inst.template_name)
         return Markup(tmpl.render(ctx))
+
 
     def _render_slot(self, name, caller):
         stack = _slots_stack.get()
@@ -162,18 +247,124 @@ def render_component(name: str, **kwargs: Any) -> Markup:
     Renders a component by name with the given context data.
     Ensures the component is registered and renders its associated template.
     """
-    comp_cls = get_component(name)
-    if not comp_cls:
-        return Markup(f"<!-- Component '{name}' not found -->")
-
-    inst = comp_cls()
-    ctx = inst.get_context_data(**kwargs)
-    
-    # Simple render without complex slot context for manual calls
     from eden.app import Eden
     app = Eden.get_current()
     if not app:
         return Markup(f"<!-- Eden app context not found for component '{name}' -->")
-        
-    tmpl = app.templating.get_template(inst.template_name)
+
+    comp_cls = get_component(name)
+    if not comp_cls:
+        return Markup(f"<!-- Component '{name}' not found -->")
+
+    inst = comp_cls(**kwargs)
+    ctx = inst.get_context_data()
+    
+    tmpl = app.templates.get_template(inst.template_name)
     return Markup(tmpl.render(ctx))
+
+
+
+# ── Component Router & Dispatch ───────────────────────────────────────────
+
+async def component_action_handler(
+    request: Any, 
+    component_name: str, 
+    action_name: str
+) -> Any:
+    """Central dispatcher for component-based HTMX actions."""
+    from eden.responses import HtmlResponse
+    
+    comp_cls = get_component(component_name)
+    if not comp_cls:
+        return HtmlResponse(f"Component '{component_name}' not found", status_code=404)
+
+    # Instantiate component with request data (state persistence)
+    # Priority: POST form data > Query params
+    state = {}
+    if request.method == "POST":
+        try:
+            form_data = await request.form()
+            state.update(form_data)
+        except Exception:
+            pass
+    state.update(request.query_params)
+    
+    # Filter out common request params that aren't component state
+    for internal in ["hx-request", "hx-target", "hx-current-url", "hx-trigger", "hx-trigger-name"]:
+        state.pop(internal, None)
+        state.pop(internal.upper().replace("-", "_"), None)
+
+    inst = comp_cls(**state)
+    
+    # Find and verify action
+    action_method = getattr(inst, action_name, None)
+    if not action_method or not getattr(action_method, "_is_eden_action", False):
+        return HtmlResponse(f"Action '{action_name}' not found on component '{component_name}'", status_code=404)
+
+    # Execute action
+    # Actions can return a full response, a Markup string, or another component inst.
+    import inspect
+    if inspect.iscoroutinefunction(action_method):
+        result = await action_method(request)
+    else:
+        result = action_method(request)
+
+    if isinstance(result, (str, Markup)):
+        return HtmlResponse(str(result))
+    if isinstance(result, Component):
+        return HtmlResponse(str(await result.render()))
+    
+    return result
+
+async def component_dispatcher(request: Any) -> Any:
+    """Simplified dispatcher that maps a single action_slug to a component method."""
+    from eden.responses import HtmlResponse
+    import inspect
+    
+    action_slug = request.path_params.get("action_slug")
+    match = _action_registry.get(action_slug)
+    if not match:
+        return HtmlResponse(f"Component action '{action_slug}' not found", status_code=404)
+    
+    comp_cls, method_name = match
+    
+    # Extract params
+    state = {}
+    if request.method == "POST":
+        try:
+            form_data = await request.form()
+            state.update(dict(form_data))
+        except Exception:
+            pass
+    state.update(dict(request.query_params))
+    
+    # Instantiate and call
+    inst = comp_cls(**state)
+    method = getattr(inst, method_name)
+    
+    try:
+        if inspect.iscoroutinefunction(method):
+            result = await method(request, **state)
+        else:
+            result = method(request, **state)
+    except TypeError as e:
+        raise
+        
+    if isinstance(result, (str, Markup)):
+        return HtmlResponse(str(result))
+    if isinstance(result, Component):
+        return HtmlResponse(str(await result.render()))
+        
+    return result
+
+def get_component_router() -> Any:
+    """Return a router configured with component action endpoints."""
+    from eden.routing import Router
+    router = Router()
+    router.get("/_eden/component/{component_name}/{action_name}")(component_action_handler)
+    router.post("/_eden/component/{component_name}/{action_name}")(component_action_handler)
+    # Simplified dispatcher
+    router.get("/_components/{action_slug}")(component_dispatcher)
+    router.post("/_components/{action_slug}")(component_dispatcher)
+    return router
+

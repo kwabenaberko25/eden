@@ -28,7 +28,7 @@ _UNSET = object()
 
 
 def _process_field_args(
-    nullable_val: Any, required: bool | None, kwargs: dict[str, Any], default_nullable: bool = False
+    nullable_val: Any, required: bool | None, kwargs: dict[str, Any], default_nullable: Any = False
 ) -> dict[str, Any]:
     """Internal helper to handle the required/nullable logic."""
     # Check if both were provided explicitly
@@ -46,7 +46,11 @@ def _process_field_args(
     # Ensure we don't pass 'required' to mapped_column
     kwargs.pop("required", None)
     
-    return {"nullable": resolved_nullable, **kwargs}
+    res = {**kwargs}
+    if resolved_nullable is not _UNSET:
+        res["nullable"] = resolved_nullable
+        
+    return res
 
 
 def StringField(
@@ -351,9 +355,11 @@ def FileField(
 
 
 def f(
-    max_length: int | None = None,
+    type_or_length: Any | int | None = None,
     *,
+    max_length: int | None = None,
     label: str | None = None,
+
     placeholder: str | None = None,
     help_text: str | None = None,
     nullable: Any = _UNSET,
@@ -382,7 +388,7 @@ def f(
         payload: dict = f(json=True)
     """
     from sqlalchemy import JSON
-    kw = _process_field_args(nullable, required, kwargs, default_nullable=True)
+    kw = _process_field_args(nullable, required, kwargs, default_nullable=_UNSET)
     kw.update({"unique": unique, "index": index})
     if default is not None:
         kw["default"] = default
@@ -425,11 +431,16 @@ def f(
         return Relationship(back_populates=back_populates, **rel_kw)
 
     # Standard columns
-    if json:
-        return mapped_column(JSON, **kw)
+    final_type = type_or_length
+    if isinstance(type_or_length, int):
+        final_type = String(type_or_length)
+    elif max_length:
+        final_type = String(max_length)
+    
+    if final_type is not None:
+        return mapped_column(final_type, **kw)
 
-    if max_length:
-        return mapped_column(String(max_length), **kw)
+
     
     # Fallback to mapped_column - Eden's type_annotation_map in Model 
     # will handle the actual type inference from the hint.

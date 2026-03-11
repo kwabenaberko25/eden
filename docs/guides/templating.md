@@ -76,7 +76,7 @@ Example usage:
 | | `@fragment(id)` | `id`: String | Defines a targetable partial. |
 | **Forms** | `@csrf` | None | Emits hidden CSRF input. |
 | **Logic** | `@let var = val` | `var`, `val` | Inline variable assignment. |
-| | `@url(name)` | `name`: String | Generates a URL for a route. |
+| | `@url(name)` | `name`, `**kwargs` | Generates a URL. Supports `component:` prefix. |
 | | `@active_link(name, cls)` | `name`, `cls` | Emits `cls` if route is active. |
 | **Logic** | `@even` | None | Content for even loop rows. |
 | | `@odd` | None | Content for odd loop rows. |
@@ -167,9 +167,35 @@ While `@section` replaces the content in a `@yield` placeholder, sometimes you w
 | `@push(name)` | Child | `@push("js") { ... }` | Appends content to the stack. |
 | `@super` | Child | `@super` | Access content from the parent's block. |
 
-### Reusable Components
+### 🔗 Dynamic URLs (`@url`)
 
-Components allow you to encapsulate both logic and UI. Unlike inheritance, components are for smaller, repeatable pieces of UI.
+The `@url` directive is the most powerful way to handle link generation in Eden. It's refactor-safe and supports multiple patterns.
+
+- **Named Routes**: `@url('route_name', param=val)`
+- **Namespaced Routes**: `@url('ns:route_name')` 
+- **Components**: `@url('component:action-slug')` — *New!*
+
+```html
+<!-- Regular Link -->
+<a href="@url('users:profile', id=user.id)">Profile</a>
+
+<!-- HTMX Component Call -->
+<button hx-post="@url('component:like-post', id=post.id)">
+  Like
+</button>
+```
+
+### 🧩 Components (`@component`)
+
+Render self-contained logic units directly in your templates.
+
+```html
+@component("user-card", user=user, theme="dark")
+```
+
+[Learn more about Server-Side Components](components.md)
+
+### Reusable Components (Legacy/Pure-UI)
 
 ```html
 @component("ui/card", title="Profile", elevation="xl") {
@@ -349,6 +375,52 @@ Build a powerful, reusable data table with sorting and premium styling.
         </tbody>
     </table>
 </div>
+```
+
+---
+
+## 🛠️ Common Directive Patterns
+
+Mastering these patterns will significantly speed up your development.
+
+### 1. The Active Navigation Pattern
+Combine `@url` and `@active_link` for premium navigation bars.
+
+```html
+<nav class="flex gap-4">
+    <a href="@url('dashboard')" class="nav-link @active_link('dashboard', 'is-active')">
+        Dashboard
+    </a>
+    <a href="@url('students:index')" class="nav-link @active_link('students:*', 'is-active')">
+        Students
+    </a>
+</nav>
+```
+
+### 2. The Conditional Fragment Pattern
+Use `@htmx` to only render parts of a page when called via AJX/HTMX.
+
+```html
+<div class="content">
+    @htmx {
+        <!-- Only sent for HTMX partial updates -->
+        @fragment("results") { ... }
+    }
+    @non_htmx {
+        <!-- The full page layout for direct visits -->
+        <h1>Search Results</h1>
+        @fragment("results") { ... }
+    }
+</div>
+```
+
+### 3. The "Pure Logic" Component
+Components aren't just for UI. Use them to encapsulate complex permissions or data fetching logic that needs to be reused across templates.
+
+```html
+@component("auth-gate", role="admin") {
+    <button class="delete-btn">Secret Delete Action</button>
+}
 ```
 
 **Next Steps**: [Forms & Validation](forms.md)

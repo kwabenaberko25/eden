@@ -6,13 +6,8 @@ Django's features · FastAPI's speed · Flask's simplicity.
 
 __version__ = "0.1.0"
 
-from eden.admin import AdminSite, ModelAdmin, admin
-admin_site = admin
-from eden.app import Eden
-from eden.auth.api_key_model import APIKey
-from eden.auth.backends.api_key import APIKeyBackend
-from eden.auth.decorators import login_required, roles_required, require_permission
-from eden.db import (
+from eden.orm import (
+    AccessControl,
     BoolField,
     Database,
     DateTimeField,
@@ -22,6 +17,7 @@ from eden.db import (
     FloatField,
     IntField,
     Page,
+    PermissionRule,
     Q,
     QuerySet,
     SoftDeleteMixin,
@@ -30,6 +26,9 @@ from eden.db import (
     UUIDField,
     FileField,
     get_db,
+    ForeignKeyField,
+    Relationship,
+    MigrationManager,
     # ORM Utilities
     select,
     update,
@@ -44,8 +43,14 @@ from eden.db import (
     asc,
     JSON,
 )
+
+from eden.admin import AdminSite, ModelAdmin, admin
+admin_site = admin
+from eden.app import Eden
+from eden.auth.api_key_model import APIKey
+from eden.auth.backends.api_key import APIKeyBackend
+from eden.auth.decorators import login_required, roles_required, require_permission
 from eden.services import Service
-from eden.db.fields import ForeignKeyField, Relationship
 from eden.forms import BaseForm, ModelForm, FormField, Schema, v, field
 from eden.htmx import HtmxResponse, is_htmx
 from eden.dependencies import Depends
@@ -62,6 +67,7 @@ from eden.exceptions import (
     Unauthorized,
     ValidationError,
 )
+from eden.realtime import RealTimeManager, manager as realtime_manager
 from eden.logging import get_logger, setup_logging
 from eden.mail import EmailMessage, configure_mail, send_mail
 from eden.payments import Customer, CustomerMixin, Subscription, WebhookRouter
@@ -76,7 +82,6 @@ from eden.cache import cache_view
 from eden.templating import EdenTemplates, render_template
 from eden.components import Component, render_component
 from eden.payments.providers import StripeProvider
-from eden.resources import Resource, TenantResource, action
 from eden.routing import Route, Router, WebSocketRoute
 from eden.websocket import WebSocket, WebSocketDisconnect, WebSocketRouter, ConnectionManager
 from eden.context import request, user
@@ -86,8 +91,6 @@ from eden.tenancy.middleware import TenantMiddleware
 from eden.tenancy.models import AnonymousTenant, Tenant
 from eden.tenancy.context import get_current_tenant
 from eden.tenancy.mixins import TenantMixin
-from eden.db.access import AccessControl, PermissionRule
-from eden.db.migrations import MigrationManager
 from eden.validators import (
     EdenColor,
     EdenEmail,
@@ -237,4 +240,6 @@ __all__ = [
     "StorageManager",
     "StripeProvider",
     "cache_view",
+    "RealTimeManager",
+    "realtime_manager",
 ]

@@ -5,7 +5,7 @@ from starlette.applications import Starlette
 from sqlalchemy import select
 from eden.auth.oauth import OAuthManager
 from eden.auth.models import SocialAccount
-from eden.db import Database
+from eden.orm import Database
 from eden.requests import Request
 from eden.app import Eden
 

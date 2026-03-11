@@ -13,17 +13,17 @@ The `Schema` class is the heart of Eden's form system. It inherits from Pydantic
 > **Important**: For Schema classes, use `field()` (or the shorter `v()`) from `eden.forms`. This returns a native Pydantic `Field` configured with Eden's UI metadata.
 
 ```python
-from eden.forms import Schema, field, EmailStr  # Import everything from eden.forms!
+from eden import Schema, field, EmailStr, v  # All from the top-level eden package!
 
 class SignupSchema(Schema):
     email: EmailStr = field(widget="email", label="Email Address")
     password: str = field(min_length=8, widget="password")
-    phone: str = field(
+    phone: str = v( # 'v' is a shorter alias for 'field'
         pattern=r"^\+?[1-9]\d{1,14}$", 
         help_text="Enter a valid international phone number",
         placeholder="+1234567890"
     )
-    bio: str | None = field(widget="textarea", placeholder="Tell us about yourself...")
+    bio: str | None = v(widget="textarea", placeholder="Tell us about yourself...")
 
 # In your route
 @app.get("/signup")
@@ -56,8 +56,8 @@ Eden provides specific helpers for the different layers of your application. Whi
 
 | Helper | Source | Layer | Returns |
 | :--- | :---| :--- | :--- |
-| `field()` / `v()` | `from eden.forms import field` | Schemas / Forms | Pydantic `Field` |
-| `f()` | `from eden.db import f` | Database Models | SQLAlchemy `mapped_column` |
+| `field()` / `v()` | `from eden import field` | Schemas / Forms | Pydantic `Field` |
+| `f()` | `from eden import f` | Database Models | SQLAlchemy `mapped_column` |
 
 > [!TIP]
 > **Why separate them?** While Eden's `Schema` can automatically extract metadata from your database `f()` columns, using `field()` or `v()` explicitly in your schemas is the recommended way to define UI-specific validation that doesn't necessarily map to your database constraints.
@@ -82,7 +82,7 @@ class ProductSchema(Schema):
         include = ["title", "description", "price", "stock"]
 
     # 1. Adding UI-only fields (not in the DB)
-    accept_terms: bool = field(label="I confirm the price is correct")
+    accept_terms: bool = v(label="I confirm the price is correct")
 
     # 2. Field Overrides
     # Add UI-specific constraints that differ from DB defaults

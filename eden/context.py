@@ -5,7 +5,8 @@ Provides async-safe storage for the current request and user using ContextVars.
 """
 
 import contextvars
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Optional
+
 
 if TYPE_CHECKING:
     from eden.auth.models import BaseUser
@@ -14,6 +15,8 @@ if TYPE_CHECKING:
 # Context variables
 _request_ctx = contextvars.ContextVar("request", default=None)
 _user_ctx = contextvars.ContextVar("user", default=None)
+_app_ctx = contextvars.ContextVar("app", default=None)
+
 
 def set_request(request: "Request") -> contextvars.Token:
     """Set the current request in context."""
@@ -38,6 +41,15 @@ def reset_request(token: contextvars.Token) -> None:
 def reset_user(token: contextvars.Token) -> None:
     """Reset the user context."""
     _user_ctx.reset(token)
+
+def set_app(app: Any) -> contextvars.Token:
+    """Set the current app in context."""
+    return _app_ctx.set(app)
+
+def get_app() -> Any:
+    """Get the current app from context."""
+    return _app_ctx.get()
+
 
 class ContextProxy:
     """

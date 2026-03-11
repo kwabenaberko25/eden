@@ -10,7 +10,7 @@ from sqlalchemy.orm import Mapped
 # Add current directory to path to import eden
 sys.path.append(os.getcwd())
 
-from eden.db import EdenModel, Database, Sum, Avg, Count, Min, Max, StringField
+from eden.orm import EdenModel, Database, Sum, Avg, Count, Min, Max, StringField
 from eden.tenancy.models import Tenant
 from eden.security.csrf import CSRFMiddleware
 from eden.assets import eden_scripts

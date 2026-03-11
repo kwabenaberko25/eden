@@ -101,12 +101,48 @@ class Router:
         name: str | None = None,
         tags: list[str] | None = None,
         middleware: list[Any] | None = None,
+        model: Any | None = None,
     ) -> None:
         self.prefix = prefix.rstrip("/")
-        self.name = name
+        self.name = name or (model.__tablename__ if model else None)
         self.tags = tags or []
         self.middleware = middleware or []
         self.routes: list[Route | WebSocketRoute] = []
+        if model:
+            self._generate_crud_routes(model)
+
+    def _generate_crud_routes(self, model: Any) -> None:
+        """
+        Auto-generates standard CRUD routes for a given ORM Model.
+        """
+        
+        @self.get("", name="list")
+        async def list_items(request):
+            return request.render(f"{model.template_prefix}/list.html", {"items": []})
+
+        @self.get("/new", name="create")
+        async def new_item(request):
+            return request.render(f"{model.template_prefix}/form.html")
+
+        @self.post("", name="create")
+        async def create_item(request):
+            pass
+
+        @self.get("/{id}", name="show")
+        async def show_item(request, id: str):
+            return request.render(f"{model.template_prefix}/show.html", {"item": {"id": id}})
+
+        @self.get("/{id}/edit", name="update")
+        async def edit_item(request, id: str):
+            return request.render(f"{model.template_prefix}/form.html", {"item": {"id": id}})
+
+        @self.post("/{id}", name="update")
+        async def update_item(request, id: str):
+            pass
+
+        @self.delete("/{id}", name="destroy")
+        async def delete_item(request, id: str):
+            pass
 
     def add_middleware(self, middleware: Any) -> None:
         """
@@ -295,14 +331,27 @@ class Router:
                     
             self.routes.append(route)
 
+
     def to_starlette_routes(self) -> list[Any]:
         """Convert Eden routes to Starlette-compatible Route objects."""
         from starlette.middleware import Middleware
         from starlette.routing import Route as StarletteRoute, WebSocketRoute as StarletteWebSocketRoute
+        from eden.middleware import EdenFunctionMiddleware
 
         starlette_routes = []
         for eden_route in self.routes:
-            path = self.prefix + eden_route.path
+            path = eden_route.path
+
+            # Process middleware: wrap functions in EdenFunctionMiddleware
+            middleware_list = []
+            if eden_route.middleware:
+                for m in eden_route.middleware:
+                    if inspect.isclass(m):
+                        middleware_list.append(Middleware(m))
+                    elif callable(m):
+                        middleware_list.append(Middleware(EdenFunctionMiddleware, handler=m))
+                    else:
+                        middleware_list.append(Middleware(m))
 
             if isinstance(eden_route, WebSocketRoute):
                 # Handle WebSocketRoute
@@ -311,8 +360,7 @@ class Router:
                         path=path,
                         endpoint=eden_route.endpoint,
                         name=eden_route.name,
-                        # WebSocketRoute in Starlette doesn't support Middleware directly
-                        # in the same way as Route in some versions, but we can wrap it if needed.
+                        middleware=middleware_list if middleware_list else None
                     )
                 )
                 continue
@@ -339,10 +387,11 @@ class Router:
                     endpoint=endpoint,
                     methods=eden_route.methods,
                     name=eden_route.name,
-                    middleware=[Middleware(m) for m in eden_route.middleware] if eden_route.middleware else None
+                    middleware=middleware_list if middleware_list else None
                 )
             )
         return starlette_routes
+
 
 
 # RouteResolver removed in favor of native Starlette routing.

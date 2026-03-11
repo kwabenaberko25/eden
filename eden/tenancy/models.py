@@ -5,7 +5,7 @@ The base tenant/organization model for multi-tenant SaaS applications.
 """
 
 
-from eden.db import Model, f
+from eden.orm import Model, f
 
 
 class Tenant(Model):
@@ -54,8 +54,8 @@ class Tenant(Model):
             return
 
         from sqlalchemy import text
-        from eden.db.base import Model
-        from eden.db.session import get_db
+        from eden.orm import Model
+        from eden.orm import get_db
 
         # Sanitize schema name
         safe_schema = "".join(c for c in self.schema_name if c.isalnum() or c == "_")

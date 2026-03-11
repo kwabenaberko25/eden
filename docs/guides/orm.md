@@ -7,15 +7,14 @@ Eden features a zero-config, async-first ORM built on **SQLAlchemy 2.0**. It com
 Models are Python classes that inherit from `Model`. They typically use the `f()` helper for a "Zen" definition experience with automatic type inference.
 
 ```python
-from sqlalchemy.orm import Mapped
-from eden.db import Model, f
+from eden import Model, f, Mapped
 
 class User(Model):
+    __reactive__ = True # Enabled Real-time sync for this model 🚀
     name: Mapped[str] = f(max_length=100)
     age: Mapped[int] = f(nullable=True)
     is_active: Mapped[bool] = f(default=True)
     avatar: Mapped[str] = f(upload_to="avatars") # File upload support
-
 ```
 
 ---
@@ -237,22 +236,20 @@ The `f()` helper supports advanced options for rapid development:
 | `org_id=True` | Marks field as an Organization identifier. | `org = f(org_id=True)` |
 | `choices` | Limits valid values. | `status = f(choices=["draft", "live"])` |
 
-### Specialized Field Types
-
-For more precision, Eden exports specialized field helpers:
-
-```python
-from eden.db import ManyToManyField, Reference, FileField
-
-class Project(Model):
-    # Reference is a one-liner for FK + Relationship
-    owner: Mapped["User"] = Reference(back_populates="projects")
-    
-    # Many-to-Many with automatic association table inference
-    members: Mapped[list["User"]] = ManyToManyField("User")
-    
     # FileField for managed uploads
     logo: Mapped[str] = FileField(upload_to="logos")
+
+# 🤖 Agentic AI: Vector Search
+# For builders of RAG, Semantic Search or AI apps.
+from eden.db.ai import VectorModel, VectorField
+
+class Document(VectorModel):
+    content: Mapped[str] = f()
+    # 1536 is standard for OpenAI / Cohere embeddings
+    embedding: Mapped[list[float]] = VectorField(dimensions=1536)
+
+# Searching by meaning
+results = await Document.semantic_search(query_vector, limit=5)
 ```
 
 ---

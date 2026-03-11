@@ -1,5 +1,6 @@
 import re
 import uuid
+import asyncio
 import pydantic
 import contextlib
 from typing import Any, ClassVar, Dict, List, Optional, Type, TypeVar, Union, get_type_hints
@@ -8,6 +9,7 @@ from eden.db.access import AccessControl
 
 T = TypeVar("T", bound="Model")
 from sqlalchemy import (
+    event,
     Column,
     ForeignKey,
     Table,
@@ -68,6 +70,14 @@ class Base(DeclarativeBase):
     """SQLAlchemy Declarative Base."""
 
     __allow_unmapped__ = True
+    type_annotation_map = {
+        dict: JSON,
+        list: JSON,
+        uuid.UUID: Uuid,
+        datetime: DateTime,
+    }
+
+
 
 
 class Model(Base, AccessControl):
@@ -78,6 +88,7 @@ class Model(Base, AccessControl):
 
     __abstract__ = True
     __allow_unmapped__ = True
+    __reactive__: bool = False
 
     # Track models for deferred relationship inference
     __pending_relationships__: List[Type["Model"]] = []
@@ -86,10 +97,6 @@ class Model(Base, AccessControl):
 
     # Bound database instance
     _db: ClassVar[Optional[Any]] = None
-
-    # Multi-tenancy isolation marker
-    __eden_tenant_isolated__: ClassVar[bool] = False
-    __allow_unmapped__ = True
 
     # Standard primary key for all models
     id: Mapped[uuid.UUID] = mapped_column(
@@ -1115,17 +1122,56 @@ class Model(Base, AccessControl):
 
             field_kwargs = {}
             if col is not None:
+                from sqlalchemy import String, Integer, Float, Boolean, Date, DateTime, Time, Text, Enum, Numeric
+
+                # Extract constraints
                 if isinstance(col.type, String) and col.type.length:
                     field_kwargs["max_length"] = col.type.length
 
                 # Propagate Eden metadata (label, widget, etc.)
-                if col.info:
-                    field_kwargs["json_schema_extra"] = col.info
+                info = dict(col.info) if col.info else {}
 
-            # If not a database column (e.g., relationship), make it optional
+                # Auto-infer choices from Enum
+                if isinstance(col.type, Enum) and "choices" not in info:
+                    info["choices"] = [(v, v.title()) for v in col.type.enums]
+                    if "widget" not in info:
+                        info["widget"] = "select"
+
+                # Numeric constraints
+                if isinstance(col.type, (Integer, Float, Numeric)):
+                    if "min" in info:
+                        field_kwargs["ge"] = info["min"]
+                    if "max" in info:
+                        field_kwargs["le"] = info["max"]
+
+                if "widget" not in info:
+                    if isinstance(col.type, Text):
+                        info["widget"] = "textarea"
+                    elif isinstance(col.type, Boolean):
+                        info["widget"] = "checkbox"
+                    elif isinstance(col.type, Date):
+                        info["widget"] = "date"
+                    elif isinstance(col.type, DateTime):
+                        info["widget"] = "datetime-local"
+                    elif isinstance(col.type, Time):
+                        info["widget"] = "time"
+                    elif isinstance(col.type, (Integer, Float, Numeric)):
+                        info["widget"] = "number"
+                        if "step" not in info and isinstance(col.type, (Float, Numeric)):
+                            info["step"] = "any"
+
+                if info:
+                    field_kwargs["json_schema_extra"] = info
+
+            # Defaults and optionality
+            # Internal fields are typically not wanted in forms unless explicitly included
+            is_internal = name in ("id", "created_at", "updated_at", "deleted_at")
+            if is_internal and include is None:
+                continue
+
             if (
                 col is None
-                or name in ("id", "created_at", "updated_at")
+                or is_internal
                 or is_nullable
                 or has_default
             ):
@@ -1143,3 +1189,76 @@ class Model(Base, AccessControl):
             f"{cls.__name__}Schema", __config__=config, __base__=EdenSchema, **fields
         )
         return dynamic_model
+
+    @classmethod
+    def as_form(
+        cls, 
+        data: Optional[Dict[str, Any]] = None, 
+        include: Optional[List[str]] = None, 
+        exclude: Optional[set] = None
+    ) -> Any:
+        """
+        Dynamically generate an Eden form directly from this ORM model.
+        
+        This utilizes `to_schema` to build a Pydantic schema with native UI
+        metadata (extracted from SQLAlchemy types and columns), then wraps
+        it in a standard `BaseForm` for rendering in templates.
+        
+        Args:
+            data: Optional dictionary of data to bind to the form.
+            include: Optional list of field names to include in the form.
+            exclude: Optional set of field names to exclude from the form.
+        """
+        schema_cls = cls.to_schema(include=include, exclude=exclude, only_columns=True)
+        return schema_cls.as_form(data=data)
+
+# ── Real-time Sync Listeners ──────────────────────────────────────────
+
+def _get_reactive_channels(target: Any) -> list[str]:
+    """Determine which channels to broadcast to for a given model instance."""
+    table_name = target.__tablename__
+    channels = [table_name, f"{table_name}:{target.id}"]
+    
+    # If the model has a custom method for extra channels, call it
+    if hasattr(target, "get_sync_channels"):
+        channels.extend(target.get_sync_channels())
+        
+    return channels
+
+async def _async_broadcast(channels: list[str], event_type: str, data: dict):
+    """Bridge to the async RealTimeManager."""
+    from eden.realtime import manager
+    for channel in channels:
+        await manager.broadcast(channel, {
+            "event": event_type,
+            "data": data
+        })
+
+def _trigger_broadcast(mapper, connection, target, event_type: str):
+    """Sync listener that triggers the async broadcast."""
+    if not getattr(target, "__reactive__", False):
+        return
+        
+    channels = _get_reactive_channels(target)
+    data = target.model_dump()
+    
+    # Use the current event loop if it exists to run the broadcast
+    try:
+        loop = asyncio.get_running_loop()
+        if loop.is_running():
+            asyncio.create_task(_async_broadcast(channels, event_type, data))
+    except (RuntimeError, NameError):
+        # Fallback if no loop is running (unlikely in ASGI context)
+        pass
+
+@event.listens_for(Model, "after_insert", propagate=True)
+def after_insert(mapper, connection, target):
+    _trigger_broadcast(mapper, connection, target, "created")
+
+@event.listens_for(Model, "after_update", propagate=True)
+def after_update(mapper, connection, target):
+    _trigger_broadcast(mapper, connection, target, "updated")
+
+@event.listens_for(Model, "after_delete", propagate=True)
+def after_delete(mapper, connection, target):
+    _trigger_broadcast(mapper, connection, target, "deleted")

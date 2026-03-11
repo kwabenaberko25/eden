@@ -51,6 +51,7 @@ nav:
   - Guides:
     - Core Application: guides/core-app.md
     - Routing System: guides/routing.md
+    - Server-Side Components: guides/components.md
     - WebSockets: guides/websockets.md
     - Middleware & Security: guides/middleware.md
     - Exception Handling: guides/exceptions.md
@@ -65,6 +66,7 @@ nav:
     - Integrated Services: guides/services.md
     - Admin Panel: guides/admin.md
     - Deployment & Observability: guides/deployment.md
+    - 🚀 Killer Features: guides/killer-features.md
 
 markdown_extensions:
   - pymdownx.highlight:

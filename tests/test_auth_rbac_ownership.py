@@ -1,8 +1,8 @@
 import pytest
 from sqlalchemy import String
 from sqlalchemy.orm import Mapped
-from eden.db import Model, Database, f
-from eden.db.access import AccessControl, AllowOwner, AllowRoles
+from eden.orm import Model, Database, f
+from eden.orm import AccessControl, AllowOwner, AllowRoles
 
 class SecretNote(Model, AccessControl):
     __tablename__ = "secret_notes"

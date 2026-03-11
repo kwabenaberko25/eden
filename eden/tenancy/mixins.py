@@ -12,7 +12,7 @@ import uuid
 from sqlalchemy import ForeignKey, Uuid
 from sqlalchemy.orm import Mapped, mapped_column
 
-from eden.db import f
+from eden.orm import f
 
 
 class TenantMixin:

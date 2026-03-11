@@ -1,8 +1,8 @@
 import uuid
 from sqlalchemy.orm import Mapped
-from eden.db import Model, f, QuerySet
+from eden.orm import Model, f, QuerySet
 from eden.context import set_user, reset_user
-from eden.db.access import AccessControl
+from eden.orm import AccessControl
 from sqlalchemy import Column, ForeignKey, Uuid, func
 
 class TenantModel(Model, AccessControl):

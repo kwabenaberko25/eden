@@ -1,5 +1,5 @@
 import pytest
-from eden.db import Model, f, Reference, Relationship, Mapped
+from eden.orm import Model, f, Reference, Relationship, Mapped
 from typing import List
 
 class AdvUser(Model):

@@ -88,6 +88,34 @@ def eden_head(
         /* Micro-animations */
         .hover-lift { transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1); }
         .hover-lift:hover { transform: translateY(-2px) scale(1.02); }
+
+        /* Messaging (Toasts) */
+        .eden-toast-container {
+            position: fixed; top: 1.5rem; right: 1.5rem; z-index: 9999;
+            display: flex; flex-direction: column; gap: 0.75rem; pointer-events: none;
+        }
+        .eden-toast {
+            pointer-events: auto; width: 22rem; padding: 1rem; border-radius: 0.75rem;
+            display: flex; align-items: start; gap: 0.85rem;
+            animation: eden-toast-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        @keyframes eden-toast-in {
+            from { opacity: 0; transform: translateX(2rem) scale(0.9); }
+            to { opacity: 1; transform: translateX(0) scale(1); }
+        }
+        .eden-toast-success { border-left: 4px solid #10B981; }
+        .eden-toast-error { border-left: 4px solid #EF4444; }
+        .eden-toast-warning { border-left: 4px solid #F59E0B; }
+        .eden-toast-info { border-left: 4px solid #3B82F6; }
+        .eden-toast-debug { border-left: 4px solid #6366F1; }
+        
+        .eden-toast-close {
+            background: transparent; border: none; padding: 0.25rem; cursor: pointer;
+            color: #94A3B8; transition: color 0.2s;
+        }
+        .eden-toast-close:hover { color: white; }
     </style>""")
 
     if htmx:
@@ -101,24 +129,110 @@ def eden_head(
 def eden_scripts() -> Markup:
     """
     Return end-of-body ``<script>`` tags for Eden.
-
-    Currently a no-op placeholder — all CDN scripts are loaded in the head.
-    Use this for future custom Eden JS (e.g. toast notifications, live reload).
+    Includes the 'eden-sync' HTMX extension for real-time model updates.
     """
     return Markup(
         "<!-- Eden Scripts -->\n"
         "<script>\n"
-        "  // Eden framework runtime\n"
-        "  document.documentElement.classList.add('eden-ready');\n"
+        "  (function() {\n"
+        "    // Eden framework runtime\n"
+        "    document.documentElement.classList.add('eden-ready');\n"
         "\n"
-        "  // Auto-inject CSRF token into HTMX requests\n"
-        "  document.addEventListener('htmx:configRequest', (event) => {\n"
-        "    const csrfToken = document.cookie.split('; ')\n"
-        "      .find(row => row.startsWith('csrftoken='))\n"
-        "      ?.split('=')[1];\n"
-        "    if (csrfToken) {\n"
-        "      event.detail.headers['X-CSRF-Token'] = csrfToken;\n"
+        "    // Auto-inject CSRF token into HTMX requests\n"
+        "    document.addEventListener('htmx:configRequest', (event) => {\n"
+        "      const csrfToken = document.cookie.split('; ')\n"
+        "        .find(row => row.startsWith('csrftoken='))\n"
+        "        ?.split('=')[1];\n"
+        "      if (csrfToken) {\n"
+        "        event.detail.headers['X-CSRF-Token'] = csrfToken;\n"
+        "      }\n"
+        "    });\n"
+        "\n"
+        "    // --- eden-sync HTMX Extension ---\n"
+        "    let socket = null;\n"
+        "    const subscriptions = new Set();\n"
+        "    \n"
+        "    function connect() {\n"
+        "      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';\n"
+        "      const url = `${protocol}//${window.location.host}/_eden/sync`;\n"
+        "      socket = new WebSocket(url);\n"
+        "      \n"
+        "      socket.onopen = () => {\n"
+        "        console.log('[Eden] Real-time sync connected');\n"
+        "        // Resubscribe on reconnect\n"
+        "        subscriptions.forEach(channel => {\n"
+        "          socket.send(JSON.stringify({action: 'subscribe', channel}));\n"
+        "        });\n"
+        "      };\n"
+        "      \n"
+        "      socket.onmessage = (event) => {\n"
+        "        const data = JSON.parse(event.data);\n"
+        "        if (data.event) {\n"
+        "          // Dispatch event globally and to specific elements\n"
+        "          document.dispatchEvent(new CustomEvent(data.event, { detail: data.data }));\n"
+        "          const channel = data.event.split(':')[0];\n"
+        "          const elements = document.querySelectorAll(`[hx-sync=\"${channel}\"]`);\n"
+        "          elements.forEach(el => {\n"
+        "            htmx.trigger(el, data.event, data.data);\n"
+        "          });\n"
+        "        }\n"
+        "      };\n"
+        "      \n"
+        "      socket.onclose = () => {\n"
+        "        console.log('[Eden] Real-time sync disconnected, retrying in 2s...');\n"
+        "        setTimeout(connect, 2000);\n"
+        "      };\n"
         "    }\n"
-        "  });\n"
+        "\n"
+        "    htmx.defineExtension('eden-sync', {\n"
+        "      onEvent: function(name, evt) {\n"
+        "        if (name === 'htmx:afterProcessNode') {\n"
+        "          const el = evt.target;\n"
+        "          const channel = el.getAttribute('hx-sync');\n"
+        "          if (channel && !subscriptions.has(channel)) {\n"
+        "            subscriptions.add(channel);\n"
+        "            if (socket && socket.readyState === WebSocket.OPEN) {\n"
+        "              socket.send(JSON.stringify({action: 'subscribe', channel}));\n"
+        "            }\n"
+        "          }\n"
+        "        }\n"
+        "      }\n"
+        "    });\n"
+        "    \n"
+        "    // Force HTMX to use the extension globally\n"
+        "    document.body.setAttribute('hx-ext', 'eden-sync');\n"
+        "    connect();\n"
+        "\n"
+        "    // --- Messaging (Toasts) ---\n"
+        "    function showToast(msg, level = 'info') {\n"
+        "      let container = document.querySelector('.eden-toast-container');\n"
+        "      if (!container) {\n"
+        "        container = document.createElement('div');\n"
+        "        container.className = 'eden-toast-container';\n"
+        "        document.body.appendChild(container);\n"
+        "      }\n"
+        "      const toast = document.createElement('div');\n"
+        "      toast.className = `eden-toast glass eden-toast-${level}`;\n"
+        "      toast.innerHTML = `\n"
+        "        <div style=\"flex-grow: 1;\">\n"
+        "          <p style=\"margin: 0; font-size: 0.875rem; font-weight: 500; color: #F1F5F9;\">${msg}</p>\n"
+        "        </div>\n"
+        "        <button class=\"eden-toast-close\" onclick=\"this.parentElement.remove()\">\n"
+        "          <svg style=\"width: 1rem; height: 1rem;\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\">\n"
+        "            <path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M6 18L18 6M6 6l12 12\"></path>\n"
+        "          </svg>\n"
+        "        </button>\n"
+        "      `;\n"
+        "      container.appendChild(toast);\n"
+        "      setTimeout(() => {\n"
+        "        toast.style.opacity = '0';\n"
+        "        toast.style.transform = 'translateX(2rem)';\n"
+        "        toast.style.transition = 'all 0.4s ease';\n"
+        "        setTimeout(() => toast.remove(), 400);\n"
+        "      }, 5000);\n"
+        "    }\n"
+        "    \n"
+        "    document.addEventListener('eden:message', (e) => showToast(e.detail.message, e.detail.level_tag));\n"
+        "  })();\n"
         "</script>"
     )

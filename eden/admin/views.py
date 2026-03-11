@@ -52,7 +52,7 @@ async def admin_list_view(
     await _check_staff(request)
 
     session = getattr(request.state, "db", None)
-    from eden.db.base import _MISSING
+    from eden.orm import _MISSING
     qs = model.query(session or _MISSING)
 
     page = int(request.query_params.get("page", 1))
@@ -61,7 +61,7 @@ async def admin_list_view(
 
     # Search
     if search and model_admin.search_fields:
-        from eden.db.lookups import Q
+        from eden.orm import Q
         conditions = []
         for field_name in model_admin.search_fields:
             conditions.append(Q(**{f"{field_name}__icontains": search}))
@@ -105,7 +105,7 @@ async def admin_detail_view(
     await _check_staff(request)
 
     session = getattr(request.state, "db", None)
-    from eden.db.base import _MISSING
+    from eden.orm import _MISSING
     record = await model.get(session or _MISSING, record_id)
     if not record:
         raise NotFound(detail=f"Record {record_id} not found.")
@@ -134,7 +134,7 @@ async def admin_delete_view(
     await _check_staff(request)
 
     session = getattr(request.state, "db", None)
-    from eden.db.base import _MISSING
+    from eden.orm import _MISSING
     
     # Use QuerySet.delete() which handles sessions and existence checks internally for bulk/filtered deletes
     # but here we use it for a single record delete by ID.

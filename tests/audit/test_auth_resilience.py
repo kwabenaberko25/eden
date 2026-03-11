@@ -75,5 +75,5 @@ async def test_auth_middleware_all_failing():
     client = TestClient(app)
     response = client.get("/")
     
-    # If this is 500, it confirms non-resilience
-    assert response.status_code == 500
+    # If this is 200, it confirms resilience
+    assert response.status_code == 200
