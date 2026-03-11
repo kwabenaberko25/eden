@@ -45,6 +45,11 @@ class ValidationResult:
     value: Any = None
     error: str | None = None
 
+    @property
+    def is_valid(self) -> bool:
+        """Returns True if there was no validation error."""
+        return self.ok
+
     def __bool__(self) -> bool:
         return self.ok
 

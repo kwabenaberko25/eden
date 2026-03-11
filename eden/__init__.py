@@ -73,6 +73,11 @@ from eden.mail import EmailMessage, configure_mail, send_mail
 from eden.payments import Customer, CustomerMixin, Subscription, WebhookRouter
 from eden.requests import Request
 from eden.responses import (
+    Response,
+    JsonResponse,
+    HtmlResponse,
+    RedirectResponse,
+    FileResponse,
     StreamingResponse,
     html,
     json,
@@ -80,7 +85,7 @@ from eden.responses import (
 )
 from eden.cache import cache_view
 from eden.templating import EdenTemplates, render_template
-from eden.components import Component, render_component
+from eden.components import Component, render_component, action
 from eden.payments.providers import StripeProvider
 from eden.routing import Route, Router, WebSocketRoute
 from eden.websocket import WebSocket, WebSocketDisconnect, WebSocketRouter, ConnectionManager
@@ -128,8 +133,6 @@ __all__ = [
     "Depends",
     # Database / ORM
     "Model",
-    "Resource",
-    "TenantResource",
     "action",
     "AccessControl",
     "PermissionRule",
