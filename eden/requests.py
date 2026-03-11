@@ -26,6 +26,15 @@ class Request(StarletteRequest):
         """
         return self.scope.get("eden_app") or super().app
 
+    def render(self, template_name: str, context: dict[str, Any] | None = None, **kwargs: Any) -> Any:
+        """
+        Render a template using the application's templating engine.
+        
+        Usage:
+            return request.render("index.html", user=user)
+        """
+        return self.app.eden.render(template_name, context, **kwargs)
+
     async def json_body(self) -> Any:
         """
         Parse and return the JSON request body.

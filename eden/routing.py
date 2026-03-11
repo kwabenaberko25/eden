@@ -98,10 +98,12 @@ class Router:
     def __init__(
         self,
         prefix: str = "",
+        name: str | None = None,
         tags: list[str] | None = None,
         middleware: list[Any] | None = None,
     ) -> None:
         self.prefix = prefix.rstrip("/")
+        self.name = name
         self.tags = tags or []
         self.middleware = middleware or []
         self.routes: list[Route | WebSocketRoute] = []
@@ -271,7 +273,7 @@ class Router:
 
         return decorator
 
-    def include_router(self, router: Router, prefix: str = "") -> None:
+    def include_router(self, router: "Router", prefix: str = "") -> None:
         """Merge another router's routes into this one."""
         prefix = prefix.rstrip("/")
         for route in router.routes:
@@ -281,6 +283,10 @@ class Router:
                 new_path = "/" + new_path
                 
             route.path = new_path
+            
+            # Prepend router name to route name if present
+            if router.name and route.name:
+                route.name = f"{router.name}:{route.name}"
             
             # Merge middleware
             for m in self.middleware:

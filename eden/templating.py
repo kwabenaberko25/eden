@@ -77,6 +77,9 @@ class EdenDirectivesExtension(Extension):
             return f'{{{{ old("{field}", {default}) }}}}'
         source = re.sub(r'@old\s*\(\s*[\'"](.+?)[\'"]\s*(?:,\s*(.+?))?\s*\)', _old_replacer, source)
         
+        # @url("name", id=1) -> {{ url_for("name", id=1) }}
+        source = re.sub(r'@url\s*\((.+?)\)', r'{{ url_for(\1) }}', source)
+        
         # @json(val)
         source = re.sub(r'@json\s*\((.+?)\)', r'{{ \1 | json_encode }}', source)
         # @dump(val)

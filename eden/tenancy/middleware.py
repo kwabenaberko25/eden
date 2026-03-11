@@ -72,6 +72,19 @@ class TenantMiddleware(BaseHTTPMiddleware):
         finally:
             if token:
                 reset_current_tenant(token)
+                
+            # CRITICAL: Always reset the PostgreSQL schema to public to prevent connection pool leaks
+            # where a connection is returned to the pool with the wrong search_path.
+            schema_name = getattr(request.state.tenant, "schema_name", None) if getattr(request.state, "tenant", None) else None
+            if schema_name:
+                db_session = getattr(request.state, "db", None)
+                if db_session:
+                    try:
+                        from eden.db import get_db
+                        db_manager = get_db(request)
+                        await db_manager.set_schema(db_session, "public")
+                    except Exception:
+                        pass
 
     async def _resolve_tenant(self, request: Request) -> Any | None:
         """Resolve the tenant based on the configured strategy."""

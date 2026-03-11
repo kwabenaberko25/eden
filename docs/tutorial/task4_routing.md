@@ -14,10 +14,10 @@ Eden's `Router` allows you to group related handlers into a single module, keepi
 from eden import Router
 from app.models import User
 
-# Initialize the router
-user_router = Router()
+# Initialize the router with a namespace name
+user_router = Router(name="users")
 
-@user_router.get("/")
+@user_router.get("/", name="list")
 async def list_users():
     """Return a JSON list of all users."""
     users = await User.all()
@@ -35,7 +35,11 @@ from .user import user_router
 main_router.include_router(user_router, prefix="/users")
 ```
 
-Now, your routes are available at `http://127.0.0.1:8000/users/`.
+Now, your routes are available at `http://127.0.0.1:8000/users/`. 
+
+Because you named the router `users` and the route `list`, Eden automatically creates the reverse route `users:list`. 
+In your HTML templates, you can link to this route natively using:
+`<a href="@url('users:list')">View Users</a>`
 
 ---
 

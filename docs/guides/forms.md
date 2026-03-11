@@ -10,21 +10,27 @@ The `Schema` class is the heart of Eden's form system. It inherits from Pydantic
 
 ### Basic Usage
 
+> **Important**: For Schema classes, use `field()` (or the shorter `v()`) from `eden.forms`. This returns a native Pydantic `Field` configured with Eden's UI metadata.
+
 ```python
-from eden import Schema, f
-from pydantic import EmailStr
+from eden.forms import Schema, field, EmailStr  # Import everything from eden.forms!
 
 class SignupSchema(Schema):
-    email: str = f(max_length=255, widget="email", label="Email Address")
-    password: str = f(min_length=8, widget="password")
-    bio: str | None = f(widget="textarea", placeholder="Tell us about yourself...")
+    email: EmailStr = field(widget="email", label="Email Address")
+    password: str = field(min_length=8, widget="password")
+    phone: str = field(
+        pattern=r"^\+?[1-9]\d{1,14}$", 
+        help_text="Enter a valid international phone number",
+        placeholder="+1234567890"
+    )
+    bio: str | None = field(widget="textarea", placeholder="Tell us about yourself...")
 
 # In your route
 @app.get("/signup")
-async def signup_get():
+async def signup_get(request):
     # Create an empty form from the schema
     form = SignupSchema.as_form()
-    return app.render("signup.html", form=form)
+    return request.render("signup.html", form=form)
 ```
 
 ### Automatic Validation with `@app.validate`
@@ -42,6 +48,20 @@ async def signup_post(credentials: SignupSchema):
     return redirect("/dashboard")
 ```
 
+---
+
+### 🧬 `field()` / `v()` vs `f()`
+
+Eden provides specific helpers for the different layers of your application. While they share similar UI metadata arguments, they return different underlying objects:
+
+| Helper | Source | Layer | Returns |
+| :--- | :---| :--- | :--- |
+| `field()` / `v()` | `from eden.forms import field` | Schemas / Forms | Pydantic `Field` |
+| `f()` | `from eden.db import f` | Database Models | SQLAlchemy `mapped_column` |
+
+> [!TIP]
+> **Why separate them?** While Eden's `Schema` can automatically extract metadata from your database `f()` columns, using `field()` or `v()` explicitly in your schemas is the recommended way to define UI-specific validation that doesn't necessarily map to your database constraints.
+
 ### 🧬 Model-Based Schemas
 
 Eden allows you to derive schemas directly from your database models. This is the cornerstone of the **Single Source of Truth** philosophy: define your data once in the model, and reuse it everywhere without repeating validation logic.
@@ -51,7 +71,7 @@ Eden allows you to derive schemas directly from your database models. This is th
 Seasoned developers will find the `class Meta` pattern familiar but uniquely integrated with Eden's UI system. You can define a `Schema` subclass that mirrors a model while adding or overriding logic for specific use cases.
 
 ```python
-from eden import Schema, f
+from eden.forms import Schema, field  # Use eden.forms!
 from apps.products.models import Product
 from pydantic import model_validator
 
@@ -60,23 +80,18 @@ class ProductSchema(Schema):
         model = Product
         # Explicitly define which fields to pull from the model
         include = ["title", "description", "price", "stock"]
-        # Alternatively, use 'exclude' to pull everything except specific fields
-        # exclude = ["internal_code", "supplier_cost"]
 
-    # --- ADVANCED CUSTOMIZATION ---
-    
-    # 1. Adding UI-only fields (fields not in the DB)
-    accept_terms: bool = f(label="I confirm the price is correct")
+    # 1. Adding UI-only fields (not in the DB)
+    accept_terms: bool = field(label="I confirm the price is correct")
 
     # 2. Field Overrides
-    # If the model has price: float = f(), you can add UI constraints here
-    price: float = f(label="Retail Price", min=1.0) 
+    # Add UI-specific constraints that differ from DB defaults
+    price: float = field(label="Retail Price", min=1.0) 
 
     # 3. Complex Multi-field Validation
     @model_validator(mode="after")
     def check_business_logic(self) -> "ProductSchema":
         if self.price > 1000 and self.stock < 5:
-            # This error will be attached to form.__all__ or the relevant fields
             raise ValueError("High-value items must have at least 5 units in stock.")
         return self
 ```
@@ -122,7 +137,7 @@ async def create_task(request):
         task = await form.save() 
         return redirect(f"/tasks/{task.id}")
         
-    return app.render("task_form.html", form=form)
+    return request.render("task_form.html", form=form)
 
 # --- FLOW 2: Updating an Existing Task ---
 @app.post("/tasks/{id}/edit")
@@ -139,7 +154,7 @@ async def edit_task(request, id: int):
         await form.save() 
         return redirect("/tasks")
         
-    return app.render("task_form.html", form=form)
+    return request.render("task_form.html", form=form)
 ```
 
 ---
@@ -197,6 +212,7 @@ Since `Schema` is based on Pydantic, you can use all Pydantic features like comp
 
 ```python
 from pydantic import model_validator
+from eden.forms import Schema, f
 
 class ResetPasswordSchema(Schema):
     new_password: str = f(widget="password")
@@ -216,8 +232,10 @@ class ResetPasswordSchema(Schema):
 To handle file uploads, ensure your form has `enctype="multipart/form-data"` and use `FileField` or the `as_file()` widget hint.
 
 ```python
+from eden.forms import Schema, f
+
 class ProfileSchema(Schema):
-    avatar: Any = f(widget="file")
+    avatar: str = f(widget="file")
 
 @app.post("/profile")
 async def profile_update(request):

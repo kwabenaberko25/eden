@@ -34,3 +34,4 @@ Always reference `eden/design.py` for the source of truth, but prioritize these 
 - **No Placeholders**: Never use generic colors or basic default fonts.
 - **Semantic HTML**: Maintain clean, accessible HTML structures.
 - **HTMX First**: Prioritize partial updates and reactive interactions using Eden's `@fragment` directive.
+- **Modern Syntax**: Always use **brace-style directive syntax** (e.g., `@if(cond) { ... }`, `@for(item in items) { ... }`) for template control flow. Avoid legacy `@endif` or `@endfor` tags.

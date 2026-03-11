@@ -252,17 +252,23 @@ def parse_lookups(model: type[Any], **kwargs: Any) -> list[ColumnElement[bool]]:
         elif lookup == "iexact":
             expr = column.ilike(value)
         elif lookup == "contains":
-            expr = column.like(f"%{value}%")
+            escaped_val = str(value).replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+            expr = column.like(f"%{escaped_val}%", escape="\\")
         elif lookup == "icontains":
-            expr = column.ilike(f"%{value}%")
+            escaped_val = str(value).replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+            expr = column.ilike(f"%{escaped_val}%", escape="\\")
         elif lookup == "startswith":
-            expr = column.like(f"{value}%")
+            escaped_val = str(value).replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+            expr = column.like(f"{escaped_val}%", escape="\\")
         elif lookup == "istartswith":
-            expr = column.ilike(f"{value}%")
+            escaped_val = str(value).replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+            expr = column.ilike(f"{escaped_val}%", escape="\\")
         elif lookup == "endswith":
-            expr = column.like(f"%{value}")
+            escaped_val = str(value).replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+            expr = column.like(f"%{escaped_val}", escape="\\")
         elif lookup == "iendswith":
-            expr = column.ilike(f"%{value}")
+            escaped_val = str(value).replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+            expr = column.ilike(f"%{escaped_val}", escape="\\")
         elif lookup == "gt":
             expr = column > value
         elif lookup == "gte":

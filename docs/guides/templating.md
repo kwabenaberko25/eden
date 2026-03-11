@@ -85,27 +85,96 @@ Example usage:
 
 ---
 
-## Layouts & Components 🧱
+## Layouts & Inheritance 🧱
 
-### Inheritance
+Eden's layout system allows you to build a reusable shell for your application and inject specific content for each page.
 
+### 1. The `@extends` & `@yield` Pattern
+
+The `@extends` directive tells Eden that this template inherits from another one. The `@yield` directive defines a placeholder in the layout that can be filled by children.
+
+#### **Layout Template** (`layouts/base.html`)
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>@yield("title") — Eden App</title>
+    @yield("styles")
+</head>
+<body class="bg-slate-900 text-white">
+    <nav>...</nav>
+
+    <main class="container mx-auto p-8">
+        <!-- Main content placeholder -->
+        @yield("content")
+    </main>
+
+    <!-- Global scripts placeholder -->
+    @yield("scripts")
+</body>
+</html>
+```
+
+#### **Child Template** (`home.html`)
 ```html
 @extends("layouts/base")
 
+@section("title") { Welcome Home }
+
 @section("content") {
-    <h1>Product Page</h1>
+    <h1 class="text-4xl font-bold">Premium Dashboard</h1>
+    <p class="text-slate-400">Welcome to your new async workspace.</p>
+}
+
+@section("scripts") {
+    <script>console.log("Welcome home!");</script>
 }
 ```
 
+---
+
+### 2. Stacks & Pushing 🏗️
+
+While `@section` replaces the content in a `@yield` placeholder, sometimes you want to *collect* content from multiple components or child templates (like adding CSS from different UI parts). For this, use `@stack` and `@push`.
+
+*   **`@stack("name")`**: Defines a location in your layout to aggregate content.
+*   **`@push("name") { ... }`**: Appends content to the corresponding stack.
+
+**In Layout (`base.html`):**
+```html
+<head>
+    <!-- Collect all pushed styles here -->
+    @stack("styles")
+</head>
+```
+
+**In Component or Page (`profile.html`):**
+```html
+@push("styles") {
+    <style>.profile-card { border: 1px solid teal; }</style>
+}
+```
+
+---
+
+### 3. Advanced Block Controls
+
+| Directive | Type | Usage | Description |
+| :--- | :--- | :--- | :--- |
+| `@yield(name)` | Layout | `@yield("content")` | Defines a hole for child content. |
+| `@stack(name)` | Layout | `@stack("js")` | Defines an aggregation point. |
+| `@section(name)` | Child | `@section("content") { ... }` | Replaces the yield in the parent. |
+| `@push(name)` | Child | `@push("js") { ... }` | Appends content to the stack. |
+| `@super` | Child | `@super` | Access content from the parent's block. |
 
 ### Reusable Components
 
-Components allow you to encapsulate both logic and UI.
+Components allow you to encapsulate both logic and UI. Unlike inheritance, components are for smaller, repeatable pieces of UI.
 
 ```html
 @component("ui/card", title="Profile", elevation="xl") {
     @slot("header") {
-        <img src="/avatar.png">
+        <img src="/avatar.png" class="rounded-full">
     }
     <p>User bio goes here...</p>
 }
@@ -169,12 +238,22 @@ In your Python route, you can render **just the fragment** without the surroundi
 async def list_users(request):
     users = await User.all()
     # Renders ONLY the <ul>, not the <h1> or layout!
-    return request.app.render("index.html", users=users, fragment="user-list")
+    return request.render("index.html", users=users, fragment="user-list")
+```
+
+### The `request.render` Method
+
+Every Eden `Request` object has a built-in `.render()` method. This is the idiomatic way to render templates when you have a request object in your handler.
+
+```python
+@app.get("/dashboard")
+async def dashboard(request):
+    return request.render("dashboard.html", user=request.user)
 ```
 
 ### The `render_template` Global Helper
 
-For the ultimate clean syntax, you can use the `render_template` global helper from anywhere in your route handlers without needing to reference the `app` or `request` object directly.
+For the ultimate clean syntax, you can use the `render_template` global helper (imported from `eden`). It automatically discovers the current request context using Python context variables, so you don't even need to pass the `request` object.
 
 ```python
 from eden import render_template

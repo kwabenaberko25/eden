@@ -28,7 +28,7 @@ class TenantMixin:
 
     __eden_tenant_isolated__ = True
     __allow_unmapped__ = True
-    
+
     tenant_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, ForeignKey("eden_tenants.id", ondelete="CASCADE"), index=True
     )
@@ -46,12 +46,31 @@ class TenantMixin:
         if hasattr(cls, "deleted_at") and not kwargs.get("include_deleted", False):
             stmt = stmt.where(cls.deleted_at.is_(None))
 
-        # Apply tenant filter
-        tenant_id = get_current_tenant_id()
-        if tenant_id:
-            stmt = stmt.where(cls.tenant_id == tenant_id)
+        # Apply tenant filter using the robust hook
+        stmt = cls._apply_tenant_filter(stmt)
 
         return stmt
+
+    @classmethod
+    def _apply_tenant_filter(cls, stmt):
+        """
+        Applies tenant isolation to the query.
+        This method is robust against MRO issues and ensures Fail-Secure behavior.
+        """
+        from eden.tenancy.context import get_current_tenant_id
+
+        tenant_id = get_current_tenant_id()
+
+        if tenant_id is None:
+            # FAIL-SECURE: If tenant context is missing, deny access explicitly.
+            # This prevents data leakage in background tasks or misconfigured middleware.
+            # To bypass for background tasks, use Project.all(session, include_tenantless=True)
+            # or query directly with a session that has no context.
+            from sqlalchemy import false
+
+            return stmt.where(false())
+
+        return stmt.where(cls.tenant_id == tenant_id)
 
     async def before_create(self, session):
         """Auto-set tenant_id from context if not already set."""

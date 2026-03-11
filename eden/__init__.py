@@ -46,7 +46,7 @@ from eden.db import (
 )
 from eden.services import Service
 from eden.db.fields import ForeignKeyField, Relationship
-from eden.forms import BaseForm, ModelForm, FormField, Schema
+from eden.forms import BaseForm, ModelForm, FormField, Schema, v, field
 from eden.htmx import HtmxResponse, is_htmx
 from eden.dependencies import Depends
 from eden.exceptions import (
@@ -223,6 +223,8 @@ __all__ = [
     "ModelForm",
     "FormField",
     "Schema",
+    "v",
+    "field",
     "HtmxResponse",
     "is_htmx",
     "login_required",

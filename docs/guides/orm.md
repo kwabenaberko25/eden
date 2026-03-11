@@ -210,15 +210,21 @@ class Member(Model):
 
 Eden handles data isolation automatically via the `TenantMixin`.
 
+> **Important**: `TenantMixin` **MUST** come before `Model` in the inheritance list.
+
 ```python
 from eden.tenancy import TenantMixin
 
-class Task(Model, TenantMixin):
+# CORRECT: TenantMixin comes FIRST
+class Task(TenantMixin, Model):
     title: Mapped[str] = f()
 
 # Queries are automatically scoped to the current tenant in the request context
 tasks = await Task.all() 
 ```
+
+### Fail-Secure Behavior
+If tenant context is missing, queries return zero results to prevent data leakage. See [Tenancy Guide](tenancy.md) for admin override details.
 
 ### Advanced Field Options
 

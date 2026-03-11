@@ -15,7 +15,7 @@ This skill enables the AI agent to maintain high-fidelity documentation for the 
 4. **Visual Mapping**: Generate Mermaid diagrams to visualize complex logic like Row-Level RBAC or Multi-Tenancy resolution.
 5. **Deep-Dive Specialized Training**:
     - **The Data Forge**: Document `QuerySet` expansions including `.annotate()`, `.aggregate()`, `Q` expressions (complex OR/NOT logic), and `F` expressions (database-level atomic updates).
-    - **Directive Mastery**: Maintain guides for the `@if`, `@for`, `@auth`, and `@fragment` directives, ensuring perfect syntax documentation.
+    - **Directive Mastery**: Maintain guides for the `@if`, `@for`, `@auth`, and `@fragment` directives, ensuring perfect **brace-style syntax** (e.g., `@if(cond) { content }`) instead of legacy `@endif` markers.
 
 ## Guidelines
 

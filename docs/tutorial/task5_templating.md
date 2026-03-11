@@ -15,7 +15,7 @@ Stop repeating yourself. Define a global layout once and inherit from it in ever
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>@yield("title", "Framework Tutorial") — Eden</title>
+    <title>@yield("title") — Eden</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { font-family: 'Plus Jakarta Sans', sans-serif; }
@@ -33,9 +33,10 @@ Stop repeating yourself. Define a global layout once and inherit from it in ever
 </html>
 ```
 
-### 🧠 Modern Directives
+### 🧠 Layout Directives
 
-- **`@yield("section_name")`**: Defines a placeholder where child templates will inject their content.
+- **`@yield("name")`**: Defines a placeholder or "hole" in your layout where child templates inject content (e.g. `@yield("content")`).
+- **`@stack("name")`**: Defines an aggregation point, perfect for collecting CSS or JS from multiple child pages.
 
 ---
 
@@ -48,9 +49,9 @@ Use Eden's clean inheritance syntax to build rich, data-driven pages.
 ```html
 @extends("layouts/base")
 
-@section("title", "Community Members")
+@section("title") { Community Members }
 
-@section("content")
+@section("content") {
     <h1 class="text-4xl font-black mb-6">Our Community</h1>
 
     <div class="grid gap-4">
@@ -63,11 +64,14 @@ Use Eden's clean inheritance syntax to build rich, data-driven pages.
             <p class="text-slate-500 italic">Nobody has joined the community yet.</p>
         }
     </div>
-@endsection
+}
 ```
 
 ### ✨ Premium Features
 
+- **`@extends("layout")`**: Declares that this template inherits from a layout. It must be the first line.
+- **`@section("name") { ... }`**: Fills a `@yield` placeholder defined in the parent layout.
+- **`@push("name") { ... }`**: Appends content to a `@stack` defined in the parent layout (great for adding page-specific `<script>` tags).
 - **`@for (...) { ... } @empty { ... }`**: A logical, readable loop that handles empty states natively.
 - **`{{ variable }}`**: Standard Jinja2-style interpolation.
 
@@ -85,11 +89,15 @@ async def show_directory(request):
     """Render the community member directory."""
     members = await User.all()
     
-    # Access the app's internal templating engine
-    app = request.app.eden
-    
-    return app.render("user_list.html", {"members": members})
+    # Render using the request.render helper
+    return request.render("user_list.html", {"members": members})
 ```
+
+> [!TIP]
+> For the ultimate clean syntax, you can also use `from eden import render_template`. It uses the current request context automatically:
+> ```python
+> return render_template("user_list.html", members=members)
+> ```
 
 > [!NOTE]
 > Eden automatically looks for templates in the `templates/` directory defined in your app configuration.

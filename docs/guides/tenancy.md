@@ -16,12 +16,18 @@ app.add_middleware("tenancy")
 ### 2. The `TenantMixin`
 Any model you want to isolate should inherit from `TenantMixin`.
 
+> **Important**: `TenantMixin` **MUST** come before `Model` in the inheritance list. This is due to Python's Method Resolution Order (MRO).
+
 ```python
 from eden.tenancy import TenantMixin
 from eden.db import EdenModel, StringField
 
-class Project(EdenModel, TenantMixin):
+# CORRECT: TenantMixin comes FIRST
+class Project(TenantMixin, EdenModel):
     name: Mapped[str] = StringField()
+
+# WRONG: Isolation will fail!
+# class Project(EdenModel, TenantMixin): ...
 ```
 
 This adds a `tenant_id` column to your table automatically.
@@ -62,13 +68,18 @@ from eden.tenancy import set_current_tenant
 async with set_current_tenant(org.id):
     # Everything inside this block is scoped to 'org.id'
     await Project.create(name="Scoped Project")
+```
 
 ---
 
-In rare cases, you may need to query across all tenants. This is done by clearing the tenant context.
+### ⚠️ Fail-Secure Behavior
+
+By default, if the tenant context is missing (e.g., in background tasks or if middleware fails), queries will return **zero results** instead of all data. This prevents accidental data leakage.
+
+If you need to query across all tenants (admin operations), you must explicitly clear the context:
 
 ```python
-from eden.tenancy import set_current_tenant
+from eden.tenancy import set_current_tenant, reset_current_tenant
 
 # Setting to None bypasses isolation in the current context
 token = set_current_tenant(None)

@@ -51,9 +51,10 @@ As your application grows, you can split your routes into separate modules using
 ```python
 from eden import Router
 
-router = Router()
+# Give the router a namespace name
+router = Router(name="auth")
 
-@router.get("/login")
+@router.get("/login", name="login")
 async def login(request):
     ...
 ```
@@ -64,6 +65,28 @@ async def login(request):
 from routes.auth import router as auth_router
 
 app.include_router(auth_router, prefix="/auth")
+```
+
+When you include a named router, all its route names are automatically prefixed with the namespace (e.g., `auth:login`). This is incredibly useful for reverse URL generation.
+
+### Template URL Generation
+
+Instead of hardcoding URLs, use the `@url` template directive or `request.url_for()` to dynamically generate paths based on route names.
+
+```html
+<!-- Inside a Jinja Template -->
+<a href="@url('auth:login')">Sign In</a>
+
+<!-- With dynamic parameters -->
+<a href="@url('users:profile', id=user.id)">View Profile</a>
+```
+
+You can also generate URLs in your handlers:
+
+```python
+@app.get("/redirect")
+async def go_login(request):
+    return redirect(request.url_for("auth:login"))
 ```
 
 ---
@@ -132,9 +155,9 @@ async def search(request):
     
     if request.headers.get("HX-Request"):
         # Returns ONLY the <ul> part of the template
-        return request.app.render("search.html", {"results": results}, fragment="result-list")
+        return request.render("search.html", {"results": results}, fragment="result-list")
         
-    return request.app.render("search.html", {"results": results})
+    return request.render("search.html", {"results": results})
 ```
 
 ---

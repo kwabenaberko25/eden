@@ -81,7 +81,7 @@ Eden really shines when you start using its template engine. Let's render an HTM
 ```python
 @app.get("/hello/{name}")
 async def hello(request, name: str):
-    return app.render("hello.html", {"name": name})
+    return request.render("hello.html", {"name": name})
 
 ---
 
@@ -105,7 +105,7 @@ async def tasks(request):
         await Task.create(title=form_data["title"])
     
     all_tasks = await Task.all()
-    return app.render("tasks.html", {"tasks": all_tasks})
+    return request.render("tasks.html", {"tasks": all_tasks})
 ```
 
 ---

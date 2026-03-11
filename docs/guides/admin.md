@@ -24,6 +24,7 @@ app.mount_admin()
 
 You can control how your models are displayed and edited within the dashboard.
 
+```python
 @admin.register(Post)
 class PostAdmin:
     list_display = ["title", "author", "created_at", "is_published"]
@@ -35,6 +36,7 @@ class PostAdmin:
         ("Content", {"fields": ["title", "content"]}),
         ("Status", {"fields": ["is_published", "published_at"]}),
     ]
+```
 
 ---
 

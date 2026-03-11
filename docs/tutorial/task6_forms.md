@@ -8,28 +8,27 @@ Eden combines the power of **Pydantic** validation with UI metadata generation, 
 
 ## 📋 Step 6.1: Defining the Unified Schema
 
-Instead of defining separate Pydantic models and HTML form objects, Eden provides a unified `Schema` class. You can define validation rules (like `min_length`) alongside UI metadata (like `label` and `placeholder`) in one place using the `f()` helper.
+Instead of defining separate Pydantic models and HTML form objects, Eden provides a unified `Schema` class. You can define validation rules (like `min_length`) alongside UI metadata (like `label` and `placeholder`) in one place using the `field()` helper.
 
 **File**: `app/schemas/user.py`
 
 ```python
-from eden.forms import Schema
-from eden.db.fields import f
-from pydantic import EmailStr
+from eden.forms import Schema, field, EmailStr
 
 class UserCreateSchema(Schema):
-    name: str = f(
+    name: str = field(
         min_length=2, 
         max_length=100, 
         label="Full Name", 
-        placeholder="e.g. Jane Doe"
+        placeholder="e.g. Jane Doe",
+        pattern=r"^[A-Za-z\s]+$"
     )
-    email: EmailStr = f(
+    email: EmailStr = field(
         label="Email Address", 
         placeholder="jane@example.com",
         widget="email"
     )
-    age: int = f(
+    age: int = field(
         default=None, 
         ge=18, 
         le=120, 
@@ -37,6 +36,9 @@ class UserCreateSchema(Schema):
         help_text="You must be at least 18 years old to join."
     )
 ```
+
+> [!TIP]
+> Use `field()` (or the shorter `v()`) for form schemas, and `f()` for database models. This prevents naming collisions and keeps your code clean.
 
 ---
 
@@ -57,7 +59,7 @@ user_router = Router()
 async def join_form(request):
     """Render the signup page with an empty schema."""
     form = UserCreateSchema.as_form()
-    return request.app.render("signup.html", {"form": form})
+    return request.render("signup.html", {"form": form})
 
 @user_router.post("/join")
 @user_router.validate(UserCreateSchema, template="signup.html")
@@ -84,9 +86,9 @@ Now that we have our `Schema` and route, let's render the form. Eden provides po
 ```html
 @extends("layouts/base")
 
-@section("title", "Join the Community")
+@section("title") { Join the Community }
 
-@section("content")
+@section("content") {
 <div class="max-w-md mx-auto bg-slate-800 p-8 rounded-2xl shadow-xl mt-10 border border-slate-700">
     <h1 class="text-3xl font-black mb-6">Create Account</h1>
 
@@ -132,7 +134,7 @@ Now that we have our `Schema` and route, let's render the form. Eden provides po
         </button>
     </form>
 </div>
-@endsection
+}
 ```
 
 ### ✨ Premium Features Demonstrated

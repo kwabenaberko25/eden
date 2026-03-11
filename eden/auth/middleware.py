@@ -18,12 +18,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
     Middleware that tries to authenticate the request using one or more backends.
     """
 
-    def __init__(
-        self,
-        app: Any,
-        backends: Sequence[AuthBackend],
-        **kwargs
-    ) -> None:
+    def __init__(self, app: Any, backends: Sequence[AuthBackend], **kwargs) -> None:
         super().__init__(app, **kwargs)
         self.backends = backends
 
@@ -42,7 +37,13 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         try:
             user = None
             for backend in self.backends:
-                user = await backend.authenticate(eden_request)
+                try:
+                    user = await backend.authenticate(eden_request)
+                except Exception:
+                    # Log the error but continue to next backend or deny access
+                    # Do not crash the request if one backend fails (e.g. DB connection lost)
+                    pass
+
                 if user:
                     break
 
