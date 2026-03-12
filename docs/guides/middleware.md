@@ -48,7 +48,7 @@ Eden comes pre-configured with a suite of high-performance middleware.
 
 ```python
 # Enable globally (100 requests per minute)
-app.add_middleware("ratelimit", max_requests=100, window_seconds=60)
+app.add_middleware("ratelimit", rate="100/minute")
 ```
 
 ### Route-Specific Limiting
@@ -56,10 +56,10 @@ app.add_middleware("ratelimit", max_requests=100, window_seconds=60)
 You can also apply limits to individual views using the `@ratelimit` decorator.
 
 ```python
-from eden.middleware import ratelimit
+from eden.middleware import limiter
 
 @app.get("/api/login")
-@ratelimit(max_requests=5, window_seconds=60)
+@limiter("5/minute")
 async def login(request):
     # Logic for login
     ...

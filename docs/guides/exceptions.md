@@ -7,18 +7,18 @@ Eden makes it easy to capture errors and present them beautifully or handle them
 You can register handlers for specific HTTP status codes or Python exceptions.
 
 ```python
-from starlette.responses import JSONResponse
+from eden import JsonResponse, NotFound
 
-@app.exception_handler(404)
+@app.exception_handler(NotFound)
 async def not_found(request, exc):
-    return JSONResponse(
+    return JsonResponse(
         {"error": "This place is a desert. No resource found here."}, 
         status_code=404
     )
 
 @app.exception_handler(ValueError)
 async def handle_value_error(request, exc):
-    return JSONResponse(
+    return JsonResponse(
         {"error": str(exc)}, 
         status_code=400
     )
@@ -54,12 +54,12 @@ This page includes:
 Eden leverages Starlette's `HTTPException` for easy error signaling inside routes.
 
 ```python
-from starlette.exceptions import HTTPException
+from eden import Forbidden
 
 @app.get("/secret")
 async def secret_area(request):
     if not request.user.is_authenticated:
-        raise HTTPException(status_code=403, detail="Not permitted.")
+        raise Forbidden("Not permitted.")
     return {"secret": "Eden 🌿"}
 ```
 
@@ -70,12 +70,13 @@ async def secret_area(request):
 For production, you should combine custom exception handlers with a logging service to capture and monitor application health.
 
 ```python
+from eden import JsonResponse
 import logging
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request, exc):
     logging.error(f"Global Error: {exc}", exc_info=True)
-    return JSONResponse(
+    return JsonResponse(
         {"error": "An internal error occurred. Our gardeners are on it."},
         status_code=500
     )

@@ -62,6 +62,7 @@ async def login(request):
 ### `app.py`
 
 ```python
+# Root-level app.py
 from routes.auth import router as auth_router
 
 app.include_router(auth_router, prefix="/auth")
@@ -91,39 +92,30 @@ async def go_login(request):
 
 ---
 
-## Resource Routing (CRUD)
+## Namespaced Routing
 
-Eden's most powerful routing feature is the `Resource`. It automatically generates CRUD routes for a given model.
+Eden's namespaces allow you to group related routes and generate clean, reverse-able URLs. When you include a router with a `name`, it creates a namespace.
 
 ```python
-from eden import Resource, action
-from models import Post
+# routes/auth.py
+router = Router(name="auth")
 
-class PostResource(Resource):
-    model = Post
-    
-    # Custom Action
-    @action(methods=["POST"])
-    async def publish(self, request, pk):
-        post = await self.get_object(pk)
-        await post.update(status="published")
-        return {"published": True}
-
-app.mount_resource(PostResource, prefix="/posts")
-
+@router.get("/login", name="login")
+async def login(request):
+    ...
 ```
 
-### Generated Resource Routes
+### URL Generation in Templates
 
-By default, `mount_resource` generates the following endpoints for your model:
+Instead of hardcoding URLs, use the `@url` template directive to dynamically generate paths based on route names and namespaces.
 
-| Method | Path | Action | Role |
-| :--- | :--- | :--- | :--- |
-| `GET` | `/posts` | `index` | List all records. |
-| `POST` | `/posts` | `create` | Create a new record. |
-| `GET` | `/posts/{id}` | `show` | View a single record. |
-| `PUT` | `/posts/{id}` | `update` | Update a record. |
-| `DELETE` | `/posts/{id}` | `destroy` | Delete a record. |
+```html
+<!-- Sign In link -->
+<a href="@url('auth:login')">Sign In</a>
+
+<!-- Link with parameters -->
+<a href="@url('users:profile', id=user.id)">View Profile</a>
+```
 
 ---
 
@@ -216,8 +208,11 @@ app.include_router(api_router)
 
 For large applications like a **School Management System**, namespacing is your best friend. It prevents name collisions and makes your code self-documenting.
 
+
 ### 1. The Multi-Level Pattern
-Don't be afraid to nest namespaces. It makes your `@url` calls incredibly clear.
+
+Don't be afraid to nest namespaces.
+ It makes your `@url` calls incredibly clear.
 
 ```python
 # routes/admin/students.py
@@ -234,13 +229,20 @@ app.include_router(admin_router, prefix="/admin")
 Now, in your templates, you can call:
 `@url('admin:students:list')`
 
+
 ### 2. Namespace vs. Prefix
+
 - **Prefix**: The physical URL path (e.g., `/api/v1`).
+
 - **Namespace**: The logical name used for code (e.g., `api`).
 Always keep them synchronized for the easiest developer experience.
 
+
+
 ### 3. Use trailing slashes consistently
-Eden handles trailing slashes automatically, but for the best SEO and consistency, stick to the pattern defined in your `prefix`.
+
+Eden handles trailing slashes automatically
+, but for the best SEO and consistency, stick to the pattern defined in your `prefix`.
 
 ---
 

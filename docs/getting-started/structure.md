@@ -4,21 +4,22 @@ A standard Eden project follows a clean, modular layout designed for both small 
 
 ## The Default Layout
 
-When you run `eden new`, your project will look like this:
+When you run `eden new`, your project will follow a **Premium-Flat** layout:
 
 ```text
-```mermaid
-graph TD
-    Root[my_project/] --> Env[.env]
-    Root --> Json[eden.json]
-    Root --> App[app.py]
-    Root --> Models[models/]
-    Root --> Routes[routes/]
-    Root --> Templates[templates/]
-    Root --> Static[static/]
-    
-    Models --> ModelUser[user.py]
-    Routes --> RoutePublic[public.py]
+my_project/
+├── app.py          # App initialization & middleware (Premium)
+├── models.py       # Domain models
+├── settings.py     # Application settings
+├── routes/         # Routes package
+│   └── __init__.py # Main router
+├── static/         # CSS, JS, Images
+├── templates/      # HTML templates (@directives)
+├── tests/          # Pytest suite
+│   └── conftest.py # Test configuration
+├── .env.example    # Environment template
+├── Dockerfile      # Container config
+└── docker-compose.yml
 ```
 
 ## Core Configuration
@@ -38,16 +39,16 @@ This file contains framework-level metadata used by **The Forge** and the CLI to
 ## Core Files Explained
 
 ### `app.py`
-This is where the `Eden` application is instantiated. It serves as the glue for your middleware, database, and route registrations.
+The "heart" of your application. This is where you instantiate `Eden`, configure the middleware stack (Security, Session, CSRF, etc.), and mount your routers.
 
-### `/templates`
-By default, Eden looks here for your HTML files. Note that Eden templates use the `@directive` syntax (e.g., `@if`, `@for`) instead of traditional curly-brace blocks for control flow.
+### `models.py`
+Domain models inheriting from `Model` live here. By default, Eden provides a flat `models.py` for simplicity, but you can convert this to a package as your domain grows.
 
-### `/models`
-Domain models inheriting from `EdenModel` live here. Eden automatically handles the mapping to your database via SQLAlchemy 2.0.
+### `settings.py`
+Global application settings and environment-variable lookups. This file keeps your `app.py` clean by separating configuration from initialization logic.
 
 ### `/routes`
-We recommend grouping related routes into sub-folders or modules. Large applications should use the `Router` class to keep `app.py` clean.
+We recommend grouping related routes into this package. Use the `Router` class to create modular endpoints that are then mounted in `app.py`.
 
 ### `/static`
 Files placed here are served automatically. In production, we recommend serving these via a CDN or a web server like Nginx, but Eden handles them natively for development.

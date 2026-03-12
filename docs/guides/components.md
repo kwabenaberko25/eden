@@ -33,7 +33,7 @@ class UserCard(Component):
 ### Key Concepts:
 - **`@register("name")`**: This gives your component a unique identity.
 - **`render()`**: This method returns the HTML for your component.
-- **`self.url("action")`**: Generates a URL for a specific component action.
+- **`self.action_url("action")`**: Generates a URL for a specific component action.
 
 ---
 
@@ -57,7 +57,7 @@ class Counter(Component):
         return f"""
         <div id="counter">
             <p>Count: {self.count}</p>
-            <button hx-post="{self.url('increment')}" hx-target="#counter">
+            <button hx-post="{self.action_url('increment')}" hx-target="#counter">
                 +1
             </button>
         </div>
@@ -78,9 +78,12 @@ You can drop components into your standard Eden templates using the `@component`
 <!-- index.html -->
 <div class="grid grid-cols-3 gap-4">
     @foreach(user in users) {
-        @component("user-card", user=user)
+    @component("user-card", user=user)
     }
 </div>
+
+> [!NOTE]
+> For simple components without children, the `@component` directive is self-closing. If you need to pass content (slots), use the brace-based block syntax: `@component("name") { ... }`.
 ```
 
 ---
@@ -110,7 +113,7 @@ Inside your component class, use `self.url()`:
 ```python
 class MyComponent(Component):
     def render(self):
-        delete_url = self.url("delete", id=123)
+        delete_url = self.action_url("delete", id=123)
         return f'<button hx-delete="{delete_url}">Delete</button>'
 ```
 
@@ -150,7 +153,7 @@ class GradeEditor(Component):
         return f"""
         <div id="grade-editor-{self.student_id}" class="eden-card p-6">
             <h4 class="font-bold">{student.name}</h4>
-            <form hx-post="{self.url('save')}" hx-target="#grade-editor-{self.student_id}">
+            <form hx-post="{self.action_url('save')}" hx-target="#grade-editor-{self.student_id}">
                 <input type="number" name="score" value="{student.current_grade}" 
                        class="eden-input w-24">
                 <button type="submit" class="eden-btn-primary ml-2">Update</button>

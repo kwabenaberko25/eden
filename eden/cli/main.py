@@ -103,21 +103,21 @@ def run(host: str, port: int, reload: bool, no_browser_reload: bool, workers: in
 
 @cli.command()
 @click.argument("project_name")
-def new(project_name: str) -> None:
+@click.argument("project_dir_raw", required=False, default=None)
+@click.option("--db", "db_choice", type=click.Choice(["sqlite", "postgresql", "mysql"], case_sensitive=False), default="sqlite", help="Primary database engine")
+def new(project_name: str, project_dir_raw: str | None, db_choice: str) -> None:
     """Scaffold a premium Eden project."""
-    project_dir = Path(project_name)
+    if project_dir_raw and project_dir_raw == ".":
+        project_dir = Path.cwd()
+    elif project_dir_raw:
+        project_dir = Path(project_dir_raw)
+    else:
+        project_dir = Path(project_name)
 
-    if project_dir.exists():
+    if project_dir.exists() and project_dir_raw != ".":
         click.echo(f"  ❌ Directory '{project_name}' already exists.", err=True)
         sys.exit(1)
 
-    # Database Selection
-    db_choice = click.prompt(
-        "\n  🗄️  Select Database Engine",
-        type=click.Choice(["sqlite", "postgresql", "mysql"], case_sensitive=False),
-        default="sqlite",
-        show_choices=True,
-    )
 
     # Configure Database Drivers and Default URLs
     db_url = "sqlite+aiosqlite:///db.sqlite3"
@@ -133,44 +133,57 @@ def new(project_name: str) -> None:
     click.echo(f"\n  🌿 Creating premium Eden project: {project_name}")
 
     # Create directory structure
-    (project_dir / "app" / "models").mkdir(parents=True)
-    (project_dir / "app" / "routes").mkdir(parents=True)
-    (project_dir / "static").mkdir(parents=True)
-    (project_dir / "templates").mkdir(parents=True)
-    (project_dir / "tests").mkdir(parents=True)
+    (project_dir / "routes").mkdir(parents=True, exist_ok=True)
+    (project_dir / "static").mkdir(parents=True, exist_ok=True)
+    (project_dir / "templates").mkdir(parents=True, exist_ok=True)
+    (project_dir / "tests").mkdir(parents=True, exist_ok=True)
 
-    # 1. app/__init__.py
-    app_init = f'''from eden import Eden, setup_logging
-from .settings import DEBUG, SECRET_KEY, DATABASE_URL, LOG_LEVEL, LOG_FORMAT
-from .routes import main_router
+    # 1. app.py (The heart of the app)
+    app_py = f'''from eden import Eden
+from eden.middleware import get_middleware_class
+import os
 
-def create_app() -> Eden:
-    # Configure logging
-    setup_logging(level=LOG_LEVEL, json_format=(LOG_FORMAT == "json"))
+# 1. Initialize with Premium Branding
+app = Eden(
+    title="{project_name}",
+    version="1.0.0",
+    secret_key="your-ultra-secure-key", # Required for Session & CSRF
+    debug=True
+)
 
-    app = Eden(
-        title="{project_name}",
-        debug=DEBUG
-    )
+# 2. Database Configuration (The "Auto" Way)
+# By setting this in state, Eden auto-initializes the ORM 
+# and handles connections/disconnections in the lifespan hooks.
+app.state.database_url = "sqlite+aiosqlite:///database.db"
 
-    # Routes
-    app.include_router(main_router)
+# 3. Setting Up the Middleware Stack
+# Order matters: RequestContext should always be first (Eden adds this automatically)
 
-    # Security middleware (production defaults)
-    app.add_middleware("security")
-    app.add_middleware("ratelimit", max_requests=200, window_seconds=60)
-    app.add_middleware("logging")
+# 🔒 Security Headers (XSS, Clickjacking, HSTS)
+app.add_middleware("security")
 
-    # Health checks
-    app.enable_health_checks()
+# 🍪 Session Management
+app.add_middleware("session", secret_key=app.secret_key)
 
-    return app
+# 🛡️ CSRF Protection (Requires Session middleware above it)
+app.add_middleware("csrf")
 
-app = create_app()
+# 🚀 Compression (Speed up responses)
+app.add_middleware("gzip")
+
+# 🌐 CORS (If building an API)
+app.add_middleware("cors", allow_origins=["*"])
+
+@app.get("/")
+async def welcome():
+    return {{"status": "Eden is online", "database": "Connected ⚡"}}
+
+if __name__ == "__main__":
+    app.run()
 '''
-    (project_dir / "app" / "__init__.py").write_text(app_init, encoding="utf-8")
+    (project_dir / "app.py").write_text(app_py, encoding="utf-8")
 
-    # 2. app/routes/__init__.py
+    # 2. routes/__init__.py
     routes_init = f'''from eden import Router
 
 main_router = Router()
@@ -183,12 +196,19 @@ async def index():
 async def health():
     return {{"status": "healthy"}}
 '''
-    (project_dir / "app" / "routes" / "__init__.py").write_text(routes_init, encoding="utf-8")
+    (project_dir / "routes" / "__init__.py").write_text(routes_init, encoding="utf-8")
 
-    # 3. app/models/__init__.py
-    (project_dir / "app" / "models" / "__init__.py").write_text("", encoding="utf-8")
+    # 3. models.py (Flat models starting point)
+    models_content = '''from eden import Model, StringField, IntField
 
-    # 4. app/settings.py
+# Define your models here!
+# class Task(Model):
+#     title = StringField(max_length=100)
+#     completed = IntField(default=0)
+'''
+    (project_dir / "models.py").write_text(models_content, encoding="utf-8")
+
+    # 4. settings.py
     settings_content = '''import os
 
 # ── Core ─────────────────────────────────────────────────────────────────
@@ -203,7 +223,7 @@ ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "*").split(",")
 LOG_LEVEL = os.getenv("LOG_LEVEL", "DEBUG" if DEBUG else "INFO")
 LOG_FORMAT = os.getenv("LOG_FORMAT", "text" if DEBUG else "json")
 '''
-    (project_dir / "app" / "settings.py").write_text(settings_content, encoding="utf-8")
+    (project_dir / "settings.py").write_text(settings_content, encoding="utf-8")
 
     # 5. Dockerfile (multi-stage)
     dockerfile = '''# ── Build Stage ─────────────────────────────────────────────────────
@@ -376,7 +396,8 @@ Built with [Eden](https://github.com/eden-framework/eden) 🌿
     click.echo(f"  ✨ Project '{project_name}' scaffolded with premium features.")
     click.echo("  🐋 Docker & 🧪 Pytest integrated.")
     click.echo("\n  🚀 Get started:")
-    click.echo(f"      cd {project_name}")
+    if project_dir_raw != ".":
+        click.echo(f"      cd {project_name}")
     click.echo("      eden run\n")
 
 

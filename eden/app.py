@@ -483,7 +483,7 @@ class Eden:
                     except Exception:
                         pass
 
-                starlette_routes.append(StarletteWebSocketRoute("/_eden/reload", reload_websocket))
+                starlette_routes.insert(0, StarletteWebSocketRoute("/_eden/reload", reload_websocket))
 
             # Add Real-time Sync WebSocket route
             from starlette.routing import WebSocketRoute as StarletteWebSocketRoute
@@ -507,7 +507,7 @@ class Eden:
                 finally:
                     await manager.disconnect(websocket)
 
-            starlette_routes.append(StarletteWebSocketRoute("/_eden/sync", sync_websocket, name="eden:sync"))
+            starlette_routes.insert(0, StarletteWebSocketRoute("/_eden/sync", sync_websocket, name="eden:sync"))
 
             # Include Component Actions Router
             from eden.components import get_component_router
@@ -546,8 +546,10 @@ class Eden:
         # to ensure get_request() works in all other middlewares, views, and templates.
         middleware.insert(0, Middleware(get_middleware_class("request")))
 
+        # Add Browser Reload middleware as the INNERMOST layer (after GZip, etc.)
+        # so it sees the raw HTML before it gets compressed.
         if self.debug and self.browser_reload:
-            middleware.insert(0, Middleware(get_middleware_class("browser_reload")))
+            middleware.append(Middleware(get_middleware_class("browser_reload")))
 
         # Prepare exception handlers for Starlette
         exception_handlers = {

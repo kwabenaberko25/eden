@@ -61,17 +61,21 @@ Eden bridges the gap between your **Validation Layer** (Schemas/Forms) and your 
 The `create_from` class method allows you to take a validated schema or form and create a database record in one step. It is **security-aware**: it automatically filters out any fields present in the schema that are not defined on the model (e.g., a "confirm_password" field used only for UI validation).
 
 ```python
-@app.post("/signup")
-@app.validate(SignupSchema, template="signup.html")
-async def signup(credentials: SignupSchema):
-    # 'credentials' has confirmation fields and UI flags.
-    # User.create_from pulls ONLY the fields that match the User model.
-    user = await User.create_from(credentials)
-    
-    # You can still pass manual overrides
-    # user = await User.create_from(credentials, is_admin=False)
-    
-    return redirect("/login")
+# app.py
+from eden import Eden
+
+app = Eden(title="My App")
+
+# The "Auto" Way: Simply set your database URL in state.
+# Eden automatically initializes the ORM and manages connections.
+app.state.database_url = "sqlite+aiosqlite:///database.db"
+
+@app.on_startup
+async def startup():
+    # Eden handles connection; you just need to ensure tables exist
+    from eden.db import get_db
+    db = get_db()
+    await db.create_all()
 ```
 
 ### 2. Safeguarded Updates (`update_from`)
@@ -223,6 +227,7 @@ tasks = await Task.all()
 ```
 
 ### Fail-Secure Behavior
+
 If tenant context is missing, queries return zero results to prevent data leakage. See [Tenancy Guide](tenancy.md) for admin override details.
 
 ### Advanced Field Options
@@ -236,11 +241,11 @@ The `f()` helper supports advanced options for rapid development:
 | `org_id=True` | Marks field as an Organization identifier. | `org = f(org_id=True)` |
 | `choices` | Limits valid values. | `status = f(choices=["draft", "live"])` |
 
-    # FileField for managed uploads
-    logo: Mapped[str] = FileField(upload_to="logos")
+### AI-First: Vector Search
 
-# 🤖 Agentic AI: Vector Search
-# For builders of RAG, Semantic Search or AI apps.
+For builders of RAG, Semantic Search or AI apps, Eden provides native vector support.
+
+```python
 from eden.db.ai import VectorModel, VectorField
 
 class Document(VectorModel):
@@ -269,7 +274,7 @@ class Invoice(Resource):
 
 ---
 
-### Database Sessions
+## Database Sessions
 
 For operations that require manual session management (like transactions), use the `db.session()` context manager.
 

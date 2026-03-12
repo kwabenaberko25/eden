@@ -4,35 +4,36 @@ In this guide, we'll build a minimal Eden application that demonstrates routing 
 
 ## 1. Create your App
 
-Create a file named `app.py`:
+Create a file named `app.py`. This is the **Premium-Flat** way to initialize Eden:
 
 ```python
 from eden import Eden
-from eden.db import Database
+import os
 
-# Initialize Database (SQLite)
-db = Database("sqlite+aiosqlite:///db.sqlite3")
-
-# Initialize Eden App
+# 1. Initialize with Premium Branding
 app = Eden(
-    title="Genesis", 
-    debug=True,
-    description="My first Eden project"
+    title="Eden Nexus",
+    version="1.0.0",
+    secret_key="your-ultra-secure-key", # Required for Session & CSRF
+    debug=True
 )
-app.db = db
 
-# Define a Route
+# 2. Database Configuration (The "Auto" Way)
+app.state.database_url = "sqlite+aiosqlite:///database.db"
+
+# 3. Setting Up the Middleware Stack
+app.add_middleware("security")
+app.add_middleware("session", secret_key=app.secret_key)
+app.add_middleware("csrf")
+app.add_middleware("gzip")
+app.add_middleware("cors", allow_origins=["*"])
+
 @app.get("/")
-async def welcome(request):
-    return {"message": "Welcome to Eden! 🌿"}
-
-# Connect to Database on Startup
-@app.on_startup
-async def startup():
-    await db.connect(create_tables=True)
+async def welcome():
+    return {"status": "Eden is online", "database": "Connected ⚡"}
 
 if __name__ == "__main__":
-    app.run(port=8888)
+    app.run()
 ```
 
 ## 2. Run the Application

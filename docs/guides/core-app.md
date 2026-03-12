@@ -109,31 +109,6 @@ async def checkout(request):
 
 ---
 
-## Health & Monitoring 🏥
-
-Eden includes a robust health check system that integrates seamlessly with Docker and Kubernetes.
-
-### Simple Health Check
-
-Enables a standard `/health` endpoint that returns `200 OK` if the app is running.
-
-```python
-app.enable_health_checks()
-```
-
-### Custom Readiness Checks
-
-You can add specific checks to ensure your external dependencies (DB, Redis) are ready before the app starts accepting traffic.
-
-```python
-@app.add_readiness_check("database")
-async def check_db():
-    try:
-        await db.execute("SELECT 1")
-        return True
-    except Exception:
-        return False
-```
 
 ---
 

@@ -22,22 +22,29 @@ eden run --app main:app --port 8000
 Scaffolds a premium, production-ready Eden project with Docker and Pytest.
 
 ```bash
+# Basic setup (creates a folder)
 eden new my_awesome_app
+
+# Current directory setup
+eden new my_awesome_app .
+
+# Specify database choice (sqlite, postgresql, mysql)
+eden new my_awesome_app --db postgresql
 ```
 
 ---
 
 ## The Forge ⚒️
 
-"The Forge" is Eden's rapid scaffolding engine for models, routes, and components.
+"The Forge" is Eden's rapid scaffolding engine. In the new **Premium-Flat** structure, it generates code relative to your project root.
 
 | Command | Usage | Output |
 | :--- | :--- | :--- |
-| `model` | `eden forge model Post` | Creates a new model in `app/models/`. |
-| `route` | `eden forge route Blog` | Creates a router in `app/routes/`. |
-| `component` | `eden forge component Navbar` | Creates a UI component (logic + template). |
+| `model` | `eden forge model Post` | Appends to or creates `models.py`. |
+| `route` | `eden forge route Blog` | Creates a router in `routes/`. |
+| `component` | `eden forge component Navbar` | Creates a UI component. |
 | `entity` | `eden forge entity Product` | Full stack: Model + Schema + CRUD Router. |
-| `resource` | `eden forge resource Post` | Unified Resource: Model + Resource + Templates. |
+| `resource` | `eden forge resource Post` | Unified Resource: Model + Router + Templates. |
 
 ---
 
