@@ -647,4 +647,4 @@ If you get stuck on an example:
 
 ---
 
-**Ready?** Start with [Example 1: Hello World](../../examples/01_hello.py)
+**Ready?** Start by exploring the [Example Snippets](example-snippets.md) or look into the `examples/` directory in the root of the project.

@@ -579,7 +579,7 @@ class ConnectionState:
 
 ## Complete Example: Real-Time Chat
 
-See [examples/chat-websocket-auth/](../../examples/chat-websocket-auth/) for a complete, production-ready chat application with:
+See the `examples/chat-websocket-auth/` directory in the Eden repository for a complete, production-ready chat application with:
 - Token-based authentication
 - Multiple rooms
 - User presence indicators
@@ -610,6 +610,6 @@ See [examples/chat-websocket-auth/](../../examples/chat-websocket-auth/) for a c
 
 - [Basic WebSocket Guide](websockets.md) - Learn the basics first
 - [Security Best Practices](security.md#websocket-authentication) - Authentication patterns
-- [Real-Time ORM Sync](websockets.md#real-time-orm-sync) - Reactive models
-- [Examples](../../examples/) - Production code samples
+- [Real-Time ORM Sync](websockets.md#reactive-orm-automating-the-ui) - Reactive models
+- [Production Examples](../getting-started/learning-path.md) - Sample code flows
 

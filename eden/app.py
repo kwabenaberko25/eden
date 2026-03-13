@@ -27,6 +27,7 @@ if TYPE_CHECKING:
 
 import os
 import asyncio
+import uvicorn
 from eden.exceptions import EdenException
 from eden.middleware import get_middleware_class
 from eden.requests import Request

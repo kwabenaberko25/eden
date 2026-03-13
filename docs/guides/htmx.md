@@ -1,122 +1,164 @@
 # HTMX Integration 🎯
 
-HTMX enables interactive web pages without writing JavaScript. It lets you access AJAX, WebSockets, and more directly in HTML.
+Eden treats HTMX as a first-class citizen. Rather than just returning strings, Eden provides a unified **Fragment-Based Workflow** that allows you to keep your frontend logic in your templates while giving the backend surgical control over the UI.
 
 ## Getting Started
 
-Include HTMX in your template:
+Eden includes HTMX by default in its recommended setup. If you're building a custom layout, use the `@eden_head` directive:
 
 ```html
-<script src=\"https://unpkg.com/htmx.org@1.9.10\"></script>
+<head>
+    @eden_head
+</head>
 ```
 
-## Basic Usage
-
-### Load Content on Click
+Or manually:
 
 ```html
-<!-- Click loads /api/notifications and inserts into #notifications -->
-<div id=\"notifications\">
-    Loading...
-</div>
+<script src="{{ htmx_version | eden_scripts }}"></script>
+```
 
-<button hx-get=\"/api/notifications\" hx-target=\"#notifications\">
-    Load Notifications
+## The "Killer" Workflow: Auto-Fragment Detection
+
+In most frameworks, you have to create separate "partial" templates for HTMX requests. In Eden, you just mark regions with `@fragment`.
+
+### 1. Define fragments in your main template
+
+```html
+<!-- page.html -->
+@extends("layouts/app")
+
+@section("content")
+    <h1>Dashboard</h1>
+
+    <div id="stats-panel">
+        @fragment("stats") {
+            <div class="grid grid-cols-3 gap-4">
+                <div class="stat">Users: {{ user_count }}</div>
+                <div class="stat">Revenue: {{ revenue | money }}</div>
+            </div>
+        }
+    </div>
+
+    <button hx-get="@url('dashboard:refresh_stats')" hx-target="#stats-panel">
+        Refresh Stats
+    </button>
+@endsection
+```
+
+### 2. Return the full template in your route
+
+Eden detects the `HX-Target` header automatically. If the target matches a fragment name, **only that fragment is rendered**.
+
+```python
+@app.get("/refresh-stats", name="dashboard:refresh_stats")
+async def refresh_stats(request):
+    # No need to check for HTMX or load a partial
+    # Eden sees HX-Target="stats" and renders ONLY the @fragment("stats") block
+    return request.render("page.html", {
+        "user_count": await User.count(),
+        "revenue": 1250.50
+    })
+```
+
+> [!TIP]
+> This pattern keeps your project clean. No more `_partial.html` files polluting your directories. Just surgical updates from within your main templates.
+
+## Fluent Response API: `HtmxResponse`
+
+For advanced control, use `eden.htmx.HtmxResponse`. It provides a fluent, chainable API for setting HTMX headers.
+
+```python
+from eden.htmx import HtmxResponse
+
+@app.post("/tasks/create")
+async def create_task(request):
+    task = await Task.create(**await request.form())
+    
+    return HtmxResponse("@fragment('task_row')", {"task": task}) \
+        .trigger("taskCreated", {"id": task.id}) \
+        .push_url("/tasks") \
+        .retarget("#task-list") \
+        .swap("beforeend")
+```
+
+### Chainable Methods
+
+| Method | Header | Description |
+| :--- | :--- | :--- |
+| `.trigger(event, detail=None)` | `HX-Trigger` | Fire a client-side event. |
+| `.trigger_after_settle(event, detail=None)` | `HX-Trigger-After-Settle` | Fire event after settle. |
+| `.trigger_after_swap(event, detail=None)` | `HX-Trigger-After-Swap` | Fire event after swap. |
+| `.hx_redirect(url)` | `HX-Redirect` | Force a client-side redirect. |
+| `.refresh()` | `HX-Refresh` | Force a full page reload. |
+| `.retarget(selector)` | `HX-Retarget` | Redirect the swap target to a different element. |
+| `.swap(strategy)` | `HX-Reswap` | Override the `hx-swap` strategy. |
+| `.push_url(url)` | `HX-Push-Url` | Update the browser's URL bar. |
+| `.reselect(selector)` | `HX-Reselect` | Pick a specific element from the response HTML. |
+
+## Request Introspection
+
+Use the `is_htmx` helper to handle conditional logic in your backend logic.
+
+```python
+from eden.htmx import is_htmx, hx_target
+
+@app.get("/profile")
+async def profile(request):
+    user = request.user
+    if is_htmx(request) and hx_target(request) == "bio":
+        return f"<p>{user.bio}</p>"
+    
+    return request.render("profile.html")
+```
+
+## Template Filters
+
+Eden provides filters to safely pass Python data to HTMX attributes.
+
+### `hx_vals` and `hx_headers`
+Automatically serializes dictionaries to JSON for HTMX attributes.
+
+```html
+<button hx-post="/update" 
+        hx-vals="{{ {'id': item.id, 'status': 'active'} | hx_vals }}">
+    Update
 </button>
 ```
 
-### Form Submission
+## Advanced Patterns
+
+### Inline Form Validation
+Use `@fragment` to return validated fields without refreshing the whole form.
 
 ```html
-<!-- Submit form via AJAX -->
-<form hx-post=\"/users\" hx-validate>
-    <input name=\"email\" type=\"email\" required>
-    <input name=\"name\" type=\"text\" required>
-    <button type=\"submit\">Create User</button>
+<form hx-post="/signup">
+    <div id="email-field">
+        @fragment("email_input") {
+            <input name="email" hx-post="/validate-email" hx-target="#email-field">
+            @error("email") { <span class="text-red-500">{{ message }}</span> }
+        }
+    </div>
 </form>
 ```
 
-## Eden Integration
+### Multi-Target Updates (Out-of-Band)
+Return multiple snippets in one response for complex UI updates.
 
 ```python
-@app.get(\"/api/notifications\")
-async def get_notifications(request):
-    \"\"\"Return HTML snippet for HTMX.\"\"\"
-    notifications = await Notification.filter(
-        user_id=request.user.id,
-        read=False
-    ).all()
-    
-    html = \"<ul>\"
-    for notif in notifications:
-        html += f\"<li>{notif.message}</li>\"
-    html += \"</ul>\"
-    
-    return html  # HTMX will insert this directly
-
-@app.post(\"/users\")
-async def create_user(request):
-    \"\"\"Handle HTMX form submission.\"\"\"
-    data = await request.form()
-    
-    try:
-        user = await User.create(
-            email=data[\"email\"],
-            name=data[\"name\"]
-        )
-        # Return success HTML snippet
-        return f\"<p>User {user.name} created!</p>\"
-    except ValidationError as e:
-        # Return error HTML
-        return f\"<p class='error'>{e}</p>\", 400
-```
-
-## Advanced Features
-
-### Pagination with HTMX
-
-```html
-<div id=\"posts\">
-    <!-- Initial page of posts loaded here -->
-</div>
-
-<button 
-    hx-get=\"/posts?page=2\" 
-    hx-target=\"#posts\" 
-    hx-swap=\"beforeend\"
-    hx-trigger=\"revealed\"
-    >
-    Load More
-</button>
-```
-
-### Real-Time Updates with WebSockets
-
-```python
-# Combine HTMX with WebSocket for real-time updates
-@app.websocket(\"/ws/live-feed\")
-async def live_feed(websocket):
-    await websocket.accept()
-    
-    while True:
-        new_posts = await Post.filter(created_at__gt=time.time() - 5).all()
-        
-        html = \"\"
-        for post in new_posts:
-            html += f\"\"\"
-            <div class='post'>
-                <h3>{post.title}</h3>
-                <p>{post.content}</p>
-            </div>
-            \"\"\"
-        
-        await websocket.send_html(html)
+@app.post("/cart/add")
+async def add_to_cart(request):
+    # logic ...
+    return """
+    <div id="cart-count" hx-swap-oob="true">5 items</div>
+    <div id="notification">Item added!</div>
+    """
 ```
 
 ## Best Practices
 
-- ✅ Return HTML snippets from your routes
-- ✅ Use CSRF tokens with POST/PUT/DELETE requests
-- ✅ Handle validation errors gracefully
-- ✅ Test with different network conditions
-- ✅ Provide fallbacks for users without JavaScript
+- ✅ **Use Fragments**: Lean on `@fragment` instead of separate partial files.
+- ✅ **Named Routes**: Always use `@url()` for `hx-get` and `hx-post` paths.
+- ✅ **Loading States**: Use the `htmx-request` class to show premium spinner components automatically.
+- ✅ **OOB for Side Effects**: Use Out-of-Band swaps for updating global UI elements like cart counts or notification bells.
+- ✅ **Fluent API**: Prefer `HtmxResponse` over manually setting headers.

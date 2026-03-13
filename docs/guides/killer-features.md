@@ -23,10 +23,6 @@ from pydantic import BaseModel
 from eden import Model, f, Mapped, select, func, Request, json, Schema, v
 ```
 
-### Why it's useful:
-- **Intelligent Context**: When you import `f` (the field helper) from `eden`, it knows about both your database schema AND how that field should look in a form or an API.
-- **Zero-Boilerplate**: Common types like `Request`, `json` responses, and `select` queries are always one import away.
-
 ---
 
 ## ⚡ 2. Native Real-time Sync (Reactive ORM)
@@ -45,136 +41,99 @@ class Notification(Model):
     is_read: Mapped[bool] = f(default=False)
 ```
 
-### Usage Examples:
-**1. Live Progress Bars:**
-Update a `Project` model in a background task, and the progress bar on the dashboard updates automatically.
+---
 
-**2. Collaborative Dashboards:**
+## ⚙️ 3. Background Task Orchestration (Taskiq)
+
+Eden abstracts away the complexity of distributed task queues. With the `EdenBroker`, you can run one-shot or periodic tasks with standard Python decorators.
+
+```python
+@app.task.every(hours=1)
+async def send_daily_digest():
+    """Eden handles the cron/scheduling automatically."""
+    ...
+```
+
+---
+
+## 🎯 4. Fragment-Based HTMX Workflow
+
+Eden's templating engine is uniquely aware of HTMX. You can mark specific regions of your template and have Eden render **only those regions** during an AJAX request, without creating separate partial files.
+
 ```html
-<div hx-sync="notifications" 
-     hx-trigger="notifications:created" 
-     hx-get="/notifications/list" 
-     hx-target="#notif-bell">
-    <!-- This bell icon updates in real-time for ALL users -->
-    <i class="fas fa-bell"></i>
+<div id="stats">
+    @fragment("stats_grid") {
+        <div class="stat">...</div>
+    }
 </div>
 ```
 
-> [!TIP]
-> **Pro Tip**: You can also broadcast manually from your code using `from eden import manager; await manager.broadcast("my-channel", {"data": "..."})`.
-
 ---
 
-## 🤖 3. Agentic AI & Vector Mastery
+## 🎪 The "Killer" Synergy: The AI Video Processor Loop
 
-Eden is built for the era of AI. We provide native support for **Vector Embeddings**, enabling you to build semantic search and RAG systems with ease.
+The true power of Eden is how these features work together. Let's look at a "Killer" scenario: An AI-powered video processing pipeline.
 
-### The `VectorModel`
-By inheriting from `VectorModel`, your objects become searchable by "meaning," not just keywords. This enables Retrieval-Augmented Generation (RAG) and semantic search without leaving the framework.
-
-```python
-from eden.db.ai import VectorModel, VectorField
-from eden import f, Mapped
-
-class Insight(VectorModel):
-    text: Mapped[str] = f()
-    # High-dimensional vector support (e.g., OpenAI text-embedding-3-small)
-    vector: Mapped[list[float]] = VectorField(dimensions=1536)
-
-# Semantic Retrieval
-async def get_related_insights(query_embedding):
-    # Built-in cosine similarity search using pgvector
-    return await Insight.semantic_search(query_embedding, limit=10)
-```
-
-**Prerequisites**: Requires PostgreSQL with pgvector extension. Install via:
-```bash
-pip install eden-framework[ai]
-```
-
-**Under the Hood**: VectorModel uses PostgreSQL's pgvector extension for fast, accurate cosine distance calculations at scale.
-
----
-
-## 🧩 4. Full-Stack Component Architecture
-
-Eden Components are self-contained logic and UI units. They bridge the gap between backend server-side rendering and frontend interactivity.
-
-### Component Actions (`@action`)
-Marking a method with `@action` makes it a public endpoint that the component can call itself.
+### 1. The Route (HTTP)
+The user submits a video. We save it to the DB and kick off a background task.
 
 ```python
-from eden import Component, action, hx
-
-class LikeButton(Component):
-    post_id: int
-    likes: int = 0
-
-    @action
-    async def toggle_like(self, request, **state):
-        # Business logic directly in the component
-        self.likes += 1
-        return self.render() # Re-render just the button
-
-    def template(self):
-        return """
-        <button hx-post="{{ action_url('toggle_like') }}" 
-                hx-target="this" 
-                hx-swap="outerHTML">
-            ❤️ {{ likes }} Likes
-        </button>
-        """
+@app.post("/videos/process")
+async def process(request):
+    data = await request.form()
+    video = await Video.create(title=data["title"], status="processing")
+    
+    # Defer to background worker
+    await app.task.defer(ai_process_video, video.id, request.user.id)
+    
+    return request.render("video_details.html", {"video": video})
 ```
 
-### Why this is a Killer Feature:
-- **Encapsulation**: Your JavaScript (via HTMX), CSS, and Python logic are all in one class.
-- **Dynamic Routing**: No need to register a route for every button click. Eden handles the dispatching automatically via the `/_components/` internal router.
-
----
-
-## 📝 5. Smart Form Schemas (UI-Aware)
-
-We've evolved beyond basic Pydantic validation. Eden Schemas understand **intent**.
-
-### The `field()` (or `v()`) Helper
-The `field` function allows you to define validation and UI metadata in a single place.
+### 2. The Worker (Background Task)
+The worker does the heavy AI lifting and then signals the frontend.
 
 ```python
-from eden.forms import Schema, v, EmailStr
-
-class ProfileUpdateSchema(Schema):
-    full_name: str = v(min_length=3, label="Full Name", placeholder="John Doe")
-    email: EmailStr = v(widget="email", help_text="We'll never share your email.")
-    bio: str = v(widget="textarea", max_length=500)
-
-# Rendering in a template
-# {{ form.full_name }} -> Renders a themed, validated input with label & placeholder
+@app.task()
+async def ai_process_video(video_id: int, user_id: int):
+    # Perform expensive AI processing...
+    video = await Video.get(id=video_id)
+    video.status = "ready"
+    video.ai_tags = ["epic", "cinematic"]
+    await video.save() # Triggers Reactive ORM broadcast!
 ```
 
----
+### 3. The UI (WebSocket + HTMX)
+The frontend listens for the model update and refreshes the status surgically using `@fragment`.
 
-## 🛣️ 6. Named Routes & Dynamic URLs
-
-Stop hardcoding `/auth/login`. Use Eden's robust routing aliases.
-
-```python
-# In your router
-router = Router(name="app")
-@router.get("/profile/{username}", name="user_profile")
-async def profile(request, username): ...
-
-# In your template
-# <a href="@url('app:user_profile', username='cobby')">My Profile</a>
+```html
+<!-- video_details.html -->
+<div hx-ext="ws" ws-connect="/ws/updates">
+    <h1>{{ video.title }}</h1>
+    
+    <div id="video-status" 
+         hx-get="@url('video:details', id=video.id)" 
+         hx-trigger="videos:updated from:body">
+         @fragment("status_badge") {
+            <span class="badge {{ video.status }}">
+                {{ video.status | title_case }}
+            </span>
+         }
+    </div>
+</div>
 ```
 
-### Benefits:
-- **Refactor-Friendly**: Change the URL path in Python, and all your links update automatically.
-- **Namespaced**: Keep your "auth" routes separate from your "admin" routes with ease.
+### Why this is a "Killer" Scenario:
+1.  **Reactive ORM**: `video.save()` automatically sent the `videos:updated` event.
+2.  **WebSockets**: The `ws-connect` bridge carried that event to the browser.
+3.  **HTMX**: The `hx-trigger` matched the event and requested a refresh.
+4.  **Auto-Fragments**: Eden's `TemplateResponse` saw `HX-Target="video-status"` and rendered **only** the `status_badge` fragment.
+
+**Total JavaScript written: 0 lines.**
 
 ---
 
 > [!IMPORTANT]
-> **Summary of Philosophies**:
-> 1. **Convention over Configuration**: Real-time sync, component dispatching, and form rendering "move out of your way."
-> 2. **Aesthetics by Default**: Everything rendered by Eden uses the Premium Design Tokens.
-> 3. **Consolidated Power**: One single import `from eden import *` gives you the keys to the kingdom.
+> **Eden Philosophy**:
+> - **convention over complexity**: Real-time sync and fragments should be defaults, not "add-ons."
+> - **Unified API**: One framework, one import, one language.
+> - **Premium by Default**: Every component and interaction feels high-end out of the box.

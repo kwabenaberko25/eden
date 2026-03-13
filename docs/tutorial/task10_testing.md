@@ -324,23 +324,11 @@ You've built a production-ready Eden application with:
 - ✅ Automated testing
 
 **Next Steps**:
-- Explore the [Full Guide Documentation](../guides/) for advanced patterns
+- Explore the [Core Concepts](../guides/routing.md) for advanced patterns
 - Join the [Eden Community](https://discord.gg/eden) for support
 - Share your project and get feedback!
 
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.11"
-      
-      - name: Install dependencies
-        run: |
-          pip install -r requirements.txt
-          pip install pytest pytest-asyncio
-          
-      - name: Execute Pytest
-        run: pytest
-```
+
 
 ---
 
@@ -350,8 +338,8 @@ You have successfully built, secured, and prepared an Eden application for the w
 
 ### What's Next?
 
-1. Explore the **[API Docs](/docs)** for deep-dives into each module.
+1. Explore the **[API Docs](../index.md)** for deep-dives into each module.
 2. Join the **[Discord Community](https://discord.gg/eden-framework)**.
-3. Check out the **[Cookbook](/cookbooks)** for advanced SaaS patterns.
+3. Check out the **[Advanced Guides](../guides/htmx.md)** for advanced SaaS patterns.
 
 🌿 **Grow your vision with Eden.**

@@ -1,230 +1,117 @@
-# WebSockets 🔌
+# WebSockets & Real-Time 🔌
 
-Eden provides native support for WebSockets, allowing you to build real-time, reactive applications with ease. For the best experience, we recommend using the **Native Real-time Sync** layer, but you can also manage raw sockets manually.
+Eden provides a high-level, event-driven WebSocket system that makes real-time communication as simple as standard HTTP routing. By combining the `WebSocketRouter` with Eden's **Reactive ORM**, you can build live-updating dashboards and chat systems with almost zero boilerplate.
 
-## Basic Usage
+## The Event-Driven Router: `WebSocketRouter`
 
-You can handle WebSocket connections using the `@app.websocket()` decorator.
-
-```python
-@app.websocket("/ws")
-async def websocket_endpoint(websocket):
-    await websocket.accept()
-    while True:
-        data = await websocket.receive_text()
-        await websocket.send_text(f"Message received: {data}")
-```
-
-## Connection Management
-
-The `websocket` object provides several methods for managing the connection lifecycle.
-
-| Method | Description |
-| :--- | :--- |
-| `accept()` | Accepts the incoming connection. |
-| `receive_text()` | Receives a string from the client. |
-| `receive_json()` | Receives and parses JSON from the client. |
-| `send_text(data)` | Sends a string to the client. |
-| `send_json(data)` | Sends a dictionary as JSON to the client. |
-| `close(code)` | Closes the connection with an optional status code. |
-
----
-
-## Real-Time ORM Sync
-
-Eden provides automatic real-time synchronization for models marked with `__reactive__ = True`. When data changes in the database, connected WebSocket clients are notified instantly:
-
-```python
-from eden import Model
-
-class Task(Model):
-    __reactive__ = True  # Enable real-time sync
-    title: str
-    completed: bool
-
-# When any client updates a task:
-@app.post("/tasks/{task_id}/complete")
-async def complete_task(task_id: int):
-    task = await Task.get(task_id)
-    task.completed = True
-    await task.save()  # Automatically notifies all connected clients
-    return {"completed": True}
-
-# All connected WebSocket clients receive the update
-@app.websocket("/ws/tasks")
-async def tasks_sync(websocket):
-    await websocket.accept()
-    
-    # Subscribe to task updates
-    async for update in Task.__reactive__.subscribe():
-        await websocket.send_json({
-            "type": "task_updated",
-            "task": update.to_dict()
-        })
-```
-
----
-
-## Handling Disconnects
-
-It's important to handle disconnections gracefully to avoid leaking resources.
-
-```python
-from starlette.websockets import WebSocketDisconnect
-
-@app.websocket("/chat")
-async def chat_endpoint(websocket):
-    await websocket.accept()
-    try:
-        while True:
-            msg = await websocket.receive_text()
-            ...
-    except WebSocketDisconnect:
-        print("Client left the chat.")
-```
-
----
-
-## Real-Time Auth 🔐
-
-WebSockets in Eden have access to the same `request.user` context as HTTP routes, provided the authentication middleware is enabled.
-
-```python
-@app.websocket("/ws")
-async def secure_socket(websocket):
-    await websocket.accept()
-    user = websocket.scope.get("user")
-    if not user or not user.is_authenticated:
-        await websocket.close(code=1008)
-        return
-    ...
-```
-
-### Advanced Authentication
-
-For production applications requiring user authentication, connection state recovery, and message handlers, see the [WebSocket Authentication & State Management](websocket-auth.md) guide. It covers token-based auth, cookie-based auth, maintaining session state, and production patterns like heartbeats and reconnection handling.
-
----
-
-## WebSocket Router 📡
-
-For complex applications, use the `WebSocketRouter` to organize events and rooms.
+For production applications, we recommend using the `WebSocketRouter`. It allows you to organize your real-time logic into specialized event handlers.
 
 ```python
 from eden.websocket import WebSocketRouter
 
-ws = WebSocketRouter(prefix="/chat")
+# Initialize router with a prefix
+chat_ws = WebSocketRouter(prefix="/ws/chat")
 
-@ws.on_connect
+@chat_ws.on_connect
 async def on_connect(socket, manager):
-    await manager.broadcast({"event": "join", "user": "Someone joined!"})
+    """Called when any client connects."""
+    # manager is the room-aware ConnectionManager
+    await manager.broadcast({"event": "sys", "msg": "A user joined"}, room="lobby")
 
-@ws.on("message")
-async def handle_message(socket, data, manager):
-    # 'data' is automatically parsed from JSON
-    await manager.broadcast({"event": "message", "text": data["text"]})
+@chat_ws.on("chat_message")
+async def handle_chat(socket, data, manager):
+    """
+    Handle the 'chat_message' event.
+    'data' is automatically parsed from the incoming JSON.
+    """
+    room = data.get("room", "lobby")
+    await manager.broadcast({
+        "event": "chat_message",
+        "user": socket.user.name,
+        "text": data["text"]
+    }, room=room)
 
-# Mount the router
-ws.mount(app)
+# Mount the router to your Eden app
+chat_ws.mount(app)
 ```
 
+### Protocol & Message Format
+The `WebSocketRouter` expects JSON messages with an `event` key. If no `event` key is found, it defaults to the `"message"` event.
 
----
+```json
+{
+  "event": "chat_message",
+  "text": "Hello Eden!",
+  "room": "lobby"
+}
+```
 
----
+## Room Management: `ConnectionManager`
 
-## 🔄 Real-Time ORM Sync
+The `manager` instance provided to your handlers is a powerful tool for targeting specific groups of users.
 
-Eden's **Reactive Layer** automatically broadcasts database events to connected WebSocket clients. This allows for zero-configuration real-time updates.
+| Method | Description |
+| :--- | :--- |
+| `broadcast(message, room="default")` | Sends to everyone in the specified room. |
+| `send_to(socket, message)` | Sends to a specific individual connection. |
+| `count(room="default")` | Returns the number of active users in a room. |
+| `rooms` | A property returning all active room names. |
 
-### 1. Making a Model Reactive
+## 🔄 Reactive ORM: Automating the UI
 
-Just set `__reactive__ = True` on your model. Eden handles the rest.
+Eden's "Killer" real-time feature is its **Reactive Layer**. When a model is marked as reactive, Eden automatically broadcasts changes to a dedicated WebSocket channel.
 
+### 1. Enable Reactivity
 ```python
 class Task(Model):
-    __reactive__ = True
-    title: Mapped[str] = f()
-    is_completed: Mapped[bool] = f(default=False)
+    __reactive__ = True  # Automatically triggers broadcasts on save/delete
+    title: str
+    is_done: bool = False
 ```
 
-### 2. Listening for Updates in Templates
+### 2. Frontend Integration (HTMX + WebSockets)
+Eden ships with a custom HTMX extension to handle these model broadcasts without you writing a single line of JS.
 
-Use the `hx-sync` attribute (via our HTMX integration) to listen for specific model updates.
-
-#### Way 1: Reload a List
 ```html
-<div hx-sync="tasks" 
-     hx-trigger="tasks:created, tasks:deleted" 
-     hx-get="/tasks/list" 
-     hx-target="#task-container">
-    <div id="task-container">...</div>
-</div>
-```
-
-#### Way 2: Single Item Update
-```html
-<div id="task-@span(task.id)" 
-     hx-sync="tasks:@span(task.id)" 
-     hx-trigger="tasks:updated" 
-     hx-get="/tasks/@span(task.id)">
-    @span(task.title)
-</div>
-```
-
-### 3. Manual Broadcasting
-
-For custom events that aren't tied directly to a model save:
-
-```python
-from eden import manager
-
-async def notify_all():
-    await manager.broadcast("global-alerts", {"message": "System Maintenance!"})
-```
-
----
-
-## 🏫 Real-World Scenario: Live Attendance Tracker
-
-In a School Management System, you might want a "Live Attendance" dashboard that updates instantly as students tap their ID cards.
-
-### 1. The Model
-```python
-class Attendance(Model):
-    __reactive__ = True  # Enable real-time broadcasting
-    student_name: Mapped[str] = f()
-    timestamp: Mapped[datetime] = f(default=datetime.now)
-```
-
-### 2. The Teacher's View
-```html
-<div class="eden-card p-6">
-    <h3 class="premium-heading">Live Attendance Feed</h3>
-    
-    <div id="attendance-feed" 
-         hx-sync="attendance" 
-         hx-trigger="attendance:created" 
-         hx-get="/attendance/latest-list" 
-         hx-swap="afterbegin">
-        <!-- New items will appear at the top automatically -->
+<div hx-ext="ws" ws-connect="/ws/tasks/updates">
+    <div id="task-list" 
+         hx-get="/tasks/fragment" 
+         hx-trigger="tasks:updated, tasks:created from:body">
+        @include("partials/tasks")
     </div>
 </div>
 ```
 
-### 3. The Backend Logic (When a student taps)
+> [!NOTE]
+> When `Task.save()` is called in the backend, Eden broadcasts a `tasks:updated` event. The HTMX extension captures this and triggers the `hx-get` to refresh the list surgically.
+
+## Security & Persistence 🔐
+
+### Authentication
+Eden's `WebSocketRouter` automatically integrates with your `SessionMiddleware`. The `socket` object in your handlers has a `.user` attribute populated if the user is logged in.
+
 ```python
-@app.post("/api/tap")
-async def record_tap(request):
-    data = await request.json()
-    # Saving the model automatically triggers the WebSocket broadcast
-    await Attendance.create(student_name=data['name'])
-    return {"status": "ok"}
+@ws.on_connect
+async def secure_connect(socket, manager):
+    if not socket.user.is_authenticated:
+        await socket.close(code=1008)  # Policy Violation
+        return
 ```
 
----
+### Multi-Tenancy
+When using Eden's built-in Multi-Tenancy, you should always include the `tenant_id` in your room names to ensure isolation.
 
-> [!TIP]
-> **Performance**: Native Sync is extremely efficient and uses Redis or an in-memory bus to keep overhead minimal even with thousands of concurrent updates.
+```python
+@ws.on("message")
+async def handle_tenant_msg(socket, data, manager):
+    # Isolated by tenant_id
+    room = f"tenant_{socket.user.tenant_id}_chat"
+    await manager.broadcast(data, room=room)
+```
 
-**Next Steps**: [Exception Handling](exceptions.md)
+## Best Practices
+
+- ✅ **Use Rooms**: Never broadcast globally if you can target a specific room.
+- ✅ **JSON Always**: Stick to JSON for your WebSocket protocol to leverage automatic parsing.
+- ✅ **Graceful Handling**: The `WebSocketRouter` handles `WebSocketDisconnect` automatically, but you can use `@ws.on_disconnect` for cleanup (e.g., status updates).
+- ✅ **Reactive synergy**: Use the ORM's `__reactive__` flag for state synchronization rather than manual broadcasting where possible.

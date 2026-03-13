@@ -66,13 +66,18 @@ class Component:
     def get_state(self) -> dict[str, Any]:
         """
         Returns the serializable state of the component.
-        Excludes framework-injected objects like 'request', 'component', 'slots', etc.
+        Excludes everything by default unless it's a simple type (str, int, bool, float, list, dict).
+        Also excludes internal framework attributes.
         """
         exclude = {"request", "component", "slots", "action_url", "component_attrs"}
-        return {
-            k: v for k, v in self.__dict__.items()
-            if not k.startswith("_") and k not in exclude
-        }
+        state = {}
+        for k, v in self.__dict__.items():
+            if k.startswith("_") or k in exclude:
+                continue
+            # Only include basic serializable types
+            if isinstance(v, (str, int, bool, float, list, dict, type(None))):
+                state[k] = v
+        return state
 
 
     def get_hx_attrs(self) -> Markup:
@@ -328,27 +333,61 @@ async def component_dispatcher(request: Any) -> Any:
     
     comp_cls, method_name = match
     
-    # Extract params
-    state = {}
+    # Extract raw params
+    raw_state = {}
     if request.method == "POST":
         try:
             form_data = await request.form()
-            state.update(dict(form_data))
+            raw_state.update({k: v for k, v in form_data.items()})
         except Exception:
             pass
-    state.update(dict(request.query_params))
+    raw_state.update({k: v for k, v in request.query_params.items()})
     
     # Instantiate and call
-    inst = comp_cls(**state)
+    # We first instantiate to get the method and inspect its signature
+    inst = comp_cls(**raw_state)
     method = getattr(inst, method_name)
+    
+    # Cast types based on signature hints
+    sig = inspect.signature(method)
+    casted_params = {}
+    
+    # Always pass request if it's in the signature
+    if "request" in sig.parameters:
+        casted_params["request"] = request
+
+    for name, param in sig.parameters.items():
+        if name == "request":
+            continue
+            
+        if name in raw_state:
+            val = raw_state[name]
+            # Try to cast if annotation is present
+            if param.annotation is int:
+                try: val = int(val)
+                except (ValueError, TypeError): pass
+            elif param.annotation is bool:
+                val = str(val).lower() in ("true", "1", "yes", "on")
+            elif param.annotation is float:
+                try: val = float(val)
+                except (ValueError, TypeError): pass
+                
+            casted_params[name] = val
+    
+    # Filter out internal params from state if they don't match signature
+    # (they are already in 'inst' but we only pass relevant ones to method)
     
     try:
         if inspect.iscoroutinefunction(method):
-            result = await method(request, **state)
+            result = await method(**casted_params)
         else:
-            result = method(request, **state)
+            result = method(**casted_params)
     except TypeError as e:
-        raise
+        # Fallback for methods that don't take specific params or take **kwargs
+        if inspect.iscoroutinefunction(method):
+            result = await method(request) if "request" in sig.parameters else await method()
+        else:
+            result = method(request) if "request" in sig.parameters else method()
         
     if isinstance(result, (str, Markup)):
         return HtmlResponse(str(result))

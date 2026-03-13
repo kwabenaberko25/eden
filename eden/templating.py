@@ -14,13 +14,31 @@ from starlette.background import BackgroundTask
 from starlette.responses import HTMLResponse
 from starlette.templating import Jinja2Templates as StarletteJinja2Templates
 from eden.responses import HtmlResponse
+# Default styles for the @dump directive
+DEFAULT_DUMP_STYLE = (
+    "eden-dump p-4 bg-gray-950 text-gray-300 rounded-lg overflow-auto "
+    "text-xs font-mono border border-gray-800 my-4"
+)
 
 
 class EdenDirectivesExtension(Extension):
     """
     Jinja2 extension that pre-processes Eden's modern syntax (@if, @for, etc.)
+    Ensures that directives are not replaced within strings or comments.
     """
     def preprocess(self, source: str, name: str | None, filename: str | None = None) -> str:
+        # 0. Protection: Extract strings and comments to avoid accidental replacement
+        protected_blocks = []
+        def _protect(match):
+            placeholder = f"__EDEN_PROTECTED_{len(protected_blocks)}__"
+            protected_blocks.append(match.group(0))
+            return placeholder
+
+        # Protect HTML comments
+        source = re.sub(r'<!--.*?-->', _protect, source, flags=re.DOTALL)
+        # Protect single and double quoted strings (carefully)
+        source = re.sub(r'\'[^\']*\'|"[^"]*"', _protect, source)
+
         def _preserve_lines(match_str: str, replacement: str) -> str:
             """Ensure replacement has same number of newlines as match_str."""
             original_lines = match_str.count('\n')
@@ -34,157 +52,84 @@ class EdenDirectivesExtension(Extension):
         source = re.sub(r'@eden_head', r'{{ eden_head() }}', source)
         source = re.sub(r'@eden_scripts', r'{{ eden_scripts() }}', source)
         
-        # yield and stack
+        # yield and stack fundamentals
         source = re.sub(r'@yield\s*\(\s*[\'"]?([^\'"\)]+?)[\'"]?\s*\)', r'{% block \1 %}{% endblock %}', source)
-        source = re.sub(r'@stack\s*\(\s*[\'"]?([^\'"\)]+?)[\'"]?\s*\)', r'{% block \1 %}{% endblock %}', source)
         source = re.sub(r'@render\s*\(\s*[\'"]?([^\'"\)]+?)[\'"]?\s*\)', r'{% block \1 %}{% endblock %}', source)
         source = re.sub(r'@show\s*\(\s*[\'"]?([^\'"\)]+?)[\'"]?\s*\)', r'{{ super() }}', source)
 
-        # Complex single-line replacements that might span lines if formatted weirdly
-        def _simple_replacer(m):
-            # Map of common simple replacements
-            text = m.group(0)
-            if text.startswith('@extends'):
-                res = f'{{% extends {m.group(1)} %}}'
-            elif text.startswith('@include'):
-                res = f'{{% include {m.group(1)} %}}'
-            elif text.startswith('@super'):
-                res = '{{ super() }}'
-            else:
-                res = text
-            return _preserve_lines(text, res)
+        # Basic Layout Helpers
+        source = re.sub(r'@extends\s*\(\s*([\'"].+?[\'"])\s*\)', r'{% extends \1 %}', source)
+        source = re.sub(r'@include\s*\(\s*([\'"].+?[\'"])\s*\)', r'{% include \1 %}', source)
+        source = re.sub(r'@super\s*\(\s*\)|@super(?![\w(])', r'{{ super() }}', source)
 
-        source = re.sub(r'@extends\s*\(\s*([\'"].+?[\'"])\s*\)', _simple_replacer, source)
-        source = re.sub(r'@include\s*\(\s*([\'"].+?[\'"])\s*\)', _simple_replacer, source)
-        source = re.sub(r'@super\s*\(\s*\)|@super(?![\w(])', _simple_replacer, source)
-
-        # CSRF and Method
+        # Form Helpers
         source = re.sub(r'@method\s*\(\s*[\'"](.+?)[\'"]\s*\)', r'<input type="hidden" name="_method" value="\1" />', source)
-
+        
         # Asset helpers
-        # @css("path") -> <link rel="stylesheet" href="{{ url_for('static', path='path') }}">
         source = re.sub(r'@css\s*\(\s*[\'"](.+?)[\'"]\s*\)', r'<link rel="stylesheet" href="{{ url_for("static", path="\1") }}" />', source)
-        # @js("path") -> <script src="{{ url_for('static', path='path') }}"></script>
         source = re.sub(r'@js\s*\(\s*[\'"](.+?)[\'"]\s*\)', r'<script src="{{ url_for("static", path="\1") }}"></script>', source)
-        # @vite(["path1", "path2"]) -> {{ vite(["path1", "path2"]) }}
         source = re.sub(r'@vite\s*\(\s*((?:[^()]|\([^()]*\))*)\s*\)', r'{{ vite(\1) }}', source)
 
         # Value helpers
-        # @old("field", "default") -> {{ old("field", "default") }}
-        def _old_replacer(m):
-            field = m.group(1).replace("'", '"')
-            default = m.group(2) or '""'
-            return f'{{{{ old("{field}", {default}) }}}}'
-        source = re.sub(r'@old\s*\(\s*[\'"](.+?)[\'"]\s*(?:,\s*(.+?))?\s*\)', _old_replacer, source)
-        
-        
-        # @span(val)
-        def _span_replacer(m):
-            return f'{{{{ {m.group(1).replace("$", "")} }}}}'
-        # Handle one level of nested parentheses: @span(func(args))
-        source = re.sub(r'@span\s*\(((?:[^()]|\([^()]*\))*)\)', _span_replacer, source)
-        
-        # @json(val)
+        source = re.sub(r'@old\s*\(\s*[\'"](.+?)[\'"]\s*(?:,\s*(.+?))?\s*\)', 
+                        lambda m: f'{{{{ old("{m.group(1)}", {m.group(2) or "None"}) }}}}', source)
+        source = re.sub(r'@span\s*\(((?:[^()]|\([^()]*\))*)\)', lambda m: f'{{{{ {m.group(1).replace("$", "")} }}}}' if m.group(1) else "", source)
         source = re.sub(r'@json\s*\(((?:[^()]|\([^()]*\))*)\)', r'{{ \1 | json_encode }}', source)
-        # @dump(val)
-        source = re.sub(r'@dump\s*\(((?:[^()]|\([^()]*\))*)\)', r'<div class="eden-dump p-4 bg-gray-950 text-gray-300 rounded-lg overflow-auto text-xs font-mono border border-gray-800 my-4"><pre>{{ \1 | json_encode(indent=4) }}</pre></div>', source)
+        source = re.sub(r'@dump\s*\(((?:[^()]|\([^()]*\))*)\)', fr'<div class="{DEFAULT_DUMP_STYLE}"><pre>{{{{ \1 | json_encode(indent=4) }}}}</pre></div>', source)
+        source = re.sub(r'@status\s*\(\s*(\d+)\s*\)', r'{{ set_response_status(\1) }}', source)
 
         # Inline attribute directives
-        def _attr_replacer(m):
-            attr_dir = m.group(1)
-            cond = m.group(2)
-            res = f'{{% if {cond} %}}{attr_dir}{{% endif %}}'
-            return _preserve_lines(m.group(0), res)
+        source = re.sub(r'@(checked|selected|disabled|readonly)\s*\((.+?)\)', 
+                        lambda m: f'{{% if {m.group(2)} %}}{m.group(1)}{{% endif %}}', source)
 
-        source = re.sub(r'@(checked|selected|disabled|readonly)\s*\((.+?)\)', _attr_replacer, source)
+        # @props directive
+        def _props_replacer(m):
+            import ast
+            raw_props = m.group(1).strip()
+            try:
+                props_dict = ast.literal_eval(raw_props)
+                res_lines = []
+                for k, v in props_dict.items():
+                    jinja_val = _json.dumps(v)
+                    res_lines.append(f'{{% set {k} = {k} if {k} is defined else {jinja_val} %}}')
+                return "\n".join(res_lines)
+            except Exception:
+                return m.group(0)
+        source = re.sub(r'@props\s*\(\s*(\{.*?\})\s*\)', _props_replacer, source, flags=re.DOTALL)
 
-        # @render_field integration
-        def _render_field_replacer(m):
-            field_expr = m.group(1).strip()
-            raw_attrs = m.group(2)
-            if not raw_attrs:
-                res = f'{{{{ {field_expr}.render_composite() }}}}'
-            else:
-                pairs = re.findall(r'(\w[\w-]*)\s*=\s*"([^"]*)"', raw_attrs)
-                attr_args = []
-                for key, val in pairs:
-                    # In python kwargs, we use 'class_' or just pass as str if using **dict
-                    # But in Jinja call, field.render_composite(class="foo") works fine.
-                    attr_args.append(f'{key}="{val}"')
-                
-                res = f'{{{{ {field_expr}.render_composite({", ".join(attr_args)}) }}}}'
-            return _preserve_lines(m.group(0), res)
-
-        source = re.sub(r'@render_field\s*\(\s*((?:[^()]|\([^()]*\))*?)\s*(?:,\s*((?:[^()]|\([^()]*\))*))?\s*\)', _render_field_replacer, source)
-
-        # 2. Block transitions (@else, @elif, @empty)
-        # We must capture the whitespace/newlines to preserve them
-        def _transition_replacer(m):
-            text = m.group(0)
-            if '@else if' in text or '@elif' in text:
-                cond = m.group(1)
-                res = f'{{% elif {cond} %}}'
-            elif '@else' in text or '@empty' in text:
-                res = '{% else %}'
-            return _preserve_lines(text, res)
-
-        source = re.sub(r'\}\s*@else\s*if\s*\((.*?)\)\s*\{', _transition_replacer, source)
-        source = re.sub(r'\}\s*@else\s*\{', _transition_replacer, source)
-        source = re.sub(r'\}\s*@empty\s*\{', _transition_replacer, source)
-
-        # 3. Recursive Block Directives
+        # Recursive Block Directives
+        # Format: (name, pattern, open_tag_tmpl or callback, close_tag_name)
         directives = [
             ("if", r'@if\s*\((.*?)\)\s*\{', r'{% if \1 %}', "endif"),
             ("unless", r'@unless\s*\((.*?)\)\s*\{', r'{% if not (\1) %}', "endif"),
-            ("for", r'@(?:for|foreach)\s*\((.*?)\)\s*\{', r'{% for \1 %}', "endfor"),
-            ("switch", r'@switch\s*\((.*?)\)\s*\{', r'{% with __sw = \1 %}', "endwith"),
-            ("case", r'@case\s*\((.*?)\)\s*\{', r'{% if __sw == \1 %}', "endif"),
-            ("auth", r'@auth\s*\{', 
-             r'{% if request.user and request.user.is_authenticated %}', "endif"),
-            ("guest", r'@guest\s*\{', 
-             r'{% if not request.user or not request.user.is_authenticated %}', "endif"),
-            ("htmx", r'@htmx\s*\{', 
-             r'{% if request.headers.get("HX-Request") == "true" %}', "endif"),
-            ("non_htmx", r'@non_htmx\s*\{', 
-             r'{% if request.headers.get("HX-Request") != "true" %}', "endif"),
-            ("section", r'@(?:section|block)\s*\(\s*[\'"]?([^\'"\)]+?)[\'"]?\s*\)\s*\{', 
-             r'{% block \1 %}', "endblock"),
-            ("push", r'@push\s*\(\s*[\'"](.+?)[\'"]\s*\)\s*\{', 
-             r'{% block \1 %}{{ super() }}', "endblock"),
-            ("fragment", r'@fragment\s*\(\s*[\'"](.+?)[\'"]\s*\)\s*\{', 
-             r'{% block fragment_\1 %}', "endblock"),
-            ("even", r'@even\s*\{', r'{% if loop.index is even %}', "endif"),
-            ("odd", r'@odd\s*\{', r'{% if loop.index is odd %}', "endif"),
-            ("first", r'@first\s*\{', r'{% if loop.first %}', "endif"),
-            ("last", r'@last\s*\{', r'{% if loop.last %}', "endif"),
-            ("slot", r'@slot\s*\(\s*[\'"]([^\'"]+)[\'"]\s*\)\s*\{', 
-             r'{% slot "\1" %}', "endslot"),
-            ("component", r'@component\s*\(\s*[\'"]([^\'"]+)[\'"]\s*(?:,\s*(.+?))?\s*\)\s*\{', 
-             None, "endcomponent"),
-            ("error", r'@error\s*\(\s*[\'"]?([^\'"\)]+?)[\'"]?\s*\)\s*\{', 
-             r'{% if form and form.errors and "\1" in form.errors %}{% set message = form.errors["\1"] %}', "endif"),
-            ("messages", r'@messages\s*\{', 
-             r'{% for message in eden_messages() %}', "endfor"),
+            ("for", r'@(?:for|foreach)\s*\((.*?)\)\s*\{', None, "endfor"),
+            ("switch", r'@switch\s*\((.*?)\)\s*\{', None, "endwith"),
+            ("case", r'@case\s*\((.*?)\)\s*\{', r'__EDEN_CASE__(\1)__', "__EDEN_ENDCASE__"),
+            ("default", r'@default\s*\{', r'__EDEN_DEFAULT__', "__EDEN_ENDDEFAULT__"),
+            ("auth", r'@auth(?:\s*\((.*?)\))?\s*\{', None, "endif"),
+            ("guest", r'@guest\s*\{', r'{% if not (request.user and request.user.is_authenticated) %}', "endif"),
+            ("htmx", r'@htmx\s*\{', r'{% if request.headers.get("HX-Request") == "true" %}', "endif"),
+            ("fragment", r'@fragment\s*\("(.*?)"\)\s*\{', r'{% block fragment_\1 %}', "endblock"),
+            ("push", r'@push\s*\("(.*?)"\)\s*\{', r'{{ eden_push("\1", """', '""") }}'),
+            ("verbatim", r'@verbatim\s*\{', r'{% raw %}', "endraw"),
+            ("error", r'@error\s*\(\s*[\'"]?([^\'"\s\)]+?)[\'"]?\s*\)\s*\{', 
+             r'{% if errors and errors.has("\1") %}{% set error = errors.first("\1") %}', "endif"),
         ]
 
         def find_balancing_brace(text, start_pos):
             depth = 1
             for i in range(start_pos, len(text)):
-                if text[i] == '{':
-                    depth += 1
-                elif text[i] == '}':
+                if text[i] == '{': depth += 1
+                elif text[i] == '}': 
                     depth -= 1
-                    if depth == 0:
-                        return i
+                    if depth == 0: return i
             return -1
 
-        # Innermost-first replacement ensures nested components and blocks are handled correctly
         while True:
             best_match = None
             best_end = float('inf')
 
             for name, pattern, open_tmpl, close_tag in directives:
-                # Use re.DOTALL to ensure we match across newlines in the pattern itself
                 for match in re.finditer(pattern, source, re.DOTALL):
                     start_brace = match.end() - 1
                     end_brace = find_balancing_brace(source, start_brace + 1)
@@ -192,125 +137,79 @@ class EdenDirectivesExtension(Extension):
                         best_end = end_brace
                         best_match = (match, start_brace, end_brace, name, open_tmpl, close_tag)
 
-            if not best_match:
-                break
+            if not best_match: break
 
             match, start_brace, end_brace, name, open_tmpl, close_tag = best_match
-
-            # Build opening tag
-            if name == "component":
-                comp_name = match.group(1)
-                comp_kwargs = match.group(2) if match.group(2) else ""
-                open_tag = f'{{% component "{comp_name}"{", " + comp_kwargs if comp_kwargs else ""} %}}'
-            elif name == "for":
-                inner = match.group(1).strip()
-                # Handle '$' prefixes and 'as' keyword
-                inner = inner.replace('$', '')
+            body = source[start_brace+1 : end_brace]
+            
+            if name == "for":
+                inner = match.group(1).replace('$', '')
                 if ' as ' in inner:
                     parts = inner.split(' as ')
-                    if len(parts) == 2:
-                        inner = f"{parts[1].strip()} in {parts[0].strip()}"
+                    inner = f"{parts[1].strip()} in {parts[0].strip()}"
                 open_tag = f'{{% for {inner} %}}'
+            elif name == "switch":
+                # Convert markers inside body to exclusive if/elif
+                cases_replaced = 0
+                def _case_cb(cm):
+                    nonlocal cases_replaced
+                    res = f"{{% {'if' if cases_replaced == 0 else 'elif'} __sw == {cm.group(1)} %}}"
+                    cases_replaced += 1
+                    return res
+                body = re.sub(r'__EDEN_CASE__\((.*?)\)__', _case_cb, body)
+                body = body.replace('__EDEN_ENDCASE__', '').replace('__EDEN_DEFAULT__', '{% else %}').replace('__EDEN_ENDDEFAULT__', '')
+                if cases_replaced > 0: body += "{% endif %}"
+                open_tag = f'{{% with __sw = {match.group(1)} %}}'
+            elif name == "auth":
+                raw_args = match.group(1)
+                if raw_args:
+                    roles_list = [r.strip().strip("'\"").replace('$', '') for r in raw_args.split(',')]
+                    cond = f'request.user.role == "{roles_list[0]}"' if len(roles_list) == 1 else f'request.user.role in {roles_list}'
+                    open_tag = f'{{% if request.user and request.user.is_authenticated and {cond} %}}'
+                else:
+                    open_tag = '{% if request.user and request.user.is_authenticated %}'
             else:
                 open_tag = open_tmpl
                 for idx, g in enumerate(match.groups()):
-                    val = g.replace('$', '') if g else g
-                    open_tag = open_tag.replace(f'\\{idx+1}', val if val is not None else "")
+                    open_tag = open_tag.replace(f'\\{idx+1}', (g or "").replace('$', ''))
 
-            # Line preservation for opening tag
-            open_tag = _preserve_lines(match.group(0), open_tag)
+            # Apply replacement
+            source = source[:match.start()] + open_tag + body + (f"{{% {close_tag} %}}" if close_tag else "") + source[end_brace+1:]
 
-            close_tag_str = f"{{% {close_tag} %}}" if close_tag else ""
-            content = source[start_brace+1 : end_brace]
-
-            # Replace the block.
-            source = source[:match.start()] + open_tag + content + close_tag_str + source[end_brace+1:]
-
-        # Handle @let
-        def _let_replacer(m):
-            res = f'{{% set {m.group(1)} = {m.group(2)} %}}'
-            return _preserve_lines(m.group(0), res)
-
-        source = re.sub(r'@let\s*(.*?)\s*=\s*(.*?)\s*$', _let_replacer, source, flags=re.MULTILINE)
-
-        # ── @url() ────────────────────────────────────────────────────────────
-        # Normalize namespace:action  →  namespace_action  in the route name.
-        def _normalise_route(raw_name: str) -> str:
-            """'core:dashboard' → 'core_dashboard', 'dashboard' stays."""
-            return raw_name.replace(':', '_')
-
-        # Pattern shared by all @url variants:
-        #   @url('name')                     - bare
-        #   @url('ns:action')                - namespace shorthand
-        #   @url('name', key=val, ...)       - with kwargs
-        #   @url(...) as alias               - variable assignment
-        _url_re = re.compile(
-            r'@url\s*\(\s*[\'"]([^\'"]+)[\'"]\s*(?:,\s*([^)]+?))?\s*\)'
-            r'(?:\s+as\s+(\w+))?',
-            re.DOTALL,
-        )
-
+        # ── @url() & @active_link() ───────────────────────────────────────────
+        def _url_normalise(raw): return raw.replace(':', '_')
+        
         def _url_replacer(m):
-            raw_name = m.group(1)
-            kwargs   = m.group(2)  # may be None
-            alias    = m.group(3)  # may be None
-            
+            raw_name, kwargs, alias = m.group(1), m.group(2), m.group(3)
             if raw_name.startswith("component:"):
-                # Handle simplified @url("component:action-slug")
-                action_slug = raw_name.replace("component:", "")
-                # Map to the internal 'component:dispatch' route defined in get_component_router()
-                call_args = f'"component:dispatch", action_slug="{action_slug}"'
-                if kwargs:
-                    call_args += f', {kwargs.strip()}'
+                args = f'"component:dispatch", action_slug="{raw_name.split(":")[1]}"' + (f", {kwargs.strip()}" if kwargs else "")
             else:
-                # Standard normalized route name
-                norm_name = _normalise_route(raw_name)
-                call_args = f'"{norm_name}"' + (f', {kwargs.strip()}' if kwargs else '')
-                
-            if alias:
-                res = f'{{% set {alias} = url_for({call_args}) %}}'
-            else:
-                res = f'{{{{ url_for({call_args}) }}}}'
-            return _preserve_lines(m.group(0), res)
+                args = f'"{_url_normalise(raw_name)}"' + (f", {kwargs.strip()}" if kwargs else "")
+            res = f'{{% set {alias} = url_for({args}) %}}' if alias else f'{{{{ url_for({args}) }}}}'
+            return res
 
-        source = _url_re.sub(_url_replacer, source)
-
-        # ── @active_link('route_or_ns:action', 'css_class') ──────────────────
-        # Emits the css_class string when request.url.path matches the route.
-        # Works inline inside any HTML attribute value.
-        _active_re = re.compile(
-            r'@active_link\s*\(\s*(.+?)\s*,\s*[\'"]([^\'"]+)[\'"]\s*\)',
-            re.DOTALL,
-        )
+        source = re.sub(r'@url\s*\(\s*[\'"]([^\'"]+)[\'"]\s*(?:,\s*([^)]+?))?\s*\)(?:\s+as\s+(\w+))?', _url_replacer, source)
 
         def _active_replacer(m):
-            arg1 = m.group(1).strip()
-            css_cls = m.group(2)
-            
-            # Check if arg1 is a quoted string literal
-            m_quoted = re.match(r'^([\'"])(.*)\1$', arg1)
-            if m_quoted:
-                # It's a literal string - normalize it (e.g. 'auth:login' -> 'auth_login')
-                raw_name = _normalise_route(m_quoted.group(2))
-                res = f'{{{{ "{css_cls}" if is_active(request, "{raw_name}") else "" }}}}'
+            arg1, css = m.group(1).strip(), m.group(2)
+            if (arg1.startswith("'") or arg1.startswith('"')):
+                res = f'{{{{ "{css}" if is_active(request, "{_url_normalise(arg1[1:-1])}") else "" }}}}'
             else:
-                # It's an expression (e.g. link.name) - pass as-is
-                res = f'{{{{ "{css_cls}" if is_active(request, {arg1}) else "" }}}}'
-            
-            return _preserve_lines(m.group(0), res)
+                res = f'{{{{ "{css}" if is_active(request, {arg1}) else "" }}}}'
+            return res
 
-        source = _active_re.sub(_active_replacer, source)
+        source = re.sub(r'@active_link\s*\(\s*(.+?)\s*,\s*[\'"]([^\'"]+)[\'"]\s*\)', _active_replacer, source)
 
         # ── Security: Automate target="_blank" protection ─────────────────────
-        # Automatically append rel="noopener noreferrer" if missing
         def _enforce_noopener(m):
             tag = m.group(0)
-            if 'rel=' not in tag.lower():
-                # Extract the tag contents except the closing bracket
-                return tag[:-1] + ' rel="noopener noreferrer">'
+            if 'rel=' not in tag.lower(): return tag[:-1] + ' rel="noopener noreferrer">'
             return tag
-
         source = re.sub(r'<a\s+[^>]*?target=[\'"]_blank[\'"][^>]*>', _enforce_noopener, source, flags=re.IGNORECASE)
+
+        # 4. Restoration: Bring back protected strings and comments
+        for i, original in enumerate(protected_blocks):
+            source = source.replace(f"__EDEN_PROTECTED_{i}__", original)
 
         return source
 
@@ -606,62 +505,62 @@ class EdenTemplates(StarletteJinja2Templates):
             Supports:
             - Exact route matching: 'dashboard'
             - Namespace routes: 'auth:login' (converted to 'auth_login')
-            - Wildcard routes: 'students:*' (matches all students.* routes)
-            - Prefix matching: '/tasks/create' matches route '/tasks'
+            - Wildcard routes: 'students:*' (matches matches prefix of any resolved route starting with the namespace)
+            - Prefix matching: If the current path starts with the resolved route path.
 
             Usage in templates::
-
                 class="nav-link {{ 'active' if is_active(request, 'dashboard') else '' }}"
-                
-            Wildcard example::
-            
-                class="nav-link {{ 'active' if is_active(request, 'students:*') else '' }}"
             """
             import logging
             logger = logging.getLogger("eden.templating")
             
+            # Normalize path: /foo/ -> /foo
             current = request.url.path.rstrip("/") or "/"
             
             try:
-                # Handle wildcard routes (e.g., 'students:*' or 'admin:*')
+                # 1. Handle wildcard routes (e.g., 'students:*' or 'admin:*')
                 if route_name.endswith('*'):
-                    # Extract the base namespace/prefix
-                    # Examples: 'students:*' -> 'students', 'admin:*' -> 'admin'
-                    base = route_name[:-1].rstrip(':_').replace(':', '_')
+                    # Convert 'students:*' -> 'students'
+                    prefix = route_name[:-1].rstrip(':_').replace(':', '_')
                     
-                    # Try routes with common suffixes to get a base path
-                    suffixes = ['_index', '_create', '_list', '']
-                    base_resolved = None
+                    # Instead of guessing suffixes, we look for ANY route that starts with this prefix
+                    # We'll use the first one we find to determine the base URL path.
+                    from starlette.routing import Mount, Route
                     
-                    for suffix in suffixes:
-                        try:
-                            route_to_try = (base + suffix) if suffix else base
-                            resolved = str(request.url_for(route_to_try, **kwargs)).rstrip("/") or "/"
-                            base_resolved = resolved.split('/')
-                            # Take the base path structure
-                            if base_resolved and base_resolved[0] == '':
-                                # Extract namespace part: /students/ -> students
-                                base_resolved = '/' + base_resolved[1] if len(base_resolved) > 1 else '/'
-                            else:
-                                base_resolved = resolved
-                            break
-                        except Exception:
-                            continue
+                    base_path = None
                     
-                    if base_resolved:
-                        # Check if current path starts with any of these patterns
-                        return (current == base_resolved or 
-                                current.startswith(base_resolved + "/") or
-                                current.rstrip("/").startswith(base_resolved.rstrip("/")))
-                    else:
-                        logger.debug(f"is_active: Could not resolve wildcard route '{route_name}'")
-                        return False
+                    # We need to find the base path for this namespace
+                    # A robust way is to check the app's route list
+                    app = request.app
+                    for route in app.routes:
+                        # Check if route is a Mount or a Route with a name starting with our prefix
+                        if hasattr(route, "name") and route.name and route.name.startswith(prefix):
+                            try:
+                                # Resolve this specific route to get its path
+                                resolved = str(request.url_for(route.name, **kwargs)).rstrip("/") or "/"
+                                # The base path is the common part. For a namespace, 
+                                # it's usually everything up to the first param or the end of the namespace part.
+                                # Heuristic: if route name is 'students_index', and path is '/students', 
+                                # then '/students' is our base.
+                                base_path = resolved
+                                break
+                            except Exception:
+                                continue
+                    
+                    if base_path:
+                        return current == base_path or current.startswith(base_path + "/")
+                    
+                    logger.debug(f"is_active: Could not resolve any route for wildcard '{route_name}'")
+                    return False
                 
-                # Normal (non-wildcard) route matching
+                # 2. Normal (non-wildcard) route matching
                 resolved = str(request.url_for(route_name, **kwargs)).rstrip("/") or "/"
+                
+                # Match if exact or if current is a sub-path (e.g. /tasks/1 is active for /tasks)
                 return current == resolved or current.startswith(resolved + "/")
+                
             except Exception as e:
-                # Log the error for debugging purposes
+                # Log the error for easier debugging
                 logger.debug(f"is_active: Error resolving route '{route_name}': {e}")
                 return False
 
@@ -687,7 +586,24 @@ class EdenTemplates(StarletteJinja2Templates):
                 return list(request.messages)
             return []
 
-        self.env.globals["eden_messages"] = eden_messages
+        # ── Stack helpers ───────────────────────────────────────────────────
+        stacks = {}
+        def eden_push(name: str, content: str):
+            if name not in stacks:
+                stacks[name] = []
+            stacks[name].append(content)
+            return ""
+
+        def eden_stack(name: str):
+            res = "\n".join(stacks.get(name, []))
+            # Optional: clear after use? usually not for stacks
+            return res
+
+        self.env.globals.update({
+            "eden_messages": eden_messages,
+            "eden_push": eden_push,
+            "eden_stack": eden_stack,
+        })
 
     def TemplateResponse(
         self,
@@ -758,12 +674,25 @@ class EdenTemplates(StarletteJinja2Templates):
                     pass
         # ─────────────────────────────────────────────────────────────────────
 
+        # ── Status Code Control ───────────────────────────────────────────────
+        status_box = {"code": status_code}
+        def set_response_status(code: int):
+            status_box["code"] = code
+            return ""
+        
+        context["set_response_status"] = set_response_status
+        # ─────────────────────────────────────────────────────────────────────
+
         # Add common helpers
         context["route"] = context.get("route") or self.env.globals.get("url_for")
 
-        return super().TemplateResponse(
+        response = super().TemplateResponse(
             name, context, status_code, headers, media_type, background
         )
+        # Apply the status code if it was changed during rendering
+        if status_box["code"] != status_code:
+            response.status_code = status_box["code"]
+        return response
 
     def _old_helper(self, name: str, default: Any = "") -> Any:
         """Helper for @old directive to retrieve previous form data."""

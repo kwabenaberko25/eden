@@ -1,121 +1,117 @@
 # Background Tasks ⚙️
 
-Eden offloads long-running or periodic processes to a background worker system powered by **Taskiq** and the **EdenBroker**.
+Eden offloads long-running or periodic processes to a background worker system powered by **Taskiq** and the **EdenBroker**. This enables you to maintain a fast, responsive UI by deferring heavy computations, email sending, or data processing to a dedicated worker.
 
-## How it Works
+## Configuration
 
-Eden uses a "Broker" to manage tasks. By default, we recommend using **Redis** for the task queue.
-
-### Configuration
-
-### Configuration
-
-Eden's entry point is the `broker` instance on the `app` object.
+Eden uses a "Broker" to manage the task queue. We recommend **Redis** for production and an **In-Memory** broker for local development.
 
 ```python
-from eden import Eden
-from eden.tasks import create_broker
+from eden import Eden, create_broker
 
 app = Eden()
 
-# Development (In-memory)
-app.broker = create_broker()
+# Development: In-memory (no extra setup)
+app.task = create_broker()
 
-# Production (Redis)
-app.broker = create_broker(redis_url="redis://localhost:6379")
+# Production: Redis (requires taskiq-redis)
+app.task = create_broker(redis_url="redis://localhost:6379")
 ```
 
+## Defining & Invoking Tasks
 
----
+Tasks are simple Python functions decorated with `@app.task()`.
 
-## Defining Tasks
-
-Tasks are simple Python functions decorated with `@app.broker()`.
-
+### 1. Define the Task
 ```python
-@app.broker()
+@app.task()
 async def send_welcome_email(user_id: int):
     user = await User.get(id=user_id)
-    # ... expensive email logic ...
+    # ... expensive logic ...
     print(f"Welcome email sent to {user.email}")
 ```
 
+### 2. Invoke the Task
+There are two ways to trigger a task:
 
----
-
-## Invoking Tasks
-
-Tasks can be executed immediately or scheduled for the background.
-
+#### The `.kiq()` method (Standard)
 ```python
-# Runs in the current process (Synchronous)
-result = await send_welcome_email(user.id)
-
-# Offloads to the background (Returns a TaskiqResult object)
-task = await send_welcome_email.kiq(user.id)
-print(f"Task ID: {task.task_id}")
-
-# Wait for result (optional)
-result = await task.wait_result()
+# Triggers the task in the background worker
+await send_welcome_email.kiq(user.id)
 ```
 
-### `.kiq()` Parameters
-
-| Parameter | Description |
-| :--- | :--- |
-| `task_id` | Manual ID for tracking. |
-| `schedule` | Delay or cron string. |
-| `labels` | Metadata for the worker. |
-
----
-
-## Error Handling & Retries 🔁
-
-Eden tasks support automatic retries for flaky operations. Note that retry parameters are passed to the decorator.
-
+#### The `defer()` helper (Clean API)
 ```python
-@app.broker(retries=3, retry_delay=5)
-async def process_payment(order_id: int):
-    # If this fails, it will retry 3 times with 5s delay
-    pass
+# A more readable way to send a task to the queue
+await app.task.defer(send_welcome_email, user.id)
 ```
 
+## Periodic & Scheduled Tasks 🕰️
 
----
+Eden makes scheduling recurring tasks a first-class citizen with the `.every()` decorator.
 
-To execute background tasks, you must run the task worker:
+```python
+# Every 1 minute
+@app.task.every(minutes=1)
+async def check_alerts():
+    ...
+
+# Every night at midnight (Standard Cron)
+@app.task.every(cron="0 0 * * *")
+async def daily_report():
+    ...
+
+# Every 30 seconds
+@app.task.every(seconds=30)
+async def heartbeat():
+    ...
+```
+
+### Delaying Tasks
+To run a task after a specific delay (in seconds):
+
+```python
+# Remind the user in 1 hour (3600 seconds)
+await app.task.schedule(send_reminder, delay=3600, user_id=42)
+```
+
+## Running the Workers
+
+To execute your background tasks, you must run the Eden worker process in a separate terminal:
 
 ```bash
-eden worker --workers 2
+# Run 4 parallel worker processes
+eden worker --workers 4
 ```
 
-For scheduled/periodic tasks, you also need the scheduler:
+For scheduled tasks (`.every()` or delayed tasks), you also need to run the scheduler:
 
 ```bash
 eden scheduler
 ```
 
+## Lifecycle & Synergies
 
----
-
-## Elite Pattern: Periodic Tasks 🕰️
-
-Use `.every()` for recurring system maintenance.
+### The "Killer" Loop: Task -> WebSocket
+A common pattern in Eden is to kick off a task and have it notify the user via WebSockets when finished.
 
 ```python
-@app.broker.every(hours=24)
-async def cleanup_expired_sessions():
-    # Eden handles the background loop
-    ...
-
-@app.broker.every(cron="0 0 * * *") # Every night at midnight
-async def daily_report():
-    ...
+@app.task()
+async def process_video(video_id: int, user_id: int):
+    # 1. Heavy processing...
+    await do_processing(video_id)
+    
+    # 2. Notify the user instantly via WebSocket
+    from eden.websocket import connection_manager
+    await connection_manager.broadcast(
+        {"event": "video_ready", "id": video_id},
+        room=f"user_{user_id}"
+    )
 ```
 
+## Best Practices
 
-### Task Monitoring
-
-Eden workers emit metrics that can be scraped by Prometheus or viewed in the Eden Forge UI.
-
-**Next Steps**: [Integrated Services](services.md)
+- ✅ **Small Arguments**: Pass IDs (like `user_id`) instead of large objects. Let the worker fetch the data it needs.
+- ✅ **Atomic Tasks**: Ensure your tasks are idempotent (safe to run multiple times if retried).
+- ✅ **Redis for Production**: Always use the Redis broker in production to handle persistence and concurrency.
+- ✅ **Monitor Logs**: Use `eden worker --debug` during development to see task output in real-time.

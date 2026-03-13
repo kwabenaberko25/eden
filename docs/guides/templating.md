@@ -20,23 +20,27 @@ Eden's templating engine is a modern templating system designed to make template
 
 ## Table of Contents
 
-1. [Rendering Templates in Routes](#rendering-templates-in-routes)
-2. [Syntax Basics](#syntax-basics)
+1. [Rendering Templates](#rendering-templates)
+2. [Quick Start Guide](#quick-start-guide)
 3. [Control Flow Directives](#control-flow-directives)
-4. [All Filters Reference](#all-filters-reference)
-5. [Form Directives](#form-directives)
-6. [Authentication and Authorization](#authentication-and-authorization)
-7. [Routing and Navigation](#url-routing-and-navigation)
-8. [Layouts and Inheritance](#layouts-and-inheritance)
-9. [HTMX and Dynamic Updates](#htmx-dynamic-updates)
-10. [Template Component Patterns](#template-component-patterns)
-11. [Pagination and Navigation](#pagination-and-navigation)
-12. [Search and Filter Integration](#search-and-filter-integration)
-13. [Best Practices and Patterns](#best-practices-and-patterns)
+4. [Global Variables and Helpers](#global-variables-and-helpers)
+5. [Feature Parity and Implementation Notes](#feature-parity-and-implementation-notes)
+6. [Layouts and Inheritance](#layouts-and-inheritance)
+7. [Advanced Block Controls](#advanced-block-controls)
+8. [Dynamic URLs (@url)](#dynamic-urls-url)
+9. [Component System (@component)](#component-system-component)
+10. [Forms and Security](#forms-and-security)
+11. [HTMX Integration](#htmx-integration)
+12. [Filters Reference](#filters-reference)
+13. [Elite Component: Data Table](#elite-component-data-table)
+14. [Best Practices and Patterns](#best-practices-and-patterns)
+15. [Complete Directives Reference](#complete-directives-reference)
 
 ---
 
-## Rendering Templates in Routes
+## Rendering Templates
+
+Eden provides multiple ways to render templates, giving you flexibility depending on your routing style.
 
 ### Using `render_template()` Helper (Standard)
 
@@ -113,112 +117,98 @@ async def list_items(request):
 
 ---
 
-## Syntax Basics
+## Quick Start Guide
+
+Eden uses a clean, brace-based syntax. All directives start with the `@` symbol, and expressions are wrapped in double curly braces `{{ }}`.
+
+| Directive | Syntax | Description | Example |
+| :--- | :--- | :--- | :--- |
+| **Interpolation** | `{{ expression }}` | Renders the result of a Python expression. | `{{ user.name }}` |
+| **Directives** | `@directive(args)` | Calls a built-in Eden function or control flow. | `@if(user.is_admin)` |
+| **Comments** | `{# comment #}` | Internal notes that won't appear in the HTML. | `{# TODO: check icons #}` |
+| **Escaping** | `{{ val \| safe }}` | Marks content as safe (disables auto-escaping). | `{{ html_content \| safe }}` |
+
+> [!TIP]
+> Always prefer standard `{{ }}` interpolation for user-generated content to prevent XSS. Eden automatically escapes all variables unless you explicitly use `@output`.
 
 ---
 
 ## Control Flow Directives
 
-### Control Flow and Logic
+Manage logic directly within your templates with standard 4-column standardized syntax.
 
-| Directive | Syntax | Description |
-| :--- | :--- | :--- |
+| Directive | Syntax | Description | Example |
+| :--- | :--- | :--- | :--- |
+| **If Statement** | `@if(cond) { ... }` | Standard conditional block. | `@if(user.is_admin)` |
+| **Else If** | `@else_if(c)` | Multiple condition checking. | `@else_if(user.editor)` |
+| **Else** | `@else { ... }` | Default fallback block. | `@else { Guest }` |
+| **Switch** | `@switch(val) { ... }` | Pattern matching for discrete values. | `@switch(item.status)` |
+| **For Loop** | `@for(i in list) { ... }` | Iterate over collections. | `@for(post in posts)` |
+| **Empty State** | `@empty { ... }` | Shown if the loop target is empty. | `@empty { No items }` |
+| **While Loop** | `@while(cond) { ... }` | Loop while condition is true. | `@while(gen.has_next())` |
 
-| **@if** | `@if(cond) { ... }` | Standard conditional block. |
+> [!NOTE]
+> The `@empty` directive must immediately follow the closing brace of a `@for` loop. It's the most efficient way to handle "No Results Found" states without manual length checks.
 
-| **@unless** | `@unless(cond) { ... }` | Renders if the condition is **false**. |
+### Layouts and Inheritance (Preview)
 
-| **@for** | `@for(item in list) { ... }` | Iterates over a collection. Supports `$loop`. |
+| Directive | Syntax | Description | Example |
+| :--- | :--- | :--- | :--- |
+| **Extends** | `@extends("base")` | Inherit from a parent template. | `@extends("layouts/main")` |
+| **Section** | `@section("n") { ... }` | Define content for a specific block. | `@section("title") { Home }` |
+| **@yield** | `@yield("n")` | Renders content from a child section. | `<title>@yield("title")</title>`|
+| **@include** | `@include("p")` | Includes a static partial or fragment. | `@include("shared/nav")` |
+| **@push** | `@push("n") { ... }` | Appends content to a global stack. | `@push("css") { <style>...` |
+| **@stack** | `@stack("n")` | Renders all content pushed to a stack. | `@stack("scripts")` |
 
-| **@empty** | `} @empty { ... }` | Fallback content if the loop collection is empty. |
+> [!TIP]
+> Use `@push` and `@stack` for page-specific scripts and styles. This ensures your layout remains clean while allowing individual components to inject their own dependencies.
 
-| **@switch** | `@switch(val) { ... }` | Opens a switch block for pattern matching. |
+### Auth and Security
 
-| **@case** | `@case(val) { ... }` | Matches a specific value within a switch block. |
+| Directive | Syntax | Description | Example |
+| :--- | :--- | :--- | :--- |
+| **@auth** | `@auth { ... }` | Render for authenticated users only. | `@auth { Hello, User! }` |
+| **@guest** | `@guest { ... }` | Render for unauthenticated visitors. | `@guest { Please Log In }` |
+| **@csrf** | `@csrf` | Emits a hidden CSRF token input. | `<form>@csrf ...</form>` |
+| **@method** | `@method("PUT")` | Spoofs HTTP methods for forms. | `@method("DELETE")` |
 
-| **@let** | `@let var = expr` | Inline variable assignment. |
+### HTMX and Dynamic Interactivity
 
-#### Templates and Layouts
-
-| Directive | Syntax | Description |
-| :--- | :--- | :--- |
-
-| **@extends** | `@extends("base")` | Specifies the parent template to inherit from. |
-
-| **@include** | `@include("partial")` | Includes another template file. |
-
-| **@section** | `@section("name") { ... }` | Defines a block of content to be yielded in a layout. |
-
-| **@yield** | `@yield("name")` | Renders the content of a defined section/block. |
-
-| **@push** | `@push("name") { ... }` | Appends content to a stack (great for scripts/styles). |
-
-| **@stack** | `@stack("name")` | Renders all pushed content for a stack. |
-
-#### Auth and Security
-
-| Directive | Syntax | Description |
-| :--- | :--- | :--- |
-
-| **@auth** | `@auth { ... }` | Renders only for authenticated users. |
-
-| **@guest** | `@guest { ... }` | Renders only for unauthenticated guests. |
-
-| **@csrf** | `@csrf` | Emits a hidden CSRF token input field. |
-
-| **@method** | `@method("PUT")` | Emits a hidden `_method` input for HTTP spoofing. |
-
-#### HTMX and Fragments
-
-| Directive | Syntax | Description |
-| :--- | :--- | :--- |
-
-| **@htmx** | `@htmx { ... }` | Renders only if the request is via HTMX. |
-
-| **@non_htmx** | `@non_htmx { ... }` | Renders only if the request is **not** via HTMX. |
-
-| **@fragment** | `@fragment("id") { ... }` | Defines a targetable partial for partial updates. |
-
-#### Forms and Attributes
-
-| Directive | Syntax | Description |
-| :--- | :--- | :--- |
-
-| **@checked** | `@checked(cond)` | Applies `checked` attribute if true. |
-
-| **@selected** | `@selected(cond)` | Applies `selected` attribute if true. |
-
-| **@disabled** | `@disabled(cond)` | Applies `disabled` attribute if true. |
-
-| **@readonly** | `@readonly(cond)` | Applies `readonly` attribute if true. |
-
-| **@old** | `@old("field", default)`| Retrieves previous input value after validation fails. |
-
-| **@error** | `@error("field") { ... }`| Renders an error message if the field has validation errors. |
-
-#### Assets and Helpers
-
-| Directive | Syntax | Description |
-| :--- | :--- | :--- |
-
-| **@css** | `@css("path")` | Link to a CSS file in static assets. |
-
-| **@js** | `@js("path")` | Link to a JS file in static assets. |
-
-| **@vite** | `@vite([...])` | Injects Vite asset bundles. |
-
-| **@span** | `@span(val)` | Safe shorthand for value interpolation ({{ val }}). |
-
-| **@json** | `@json(val)` | Encodes a value as JSON for safe use in JS. |
-
-| **@dump** | `@dump(val)` | Pretty-prints a variable for debugging. |
-
-| **@url** | `@url("name")` | Generates a URL for a named route. |
-
-| **@active_link**| `@active_link("r", "c")`| Emits class `"c"` if route `"r"` is active. |
+| Directive | Syntax | Description | Example |
+| :--- | :--- | :--- | :--- |
+| **@htmx** | `@htmx { ... }` | Renders only for HTMX requests. | `@htmx { Part of page }` |
+| **@non_htmx** | `@non_htmx { ... }` | Renders only for standard GET/POST. | `@non_htmx { Full Layout }` |
+| **@fragment** | `@fragment("id") { ... }`| Defines a partial targeted by HTMX. | `@fragment("list") { ... }` |
 
 > [!WARNING]
-> The following directives are documented in legacy guides but are **not yet implemented** in the new engine: `@can`, `@cannot`, `@inject`, `@php`. Use Python standard logic handled in views for now.
+> Ensure your `@fragment` IDs are unique across the template. HTMX uses these IDs to identify which part of the DOM to swap during partial updates.
+
+### Form Helpers
+
+| Directive | Syntax | Description | Example |
+| :--- | :--- | :--- | :--- |
+| **@checked** | `@checked(cond)` | Sets `checked` attribute if true. | `@checked(user.active)` |
+| **@selected** | `@selected(cond)` | Sets `selected` attribute if true. | `@selected(role == 'admin')` |
+| **@disabled** | `@disabled(cond)` | Sets `disabled` attribute if true. | `@disabled(is_loading)` |
+| **@readonly** | `@readonly(cond)` | Sets `readonly` attribute if true. | `@readonly(verified)` |
+| **@old** | `@old("f")` | Persists form input after error. | `value="@old('email')"` |
+| **@error** | `@error("f") { ... }` | Renders if field has a validation error. | `@error('name') { ... }` |
+
+### Asset and Debugging Helpers
+
+| Directive | Syntax | Description | Example |
+| :--- | :--- | :--- | :--- |
+| **@url** | `@url("name")` | Generates a named route URL. | `<a href="@url('home')">` |
+| **@active_link**| `@active_link("r", "c")`| Emits class `"c"` if route `"r"` active. | `class="@active_link('h', 'a')"`|
+| **@json** | `@json(val)` | Safe JSON encoding for JS scripts. | `const data = @json(stats);` |
+| **@dump** | `@dump(val)` | Pretty-prints variable for debugging. | `@dump(form.errors)` |
+| **@vite** | `@vite([...])` | Injects Vite HMR asset bundles. | `@vite(['js/app.js'])` |
+| **@css** | `@css("path")` | Link to a static CSS file. | `@css("css/theme.css")` |
+| **@js** | `@js("path")` | Link to a static JS file. | `@js("js/utils.js")` |
+
+> [!CAUTION]
+> The following directives are documented in legacy guides but are **not yet implemented** in the new engine: `@can`, `@cannot`, `@inject`, `@php`. Use standard `@if` logic handled in views for now.
 
 ---
 
@@ -231,13 +221,15 @@ Eden provides a rich set of built-in filters for formatting, transforming, and s
 ### String Filters
 
 #### **upper** - Convert to uppercase
+
 ```html
 {{ name | upper }}
 {{ "hello" | upper }}  <!-- Output: HELLO -->
 {{ user.email | upper }}
 ```
 
-#### **lower** - Convert to lowercase  
+#### **lower** - Convert to lowercase
+
 ```html
 {{ NAME | lower }}
 {{ "WELCOME" | lower }}  <!-- Output: welcome -->
@@ -245,6 +237,7 @@ Eden provides a rich set of built-in filters for formatting, transforming, and s
 ```
 
 #### **title** - Title case (first letter capitalized)
+
 ```html
 {{ name | title }}
 {{ "python developer" | title }}  <!-- Output: Python Developer -->
@@ -252,6 +245,7 @@ Eden provides a rich set of built-in filters for formatting, transforming, and s
 ```
 
 #### **capitalize** - Capitalize first character only
+
 ```html
 {{ name | capitalize }}
 {{ "first name" | capitalize }}  <!-- Output: First name -->
@@ -259,6 +253,7 @@ Eden provides a rich set of built-in filters for formatting, transforming, and s
 ```
 
 #### **reverse** - Reverse a string
+
 ```html
 {{ text | reverse }}
 {{ "hello" | reverse }}  <!-- Output: olleh -->
@@ -266,6 +261,7 @@ Eden provides a rich set of built-in filters for formatting, transforming, and s
 ```
 
 #### **trim / ltrim / rtrim** - Remove whitespace
+
 ```html
 {{ text | trim }}      <!-- Remove both sides -->
 {{ text | ltrim }}     <!-- Remove left -->
@@ -274,6 +270,7 @@ Eden provides a rich set of built-in filters for formatting, transforming, and s
 ```
 
 #### **replace** - Replace substring
+
 ```html
 {{ text | replace("oldtext", "newtext") }}
 {{ "Hello World" | replace("World", "Eden") }}  <!-- Output: Hello Eden -->
@@ -281,6 +278,7 @@ Eden provides a rich set of built-in filters for formatting, transforming, and s
 ```
 
 #### **slice** - Extract substring
+
 ```html
 {{ text | slice(0, 5) }}
 {{ "Hello World" | slice(0, 5) }}  <!-- Output: Hello -->
@@ -311,6 +309,7 @@ Eden provides a rich set of built-in filters for formatting, transforming, and s
 ```
 
 #### **slugify** - Convert to URL-safe slug
+
 ```html
 {{ title | slugify }}
 {{ "Hello World!" | slugify }}  <!-- Output: hello-world -->
@@ -319,6 +318,7 @@ Eden provides a rich set of built-in filters for formatting, transforming, and s
 ```
 
 #### **title_case** - Uppercase first letter of each word
+
 ```html
 {{ text | title_case }}
 {{ "python web framework" | title_case }}  <!-- Output: Python Web Framework -->
@@ -327,6 +327,7 @@ Eden provides a rich set of built-in filters for formatting, transforming, and s
 ```
 
 #### **mask** - Mask sensitive information
+
 ```html
 {{ email | mask }}  <!-- Output: u***@example.com -->
 {{ phone | mask('*', 4) }}  <!-- Output: ****1234 -->
@@ -335,6 +336,7 @@ Eden provides a rich set of built-in filters for formatting, transforming, and s
 ```
 
 #### **default_if_none** - Fallback value if None
+
 ```html
 {{ user.phone | default_if_none("Not provided") }}
 {{ data | default_if_none("N/A") }}
@@ -343,6 +345,7 @@ Eden provides a rich set of built-in filters for formatting, transforming, and s
 ```
 
 #### **pluralize** - Add suffix based on count
+
 ```html
 {{ count | pluralize("item") }}  <!-- "1 item" or "5 items" -->
 {{ 1 | pluralize("person") }}  <!-- Output: person -->
@@ -355,6 +358,7 @@ You have {{ notifications | pluralize("notification") }}
 ### Numeric Filters
 
 #### **abs** - Absolute value
+
 ```html
 {{ number | abs }}
 {{ -42 | abs }}  <!-- Output: 42 -->
@@ -363,6 +367,7 @@ You have {{ notifications | pluralize("notification") }}
 ```
 
 #### **round** - Round to N decimal places
+
 ```html
 {{ price | round }}
 {{ 3.14159 | round(2) }}  <!-- Output: 3.14 -->
@@ -371,6 +376,7 @@ You have {{ notifications | pluralize("notification") }}
 ```
 
 #### **ceil** - Round up (ceiling)
+
 ```html
 {{ price | ceil }}
 {{ 3.2 | ceil }}  <!-- Output: 4 -->
@@ -379,6 +385,7 @@ You have {{ notifications | pluralize("notification") }}
 ```
 
 #### **floor** - Round down
+
 ```html
 {{ price | floor }}
 {{ 3.9 | floor }}  <!-- Output: 3 -->
@@ -391,6 +398,7 @@ You have {{ notifications | pluralize("notification") }}
 ### Array/List Filters
 
 #### **first** - Get first element
+
 ```html
 {{ items | first }}
 {{ [1, 2, 3] | first }}  <!-- Output: 1 -->
@@ -398,6 +406,7 @@ You have {{ notifications | pluralize("notification") }}
 ```
 
 #### **last** - Get last element
+
 ```html
 {{ items | last }}
 {{ [1, 2, 3] | last }}  <!-- Output: 3 -->
@@ -405,6 +414,7 @@ You have {{ notifications | pluralize("notification") }}
 ```
 
 #### **unique** - Remove duplicates
+
 ```html
 {{ items | unique }}
 {{ [1, 2, 2, 3] | unique }}  <!-- Output: [1, 2, 3] -->
@@ -413,14 +423,16 @@ You have {{ notifications | pluralize("notification") }}
 ```
 
 #### **sort** - Sort array
+
 ```html
 {{ items | sort }}
 {{ [3, 1, 2] | sort }}  <!-- Output: [1, 2, 3] -->
 {{ names | sort }}
-{{ @for(item in items | sort) { ... } }}
+@for(item in items | sort) { ... }
 ```
 
 #### **reverse_array** - Reverse array order
+
 ```html
 {{ items | reverse_array }}
 {{ [1, 2, 3] | reverse_array }}  <!-- Output: [3, 2, 1] -->
@@ -433,6 +445,7 @@ You have {{ notifications | pluralize("notification") }}
 ### Time & Date Filters
 
 #### **date** - Format date/datetime
+
 ```html
 {{ created_at | date("%Y-%m-%d") }}
 {{ now | date("%B %d, %Y") }}  <!-- Output: March 13, 2026 -->
@@ -441,6 +454,7 @@ You have {{ notifications | pluralize("notification") }}
 ```
 
 #### **time** - Format time only
+
 ```html
 {{ clock | time("%H:%M:%S") }}
 {{ now | time("%I:%M %p") }}  <!-- Output: 02:30 PM -->
@@ -449,6 +463,7 @@ You have {{ notifications | pluralize("notification") }}
 ```
 
 #### **time_ago** - Human-readable time distance
+
 ```html
 {{ created_at | time_ago }}
 {{ post.published | time_ago }}  <!-- Output: 2 hours ago -->
@@ -457,6 +472,7 @@ Posted {{ last_login | time_ago }}
 ```
 
 #### **file_size** - Format bytes to human-readable
+
 ```html
 {{ file.size | file_size }}
 {{ 1024 | file_size }}  <!-- Output: 1.0 KB -->
@@ -470,6 +486,7 @@ Download ({{ attachment.bytes | file_size }})
 ### Currency & International  
 
 #### **money / currency** - Format as currency
+
 ```html
 {{ price | currency }}  <!-- US dollar default -->
 {{ 99.99 | currency }}  <!-- Output: $99.99 -->
@@ -479,6 +496,7 @@ Total: {{ cart.total | money }}
 ```
 
 #### **phone** - Format phone number
+
 ```html
 {{ phone | phone }}
 {{ "5551234567" | phone }}  <!-- Output: (555) 123-4567 -->
@@ -491,16 +509,19 @@ Total: {{ cart.total | money }}
 ### Type Conversion
 
 #### **json / json_encode** - JSON serialization
+
 ```html
 {{ data | json }}
 {{ user | json }}  <!-- Safe for JS: -->
 ```
+
 ```html
 <script>
   const user = @json(user);  <!-- Becomes: {"id": 1, "name": "John"} -->
   const data = @output(item | json);
 </script>
 ```
+
 ```html
 @json({ key1: value1, key2: value2 })
 ```
@@ -562,11 +583,14 @@ Transform form field objects inline. These are **independent of `@render_field`*
 
 Apply Eden's premium design tokens directly.
 
-#### **eden_bg** - Background color tokens
+
+#### **eden_bg** - Background utility tokens
+
 ```html
 <div class="{{ 'primary' | eden_bg }}">
     Primary Background
 </div>
+```
 
 {{ 'success' | eden_bg }}  <!-- Output: bg-emerald-600 -->
 {{ 'danger' | eden_bg }}  <!-- Output: bg-red-600 -->
@@ -578,10 +602,12 @@ Apply Eden's premium design tokens directly.
 ```
 
 #### **eden_shadow** - Shadow depth tokens
+
 ```html
 <card class="{{ 'md' | eden_shadow }}">
     Medium shadow
 </card>
+```
 
 <box class="{{ 'lg' | eden_shadow }}">
     Large shadow card
@@ -591,7 +617,8 @@ Apply Eden's premium design tokens directly.
 <!-- Available: sm, md, lg, xl, 2xl, none -->
 ```
 
-#### **eden_text** - Text color tokens
+#### **eden_color** - Direct color tokens
+
 ```html
 <p class="{{ 'primary' | eden_text }}">
     Primary colored text
@@ -643,16 +670,27 @@ Fragments allow you to render specific parts of a page, which is essential for H
 @fragment("notifications-count") {
     <span id="nav-badge">{{ count }}</span>
 }
-
 ```
 
-### Global Helpers
+---
 
-- **is_active(request, route_name)**: Returns `True` if the current request matches the route. Supports wildcards like `admin:*`.
+## Global Variables and Helpers
 
-- **now()**: Returns current datetime.
+Eden automatically injects several useful variables and helper functions into every template context. These "Globals" allow you to access request data, user information, and system utilities without passing them manually from your Python handlers.
 
-- **eden_messages()**: Retrieves current flash messages.
+| Helper | Syntax | Description | Example |
+| :--- | :--- | :--- | :--- |
+| **Active Link** | `@active_link(n, c)` | Returns class if current route matches. | `@active_link('dash', 'act')` |
+| **Messages** | `eden_messages()` | Accesses flash messaging system. | `{{ eden_messages() }}` |
+| **Request** | `request` | Current request object. | `{{ request.path }}` |
+| **Session** | `session` | User session data. | `{{ session.get('uid') }}` |
+| **Date/Time** | `now` | Current datetime object. | `{{ now.strftime('%Y') }}` |
+| **User** | `user` | Authenticated user object. | `{{ user.email }}` |
+| **Tenant** | `tenant` | Current tenant context. | `{{ tenant.name }}` |
+| **Settings** | `settings` | Access to `settings.py` values. | `{{ settings.APP_NAME }}` |
+
+> [!TIP]
+> You can also access any variable defined in your `settings.py` via the `settings` global, which is extremely useful for things like `APP_NAME` or `SUPPORT_EMAIL`.
 
 ---
 
@@ -680,17 +718,19 @@ Fragments allow you to render specific parts of a page, which is essential for H
 
 ### Best Practices and Patterns
 
-1. **Use Brace Syntax**: Always prefer `@if(cond) { ... }` over legacy `{% if %}` for consistency with the Eden design philosophy.
-2. **Leverage Fragments**: Design your pages with `@fragment` markers to enable seamless HTMX transitions without writing extra view logic.
-3. **Type-Safe URLs**: Always use `@url('route_name')` to avoid broken links during refactoring.
+1.  **Use Brace Syntax**: Always prefer `@if(cond) { ... }` over legacy `{% if %}` for consistency with the Eden design philosophy.
+2.  **Leverage Fragments**: Design your pages with `@fragment` markers to enable seamless HTMX transitions without writing extra view logic.
+3.  **Type-Safe URLs**: Always use `@url('route_name')` to avoid broken links during refactoring.
 
-        type="checkbox" 
-        name="agree_to_terms"
-        @checked(!user.has_agreed_once)
-    >
+### @checked - Boolean Checkbox States
+
+Manage checkbox states cleanly without manual ternary logic:
+
+```html
+<label>
+    <input type="checkbox" name="agree" @checked(user.has_agreed)>
     I agree to the terms
 </label>
-
 ```
 
 ### @selected - Select Option States
@@ -711,7 +751,7 @@ Set the `selected` attribute on `<option>` elements:
 <select name="category">
     <option value="">Select a category...</option>
     @for (cat in categories) {
-        <option 
+        <option
             value="{{ cat.id }}"
             @selected(selected_category_id == cat.id)
         >
@@ -724,7 +764,7 @@ Set the `selected` attribute on `<option>` elements:
 
 <select name="permissions" multiple>
     @for (perm in all_permissions) {
-        <option 
+        <option
             value="{{ perm.id }}"
             @selected(perm.id in user.permission_ids)
         >
@@ -732,7 +772,6 @@ Set the `selected` attribute on `<option>` elements:
         </option>
     }
 </select>
-
 ```
 
 ### @disabled - Disable Form Elements
@@ -748,9 +787,9 @@ Disable inputs, buttons, and selects conditionally:
 
 <!-- Conditional field disabling -->
 
-<input 
-    type="text" 
-    name="company" 
+<input
+    type="text"
+    name="company"
     @disabled(user.is_freelancer)
     placeholder="Company name (disabled for freelancers)"
 >
@@ -767,7 +806,7 @@ Disable inputs, buttons, and selects conditionally:
 
 <div class="form-group">
     <label>Business License</label>
-    <input 
+    <input
         type="text"
         name="license"
         @disabled(account_type != 'business')
@@ -777,12 +816,11 @@ Disable inputs, buttons, and selects conditionally:
 
 <!-- Disable readonly fields -->
 
-<textarea 
-    name="generated_id" 
+<textarea
+    name="generated_id"
     @disabled(true)
     placeholder="Auto-generated, cannot edit"
 >{{ auto_id }}</textarea>
-
 ```
 
 ### @readonly - Make Fields Read-Only
@@ -792,7 +830,7 @@ Mark fields as read-only once data is submitted:
 ```html
 <!-- Readonly after submission -->
 
-<input 
+<input
     type="email"
     name="email"
     value="{{ user.email }}"
@@ -803,7 +841,7 @@ Mark fields as read-only once data is submitted:
 
 <div class="form-group">
     <label>Account Number</label>
-    <input 
+    <input
         type="text"
         value="{{ account.number }}"
         @readonly(true)
@@ -813,11 +851,10 @@ Mark fields as read-only once data is submitted:
 
 <!-- Conditional readonly based on business logic -->
 
-<textarea 
+<textarea
     name="notes"
     @readonly(task.is_completed || !user.can_edit)
 >{{ task.notes }}</textarea>
-
 ```
 
 ---
@@ -845,7 +882,6 @@ Mark fields as read-only once data is submitted:
     <a href="@url('login')">Log In</a>
     <a href="@url('register')">Sign Up</a>
 }
-
 ```
 
 ### @guest - Unauthenticated Users Only
@@ -872,7 +908,6 @@ Mark fields as read-only once data is submitted:
 } @else {
     <p>You are already logged in. <a href="@url('dashboard')">Go to dashboard</a></p>
 }
-
 ```
 
 ### Role and Permission Checks
@@ -908,12 +943,11 @@ Mark fields as read-only once data is submitted:
 @if (request.user && request.user.subscription_active && !request.user.subscription_paused) {
     <button class="premium-action">Download Report</button>
 }
-
 ```
 
 ---
 
-## HTMX and Real-Time Features
+## HTMX Integration
 
 ### @htmx / @non_htmx - Request Type Detection
 
@@ -949,7 +983,6 @@ Mark fields as read-only once data is submitted:
         </tbody>
     </table>
 </div>
-
 ```
 
 ### @fragment - Define HTMX-Targetable Sections
@@ -978,80 +1011,37 @@ Mark fields as read-only once data is submitted:
         <button type="submit">Post Comment</button>
     </form>
 }
-
 ```
 
 ---
 
 ## Form Directives
 
-### Understanding Form Components: Directives vs Filters
+### Understanding Form Components
 
-Eden provides two complementary approaches for working with forms:
+Eden provides two complementary approaches for working with forms. Use `@render_field` for rapid development and manual directives for custom pixel-perfect layouts.
 
-| Component | Type | Purpose | Example |
+| Component         | Type      | Description                                     | Example                           |
+| :---------------- | :-------- | :---------------------------------------------- | :-------------------------------- |
+| **@render_field()** | Directive | Complete field rendering (label + input + errors). | `@render_field(form['email'])`    |
+| **add_class**     | Filter    | Appends a CSS class to a form widget.           | `{{ field \| add_class('err') }}` |
+| **attr**          | Filter    | Adds or overrides an HTML attribute.            | `{{ field \| attr('rows', '5') }}` |
+
+### Form Control Directives
+
+These special directives simplify working with HTML forms by automatically handling attributes like `checked`, `selected`, and `disabled`.
+
+| Directive | Syntax | Description | Example |
 | :--- | :--- | :--- | :--- |
-| **@render_field()** | Directive | Complete field rendering (label + input + errors) | `@render_field(form['email'])` |
-| **add_class, attr, etc.** | Filters | Individual attribute modification | `form['email'] \| add_class('error')` |
-| **@checked, @selected** | Directives | Conditional HTML attributes | `@checked(user.active)` |
-| **@error, @old** | Directives | Form validation helpers | `@error('email')` or `@old('name')` |
+| **@checked** | `@checked(b)` | Renders `checked` if True. | `@checked(user.active)` |
+| **@selected** | `@selected(b)` | Renders `selected` if True. | `@selected(cat.id == 5)` |
+| **@disabled** | `@disabled(b)` | Renders `disabled` if True. | `@disabled(form.readonly)`|
+| **@readonly** | `@readonly(b)` | Renders `readonly` if True. | `@readonly(True)` |
+| **@error** | `@error('f')` | Returns error message for field. | `{{ @error('email') }}` |
+| **@old** | `@old('f', d)` | Returns previous input value. | `value="@old('name')"` |
 
-**The "Widget and Form Tweaks" filters listed in the Filters Reference are NOT part of `@render_field()`** — they're standalone filters for fine-grained field manipulation. Use them when you need programmatic control over individual field attributes.
-
----
-
-## Conditional Attribute Directives
-
-Conditionally apply HTML attributes to form elements with clean, readable syntax.
-
-### Attribute Directives
-
-#### `@checked(condition)`
-
-Applies the `checked` attribute when condition is true (for checkboxes and radio buttons).
-
-```html
-<input type="checkbox" name="subscribe" @checked(user.subscribe_newsletter)>
-<!-- Renders as: -->
-
-<!-- <input type="checkbox" name="subscribe" {% if user.subscribe_newsletter %}checked{% endif %}> -->
-
-```
-
-#### `@selected(condition)`
-
-Applies the `selected` attribute when condition is true (for select options).
-
-```html
-<select name="role">
-    <option @selected(user.role == 'admin')>Administrator</option>
-    <option @selected(user.role == 'user')>User</option>
-    <option @selected(user.role == 'guest')>Guest</option>
-</select>
-
-```
-
-#### `@disabled(condition)`
-
-Applies the `disabled` attribute when condition is true (disables form elements).
-
-```html
-<button @disabled(form.is_submitting)>
-    @if(form.is_submitting) { Processing... } @else { Submit }
-</button>
-
-```
-
-#### `@readonly(condition)`
-
-Applies the `readonly` attribute when condition is true (makes inputs read-only).
-
-```html
-<textarea name="notes" @readonly(post.is_published)>
-    {{ post.notes }}
-</textarea>
-
-```
+> [!TIP]
+> Always pair `@old()` with `@error()` for a seamless user experience. It ensures that when a form fails validation, the user doesn't have to re-type everything.
 
 ---
 
@@ -1074,7 +1064,6 @@ Generate URLs for your routes without hardcoding paths.
 
 @let dashboard_url = @url('dashboard')
 <a href="{{ dashboard_url }}">Go Home</a>
-
 ```
 
 **Route Name Format:**
@@ -1098,11 +1087,10 @@ Conditionally add CSS classes to active links in your navigation.
 
 <!-- With custom class names -->
 
-<a href="@url('students:index')" 
+<a href="@url('students:index')"
    class="px-4 py-2 @active_link('students:index', 'bg-blue-600 text-white')">
     Students
 </a>
-
 ```
 
 #### Wildcard Matching (NEW!)
@@ -1112,7 +1100,7 @@ Match multiple routes with wildcard syntax:
 ```html
 <!-- Highlights when on ANY admin page (admin:users, admin:settings, etc.) -->
 
-<a href="@url('admin:index')" 
+<a href="@url('admin:index')"
    class="@active_link('admin:*', 'font-bold text-white')">
     Admin Panel
 </a>
@@ -1122,7 +1110,6 @@ Match multiple routes with wildcard syntax:
 <li class="@active_link('students:*', 'border-l-4 border-blue-500')">
     Students
 </li>
-
 ```
 
 **How Wildcards Work:**
@@ -1137,14 +1124,14 @@ Match multiple routes with wildcard syntax:
 
 **Troubleshooting:**
 If `@active_link` doesn't highlight:
-1. Verify the route name matches exactly: `@url('dashboard')`  `@active_link('dashboard', ...)`
+1.  Verify the route name matches exactly: `@url('dashboard')` `@active_link('dashboard', ...)`
 
-2. Check that the route is registered in your routes file with a `name` parameter
-3. Enable debug logging to see route resolution errors:
-   ```python
-   import logging
-   logging.basicConfig(level=logging.DEBUG)
-   ```
+2.  Check that the route is registered in your routes file with a `name` parameter
+3.  Enable debug logging to see route resolution errors:
+    ```python
+    import logging
+    logging.basicConfig(level=logging.DEBUG)
+    ```
 
 ---
 
@@ -1179,7 +1166,6 @@ The `@extends` directive tells Eden that this template inherits from another one
     @yield("scripts")
 </body>
 </html>
-
 ```
 
 #### **Child Template** (`home.html`)
@@ -1197,12 +1183,11 @@ The `@extends` directive tells Eden that this template inherits from another one
 @section("scripts") {
     <script>console.log("Welcome home!");</script>
 }
-
 ```
 
 ---
 
-### 2. Stacks and Pushing 
+### 2. Stacks and Pushing
 
 While `@section` replaces the content in a `@yield` placeholder, sometimes you want to *collect* content from multiple components or child templates (like adding CSS from different UI parts). For this, use `@stack` and `@push`.
 
@@ -1218,7 +1203,6 @@ While `@section` replaces the content in a `@yield` placeholder, sometimes you w
 
     @stack("styles")
 </head>
-
 ```
 
 **In Component or Page (`profile.html`):**
@@ -1227,23 +1211,25 @@ While `@section` replaces the content in a `@yield` placeholder, sometimes you w
 @push("styles") {
     <style>.profile-card { border: 1px solid teal; }</style>
 }
-
 ```
 
 ---
 
-### 3. Advanced Block Controls
+### Advanced Component Context
 
-| Directive | Type | Usage | Description |
+| Directive | Syntax | Description | Example |
 | :--- | :--- | :--- | :--- |
+| **@yield** | `@yield("n")` | Defines a placeholder for content. | `@yield("content")` |
+| **@section** | `@section("n")` | Fills a defined `@yield` placeholder. | `@section("content")` |
+| **@stack** | `@stack("n")` | Container for pushed content. | `@stack("styles")` |
+| **@push** | `@push("n")` | Appends content to a specific stack. | `@push("styles")` |
+| **@include** | `@include("p")` | Renders a partial template immediately. | `@include("nav")` |
+| **@fragment** | `@fragment("i")` | Marks a block for HTMX partial rendering.| `@fragment("item")` |
 
-| `@yield(name)` | Layout | `@yield("content")` | Defines a hole for child content. |
-| `@stack(name)` | Layout | `@stack("js")` | Defines an aggregation point. |
-| `@section(name)` | Child | `@section("content") { ... }` | Replaces the yield in the parent. |
-| `@push(name)` | Child | `@push("js") { ... }` | Appends content to the stack. |
-| `@super` | Child | `@super` | Access content from the parent's block. |
+> [!IMPORTANT]
+> Use `@stack` and `@push` for assets like JS and CSS. This prevents child templates from overriding the parent's base assets, allowing them to coexist.
 
-###  Dynamic URLs (`@url`)
+## Dynamic URLs (@url)
 
 The `@url` directive is the most powerful way to handle link generation in Eden. It's refactor-safe and supports multiple patterns.
 
@@ -1266,120 +1252,138 @@ The `@url` directive is the most powerful way to handle link generation in Eden.
 
 ```
 
-###  Components (`@component`)
+## Component System (@component)
 
-Render self-contained logic units directly in your templates.
+Eden's component system allows you to encapsulate both UI and logic into reusable units. Unlike partials, components can have their own backing Python class.
+
+| Directive | Syntax | Description | Example |
+| :--- | :--- | :--- | :--- |
+| **@component** | `@component("name", **kwargs)` | Renders a server-side component. | `@component("card", id=5)` |
+| **@slot** | `@slot("name") { ... }` | Defines content for a component slot. | `@slot("header") { Title }`|
+| **@props** | `@props([...])` | Defines accepted component properties. | `@props(['title', 'icon'])` |
+
+> [!TIP]
+> Use `@component` for complex UI pieces like data tables, navigation bars, or comment sections. For simple HTML snippets, `@include` is faster and lighter.
+
+### Basic Usage
 
 ```html
 @component("user-card", user=user, theme="dark")
+```
 
+### Advanced Slots
+
+```html
+@component("ui/modal", id="login-modal") {
+    @slot("header") {
+        <h3 class="text-lg font-bold">Sign In</h3>
+    }
+
+    <form>...</form>
+
+    @slot("footer") {
+        <button class="btn btn-primary">Submit</button>
+    }
+}
 ```
 
 [Learn more about Server-Side Components](components.md)
-
-### Reusable Components (Legacy/Pure-UI)
-
-```html
-@component("ui/card", title="Profile", elevation="xl") {
-    @slot("header") {
-        <img src="/avatar.png" class="rounded-full">
-    }
-    <p>User bio goes here...</p>
-}
-
-```
 
 ---
 
 ## Forms and Security
 
-Secure your forms with zero effort.
+Eden provides several directives to make form handling secure and painless, especially when integrating with Eden's `Form` and `Schema` validation layers.
+
+| Directive | Syntax | Description | Example |
+| :--- | :--- | :--- | :--- |
+| **@csrf** | `@csrf` | Injects a hidden CSRF token input. | `<form>@csrf</form>` |
+| **@method** | `@method("v")` | Spoofs HTTP methods for browsers. | `@method("PUT")` |
+| **@old** | `@old("f", d)` | Returns previous input value. | `value="@old('email')"` |
+| **@error** | `@error("f")` | Renders if specific error exists. | `@error('email')` |
+
+> [!IMPORTANT]
+> Always include `@csrf` in every `POST`, `PUT`, `PATCH`, or `DELETE` form. Eden's CSRF middleware will reject any request without a valid token for these methods.
+
+### Production Form Example
 
 ```html
-<form method="POST" action="/profile">
+<form method="POST" action="/profile/update" class="space-y-6">
     @csrf
-    @method("PUT")  <!-- Spoof PUT/PATCH/DELETE methods -->
+    @method("PUT") 
 
-    
-    <div class="space-y-6">
-        <!-- Method 1: The Magic @render_field directive -->
+    <div class="field-group">
+        <label class="block text-sm font-medium">Email Address</label>
+        <input type="email" name="email" 
+               value="@old('email', user.email)"
+               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+        
+        @error("email") {
+            <p class="mt-2 text-sm text-red-600">{{ message }}</p>
+        }
+    </div>
 
-        <div class="field-wrapper">
-            @render_field(form['email'], class="w-full rounded bg-slate-800 border-slate-700")
-        </div>
-
-        <!-- Method 2: Manual field construction using @old and @error -->
-
-        <div class="manual-field-group">
-            <label>Email</label>
-            <input type="text" name="email" value="@old('email')" 
-                   class="w-full rounded bg-slate-800 border-slate-700">
-            
-            @error("email") {
-                <span class="text-xs text-emerald-500">{{ message }}</span>
-            }
+    <div class="field-group">
+        <label class="block text-sm font-medium">Preferences</label>
+        <div class="mt-2 space-x-4">
+            <label>
+                <input type="checkbox" name="newsletter" @checked(@old('newsletter', user.wants_newsletter))>
+                Subscribe to Newsletter
+            </label>
         </div>
     </div>
     
-    <button type="submit">Update</button>
+    <button type="submit" class="btn btn-primary">Update Profile</button>
 </form>
+```
 
 ## HTMX and Fragment Rendering
 
-Eden provides first-class support for **HTMX** with the `@fragment` directive. This allows you to define pieces of a page that can be rendered independently.
+Eden features deep, native integration with **HTMX**. The `@fragment` directive is the core of this synergy, allowing you to define "sub-templates" within a single file.
+
+| Directive | Syntax | Description | Example |
+| :--- | :--- | :--- | :--- |
+| **@htmx** | `@htmx { ... }` | Renders only for HTMX requests. | `@htmx { <nav> }` |
+| **@non_htmx** | `@non_htmx { ... }` | Renders for full page loads only. | `@non_htmx { <html> }`|
+| **@fragment** | `@fragment("id")` | Defines an OOB swap target. | `@fragment("cart")` |
+
+> [!TIP]
+> Use `@htmx` and `@non_htmx` to maintain a single template for both full page loads and partial updates. Wrap your layouts in `@non_htmx` and your content updates in `@htmx` or `@fragment`.
+
+### Single-File Component Pattern
 
 ```html
-<!-- index.html -->
+@extends("layouts/app")
 
-<div>
-    <h1>Welcome</h1>
+@section("content") {
+    <h1>User Profile</h1>
     
-    @fragment("user-list") {
-        <ul id="users">
-            @for (user in users) {
-                 <li>{{ user.name }}</li>
-            }
-        </ul>
+    <!-- This part updates via HTMX -->
+    @fragment("user-status") {
+        <div id="status">
+            Current Status: {{ user.status }}
+            <button hx-post="/users/toggle-status" hx-target="#status">Toggle</button>
+        </div>
     }
-</div>
-
+}
 ```
 
-In your Python route, you can render **just the fragment** without the surrounding layout:
+### Python Implementation
 
 ```python
-@app.get("/users")
-async def list_users(request):
-    users = await User.all()
-    # Renders ONLY the <ul>, not the <h1> or layout!
+@app.get("/profile")
+async def profile(request):
+    # Renders the full page (including layout)
+    return request.render("profile.html")
 
-    return request.render("index.html", users=users, fragment="user-list")
-
+@app.post("/users/toggle-status")
+async def toggle(request):
+    # Renders ONLY the 'user-status' fragment
+    # HTMX will swap the content automatically
+    return request.render("profile.html", fragment="user-status")
 ```
 
-### The `request.render` Method
-
-Every Eden `Request` object has a built-in `.render()` method. This is the idiomatic way to render templates when you have a request object in your handler.
-
-```python
-@app.get("/dashboard")
-async def dashboard(request):
-    return request.render("dashboard.html", user=request.user)
-
-```
-
-### The `render_template` Global Helper
-
-For the ultimate clean syntax, you can use the `render_template` global helper (imported from `eden`). It automatically discovers the current request context using Python context variables, so you don't even need to pass the `request` object.
-
-```python
-from eden import render_template
-
-@app.get("/")
-async def home():
-    return render_template("home.html", title="Welcome Home")
-
-```
+---
 
 
 ---
@@ -1536,20 +1540,28 @@ Building admin interfaces is a core use case. Let's create a production-ready da
             </table>
         </div>
         
-        <!-- Pagination controls -->
+## Pagination and Navigation
 
-        @include("components/pagination", {
-            "current_page": products.page,
-            "total_pages": products.total_pages,
-            "has_prev": products.has_prev,
-            "has_next": products.has_next,
-            "prev_url": products.prev_url,
-            "next_url": products.next_url,
-            "base_url": request.url.path
-        })
-    </div>
-}
+Eden integrates seamlessly with complex navigation patterns. Use components for reusable pagination logic.
 
+| Directive | Syntax | Description | Example |
+| :--- | :--- | :--- | :--- |
+| **@url** | `@url("route", **params)`| Generates a reverse-mapped URL. | `@url("posts:list", p=1)` |
+| **@active_link**| `@active_link("pattern", "class")`| Emits class if route matches. | `class="@active_link('h*', 'a')"`|
+
+> [!TIP]
+> The `@active_link` directive supports wildcards. `@active_link('admin:*', 'active')` will apply the 'active' class to any route starting with 'admin:'.
+
+```html
+@include("components/pagination", {
+    "current_page": products.page,
+    "total_pages": products.total_pages,
+    "has_prev": products.has_prev,
+    "has_next": products.has_next,
+    "prev_url": products.prev_url,
+    "next_url": products.next_url,
+    "base_url": request.url.path
+})
 ```
 
 ### Response Handler for Dashboard
@@ -1630,433 +1642,121 @@ async def admin_products_list(request):
 
 ```
 
----
+--## Advanced Directives & Loop Control
 
-## Undocumented Features & Advanced Directives
+These directives provide fine-grained control over template execution and state management.
 
-The following directives are **fully implemented** in the Eden engine but not extensively documented. This section provides usage examples for each.
+| Directive | Syntax | Description | Example |
+| :--- | :--- | :--- | :--- |
+| **@break** | `@break(cond)` | Exits the current loop. | `@break(user.banned)` |
+| **@continue** | `@continue(cond)` | skips to next iteration. | `@continue(post.draft)` |
+| **@super** | `@super` | Renders parent block content. | `@section('css') { @super }`|
+| **@messages** | `@messages { ... }` | Iterates over flash messages. | `@messages { {{ $message }} }`|
+| **@flash** | `@flash("type") { ... }`| Renders if specific type flashes. | `@flash("success") { ... }`|
+| **@status** | `@status(code) { ... }` | Renders on specific HTTP status. | `@status(404) { ... }` |
+| **@route** | `@route("pattern")` | Checks if route matches pattern. | `@if(@route('admin:*'))` |
 
-### @break - Exit Loop Early
+> [!NOTE]
+> The `@break` and `@continue` directives can take an optional expression. If provided, they will only trigger if the expression evaluates to `True`.
 
-Exit a loop before reaching the end. Useful when you find what you're looking for.
+### Loop Control in Action
 
 ```html
-<!-- Find and display first active user -->
-@for(user in users) {
-    @if(user.is_active) {
-        <div>Found active user: {{ user.name }}</div>
-        @break
-    }
-}
+@for (user in users) {
+    <!-- Skip all system accounts -->
+    @continue(user.is_system)
 
-<!-- Stop after finding 5 items -->
-@for(item in items) {
-    @if($loop.index > 5) {
-        @break
-    }
-    <div>{{ item.title }}</div>
-}
+    <li>{{ user.name }}</li>
 
-<!-- Exit on condition -->
-@for(entry in log_entries) {
-    @if(entry.level == 'ERROR') {
-        <div class="alert">{{ entry.message }}</div>
-        @break
-    }
+    <!-- Stop after 100 users for performance -->
+    @break($loop.index >= 100)
 }
 ```
 
-### @continue - Skip to Next Iteration
-
-Skip the current iteration and continue with the next item. Useful for filtering within loops.
+### Flash Messages with `@messages`
 
 ```html
-<!-- Skip inactive users -->
-@for(user in users) {
-    @if(!user.is_active) {
-        @continue
-    }
-    <div class="user-item">{{ user.name }}</div>
-}
-
-<!-- Skip empty items -->
-@for(item in items) {
-    @if(!item.title) {
-        @continue
-    }
-    <li>{{ item.title }}: {{ item.price | currency }}</li>
-}
-
-<!-- Skip based on permission -->
-@for(page in pages) {
-    @if(!request.user.can_access(page)) {
-        @continue
-    }
-    <a href="{{ page.url }}">{{ page.name }}</a>
-}
-```
-
-### @super - Access Parent Block Content
-
-When you override a block in a child template, use `@super` to include the parent's content alongside your child content.
-
-**Parent Layout (`base.html`):**
-```html
-@yield("scripts") {
-    <script src="/js/core.js"></script>
-    <script src="/js/animations.js"></script>
-}
-```
-
-**Child Template (`dashboard.html`):**
-```html
-@extends("base.html")
-
-@section("scripts") {
-    @super  <!-- Includes parent scripts above -->
-    <script src="/js/dashboard.js"></script>
-    <script src="/js/charts.js"></script>
-}
-
-<!-- Result HTML will have:
-    <script src="/js/core.js"></script>
-    <script src="/js/animations.js"></script>
-    <script src="/js/dashboard.js"></script>
-    <script src="/js/charts.js"></script>
--->
-```
-
-**Another Example - Styles:**
-```html
-<!-- Layout header -->
-@stack("styles") {
-    <link rel="stylesheet" href="/css/bootstrap.css">
-}
-
-<!-- Page pushes additional styles -->
-@push("styles") {
-    <link rel="stylesheet" href="/css/page-specific.css">
-}
-
-@push("styles") {
-    <link rel="stylesheet" href="/css/animations.css">
-}
-
-<!-- Result: All styles stack together -->
-```
-
-### @props - Define Accepted Component Properties
-
-When building reusable components, use `@props` to define what properties a component accepts. This is Eden's type-hint equivalent for templates.
-
-**Component Template (`card.html`):**
-```html
-@props(['title', 'subtitle', 'icon', 'elevation' => 'md'])
-
-<div class="card {{ elevation | eden_shadow }}">
-    @if(icon) {
-        <img src="{{ icon }}" class="icon">
-    }
-    <h2>{{ title }}</h2>
-    @if(subtitle) {
-        <p class="text-muted">{{ subtitle }}</p>
-    }
-    @slot("content")
-</div>
-```
-
-**Using the Component:**
-```html
-<!-- Required props: title, subtitle (optional), icon (optional), elevation (has default) -->
-@component("card", 
-    title="User Profile",
-    subtitle="Manage your account",
-    icon="/icons/user.svg",
-    elevation="lg"
-)
-
-<!-- Props are extracted and available in card.html template -->
-```
-
-### @messages - Display Flash Messages
-
-`@messages` is the comprehensive way to render all active flash messages from the previous request. Perfect for showing success, error, warning, and info alerts.
-
-```html
-<!-- Simple: render all messages as default alerts -->
-@messages
-
-<!-- Custom rendering with loop -->
 @messages {
-    <!-- $message is auto-available inside the block -->
-    <div class="alert alert-{{ $message.type }} alert-dismissible">
-        <button type="button" class="close">&times;</button>
-        {{ $message.text }}
+    <div class="alert alert-{{ $message.type }} shadow-glow">
+        <span class="icon">@include("icons/" ~ $message.type)</span>
+        <p>{{ $message.text }}</p>
     </div>
 }
-
-<!-- Advanced: styling per message type -->
-<div id="alerts">
-    @messages {
-        @if($message.type == 'success') {
-            <div class="alert alert-success alert-dismissible fade show">
-                <strong>Success!</strong> {{ $message.text }}
-                <button type="button" class="btn-close" data-dismiss="alert"></button>
-            </div>
-        } @else if($message.type == 'error') {
-            <div class="alert alert-danger alert-dismissible fade show">
-                <strong>Error!</strong> {{ $message.text }}
-                <button type="button" class="btn-close" data-dismiss="alert"></button>
-            </div>
-        } @else if($message.type == 'warning') {
-            <div class="alert alert-warning alert-dismissible fade show">
-                <strong>Warning:</strong> {{ $message.text }}
-                <button type="button" class="btn-close" data-dismiss="alert"></button>
-            </div>
-        } @else {
-            <div class="alert alert-info alert-dismissible fade show">
-                <strong>Info:</strong> {{ $message.text }}
-                <button type="button" class="btn-close" data-dismiss="alert"></button>
-            </div>
-        }
-    }
-</div>
 ```
 
-**In Your Python Handler:**
-```python
-@app.post("/profile/update")
-async def update_profile(request):
-    # ... update logic ...
-    
-    # Flash a success message
-    request.flash("Profile updated successfully!", "success")
-    
-    # Available types: 'success', 'error', 'warning', 'info'
-    request.flash("Some issue occurred", "error")
-    
-    return redirect("profile")
-```
-
-### @flash - Single Flash Message
-
-Render a single flash message of a specific type. Useful when you know exactly which message to display.
+> [!TIP]
+> Use the `$message.type` (e.g., 'success', 'error', 'warning') to map directly to your CSS classes or icon names for consistent feedback.
 
 ```html
-<!-- Display success messages only -->
-@flash("success") {
-    <div class="alert alert-success">✓ {{ message }}</div>
-}
+<nav>
+    <a href="/" class="@if(@route('home')) text-blue-500 @else text-gray-500 @endif">Home</a>
+    <a href="/docs" class="@if(@route('docs:*')) text-blue-500 @else text-gray-500 @endif">Documentation</a>
+</nav>
+```
+## Debugging and Performance
 
-<!-- Display error messages with special styling -->
-@flash("error") {
-    <div class="alert alert-danger">
-        <strong>Error:</strong> {{ message }}
-    </div>
-}
+| Directive | Syntax | Description | Example |
+| :--- | :--- | :--- | :--- |
+| **@dump** | `@dump(var)` | Pretty-prints a variable. | `@dump(user.permissions)` |
+| **@json** | `@json(var)` | Safe JSON for script tags. | `const data = @json(stats);`|
+| **@vite** | `@vite(['app.js'])` | Injects HMR asset paths. | `@vite(['js/main.js'])` |
 
-<!-- Display warnings -->
-@flash("warning") {
-    <div class="alert alert-warning">
-        ⚠ {{ message }}
-    </div>
-}
+> [!CAUTION]
+> Never use `@dump` in production. It exposes internal variable structures which could be a security risk.
 
-<!-- Info messages -->
-@flash("info") {
-    <div class="alert alert-info">
-        ℹ {{ message }}
+### Performance Tip: Fragment Caching
+
+For heavy partials, use HTMX fragments to avoid re-rendering the entire template when only a small piece changes.
+
+```html
+@fragment("heavy-stats") {
+    <div hx-get="/api/stats" hx-trigger="load delay:1s">
+        Loading real-time stats...
     </div>
 }
 ```
 
-### @status - HTTP Status Code Checking
-
-Conditionally render content based on the HTTP response status. Useful for error pages or status-specific hints.
+### Static Asset Optimization
 
 ```html
-<!-- Show message only for successful responses -->
-@status([200, 201]) {
-    <div class="success-banner">
-        Operation completed successfully!
-    </div>
-}
-
-<!-- Show error-specific content -->
-@status(404) {
-    <div class="error-container">
-        <h1>404 - Page Not Found</h1>
-        <p>The page you're looking for doesn't exist.</p>
-    </div>
-}
-
-<!-- Multiple statuses -->
-@status([400, 422]) {
-    <div class="validation-error">
-        Please check the form below for errors.
-    </div>
-}
-
-<!-- Handle server errors -->
-@status([500, 502, 503]) {
-    <div class="maintenance">
-        <p>We're experiencing technical difficulties. Please try again later.</p>
-    </div>
-}
-
-<!-- Use in templates for error layouts -->
-@extends("layouts/error")
-
-@section("content") {
-    @status(403) {
-        <div class="access-denied">
-            <h1>Access Denied</h1>
-            <p>You don't have permission to access this resource.</p>
-        </div>
-    }
-    
-    @status(404) {
-        <div class="not-found">
-            <h1>Not Found</h1>
-            <p>The resource you requested could not be found.</p>
-        </div>
-    }
-}
-```
-
-### @route - Determine Current Route
-
-Get information about the currently executing route. Useful for dynamic navigation or conditional rendering based on which route is active.
-
-```html
-<!-- Check if we're on admin routes -->
-@route("admin:*") {
-    <div class="admin-toolbar">Admin tools active</div>
-}
-
-<!-- Display different navigation for different sections -->
-@if(@route("admin:*") != null) {
-    <!-- Show admin navigation -->
-} @else if(@route("user:*") != null) {
-    <!-- Show user navigation -->
-} @else {
-    <!-- Show public navigation -->
-}
-
-<!-- Show extra content on specific route -->
-@route("users:profile") {
-    <div class="profile-tips">
-        Tips for completing your profile
-    </div>
-}
-
-<!-- Multiple routes -->
-@if(@route("dashboard") != null || @route("analytics") != null) {
-    <link rel="stylesheet" href="/css/dashboard-styles.css">
-}
+<head>
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
+</head>
 ```
 
 ---
 
-## Pagination and Navigation
+## Complete Directives Reference
 
-Pagination is essential for listing large datasets. Here's a reusable pagination component.
+For convenience, here's a complete lookup table of all supported Eden directives.
 
-### Pagination Component Template
+| Category | Directive | Implementation Status |
+| :--- | :--- | :--- |
+| **Structure** | `@extends`, `@section`, `@yield`, `@include` | ✅ Fully Supported |
+| **Stacks** | `@push`, `@stack`, `@prepend` | ✅ Fully Supported |
+| **Logic** | `@if`, `@else`, `@else_if`, `@switch`, `@case` | ✅ Fully Supported |
+| **Loops** | `@for`, `@empty`, `@while`, `@break`, `@continue`| ✅ Fully Supported |
+| **Auth** | `@auth`, `@guest` | ✅ Fully Supported |
+| **Security** | `@csrf`, `@method` | ✅ Fully Supported |
+| **Interactivity**| `@htmx`, `@non_htmx`, `@fragment` | ✅ Fully Supported |
+| **Forms** | `@checked`, `@selected`, `@disabled`, `@old` | ✅ Fully Supported |
+| **Errors** | `@error`, `@messages`, `@flash` | ✅ Fully Supported |
+| **Routes** | `@url`, `@active_link`, `@route`, `@status` | ✅ Fully Supported |
+| **Assets** | `@vite`, `@json`, `@dump`, `@css`, `@js` | ✅ Fully Supported |
+| **Legacy** | `@can`, `@cannot`, `@inject`, `@php` | 🚧 Planned (Post-v1) |
 
-```html
-<!-- templates/components/pagination.html -->
-
-<div class="mt-8 flex items-center justify-between">
-    <!-- Previous button -->
-
-    @if(has_prev) {
-        <a href="{{ prev_url }}" class="btn btn-sm btn-secondary"> Previous</a>
-    } @else {
-        <button disabled class="btn btn-sm btn-secondary opacity-50 cursor-not-allowed"> Previous</button>
-    }
-    
-    <!-- Page numbers -->
-
-    <div class="flex gap-1">
-        @for (page_num in range(max(1, current_page - 2), min(total_pages + 1, current_page + 3))) {
-
-            @if(page_num == current_page) {
-                <span class="px-3 py-2 bg-blue-600 text-white rounded font-bold">{{ page_num }}</span>
-            } @else {
-                <a href="{{ base_url }}?page={{ page_num }}" class="px-3 py-2 border rounded hover:bg-gray-100">
-                    {{ page_num }}
-                </a>
-            }
-        }
-    </div>
-    
-    <!-- Next button -->
-
-    @if(has_next) {
-        <a href="{{ next_url }}" class="btn btn-sm btn-primary">Next </a>
-    } @else {
-        <button disabled class="btn btn-sm btn-primary opacity-50 cursor-not-allowed">Next </button>
-    }
-</div>
-
-<!-- Page info -->
-
-<div class="mt-4 text-center text-sm text-gray-500">
-    Page {{ current_page }} of {{ total_pages }}
-</div>
-
-```
-
-### Cursor-Based Pagination (for large datasets)
-
-For very large datasets, cursor-based pagination is more efficient:
-
-```html
-<!-- Cursor-based pagination -->
-
-<div class="mt-8 flex gap-4">
-    @if(has_prev) {
-        <a href="?cursor={{ prev_cursor }}" class="btn btn-secondary"> Previous</a>
-    }
-    
-    @if(has_next) {
-        <a href="?cursor={{ next_cursor }}" class="btn btn-primary">Next </a>
-    }
-</div>
-
-```
+---
 
 ```python
 @app.get("/items")
-async def items_with_cursor(request):
+async def list_items(request):
     cursor = request.query_params.get("cursor")
-    limit = 25
+    items, has_next = await Item.get_paginated(cursor=cursor)
     
-    # Build query
-
-    query = Item.all().order_by("-created_at")
-    
-    # If cursor provided, start from there
-
-    if cursor:
-        cursor_time = datetime.fromisoformat(cursor)
-        query = query.filter(created_at__lt=cursor_time)
-    
-    # Fetch one extra to determine if there's a next page
-
-    items = await query.limit(limit + 1).all()
-    
-    has_next = len(items) > limit
-    if has_next:
-        items = items[:limit]
-    
-    # Calculate next cursor (last item's timestamp)
-
-    next_cursor = items[-1].created_at.isoformat() if items and has_next else None
+    # Next cursor (last item's timestamp)
+    next_cursor = items[-1].created_at.isoformat() if has_next else None
     
     # Previous cursor (first item's timestamp)
-
     prev_cursor = items[0].created_at.isoformat() if items else None
     
     return request.render("items.html", {
@@ -2066,7 +1766,6 @@ async def items_with_cursor(request):
         "next_cursor": next_cursor,
         "prev_cursor": prev_cursor,
     })
-
 ```
 
 ---
@@ -2431,28 +2130,56 @@ Manage your CSS and JS bundles easily.
 
 Eden includes Jinja2 filters that map directly to the **Elite** design tokens and functional helpers.
 
+---
+
+## Filters Reference
+
+Filters are used to transform data before it's rendered. Eden includes standard Jinja filters plus a collection of framework-specific functional filters.
+
 ### General Purpose Filters
 
-| Filter | Description | Example |
-| :--- | :--- | :--- |
+| Filter | Signature | Description | Example |
+| :--- | :--- | :--- | :--- |
+| **date** | `\| date` | Locale-aware date formatting. | `{{ task.due \| date }}` |
+| **time** | `\| time` | Locale-aware time formatting. | `{{ task.due \| time }}` |
+| **number** | `\| number` | Adds thousand separators. | `{{ 1.5M \| number }}` |
+| **currency** | `\| currency` | Formats as localized currency. | `{{ 50 \| currency }}` |
+| **mask** | `\| mask` | Masks sensitive strings. | `{{ 'cobby@eden.dev' \| mask }}` |
+| **file_size** | `\| file_size` | Human-readable bytes. | `{{ 1MB \| file_size }}` |
+| **time_ago** | `\| time_ago` | Relative time representation. | `{{ post.created \| time_ago }}` |
 
-| `date` | Locale-aware date. | `{{ task.due_at\|date }}` |
-| `time` | Locale-aware time. | `{{ task.due_at\|time }}` |
-| `number` | Thousand separators. | `{{ 1500000\|number }}` |
-| `currency` | Localized symbol. | `{{ 50\|currency }}` |
-| `json_encode` | Safe JSON encoding. | `x-data="{{ data\|json_encode }}"` |
-| `mask` | Mask sensitive data. | `{{ "cobby@eden.dev"\|mask }}` |
-| `file_size` | Human file size. | `{{ 1048576\|file_size }}` |
+> [!TIP]
+> The `currency` filter automatically uses the currency code defined in your `EDEN_LOCALE_SETTINGS`. Use `{{ price \| currency(symbol='EUR') }}` to override at the template level.
+
+---
 
 ### Design System Filters
 
-| Filter | Usage | Effect |
-| :--- | :--- | :--- |
+These filters map strings to Eden's premium design tokens (Elite UI).
 
-| `eden_bg` | `{{ "primary"\|eden_bg }}` | Background color token. |
-| `eden_text` | `{{ "white"\|eden_text }}` | Text color token. |
-| `eden_shadow` | `{{ "lg"\|eden_shadow }}` | Elevation tokens. |
-| `eden_font` | `{{ "heading"\|eden_font }}` | Typography tokens. |
+| Filter | Signature | Description | Example |
+| :--- | :--- | :--- | :--- |
+| **eden_bg** | `\| eden_bg` | Maps token to background color. | `{{ "primary" \| eden_bg }}` |
+| **eden_text** | `\| eden_text` | Maps token to text color. | `{{ "white" \| eden_text }}` |
+| **eden_shadow** | `\| eden_shadow` | Maps token to elevation glow. | `{{ "lg" \| eden_shadow }}` |
+| **eden_font** | `\| eden_font` | Maps token to typography style. | `{{ "heading" \| eden_font }}` |
+
+> [!NOTE]
+> Eden tokens like `primary`, `success`, and `warning` are not just simple Tailwind classes; they are dynamic tokens that adapt to Dark/Light mode automatically when applied via these filters.
+
+---
+
+### Widget and Form Tweaks
+
+Fine-grained control over form fields without modifying the Python form class.
+
+| Filter | Signature | Description | Example |
+| :--- | :--- | :--- | :--- |
+| **add_class** | `\| add_class(c)` | Appends a class string. | `{{ field \| add_class('btn') }}` |
+| **attr** | `\| attr(k, v)` | Injects an HTML attribute. | `{{ field \| attr('rows', '2') }}` |
+| **placeholder** | `\| placeholder(t)` | Sets input placeholder text. | `{{ field \| placeholder('Email') }}`|
+| **label_tag** | `\| label_tag(c)` | Renders the field label. | `{{ field \| label_tag('bold') }}`|
+
 
 ---
 

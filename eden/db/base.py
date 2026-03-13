@@ -142,15 +142,12 @@ class Model(Base, AccessControl):
 
     @classmethod
     def _infer_relationships_immediate(cls):
-        """Infers relationships from type hints before mapping.
-
-        This helper scans the class's ``__annotations__`` looking for hints
-        that reference other ``Model`` subclasses.  It is invoked during
-        the mapping phase so that SQLAlchemy relationships can be automatically
-        created when the user declares attributes like
-        ``owner: Mapped['User']`` or ``items: List['OrderItem']``.
-
-        Returns a list of the attribute names that were inferred.
+        """
+        Introspect type hints to automatically define SQLAlchemy relationships.
+        Supported patterns:
+        - Mapped[List["OtherModel"]] -> one-to-many
+        - Mapped["OtherModel"] -> many-to-one
+        - Mapped[List["OtherModel"]] with ManyToManyField -> many-to-many
         """
         from sqlalchemy.orm import RelationshipProperty, relationship as sa_rel
         import re
