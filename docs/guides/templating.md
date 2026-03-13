@@ -253,20 +253,35 @@ Eden provides a rich set of built-in filters for formatting, transforming, and s
 
 ### Widget and Form Tweaks
 
-These filters allow you to dynamically modify form fields and attributes inline.
+These are **standalone filters** for dynamically modifying form field attributes and behavior. They are **independent of `@render_field`** and can be used to manipulate raw field objects or HTML elements.
 
-| Filter | Description |
-| :--- | :--- |
+| Filter | Description | Usage |
+| :--- | :--- | :--- |
+| **add_class** | Appends a CSS class to a field. | `{{ form['email'] \| add_class('error') }}` |
+| **attr** | Sets an attribute (e.g., `rows="5"`). | `{{ form['description'] \| attr('rows', '5') }}` |
+| **append_attr** | Appends to an existing attribute. | `{{ form['name'] \| append_attr('class', 'active') }}` |
+| **remove_attr** | Removes an attribute. | `{{ form['email'] \| remove_attr('disabled') }}` |
+| **field_type** | Returns the field's internal type name. | `{{ form['email'].field_type }}` |
 
-| **add_class** | Appends a CSS class to a field. |
+> [!NOTE]  
+> **These filters work on field objects, not the `@render_field` directive.** Use them when you need fine-grained control over individual field attributes. For complete field rendering with labels, inputs, and errors, use `@render_field()` instead.
 
-| **attr** | Sets an attribute (e.g., `rows="5"`). |
+#### Example: Modifying Field Attributes
 
-| **append_attr** | Appends to an existing attribute. |
+```html
+<!-- Add error styling dynamically -->
+@if(form.has_errors('email')) {
+    @render_field(form['email'] | add_class('border-red-500'))
+}
 
-| **remove_attr** | Removes an attribute. |
+<!-- Set textarea rows -->
+@render_field(form['message'] | attr('rows', '8') | attr('placeholder', 'Your message here...'))
 
-| **field_type** | Returns the field's internal type name. |
+<!-- Remove disabled attribute conditionally -->
+@if(user.is_admin) {
+    {{ form['restricted_field'] | remove_attr('disabled') }}
+}
+```
 
 ### Design System (Eden Tokens)
 
@@ -656,6 +671,19 @@ Mark fields as read-only once data is submitted:
 ---
 
 ## Form Directives
+
+### Understanding Form Components: Directives vs Filters
+
+Eden provides two complementary approaches for working with forms:
+
+| Component | Type | Purpose | Example |
+| :--- | :--- | :--- | :--- |
+| **@render_field()** | Directive | Complete field rendering (label + input + errors) | `@render_field(form['email'])` |
+| **add_class, attr, etc.** | Filters | Individual attribute modification | `form['email'] \| add_class('error')` |
+| **@checked, @selected** | Directives | Conditional HTML attributes | `@checked(user.active)` |
+| **@error, @old** | Directives | Form validation helpers | `@error('email')` or `@old('name')` |
+
+**The "Widget and Form Tweaks" filters listed in the Filters Reference are NOT part of `@render_field()`** — they're standalone filters for fine-grained field manipulation. Use them when you need programmatic control over individual field attributes.
 
 ---
 
