@@ -174,7 +174,14 @@ class FilterRegistry:
         self.register('length', lambda s: len(str(s)))
         self.register('truncate', self._filter_truncate)
         self.register('slug', self._filter_slug)
+        self.register('slugify', self._filter_slug)  # Alias
         self.register('repeat', self._filter_repeat)
+        
+        # String formatting & utilities
+        self.register('title_case', lambda s: ' '.join(word.capitalize() for word in str(s).split()))
+        self.register('mask', self._filter_mask)
+        self.register('default_if_none', self._filter_default_if_none)
+        self.register('pluralize', self._filter_pluralize)
         
         # Numeric filters
         self.register('abs', lambda n: abs(float(n)))
@@ -191,12 +198,28 @@ class FilterRegistry:
         
         # Type filters
         self.register('json', self._filter_json)
+        self.register('json_encode', self._filter_json)  # Alias
         
-        # I18n filters (registering base versions - locale variants handled elsewhere)
+        # I18n filters
         self.register('phone', self._filter_phone)
         self.register('currency', self._filter_currency)
+        self.register('money', self._filter_currency)  # Alias
         self.register('date', self._filter_date)
         self.register('time', self._filter_time)
+        self.register('time_ago', self._filter_time_ago)
+        self.register('file_size', self._filter_file_size)
+        
+        # Design system filters
+        self.register('eden_bg', self._filter_eden_bg)
+        self.register('eden_shadow', self._filter_eden_shadow)
+        self.register('eden_text', self._filter_eden_text)
+        
+        # Form field filters
+        self.register('add_class', self._filter_add_class)
+        self.register('attr', self._filter_attr)
+        self.register('append_attr', self._filter_append_attr)
+        self.register('remove_attr', self._filter_remove_attr)
+        self.register('field_type', self._filter_field_type)
     
     @staticmethod
     def _filter_replace(s: str, old: str, new: str) -> str:
@@ -306,6 +329,157 @@ class FilterRegistry:
         if isinstance(dt, datetime):
             return dt.strftime(str(format))
         return str(dt)
+    
+    @staticmethod
+    def _filter_mask(s: str, mask_char: str = "*") -> str:
+        """Mask sensitive strings (email, phone)."""
+        s_str = str(s)
+        if '@' in s_str:
+            parts = s_str.split('@')
+            if len(parts[0]) > 2:
+                return parts[0][0] + mask_char * (len(parts[0]) - 2) + parts[0][-1] + '@' + parts[1]
+        if len(s_str) > 3:
+            return mask_char * (len(s_str) - 3) + s_str[-3:]
+        return mask_char * len(s_str)
+    
+    @staticmethod
+    def _filter_pluralize(text: str, count: int = 1, plural: str = "s") -> str:
+        """Add suffix based on count."""
+        try:
+            if int(count) != 1:
+                return str(text) + str(plural)
+            return str(text)
+        except (ValueError, TypeError):
+            return str(text)
+    
+    @staticmethod
+    def _filter_default_if_none(value: Any, default: Any = "N/A") -> Any:
+        """Fallback if None."""
+        return default if value is None else value
+    
+    @staticmethod
+    def _filter_file_size(bytes_val: int) -> str:
+        """Format bytes to KB/MB/GB."""
+        try:
+            size = float(bytes_val)
+            for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+                if size < 1024:
+                    return f"{size:.1f} {unit}"
+                size /= 1024
+            return f"{size:.1f} PB"
+        except (ValueError, TypeError):
+            return str(bytes_val)
+    
+    @staticmethod
+    def _filter_time_ago(dt: Any, precision: str = 'minute') -> str:
+        """Human-readable time distance."""
+        try:
+            if isinstance(dt, str):
+                dt = datetime.fromisoformat(dt)
+            if not isinstance(dt, datetime):
+                return str(dt)
+            diff = datetime.now() - dt
+            seconds = diff.total_seconds()
+            if seconds < 60:
+                return "just now"
+            elif seconds < 3600:
+                mins = int(seconds // 60)
+                return f"{mins} minute{'s' if mins > 1 else ''} ago"
+            elif seconds < 86400:
+                hrs = int(seconds // 3600)
+                return f"{hrs} hour{'s' if hrs > 1 else ''} ago"
+            elif seconds < 604800:
+                days = int(seconds // 86400)
+                return f"{days} day{'s' if days > 1 else ''} ago"
+            else:
+                weeks = int(seconds // 604800)
+                return f"{weeks} week{'s' if weeks > 1 else ''} ago"
+        except:
+            return str(dt)
+    
+    @staticmethod
+    def _filter_eden_bg(color: str) -> str:
+        """Eden design system background colors."""
+        eden_colors = {
+            'primary': 'bg-blue-600', 'secondary': 'bg-slate-600',
+            'success': 'bg-emerald-600', 'danger': 'bg-red-600',
+            'warning': 'bg-amber-600', 'info': 'bg-cyan-600',
+            'dark': 'bg-slate-900', 'light': 'bg-slate-100',
+        }
+        return eden_colors.get(str(color).lower(), str(color))
+    
+    @staticmethod
+    def _filter_eden_shadow(size: str) -> str:
+        """Eden design system shadows."""
+        eden_shadows = {'sm': 'shadow-sm', 'md': 'shadow-md', 'lg': 'shadow-lg',
+                       'xl': 'shadow-xl', '2xl': 'shadow-2xl', 'none': 'shadow-none'}
+        return eden_shadows.get(str(size).lower(), f'shadow-{size}')
+    
+    @staticmethod
+    def _filter_eden_text(tone: str) -> str:
+        """Eden design system text colors."""
+        eden_tones = {
+            'slate-900': 'text-slate-900', 'slate-600': 'text-slate-600',
+            'primary': 'text-blue-600', 'secondary': 'text-slate-600',
+            'success': 'text-emerald-600', 'danger': 'text-red-600',
+            'warning': 'text-amber-600', 'info': 'text-cyan-600',
+            'muted': 'text-slate-500', 'light': 'text-slate-100',
+        }
+        return eden_tones.get(str(tone).lower(), str(tone))
+    
+    @staticmethod
+    def _filter_add_class(obj: Any, class_name: str) -> dict:
+        """Add CSS class to field object."""
+        if isinstance(obj, dict):
+            obj = obj.copy()
+            if 'classes' in obj:
+                obj['classes'] = f"{obj['classes']} {class_name}"
+            else:
+                obj['classes'] = class_name
+            return obj
+        return obj
+    
+    @staticmethod
+    def _filter_attr(obj: Any, attr_name: str, value: Any) -> dict:
+        """Set attribute on field object."""
+        if isinstance(obj, dict):
+            obj = obj.copy()
+            if 'attributes' not in obj:
+                obj['attributes'] = {}
+            obj['attributes'][attr_name] = value
+            return obj
+        return obj
+    
+    @staticmethod
+    def _filter_append_attr(obj: Any, attr_name: str, value: Any) -> dict:
+        """Append to attribute on field object."""
+        if isinstance(obj, dict):
+            obj = obj.copy()
+            if 'attributes' not in obj:
+                obj['attributes'] = {}
+            if attr_name in obj['attributes']:
+                obj['attributes'][attr_name] = f"{obj['attributes'][attr_name]} {value}"
+            else:
+                obj['attributes'][attr_name] = value
+            return obj
+        return obj
+    
+    @staticmethod
+    def _filter_remove_attr(obj: Any, attr_name: str) -> dict:
+        """Remove attribute from field object."""
+        if isinstance(obj, dict):
+            obj = obj.copy()
+            if 'attributes' in obj:
+                obj['attributes'] = {k: v for k, v in obj['attributes'].items() if k != attr_name}
+            return obj
+        return obj
+    
+    @staticmethod
+    def _filter_field_type(obj: Any) -> str:
+        """Get field type."""
+        if isinstance(obj, dict):
+            return obj.get('type', 'text')
+        return 'text'
 
 
 class TestRegistry:
