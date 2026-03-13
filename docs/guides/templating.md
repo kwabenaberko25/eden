@@ -224,79 +224,392 @@ async def list_items(request):
 
 ## All Filters Reference
 
-Eden provides a rich set of built-in filters for formatting, transforming, and styling data.
+Eden provides a rich set of built-in filters for formatting, transforming, and styling data. **All examples below use the pipe (`|`) syntax.**
 
-### Formatting and Utility
+---
 
-| Filter | Description | Example |
-| :--- | :--- | :--- |
+### String Filters
 
-| **money** | Formats value as currency. | `$99.99` |
+#### **upper** - Convert to uppercase
+```html
+{{ name | upper }}
+{{ "hello" | upper }}  <!-- Output: HELLO -->
+{{ user.email | upper }}
+```
 
-| **time_ago** | Human-readable time distance. | `2 hours ago` |
+#### **lower** - Convert to lowercase  
+```html
+{{ NAME | lower }}
+{{ "WELCOME" | lower }}  <!-- Output: welcome -->
+{{ title | lower }}
+```
 
-| **truncate** | Truncates string with ellipsis. | `{{ text | truncate(20) }}` |
+#### **title** - Title case (first letter capitalized)
+```html
+{{ name | title }}
+{{ "python developer" | title }}  <!-- Output: Python Developer -->
+{{ text | title }}
+```
 
-| **slugify** | Converts text to URL-safe slug. | `{{ title | slugify }}` |
+#### **capitalize** - Capitalize first character only
+```html
+{{ name | capitalize }}
+{{ "first name" | capitalize }}  <!-- Output: First name -->
+{{ description | capitalize }}
+```
 
-| **mask** | Masks sensitive strings. | `u***@e.com` |
+#### **reverse** - Reverse a string
+```html
+{{ text | reverse }}
+{{ "hello" | reverse }}  <!-- Output: olleh -->
+{{ code | reverse }}
+```
 
-| **file_size** | Formats bytes to KB/MB/GB. | `1.2 MB` |
+#### **trim / ltrim / rtrim** - Remove whitespace
+```html
+{{ text | trim }}      <!-- Remove both sides -->
+{{ text | ltrim }}     <!-- Remove left -->
+{{ text | rtrim }}     <!-- Remove right -->
+{{ "  hello  " | trim }}  <!-- Output: hello -->
+```
 
-| **pluralize** | Returns suffix based on count. | `pluralize("item")` |
+#### **replace** - Replace substring
+```html
+{{ text | replace("oldtext", "newtext") }}
+{{ "Hello World" | replace("World", "Eden") }}  <!-- Output: Hello Eden -->
+{{ path | replace("/", "-") }}
+```
 
-| **title_case** | Uppercases first letter of words. | `{{ name | title_case }}` |
+#### **slice** - Extract substring
+```html
+{{ text | slice(0, 5) }}
+{{ "Hello World" | slice(0, 5) }}  <!-- Output: Hello -->
+{{ email | slice(0, 3) }}  <!-- Hide most of email -->
+```
 
-| **default_if_none** | Fallback if value is `None`. | `default_if_none("N/A")` |
+#### **length** - Get string length
+```html
+{{ text | length }}
+{{ "hello" | length }}  <!-- Output: 5 -->
+{{ description | length }}
+```
 
-| **json_encode** | Safe JSON serialization. | `{{ data | json_encode }}` |
+#### **truncate** - Truncate with ellipsis
+```html
+{{ text | truncate(20) }}
+{{ "This is a very long description" | truncate(15) }}  <!-- Output: This is a very... -->
+{{ post.content | truncate(50) }}
+{{ bio | truncate(100, "...") }}  <!-- Custom suffix -->
+```
+
+#### **repeat** - Repeat string N times
+```html
+{{ text | repeat(3) }}
+{{ "*" | repeat(5) }}  <!-- Output: ***** -->
+{{ "-" | repeat(20) }}
+{{ emoji | repeat(4) }}
+```
+
+#### **slugify** - Convert to URL-safe slug
+```html
+{{ title | slugify }}
+{{ "Hello World!" | slugify }}  <!-- Output: hello-world -->
+{{ "Python™ Developer" | slugify }}  <!-- Output: python-developer -->
+{{ post.title | slugify }}
+```
+
+#### **title_case** - Uppercase first letter of each word
+```html
+{{ text | title_case }}
+{{ "python web framework" | title_case }}  <!-- Output: Python Web Framework -->
+{{ "john doe" | title_case }}  <!-- Output: John Doe -->
+{{ name | title_case }}
+```
+
+#### **mask** - Mask sensitive information
+```html
+{{ email | mask }}  <!-- Output: u***@example.com -->
+{{ phone | mask('*', 4) }}  <!-- Output: ****1234 -->
+{{ ssn | mask('X') }}  <!-- Mask with X: XXX-XX-1234 -->
+{{ credit_card | mask('*', 4) }}  <!-- Show last 4 digits -->
+```
+
+#### **default_if_none** - Fallback value if None
+```html
+{{ user.phone | default_if_none("Not provided") }}
+{{ data | default_if_none("N/A") }}
+{{ optional_field | default_if_none("-") }}
+{{ missing_value | default_if_none("Unknown") }}
+```
+
+#### **pluralize** - Add suffix based on count
+```html
+{{ count | pluralize("item") }}  <!-- "1 item" or "5 items" -->
+{{ 1 | pluralize("person") }}  <!-- Output: person -->
+{{ 5 | pluralize("person") }}  <!-- Output: persons -->
+You have {{ notifications | pluralize("notification") }}
+```
+
+---
+
+### Numeric Filters
+
+#### **abs** - Absolute value
+```html
+{{ number | abs }}
+{{ -42 | abs }}  <!-- Output: 42 -->
+{{ temperature | abs }}
+{{ -100 | abs }}  <!-- Output: 100 -->
+```
+
+#### **round** - Round to N decimal places
+```html
+{{ price | round }}
+{{ 3.14159 | round(2) }}  <!-- Output: 3.14 -->
+{{ value | round(0) }}  <!-- Round to integer -->
+{{ 19.99 | round }}  <!-- Output: 20 -->
+```
+
+#### **ceil** - Round up (ceiling)
+```html
+{{ price | ceil }}
+{{ 3.2 | ceil }}  <!-- Output: 4 -->
+{{ value | ceil }}
+{{ 10.1 | ceil }}  <!-- Output: 11 -->
+```
+
+#### **floor** - Round down
+```html
+{{ price | floor }}
+{{ 3.9 | floor }}  <!-- Output: 3 -->
+{{ items | floor }}
+{{ 19.99 | floor }}  <!-- Output: 19 -->
+```
+
+---
+
+### Array/List Filters
+
+#### **first** - Get first element
+```html
+{{ items | first }}
+{{ [1, 2, 3] | first }}  <!-- Output: 1 -->
+{{ users | first }}
+```
+
+#### **last** - Get last element
+```html
+{{ items | last }}
+{{ [1, 2, 3] | last }}  <!-- Output: 3 -->
+{{ comments | last }}
+```
+
+#### **unique** - Remove duplicates
+```html
+{{ items | unique }}
+{{ [1, 2, 2, 3] | unique }}  <!-- Output: [1, 2, 3] -->
+{{ tags | unique }}
+{{ list | unique }}
+```
+
+#### **sort** - Sort array
+```html
+{{ items | sort }}
+{{ [3, 1, 2] | sort }}  <!-- Output: [1, 2, 3] -->
+{{ names | sort }}
+{{ @for(item in items | sort) { ... } }}
+```
+
+#### **reverse_array** - Reverse array order
+```html
+{{ items | reverse_array }}
+{{ [1, 2, 3] | reverse_array }}  <!-- Output: [3, 2, 1] -->
+{{ comments | reverse_array }}
+@for(item in posts | reverse_array) { ... }
+```
+
+---
+
+### Time & Date Filters
+
+#### **date** - Format date/datetime
+```html
+{{ created_at | date("%Y-%m-%d") }}
+{{ now | date("%B %d, %Y") }}  <!-- Output: March 13, 2026 -->
+{{ birthday | date("%d/%m/%Y") }}
+{{ timestamp | date("%Y-%m-%d %H:%M") }}
+```
+
+#### **time** - Format time only
+```html
+{{ clock | time("%H:%M:%S") }}
+{{ now | time("%I:%M %p") }}  <!-- Output: 02:30 PM -->
+{{ scheduled_at | time("%H:%M") }}
+{{ created_at | time("%H:%M:%S.%f") }}
+```
+
+#### **time_ago** - Human-readable time distance
+```html
+{{ created_at | time_ago }}
+{{ post.published | time_ago }}  <!-- Output: 2 hours ago -->
+{{ comment.created_at | time_ago }}  <!-- Output: just now, 5 minutes ago, etc. -->
+Posted {{ last_login | time_ago }}
+```
+
+#### **file_size** - Format bytes to human-readable
+```html
+{{ file.size | file_size }}
+{{ 1024 | file_size }}  <!-- Output: 1.0 KB -->
+{{ 1048576 | file_size }}  <!-- Output: 1.0 MB -->
+{{ bytes | file_size }}  <!-- Output: 2.5 GB -->
+Download ({{ attachment.bytes | file_size }})
+```
+
+---
+
+### Currency & International  
+
+#### **money / currency** - Format as currency
+```html
+{{ price | currency }}  <!-- US dollar default -->
+{{ 99.99 | currency }}  <!-- Output: $99.99 -->
+{{ amount | currency("USD") }}
+{{ total | money }}  <!-- Alias for currency -->
+Total: {{ cart.total | money }}
+```
+
+#### **phone** - Format phone number
+```html
+{{ phone | phone }}
+{{ "5551234567" | phone }}  <!-- Output: (555) 123-4567 -->
+{{ number | phone("US") }}
+{{ contact.mobile | phone }}
+```
+
+---
+
+### Type Conversion
+
+#### **json / json_encode** - JSON serialization
+```html
+{{ data | json }}
+{{ user | json }}  <!-- Safe for JS: -->
+```
+```html
+<script>
+  const user = @json(user);  <!-- Becomes: {"id": 1, "name": "John"} -->
+  const data = @output(item | json);
+</script>
+```
+```html
+@json({ key1: value1, key2: value2 })
+```
+
+---
 
 ### Widget and Form Tweaks
 
-These are **standalone filters** for dynamically modifying form field attributes and behavior. They are **independent of `@render_field`** and can be used to manipulate raw field objects or HTML elements.
+Transform form field objects inline. These are **independent of `@render_field`** and work with field dictionaries.
 
-| Filter | Description | Usage |
-| :--- | :--- | :--- |
-| **add_class** | Appends a CSS class to a field. | `{{ form['email'] \| add_class('error') }}` |
-| **attr** | Sets an attribute (e.g., `rows="5"`). | `{{ form['description'] \| attr('rows', '5') }}` |
-| **append_attr** | Appends to an existing attribute. | `{{ form['name'] \| append_attr('class', 'active') }}` |
-| **remove_attr** | Removes an attribute. | `{{ form['email'] \| remove_attr('disabled') }}` |
-| **field_type** | Returns the field's internal type name. | `{{ form['email'].field_type }}` |
-
-> [!NOTE]  
-> **These filters work on field objects, not the `@render_field` directive.** Use them when you need fine-grained control over individual field attributes. For complete field rendering with labels, inputs, and errors, use `@render_field()` instead.
-
-#### Example: Modifying Field Attributes
-
+#### **add_class** - Append CSS class to field
 ```html
-<!-- Add error styling dynamically -->
-@if(form.has_errors('email')) {
-    @render_field(form['email'] | add_class('border-red-500'))
+{{ form['email'] | add_class('border-red') }}
+{{ form['input'] | add_class('w-full') | add_class('rounded') }}
+@if(errors.has('name')) {
+    {{ form['name'] | add_class('error') }}
 }
-
-<!-- Set textarea rows -->
-@render_field(form['message'] | attr('rows', '8') | attr('placeholder', 'Your message here...'))
-
-<!-- Remove disabled attribute conditionally -->
-@if(user.is_admin) {
-    {{ form['restricted_field'] | remove_attr('disabled') }}
-}
+{{ field | add_class('active') }}
 ```
 
-### Design System (Eden Tokens)
-
-Apply Eden's premium design tokens directly via filters.
-
+#### **attr** - Set field attribute
 ```html
-<div class="{{ 'primary' | eden_bg }} {{ 'lg' | eden_shadow }}">
-    <p class="{{ 'slate-900' | eden_text }}">Premium Content</p>
+{{ form['description'] | attr('rows', '8') }}
+{{ form['email'] | attr('placeholder', 'email@example.com') }}
+{{ form['password'] | attr('minlength', '8') | attr('autocomplete', 'off') }}
+{{ input | attr('data-validate', 'email') }}
+```
+
+#### **append_attr** - Append to existing attribute
+```html
+{{ form['name'] | append_attr('class', 'active') }}
+{{ field | append_attr('data-attr', 'value') }}
+{{ element | append_attr('class', 'highlight') }}
+```
+
+#### **remove_attr** - Remove field attribute  
+```html
+{{ form['email'] | remove_attr('disabled') }}
+{{ field | remove_attr('readonly') }}
+@if(user.is_admin) {
+    {{ form['admin_field'] | remove_attr('disabled') }}
+}
+{{ input | remove_attr('aria-hidden') }}
+```
+
+#### **field_type** - Get field type name
+```html
+{{ form['email'].field_type }}  <!-- Output: EmailField or text -->
+{{ field | field_type }}
+@if(form['input'].field_type == 'textarea') {
+    ...
+}
+{{ widget.field_type }}
+```
+
+---
+
+### Design System Filters (Eden Tokens)
+
+Apply Eden's premium design tokens directly.
+
+#### **eden_bg** - Background color tokens
+```html
+<div class="{{ 'primary' | eden_bg }}">
+    Primary Background
 </div>
 
+{{ 'success' | eden_bg }}  <!-- Output: bg-emerald-600 -->
+{{ 'danger' | eden_bg }}  <!-- Output: bg-red-600 -->
+<section class="{{ status | eden_bg }}">
+    Status area
+</section>
+
+<!-- Available: primary, secondary, success, danger, warning, info, dark, light -->
+```
+
+#### **eden_shadow** - Shadow depth tokens
+```html
+<card class="{{ 'md' | eden_shadow }}">
+    Medium shadow
+</card>
+
+<box class="{{ 'lg' | eden_shadow }}">
+    Large shadow card
+</box>
+
+{{ size | eden_shadow }}  <!-- Converts: sm → shadow-sm, lg → shadow-lg -->
+<!-- Available: sm, md, lg, xl, 2xl, none -->
+```
+
+#### **eden_text** - Text color tokens
+```html
+<p class="{{ 'primary' | eden_text }}">
+    Primary colored text
+</p>
+
+{{ 'danger' | eden_text }}  <!-- Output: text-red-600 -->
+{{ 'muted' | eden_text }}  <!-- Output: text-slate-500 -->
+<span class="{{ tone | eden_text }}">
+    Dynamic text color
+</span>
+
+<!-- Available: primary, secondary, success, danger, warning, info, slate-900, slate-600, muted, light -->
 ```
 
 ---
 
 ## Advanced Features
+
 
 ### The `$loop` Object
 
@@ -1315,6 +1628,332 @@ async def admin_products_list(request):
         "categories": categories,
     })
 
+```
+
+---
+
+## Undocumented Features & Advanced Directives
+
+The following directives are **fully implemented** in the Eden engine but not extensively documented. This section provides usage examples for each.
+
+### @break - Exit Loop Early
+
+Exit a loop before reaching the end. Useful when you find what you're looking for.
+
+```html
+<!-- Find and display first active user -->
+@for(user in users) {
+    @if(user.is_active) {
+        <div>Found active user: {{ user.name }}</div>
+        @break
+    }
+}
+
+<!-- Stop after finding 5 items -->
+@for(item in items) {
+    @if($loop.index > 5) {
+        @break
+    }
+    <div>{{ item.title }}</div>
+}
+
+<!-- Exit on condition -->
+@for(entry in log_entries) {
+    @if(entry.level == 'ERROR') {
+        <div class="alert">{{ entry.message }}</div>
+        @break
+    }
+}
+```
+
+### @continue - Skip to Next Iteration
+
+Skip the current iteration and continue with the next item. Useful for filtering within loops.
+
+```html
+<!-- Skip inactive users -->
+@for(user in users) {
+    @if(!user.is_active) {
+        @continue
+    }
+    <div class="user-item">{{ user.name }}</div>
+}
+
+<!-- Skip empty items -->
+@for(item in items) {
+    @if(!item.title) {
+        @continue
+    }
+    <li>{{ item.title }}: {{ item.price | currency }}</li>
+}
+
+<!-- Skip based on permission -->
+@for(page in pages) {
+    @if(!request.user.can_access(page)) {
+        @continue
+    }
+    <a href="{{ page.url }}">{{ page.name }}</a>
+}
+```
+
+### @super - Access Parent Block Content
+
+When you override a block in a child template, use `@super` to include the parent's content alongside your child content.
+
+**Parent Layout (`base.html`):**
+```html
+@yield("scripts") {
+    <script src="/js/core.js"></script>
+    <script src="/js/animations.js"></script>
+}
+```
+
+**Child Template (`dashboard.html`):**
+```html
+@extends("base.html")
+
+@section("scripts") {
+    @super  <!-- Includes parent scripts above -->
+    <script src="/js/dashboard.js"></script>
+    <script src="/js/charts.js"></script>
+}
+
+<!-- Result HTML will have:
+    <script src="/js/core.js"></script>
+    <script src="/js/animations.js"></script>
+    <script src="/js/dashboard.js"></script>
+    <script src="/js/charts.js"></script>
+-->
+```
+
+**Another Example - Styles:**
+```html
+<!-- Layout header -->
+@stack("styles") {
+    <link rel="stylesheet" href="/css/bootstrap.css">
+}
+
+<!-- Page pushes additional styles -->
+@push("styles") {
+    <link rel="stylesheet" href="/css/page-specific.css">
+}
+
+@push("styles") {
+    <link rel="stylesheet" href="/css/animations.css">
+}
+
+<!-- Result: All styles stack together -->
+```
+
+### @props - Define Accepted Component Properties
+
+When building reusable components, use `@props` to define what properties a component accepts. This is Eden's type-hint equivalent for templates.
+
+**Component Template (`card.html`):**
+```html
+@props(['title', 'subtitle', 'icon', 'elevation' => 'md'])
+
+<div class="card {{ elevation | eden_shadow }}">
+    @if(icon) {
+        <img src="{{ icon }}" class="icon">
+    }
+    <h2>{{ title }}</h2>
+    @if(subtitle) {
+        <p class="text-muted">{{ subtitle }}</p>
+    }
+    @slot("content")
+</div>
+```
+
+**Using the Component:**
+```html
+<!-- Required props: title, subtitle (optional), icon (optional), elevation (has default) -->
+@component("card", 
+    title="User Profile",
+    subtitle="Manage your account",
+    icon="/icons/user.svg",
+    elevation="lg"
+)
+
+<!-- Props are extracted and available in card.html template -->
+```
+
+### @messages - Display Flash Messages
+
+`@messages` is the comprehensive way to render all active flash messages from the previous request. Perfect for showing success, error, warning, and info alerts.
+
+```html
+<!-- Simple: render all messages as default alerts -->
+@messages
+
+<!-- Custom rendering with loop -->
+@messages {
+    <!-- $message is auto-available inside the block -->
+    <div class="alert alert-{{ $message.type }} alert-dismissible">
+        <button type="button" class="close">&times;</button>
+        {{ $message.text }}
+    </div>
+}
+
+<!-- Advanced: styling per message type -->
+<div id="alerts">
+    @messages {
+        @if($message.type == 'success') {
+            <div class="alert alert-success alert-dismissible fade show">
+                <strong>Success!</strong> {{ $message.text }}
+                <button type="button" class="btn-close" data-dismiss="alert"></button>
+            </div>
+        } @else if($message.type == 'error') {
+            <div class="alert alert-danger alert-dismissible fade show">
+                <strong>Error!</strong> {{ $message.text }}
+                <button type="button" class="btn-close" data-dismiss="alert"></button>
+            </div>
+        } @else if($message.type == 'warning') {
+            <div class="alert alert-warning alert-dismissible fade show">
+                <strong>Warning:</strong> {{ $message.text }}
+                <button type="button" class="btn-close" data-dismiss="alert"></button>
+            </div>
+        } @else {
+            <div class="alert alert-info alert-dismissible fade show">
+                <strong>Info:</strong> {{ $message.text }}
+                <button type="button" class="btn-close" data-dismiss="alert"></button>
+            </div>
+        }
+    }
+</div>
+```
+
+**In Your Python Handler:**
+```python
+@app.post("/profile/update")
+async def update_profile(request):
+    # ... update logic ...
+    
+    # Flash a success message
+    request.flash("Profile updated successfully!", "success")
+    
+    # Available types: 'success', 'error', 'warning', 'info'
+    request.flash("Some issue occurred", "error")
+    
+    return redirect("profile")
+```
+
+### @flash - Single Flash Message
+
+Render a single flash message of a specific type. Useful when you know exactly which message to display.
+
+```html
+<!-- Display success messages only -->
+@flash("success") {
+    <div class="alert alert-success">✓ {{ message }}</div>
+}
+
+<!-- Display error messages with special styling -->
+@flash("error") {
+    <div class="alert alert-danger">
+        <strong>Error:</strong> {{ message }}
+    </div>
+}
+
+<!-- Display warnings -->
+@flash("warning") {
+    <div class="alert alert-warning">
+        ⚠ {{ message }}
+    </div>
+}
+
+<!-- Info messages -->
+@flash("info") {
+    <div class="alert alert-info">
+        ℹ {{ message }}
+    </div>
+}
+```
+
+### @status - HTTP Status Code Checking
+
+Conditionally render content based on the HTTP response status. Useful for error pages or status-specific hints.
+
+```html
+<!-- Show message only for successful responses -->
+@status([200, 201]) {
+    <div class="success-banner">
+        Operation completed successfully!
+    </div>
+}
+
+<!-- Show error-specific content -->
+@status(404) {
+    <div class="error-container">
+        <h1>404 - Page Not Found</h1>
+        <p>The page you're looking for doesn't exist.</p>
+    </div>
+}
+
+<!-- Multiple statuses -->
+@status([400, 422]) {
+    <div class="validation-error">
+        Please check the form below for errors.
+    </div>
+}
+
+<!-- Handle server errors -->
+@status([500, 502, 503]) {
+    <div class="maintenance">
+        <p>We're experiencing technical difficulties. Please try again later.</p>
+    </div>
+}
+
+<!-- Use in templates for error layouts -->
+@extends("layouts/error")
+
+@section("content") {
+    @status(403) {
+        <div class="access-denied">
+            <h1>Access Denied</h1>
+            <p>You don't have permission to access this resource.</p>
+        </div>
+    }
+    
+    @status(404) {
+        <div class="not-found">
+            <h1>Not Found</h1>
+            <p>The resource you requested could not be found.</p>
+        </div>
+    }
+}
+```
+
+### @route - Determine Current Route
+
+Get information about the currently executing route. Useful for dynamic navigation or conditional rendering based on which route is active.
+
+```html
+<!-- Check if we're on admin routes -->
+@route("admin:*") {
+    <div class="admin-toolbar">Admin tools active</div>
+}
+
+<!-- Display different navigation for different sections -->
+@if(@route("admin:*") != null) {
+    <!-- Show admin navigation -->
+} @else if(@route("user:*") != null) {
+    <!-- Show user navigation -->
+} @else {
+    <!-- Show public navigation -->
+}
+
+<!-- Show extra content on specific route -->
+@route("users:profile") {
+    <div class="profile-tips">
+        Tips for completing your profile
+    </div>
+}
+
+<!-- Multiple routes -->
+@if(@route("dashboard") != null || @route("analytics") != null) {
+    <link rel="stylesheet" href="/css/dashboard-styles.css">
+}
 ```
 
 ---
