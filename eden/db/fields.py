@@ -8,7 +8,8 @@ Each helper returns a `mapped_column()` with sensible defaults.
 from __future__ import annotations
 
 import uuid
-from typing import Any
+from datetime import datetime
+from typing import Any, Optional
 
 from sqlalchemy import (
     Boolean,
@@ -29,8 +30,8 @@ _UNSET = object()
 
 def _process_field_args(
     nullable_val: Any, required: bool | None, kwargs: dict[str, Any], default_nullable: Any = False
-) -> dict[str, Any]:
-    """Internal helper to handle the required/nullable logic."""
+) -> tuple[dict[str, Any], Optional[Any]]:
+    """Internal helper to handle the required/nullable logic and constraints."""
     # Check if both were provided explicitly
     if required is not None and nullable_val is not _UNSET:
         raise ValueError("Cannot specify both 'required' and 'nullable' simultaneously.")
@@ -43,6 +44,10 @@ def _process_field_args(
     else:
         resolved_nullable = default_nullable
         
+    # Extract foreign_key if present
+    fk_str = kwargs.pop("foreign_key", None)
+    fk = ForeignKey(fk_str) if fk_str else None
+    
     # Ensure we don't pass 'required' to mapped_column
     kwargs.pop("required", None)
     
@@ -50,7 +55,7 @@ def _process_field_args(
     if resolved_nullable is not _UNSET:
         res["nullable"] = resolved_nullable
         
-    return res
+    return res, fk
 
 
 def StringField(
@@ -70,11 +75,14 @@ def StringField(
         name: Mapped[str] = StringField(required=True)
     """
     # Default for strings is nullable=False
-    kw = _process_field_args(nullable, required, kwargs, default_nullable=False)
+    kw, fk = _process_field_args(nullable, required, kwargs, default_nullable=False)
     kw.update({"unique": unique, "index": index})
     if default is not None:
         kw["default"] = default
-    return mapped_column(String(max_length), **kw)
+    
+    args = [String(max_length)]
+    if fk: args.append(fk)
+    return mapped_column(*args, **kw)
 
 
 def TextField(
@@ -90,10 +98,13 @@ def TextField(
     Usage:
         bio: Mapped[str] = TextField(required=True)
     """
-    kw = _process_field_args(nullable, required, kwargs, default_nullable=False)
+    kw, fk = _process_field_args(nullable, required, kwargs, default_nullable=False)
     if default is not None:
         kw["default"] = default
-    return mapped_column(Text, **kw)
+    
+    args = [Text]
+    if fk: args.append(fk)
+    return mapped_column(*args, **kw)
 
 
 def IntField(
@@ -111,11 +122,14 @@ def IntField(
     Usage:
         age: Mapped[int] = IntField(required=True)
     """
-    kw = _process_field_args(nullable, required, kwargs, default_nullable=False)
+    kw, fk = _process_field_args(nullable, required, kwargs, default_nullable=False)
     kw.update({"unique": unique, "index": index})
     if default is not None:
         kw["default"] = default
-    return mapped_column(Integer, **kw)
+    
+    args = [Integer]
+    if fk: args.append(fk)
+    return mapped_column(*args, **kw)
 
 
 def FloatField(
@@ -131,10 +145,13 @@ def FloatField(
     Usage:
         price: Mapped[float] = FloatField(required=True)
     """
-    kw = _process_field_args(nullable, required, kwargs, default_nullable=False)
+    kw, fk = _process_field_args(nullable, required, kwargs, default_nullable=False)
     if default is not None:
         kw["default"] = default
-    return mapped_column(Float, **kw)
+    
+    args = [Float]
+    if fk: args.append(fk)
+    return mapped_column(*args, **kw)
 
 
 def BoolField(
@@ -150,8 +167,10 @@ def BoolField(
     Usage:
         is_active: Mapped[bool] = BoolField(required=True)
     """
-    kw = _process_field_args(nullable, required, kwargs, default_nullable=False)
-    return mapped_column(Boolean, default=default, **kw)
+    kw, fk = _process_field_args(nullable, required, kwargs, default_nullable=False)
+    args = [Boolean]
+    if fk: args.append(fk)
+    return mapped_column(*args, default=default, **kw)
 
 
 def DateTimeField(
@@ -169,7 +188,7 @@ def DateTimeField(
     Usage:
         published_at: Mapped[datetime] = DateTimeField(auto_now_add=True)
     """
-    kw = _process_field_args(nullable, required, kwargs, default_nullable=False)
+    kw, fk = _process_field_args(nullable, required, kwargs, default_nullable=False)
 
     if auto_now_add:
         kw["server_default"] = func.now()
@@ -188,7 +207,9 @@ def DateTimeField(
     if default is not None and "default" not in kw and "server_default" not in kw:
         kw["default"] = default
 
-    return mapped_column(DateTime, **kw)
+    args = [DateTime]
+    if fk: args.append(fk)
+    return mapped_column(*args, **kw)
 
 
 def UUIDField(
@@ -206,14 +227,17 @@ def UUIDField(
         id: Mapped[uuid.UUID] = UUIDField(primary_key=True)
     """
     # Primary keys are not nullable by default
-    kw = _process_field_args(nullable, required, kwargs, default_nullable=not primary_key)
+    kw, fk = _process_field_args(nullable, required, kwargs, default_nullable=not primary_key)
     kw["primary_key"] = primary_key
     
     if default_factory is not None:
         kw["default"] = default_factory
     elif primary_key:
         kw["default"] = uuid.uuid4
-    return mapped_column(Uuid, **kw)
+        
+    args = [Uuid]
+    if fk: args.append(fk)
+    return mapped_column(*args, **kw)
 
 
 def ForeignKeyField(
@@ -231,7 +255,7 @@ def ForeignKeyField(
     Usage:
         user_id: Mapped[uuid.UUID] = ForeignKeyField("users.id", required=True)
     """
-    kw = _process_field_args(nullable, required, kwargs, default_nullable=False)
+    kw, _ = _process_field_args(nullable, required, kwargs, default_nullable=False)
     kw.update({"index": index})
     return mapped_column(
         ForeignKey(target, ondelete=ondelete),
@@ -329,7 +353,6 @@ def ManyToManyField(
     return Relationship(target_model, **kw)
 
 
-
 def FileField(
     *,
     nullable: Any = _UNSET,
@@ -344,11 +367,14 @@ def FileField(
     Usage:
         avatar: Mapped[str] = FileField(upload_to="avatars")
     """
-    kw = _process_field_args(nullable, required, kwargs, default_nullable=True)
+    kw, fk = _process_field_args(nullable, required, kwargs, default_nullable=True)
     meta = kw.get("info", {})
     meta.update({"widget": "file", "upload_to": upload_to})
     kw["info"] = meta
-    return mapped_column(String(max_length), **kw)
+    
+    args = [String(max_length)]
+    if fk: args.append(fk)
+    return mapped_column(*args, **kw)
 
 
 # ── Zen Helper ─────────────────────────────────────────────────────────
@@ -388,7 +414,7 @@ def f(
         payload: dict = f(json=True)
     """
     from sqlalchemy import JSON
-    kw = _process_field_args(nullable, required, kwargs, default_nullable=_UNSET)
+    kw, fk_from_kw = _process_field_args(nullable, required, kwargs, default_nullable=_UNSET)
     kw.update({"unique": unique, "index": index})
     if default is not None:
         kw["default"] = default
@@ -430,6 +456,13 @@ def f(
         
         return Relationship(back_populates=back_populates, **rel_kw)
 
+    # Prioritize the explicit 'foreign_key' parameter
+    final_fk = None
+    if foreign_key:
+        final_fk = ForeignKey(foreign_key, ondelete=on_delete)
+    elif fk_from_kw:
+        final_fk = fk_from_kw
+
     # Standard columns
     final_type = type_or_length
     if isinstance(type_or_length, int):
@@ -437,14 +470,16 @@ def f(
     elif max_length:
         final_type = String(max_length)
     
+    if json:
+        final_type = JSON
+
+    args = []
     if final_type is not None:
-        return mapped_column(final_type, **kw)
-
-
-    
-    # Fallback to mapped_column - Eden's type_annotation_map in Model 
-    # will handle the actual type inference from the hint.
-    if foreign_key:
-        return mapped_column(ForeignKey(foreign_key), **kw)
+        args.append(final_type)
+    if final_fk:
+        args.append(final_fk)
+        
+    if args:
+        return mapped_column(*args, **kw)
         
     return mapped_column(**kw)

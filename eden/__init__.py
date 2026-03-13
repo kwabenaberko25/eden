@@ -2,34 +2,75 @@
 🌿 Eden — A batteries-included async Python web framework.
 
 Django's features · FastAPI's speed · Flask's simplicity.
+
+**Core Imports**: The main API surface for building web applications.
+
+For ORM/Database features:
+    from eden.db import Model, Query, Database, F, Q, ...
+
+For Payments (requires: pip install eden-framework[payments]):
+    from eden.payments import Customer, Subscription, StripeProvider
+
+For Cloud Storage (requires: pip install eden-framework[storage]):
+    from eden.storage import S3StorageBackend, LocalStorageBackend
+
+For Background Tasks (requires: pip install eden-framework[tasks]):
+    from eden.tasks import Task, broker
+
+For Email/SMTP (requires: pip install eden-framework[mail]):
+    from eden.mail import send_mail, EmailMessage
+
+For Tenancy/Multi-tenant (built-in):
+    from eden.tenancy import Tenant, TenantMiddleware, get_current_tenant
+
+For Admin Panel (built-in):
+    from eden.admin import AdminSite, ModelAdmin
 """
 
 __version__ = "0.1.0"
 
-from eden.orm import (
-    AccessControl,
-    BoolField,
-    Database,
-    DateTimeField,
+# ── Core Application ──────────────────────────────────────────────────────
+from eden.app import Eden
+from eden.routing import Route, Router, WebSocketRoute
+from eden.requests import Request
+from eden.responses import (
+    Response,
+    JsonResponse,
+    HtmlResponse,
+    RedirectResponse,
+    FileResponse,
+    StreamingResponse,
+    html,
+    json,
+    redirect,
+)
+from eden.dependencies import Depends
+
+# ── Database & ORM (from eden.db package) ────────────────────────────────
+# Recommended: from eden.db import Model, QuerySet, Database, etc.
+# These are available here for backward compatibility:
+from eden.db import (
     Model,
+    Database,
+    QuerySet,
+    Q,
     F,
     f,
-    FloatField,
-    IntField,
     Page,
-    PermissionRule,
-    Q,
-    QuerySet,
-    SoftDeleteMixin,
     StringField,
-    TextField,
+    IntField,
+    FloatField,
+    BoolField,
+    DateTimeField,
     UUIDField,
+    TextField,
     FileField,
-    get_db,
     ForeignKeyField,
     Relationship,
+    SoftDeleteMixin,
     MigrationManager,
-    # ORM Utilities
+    get_db,
+    # SQLAlchemy utilities
     select,
     update,
     delete,
@@ -44,16 +85,13 @@ from eden.orm import (
     JSON,
 )
 
-from eden.admin import AdminSite, ModelAdmin, admin
-admin_site = admin
-from eden.app import Eden
-from eden.auth.api_key_model import APIKey
-from eden.auth.backends.api_key import APIKeyBackend
-from eden.auth.decorators import login_required, roles_required, require_permission
-from eden.services import Service
-from eden.forms import BaseForm, ModelForm, FormField, Schema, v, field
-from eden.htmx import HtmxResponse, is_htmx
-from eden.dependencies import Depends
+# ── WebSocket & Realtime ──────────────────────────────────────────────────
+from eden.websocket import WebSocket, WebSocketDisconnect, WebSocketRouter, ConnectionManager
+
+# ── Routing & Context ─────────────────────────────────────────────────────
+from eden.context import request, user
+
+# ── Error Handling ────────────────────────────────────────────────────────
 from eden.exceptions import (
     BadRequest,
     Conflict,
@@ -67,62 +105,43 @@ from eden.exceptions import (
     Unauthorized,
     ValidationError,
 )
-from eden.realtime import RealTimeManager, manager as realtime_manager
-from eden.logging import get_logger, setup_logging
-from eden.mail import EmailMessage, configure_mail, send_mail
-from eden.payments import Customer, CustomerMixin, Subscription, WebhookRouter
-from eden.requests import Request
-from eden.responses import (
-    Response,
-    JsonResponse,
-    HtmlResponse,
-    RedirectResponse,
-    FileResponse,
-    StreamingResponse,
-    html,
-    json,
-    redirect,
-)
-from eden.cache import cache_view
+
+# ── Templating ────────────────────────────────────────────────────────────
 from eden.templating import EdenTemplates, render_template
+
+# ── Components ────────────────────────────────────────────────────────────
 from eden.components import Component, render_component, action
-from eden.payments.providers import StripeProvider
-from eden.routing import Route, Router, WebSocketRoute
-from eden.websocket import WebSocket, WebSocketDisconnect, WebSocketRouter, ConnectionManager
-from eden.context import request, user
-from eden.storage import LocalStorageBackend, StorageBackend, StorageManager, storage
-from eden.storage_backends import S3StorageBackend, SupabaseStorageBackend
-from eden.tenancy.middleware import TenantMiddleware
-from eden.tenancy.models import AnonymousTenant, Tenant
-from eden.tenancy.context import get_current_tenant
+
+# ── Forms & Validation ────────────────────────────────────────────────────
+from eden.forms import BaseForm, ModelForm, FormField, Schema, v, field
+
+# ── HTML Utilities ────────────────────────────────────────────────────────
+from eden.htmx import HtmxResponse, is_htmx
+
+# ── Services (Business Logic) ─────────────────────────────────────────────
+from eden.services import Service
+
+# ── Logging ───────────────────────────────────────────────────────────────
+from eden.logging import get_logger, setup_logging
+
+# ── Authentication (API Keys, Decorators) ────────────────────────────────
+# Note: Advanced auth features (OAuth, SAML) may require additional extras
+from eden.auth.api_key_model import APIKey
+from eden.auth.backends.api_key import APIKeyBackend
+from eden.auth.decorators import login_required, roles_required, require_permission
+
+# ── Tenancy (Multi-tenant row-level security, built-in) ───────────────────
+from eden.tenancy.models import Tenant, AnonymousTenant
 from eden.tenancy.mixins import TenantMixin
-from eden.validators import (
-    EdenColor,
-    EdenEmail,
-    EdenPhone,
-    EdenSlug,
-    EdenURL,
-    ValidationResult,
-    validate_color,
-    validate_credit_card,
-    validate_date,
-    validate_email,
-    validate_file_type,
-    validate_gps,
-    validate_iban,
-    validate_ip,
-    validate_national_id,
-    validate_password,
-    validate_phone,
-    validate_postcode,
-    validate_range,
-    validate_slug,
-    validate_url,
-    validate_username,
-)
+from eden.tenancy.middleware import TenantMiddleware
+from eden.tenancy.context import get_current_tenant
+
+# ── Admin (Built-in admin panel) ──────────────────────────────────────────
+from eden.admin import AdminSite, ModelAdmin, admin
+admin_site = admin
 
 __all__ = [
-    # Core
+    # ── Core Application ───────────────────────────────────────────────────
     "Eden",
     "Router",
     "Route",
@@ -130,30 +149,38 @@ __all__ = [
     "WebSocket",
     "WebSocketDisconnect",
     "Request",
+    "Response",
+    "JsonResponse",
+    "HtmlResponse",
+    "RedirectResponse",
+    "FileResponse",
+    "StreamingResponse",
+    "json",
+    "html",
+    "redirect",
     "Depends",
-    # Database / ORM
+    
+    # ── Database & ORM (use: from eden.db import ...) ─────────────────────
     "Model",
-    "action",
-    "AccessControl",
-    "PermissionRule",
-    "MigrationManager",
-    "f",
     "Database",
-    "get_db",
+    "QuerySet",
     "Q",
     "F",
+    "f",
     "Page",
-    "SoftDeleteMixin",
     "StringField",
     "IntField",
-    "TextField",
-    "BoolField",
     "FloatField",
+    "BoolField",
     "DateTimeField",
     "UUIDField",
+    "TextField",
+    "FileField",
     "ForeignKeyField",
     "Relationship",
-    "QuerySet",
+    "SoftDeleteMixin",
+    "MigrationManager",
+    "get_db",
     "select",
     "update",
     "delete",
@@ -166,21 +193,16 @@ __all__ = [
     "desc",
     "asc",
     "JSON",
-    # Responses
-    "Response",
-    "JsonResponse",
-    "HtmlResponse",
-    "RedirectResponse",
-    "FileResponse",
-    "StreamingResponse",
-    "FileField",
-    "Service",
-    # Response shortcuts
-    "json",
-    "html",
-    "redirect",
-    "render_template",
-    # Exceptions
+    
+    # ── WebSocket & Realtime ──────────────────────────────────────────────
+    "WebSocketRouter",
+    "ConnectionManager",
+    
+    # ── Context ────────────────────────────────────────────────────────────
+    "request",
+    "user",
+    
+    # ── Error Handling ────────────────────────────────────────────────────
     "EdenException",
     "HttpException",
     "BadRequest",
@@ -192,57 +214,52 @@ __all__ = [
     "ValidationError",
     "TooManyRequests",
     "InternalServerError",
-    # Logging
-    "setup_logging",
-    "get_logger",
-    # Auth — API Keys
-    "APIKey",
-    "APIKeyBackend",
-    # Tenancy
-    "Tenant",
-    "AnonymousTenant",
-    "TenantMixin",
-    "TenantMiddleware",
-    # Mail
-    "send_mail",
-    "EmailMessage",
-    "configure_mail",
-    # Admin
-    "admin",
-    "AdminSite",
-    "admin_site",
-    "ModelAdmin",
-    # Payments
-    "Customer",
-    "Subscription",
-    "CustomerMixin",
-    "WebhookRouter",
-    # Storage
-    "storage",
-    "StorageBackend",
-    "LocalStorageBackend",
-    "S3StorageBackend",
-    "SupabaseStorageBackend",
-    "request",
-    "user",
+    
+    # ── Templating ────────────────────────────────────────────────────────
+    "EdenTemplates",
+    "render_template",
+    
+    # ── Components ────────────────────────────────────────────────────────
+    "Component",
+    "render_component",
+    "action",
+    
+    # ── Forms & Validation ────────────────────────────────────────────────
     "BaseForm",
     "ModelForm",
     "FormField",
     "Schema",
     "v",
     "field",
+    
+    # ── HTML Utilities ────────────────────────────────────────────────────
     "HtmxResponse",
     "is_htmx",
+    
+    # ── Services ──────────────────────────────────────────────────────────
+    "Service",
+    
+    # ── Logging ───────────────────────────────────────────────────────────
+    "get_logger",
+    "setup_logging",
+    
+    # ── Authentication (API Keys) ─────────────────────────────────────────
+    "APIKey",
+    "APIKeyBackend",
     "login_required",
     "roles_required",
     "require_permission",
+    
+    # ── Tenancy (Multi-tenant row-level security) ──────────────────────────
+    "Tenant",
+    "AnonymousTenant",
+    "TenantMixin",
+    "TenantMiddleware",
     "get_current_tenant",
-    "WebSocketRouter",
-    "ConnectionManager",
-    "render_component",
-    "StorageManager",
-    "StripeProvider",
-    "cache_view",
-    "RealTimeManager",
-    "realtime_manager",
+    
+    # ── Admin Panel ────────────────────────────────────────────────────────
+    "AdminSite",
+    "ModelAdmin",
+    "admin",
+    "admin_site",
 ]

@@ -2,6 +2,18 @@
 
 Taking your Eden application from development to production requires attention to performance, security, and monitoring.
 
+## Local Development
+
+Run your Eden application locally during development:
+
+```bash
+eden run
+```
+
+This starts the development server with auto-reload enabled.
+
+---
+
 ## Production Configuration
 
 Always use environment variables for sensitive configuration.

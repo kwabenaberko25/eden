@@ -1,0 +1,932 @@
+# Eden @Directives - Comprehensive Usage Guide 🚀
+
+A practical, real-world guide to every Eden templating directive with examples.
+
+---
+
+## Quick Reference
+
+| Category | Directives |
+|----------|-----------|
+| **Control Flow** | @if, @unless, @switch/@case, @for/@foreach |
+| **Authentication** | @auth, @guest |
+| **HTMX** | @htmx, @non_htmx, @fragment |
+| **Templating** | @extends, @include, @section/@block, @yield, @push, @stack |
+| **Forms** | @csrf, @checked, @selected, @disabled, @readonly |
+| **Routing** | @url, @active_link |
+| **Loop Helpers** | @even, @odd, @first, @last |
+| **Data** | @let, @json, @dump, @span, @old |
+| **Assets** | @css, @js, @vite |
+| **Components** | @component, @slot |
+| **Messages** | @error, @messages |
+| **Attributes** | @method |
+
+---
+
+## Control Flow Directives
+
+### @if - Conditional Rendering
+
+```html
+<!-- Simple if -->
+@if (user.is_verified) {
+    <div class="badge">✓ Verified</div>
+}
+
+<!-- Complex expression -->
+@if (user.role == 'admin' || user.is_moderator) {
+    <div class="admin-panel">...</div>
+}
+
+<!-- Accessing object properties -->
+@if (post.published_date) {
+    <p>Published: {{ post.published_date }}</p>
+}
+```
+
+### @unless - Inverted If
+
+```html
+<!-- Only shows if condition is FALSE -->
+@unless (user.is_banned) {
+    <button>Participate</button>
+}
+
+<!-- Equivalent to: @if (!user.is_banned) -->
+```
+
+### @for/@foreach - Looping
+
+```html
+<!-- Loop with item and index -->
+@for (item in items) {
+    {{ $loop.index }}: {{ item.name }}
+}
+
+<!-- Alternative syntax -->
+@foreach (user in users) {
+    <li>{{ user.name }}</li>
+}
+
+<!-- With filter or map -->
+@for (item in items | select_active) {
+    <p>{{ item }}</p>
+}
+
+<!-- Dictionary/object iteration -->
+@for (key, value in dict.items) {
+    {{ key }}: {{ value }}
+}
+
+<!-- Using $loop helpers -->
+@for (item in items) {
+    <div class="{{ $loop.even ? 'bg-gray-800' : 'bg-gray-900' }}">
+        @if ($loop.first) {
+            <strong>First item:</strong>
+        }
+        {{ item.name }}
+        @if ($loop.last) {
+            <em>That's all folks!</em>
+        }
+    </div>
+}
+```
+
+**Available $loop Properties:**
+- `$loop.index` - Current iteration (1-based)
+- `$loop.index0` - Current iteration (0-based)
+- `$loop.first` - Is this first iteration?
+- `$loop.last` - Is this last iteration?
+- `$loop.even` - Is iteration even?
+- `$loop.odd` - Is iteration odd?
+- `$loop.length` - Total items
+- `$loop.revindex` - Iterations from end
+
+### @switch/@case - Multi-branch Logic
+
+```html
+@switch (user.status) {
+    @case ('active') {
+        <span class="badge badge-green">Active</span>
+    }
+    @case ('pending') {
+        <span class="badge badge-yellow">Pending Review</span>
+    }
+    @case ('suspended') {
+        <span class="badge badge-red">Suspended</span>
+    }
+}
+
+<!-- Without @case (direct if) -->
+@switch (payment_method) {
+    @case ('card') { <i class="icon-card"></i> Card }
+    @case ('paypal') { <i class="icon-paypal"></i> PayPal }
+    @case ('bank') { <i class="icon-bank"></i> Bank Transfer }
+}
+```
+
+### @empty - For Loop Empty State
+
+```html
+@for (item in search_results) {
+    <div class="result">{{ item.title }}</div>
+} @empty {
+    <div class="empty-state">
+        <p>No results found for "{{ query }}"</p>
+    </div>
+}
+```
+
+### @else if / @elif - Chained Conditions
+
+```html
+@if (score >= 90) {
+    <div class="grade">A</div>
+} @elsif (score >= 80) {
+    <div class="grade">B</div>
+} @elsif (score >= 70) {
+    <div class="grade">C</div>
+} @else {
+    <div class="grade">F</div>
+}
+```
+
+---
+
+## Loop Helpers
+
+### @even/@odd - Striped Rows
+
+```html
+@for (row in table_data) {
+    <tr class="@even { bg-gray-800 } @odd { bg-gray-900 }">
+        <td>{{ row.name }}</td>
+        <td>{{ row.value }}</td>
+    </tr>
+}
+```
+
+### @first/@last - Special Row Handling
+
+```html
+<!-- Add header styling to first row -->
+@for (item in items) {
+    <div class="@first { font-bold border-b-2 }">
+        {{ item.name }}
+    </div>
+}
+
+<!-- Add separator after last row -->
+@for (product in products) {
+    <div>{{ product.name }}: ${{ product.price }}</div>
+    @last { <hr> }
+}
+```
+
+---
+
+## Authentication Directives
+
+### @auth - Protected Content
+
+```html
+<!-- Only visible to logged-in users -->
+@auth {
+    <div class="user-menu">
+        <p>Welcome, {{ request.user.name }}!</p>
+        <a href="@url('profile')">My Profile</a>
+        <a href="@url('logout')">Logout</a>
+    </div>
+}
+
+<!-- Used in navigation -->
+<nav>
+    @auth {
+        <a href="@url('dashboard')">Dashboard</a>
+        <a href="@url('settings')">Settings</a>
+    }
+</nav>
+```
+
+### @guest - Unauthenticated Content
+
+```html
+<!-- Only visible to non-logged-in users -->
+@guest {
+    <div class="login-box">
+        <a href="@url('auth:login')">Login</a>
+        <a href="@url('auth:register')">Sign Up</a>
+    </div>
+}
+
+<!-- Redirect message -->
+@guest {
+    <div class="alert">
+        <a href="@url('auth:login')">Please log in</a> to continue.
+    </div>
+}
+```
+
+---
+
+## HTMX Integration
+
+### @htmx - HTMX Request Only
+
+```html
+<!-- Only render fragment for HTMX requests -->
+<div class="content">
+    @htmx {
+        @fragment("results") {
+            @for (item in results) {
+                <div>{{ item }}</div>
+            }
+        }
+    }
+    
+    @non_htmx {
+        <!-- Full page layout for regular requests -->
+        <h1>Search Results</h1>
+        @fragment("results") { ... }
+        <footer>...</footer>
+    }
+}
+```
+
+### @fragment - HTMX Target
+
+```html
+<!-- Target with hx-target="#results" -->
+<div id="results">
+    @fragment("results") {
+        <div class="item">Item 1</div>
+        <div class="item">Item 2</div>
+    }
+</div>
+
+<!-- Usage -->
+<button hx-get="@url('search')" hx-target="#results">
+    Search
+</button>
+```
+
+---
+
+## Routing Directives
+
+### @url - Generate URLs
+
+```html
+<!-- Basic route -->
+<a href="@url('home')">Home</a>
+
+<!-- With parameters -->
+<a href="@url('posts:show', id=post.id)">{{ post.title }}</a>
+
+<!-- Multiple parameters -->
+<a href="@url('api:get-user-comments', user_id=123, page=2)">
+    Comments
+</a>
+
+<!-- Store in variable -->
+@let edit_url = @url('posts:edit', id=post.id)
+<a href="{{ edit_url }}" class="btn btn-blue">Edit</a>
+
+<!-- Dynamic route name -->
+@let route = 'posts:show'
+<a href="@url(route, id=post.id)">View</a>
+```
+
+### @active_link - Highlight Active Navigation
+
+```html
+<!-- Simple active highlight -->
+<nav class="flex gap-4">
+    <a href="@url('dashboard')" class="@active_link('dashboard', 'active')">
+        Dashboard
+    </a>
+    <a href="@url('settings')" class="@active_link('settings', 'active')">
+        Settings
+    </a>
+</nav>
+
+<!-- With custom classes -->
+<a href="@url('posts:index')" 
+   class="px-4 py-2 rounded @active_link('posts:index', 'bg-blue-600 text-white')">
+    Posts
+</a>
+
+<!-- WILDCARD: Highlight menu section for all sub-routes -->
+<li class="@active_link('admin:*', 'bg-blue-700 font-bold')">
+    <a href="@url('admin:index')">Admin Panel</a>
+</li>
+
+<!-- Multiple classes in wildcard -->
+<a href="@url('blog:index')" 
+   class="nav-link @active_link('blog:*', 'text-white border-b-2 border-white')">
+    Blog
+</a>
+
+<!-- Dynamic route name -->
+@let current_section = 'users:*'
+<a href="@url('users:index')"
+   class="@active_link(current_section, 'is-active')">
+    Users
+</a>
+```
+
+**Wildcard Matching Examples:**
+```html
+<!-- Current URL: /admin/users/list -->
+
+<!-- ✓ Matches -->
+<a href="..." class="@active_link('admin:*', 'active')">Admin</a>
+
+<!-- ✓ Matches -->
+<a href="..." class="@active_link('admin:users', 'active')">Users</a>
+
+<!-- ✗ Doesn't match -->
+<a href="..." class="@active_link('admin:settings', 'active')">Settings</a>
+
+<!-- ✗ Doesn't match -->
+<a href="..." class="@active_link('posts:*', 'active')">Posts</a>
+```
+
+---
+
+## Form Directives
+
+### @csrf - CSRF Protection
+
+```html
+<form method="POST" action="@url('posts:store')">
+    @csrf
+    <input type="text" name="title">
+    <button type="submit">Create</button>
+</form>
+
+<!-- Renders as: -->
+<!-- <input type="hidden" name="csrf_token" value="..."> -->
+```
+
+### @checked - Conditional Checked
+
+```html
+<!-- Checkbox -->
+<input type="checkbox" name="agree" @checked(user.has_accepted_terms)>
+I agree to the terms
+
+<!-- Radio button -->
+<input type="radio" name="status" value="active" @checked(user.status == 'active')>
+Active
+
+<!-- Based on model attribute -->
+<input type="checkbox" name="newsletter" @checked(preferences.subscribe_newsletter)>
+Subscribe to newsletter
+```
+
+### @selected - Conditional Selected
+
+```html
+<select name="country">
+    <option @selected(user.country == 'US')>United States</option>
+    <option @selected(user.country == 'CA')>Canada</option>
+    <option @selected(user.country == 'MX')>Mexico</option>
+</select>
+
+<!-- Dynamic options -->
+<select name="category">
+    @for (category in categories) {
+        <option value="{{ category.id }}" 
+                @selected(selected_id == category.id)>
+            {{ category.name }}
+        </option>
+    }
+</select>
+```
+
+### @disabled - Conditional Disabled
+
+```html
+<!-- Disable button while loading -->
+<button @disabled(form.is_submitting)>
+    @if (form.is_submitting) { Processing... } @else { Save }
+</button>
+
+<!-- Disable based on permission -->
+<input type="text" name="username" @disabled(!user.can_edit_username)>
+
+<!-- Disable unavailable options -->
+<button @disabled(stock.quantity == 0)>
+    @if (stock.quantity == 0) { Out of Stock } @else { Add to Cart }
+</button>
+```
+
+### @readonly - Conditional Read-Only
+
+```html
+<!-- Read-only after published -->
+<textarea name="content" @readonly(post.is_published)>
+    {{ post.content }}
+</textarea>
+
+<!-- Read-only for non-editors -->
+<input type="email" name="email" @readonly(!user.can_edit_email)>
+
+<!-- Disable editing for archived items -->
+<input type="text" value="{{ item.name }}" @readonly(item.is_archived)>
+```
+
+---
+
+## Template Inheritance
+
+### @extends - Inherit Layout
+
+```html
+<!-- child.html -->
+@extends("layouts/base")
+
+@section("title") { Home Page }
+
+@section("content") {
+    <h1>Welcome</h1>
+    <p>This content goes in the main area.</p>
+}
+```
+
+### @section/@block - Define Block
+
+```html
+<!-- layouts/base.html -->
+@section("title") { Default Title }
+
+<!-- Can be overridden in child -->
+
+<!-- Or use @block (alias) -->
+@block("content") {
+    <p>Default content</p>
+}
+```
+
+### @yield - Render Block
+
+```html
+<!-- layouts/base.html -->
+<title>@yield("title") - My App</title>
+
+<main>
+    @yield("content")
+</main>
+
+<!-- Child template fills in the blanks -->
+```
+
+### @push/@pop - Append to Block
+
+```html
+<!-- layouts/base.html -->
+@yield("scripts")
+
+<!-- child.html -->
+@push("scripts") {
+    <script>
+        console.log('Page-specific script');
+    </script>
+}
+```
+
+### @include - Include Partial
+
+```html
+<!-- Include a component/partial -->
+@include("components/header")
+
+<!-- With variables -->
+@include("components/card", title="My Card", content=item.description)
+
+<!-- In a loop -->
+@for (post in posts) {
+    @include("components/post-card", post=post)
+}
+```
+
+---
+
+## Data Helpers
+
+### @let - Variable Assignment
+
+```html
+<!-- Simple assignment -->
+@let total = items | sum('price')
+<p>Total: ${{ total }}</p>
+
+<!-- Complex expression -->
+@let is_premium = user.subscription.tier == 'premium' && user.subscription.active
+@if (is_premium) { <span>Premium Member</span> }
+
+<!-- Nested data -->
+@let admin_email = request.user.organization.admin.email
+<p>Contact: {{ admin_email }}</p>
+
+<!-- Multiple assignments -->
+@let price = product.price
+@let discount = product.discount_percent
+@let final = price * (1 - discount/100)
+<p>${{ final }}</p>
+```
+
+### @old - Form Re-fill
+
+```html
+<!-- Repopulate form after validation error -->
+<input type="text" name="email" value="@old('email', user.email)">
+<textarea name="message">@old('message')</textarea>
+
+<!-- With default -->
+<input type="text" name="username" value="@old('username', 'Guest')">
+```
+
+### @json - JSON Encoding
+
+```html
+<!-- Pass data to JavaScript -->
+<script>
+    const data = @json(items);
+    console.log(data);
+</script>
+
+<!-- Encode complex data -->
+{{ form_metadata | @json }}
+```
+
+### @dump - Debug Output
+
+```html
+<!-- Pretty-print debugging -->
+@dump(user)
+@dump(request.headers)
+@dump(form.errors)
+
+<!-- Styles beautifully as JSON with monospace font and dark bg -->
+```
+
+### @span - Output Value
+
+```html
+<!-- Direct output (shorthand for {{ }}) -->
+@span(user.name)
+@span(user.email)
+
+<!-- With filters -->
+@span(post.created_at | date('Y-m-d'))
+```
+
+---
+
+## Asset Helpers
+
+### @css - CSS Link
+
+```html
+<!-- Add CSS stylesheet -->
+<head>
+    @css("style.css")
+    @css("theme.css")
+    @css("admin.css")
+</head>
+
+<!-- Renders as: -->
+<!-- <link rel="stylesheet" href="{{ url_for('static', path='style.css') }}"> -->
+```
+
+### @js - JavaScript Link
+
+```html
+<!-- Add JS script -->
+<body>
+    ...
+    @js("app.js")
+    @js("admin.js")
+</body>
+
+<!-- Renders as: -->
+<!-- <script src="{{ url_for('static', path='app.js') }}"></script> -->
+```
+
+### @vite - Vite Assets
+
+```html
+<!-- For Vite bundler -->
+<head>
+    @vite(["resources/css/app.css", "resources/js/app.js"])
+</head>
+
+<!-- Multiple entry points -->
+@vite([
+    "resources/css/admin.css",
+    "resources/js/admin.js",
+    "resources/css/print.css"
+])
+```
+
+---
+
+## Component Directives
+
+### @component - Render Component
+
+```html
+<!-- Simple component -->
+@component("card") {
+    <p>Card content</p>
+}
+
+<!-- With props -->
+@component("button", label="Click me", variant="primary", size="lg") {
+    Icon inside
+}
+
+<!-- Nested components -->
+@component("layout", title="Dashboard") {
+    @component("sidebar") {
+        <nav>...</nav>
+    }
+    @component("content") {
+        <main>...</main>
+    }
+}
+```
+
+### @slot - Named Component Slots
+
+```html
+<!-- components/modal.html -->
+<div class="modal">
+    <div class="modal-header">
+        @slot("header") {
+            <h2>Default Title</h2>
+        }
+    </div>
+    <div class="modal-body">
+        @slot("body") {
+            Body content goes here
+        }
+    </div>
+    <div class="modal-footer">
+        @slot("footer") {
+            <button>Close</button>
+        }
+    </div>
+</div>
+
+<!-- Usage -->
+@component("modal") {
+    @slot("header") { User Profile }
+    @slot("body") { 
+        <form>...</form>
+    }
+    @slot("footer") {
+        <button>Save</button>
+        <button>Cancel</button>
+    }
+}
+```
+
+---
+
+## Message Directives
+
+### @error - Form Errors
+
+```html
+<!-- Display field errors -->
+@error('email') {
+    <span class="error">{{ message }}</span>
+}
+
+<!-- With styling -->
+<div>
+    <input type="email" name="email">
+    @error('email') {
+        <div class="text-red-500 text-sm mt-1">
+            <i class="icon-warning"></i> {{ message }}
+        </div>
+    }
+</div>
+
+<!-- Multiple errors -->
+@for (error in form.errors.email) {
+    <div class="alert alert-danger">{{ error }}</div>
+}
+```
+
+### @messages - Flash Messages
+
+```html
+<!-- Display flash messages -->
+<div class="alerts">
+    @messages {
+        <div class="alert alert-{{ message.category }}">
+            {{ message.text }}
+            @if (message.dismissible) {
+                <button type="button" class="close" data-dismiss="alert">×</button>
+            }
+        </div>
+    }
+</div>
+
+<!-- In your handler -->
+# Python
+request.messages.success("Profile updated!")
+request.messages.error("Something went wrong")
+request.messages.info("Please read this")
+```
+
+---
+
+## Special Directives
+
+### @method - HTTP Method Spoofing
+
+```html
+<!-- Spoof PUT/DELETE in forms -->
+<form method="POST">
+    @method('PUT')
+    @csrf
+    <input type="text" name="name">
+    <button>Update</button>
+</form>
+
+<!-- For delete confirmation -->
+<form method="POST" action="@url('posts:destroy', id=post.id)">
+    @method('DELETE')
+    @csrf
+    <button type="submit" class="btn btn-danger">
+        Permanently Delete
+    </button>
+</form>
+```
+
+---
+
+## Real-World Examples
+
+### Navigation with Active Links
+
+```html
+<nav class="navbar">
+    <a href="@url('home')" class="@active_link('home', 'active')">
+        Home
+    </a>
+    
+    <div class="nav-section @active_link('blog:*', 'expanded')">
+        <a href="@url('blog:index')" class="@active_link('blog:*', 'section-active')">
+            Blog
+        </a>
+        <ul class="submenu">
+            <li>
+                <a href="@url('blog:categories')" class="@active_link('blog:categories', 'active')">
+                    Categories
+                </a>
+            </li>
+            <li>
+                <a href="@url('blog:archives')" class="@active_link('blog:archives', 'active')">
+                    Archives
+                </a>
+            </li>
+        </ul>
+    </div>
+    
+    @auth {
+        <div class="nav-section">
+            <a href="@url('dashboard')" class="@active_link('dashboard', 'active')">
+                Dashboard
+            </a>
+        </div>
+    }
+    
+    @guest {
+        <a href="@url('auth:login')" class="btn-login">
+            Login
+        </a>
+    }
+</nav>
+```
+
+### User List with Actions
+
+```html
+<div class="users-table">
+    @if (users) {
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @for (user in users) {
+                    <tr class="@even { bg-gray-50 } @odd { bg-white } @first { border-t-2 }">
+                        <td>{{ user.name }}</td>
+                        <td>{{ user.email }}</td>
+                        <td>
+                            @if (user.is_active) {
+                                <span class="badge badge-green">Active</span>
+                            } @else {
+                                <span class="badge badge-gray">Inactive</span>
+                            }
+                        </td>
+                        <td>
+                            <a href="@url('users:show', id=user.id)" class="btn btn-sm">View</a>
+                            @auth {
+                                @if (request.user.can_edit) {
+                                    <a href="@url('users:edit', id=user.id)" class="btn btn-sm btn-blue">Edit</a>
+                                }
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    } @empty {
+        <div class="empty-state">
+            <p>No users found.</p>
+        </div>
+    }
+</div>
+```
+
+### Dynamic Form
+
+```html
+<form method="POST" action="@url('posts:update', id=post.id)">
+    @method('PUT')
+    @csrf
+    
+    <div class="form-group">
+        <label for="title">Title</label>
+        <input type="text" id="title" name="title" value="@old('title', post.title)" required>
+        @error('title') {
+            <span class="error">{{ message }}</span>
+        }
+    </div>
+    
+    <div class="form-group">
+        <label for="content">Content</label>
+        <textarea id="content" name="content" @readonly(post.is_published)>
+            @old('content', post.content)
+        </textarea>
+        @if (post.is_published) {
+            <small>This post is published and cannot be edited.</small>
+        }
+    </div>
+    
+    <div class="form-group">
+        <label for="category">Category</label>
+        <select id="category" name="category_id" @disabled(!user.can_change_category)>
+            @for (cat in categories) {
+                <option value="{{ cat.id }}" @selected(cat.id == post.category.id)>
+                    {{ cat.name }}
+                </option>
+            }
+        </select>
+    </div>
+    
+    <div class="form-group">
+        <label>
+            <input type="checkbox" name="featured" @checked(post.is_featured)>
+            Feature this post
+        </label>
+    </div>
+    
+    <button type="submit" @disabled(form.is_submitting)>
+        @if (form.is_submitting) { Saving... } @else { Save Changes }
+    </button>
+</form>
+```
+
+---
+
+## Troubleshooting
+
+**Issue:** @active_link not highlighting
+- Check route name matches exactly
+- Verify route is registered with `name` parameter
+- Enable debug logging (see Troubleshooting in docs)
+
+**Issue:** @checked/@selected not working
+- Ensure expression returns boolean
+- Check HTML validity
+
+**Issue:** @for loop $loop not available
+- Make sure you're inside a @for block
+- Use $loop prefix: `$loop.first`, `$loop.index`, etc.
+
+---
+
+**Happy templating! 🎉**

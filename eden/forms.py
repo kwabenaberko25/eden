@@ -469,10 +469,15 @@ class BaseForm:
         data = {}
         try:
             data = await request.json()
-        except Exception:
+        except (ValueError, RuntimeError) as json_err:
+            # ValueError: invalid JSON | RuntimeError: body consumed
             try:
                 data = dict(await request.form())
-            except Exception:
+            except (ValueError, RuntimeError) as form_err:
+                # Form parsing failed, continue with empty data
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.debug(f"Failed to parse form data: {form_err}")
                 pass
 
         return cls(schema=schema, data=data)

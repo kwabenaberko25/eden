@@ -20,6 +20,8 @@ from starlette.requests import Request as StarletteRequest
 from starlette.responses import Response as StarletteResponse
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+import uvicorn
+
 if TYPE_CHECKING:
     from eden.cache import CacheBackend
 
@@ -235,7 +237,7 @@ class Eden:
                     request = kwargs.get("request")
                 
                 if not request:
-                    from eden.requests import get_request
+                    from eden.context import get_request
                     request = get_request()
 
                 # 1. Parse data
@@ -246,10 +248,13 @@ class Eden:
                     data = {}
                     try:
                         data = await request.json()
-                    except:
+                    except (ValueError, RuntimeError) as e:
+                        # ValueError: invalid JSON
+                        # RuntimeError: request body already consumed
                         try:
                             data = dict(await request.form())
-                        except:
+                        except (ValueError, RuntimeError):
+                            # Form parsing also failed, continue with empty data
                             pass
                     form = BaseForm(schema=schema, data=data)
 
@@ -430,6 +435,37 @@ class Eden:
             cls = middleware
         self._middleware_stack.append((cls, kwargs))
 
+    def setup_defaults(self) -> None:
+        """
+        Quick-start middleware setup.
+        
+        Adds the most common middleware stack in the correct order:
+        1. Security headers (XSS, clickjacking, HSTS protection)
+        2. Session management (session cookies, CSRF tokens)
+        3. CSRF protection (depends on session)
+        4. GZIP compression (transparent response compression)
+        5. CORS (cross-origin requests)
+        6. Rate limiting (optional, off by default)
+        
+        This is a convenience method for beginners. Advanced users should
+        call add_middleware() explicitly to customize the stack.
+        
+        Example:
+            app = Eden(secret_key="...")
+            app.setup_defaults()  # Or explicitly add middleware
+            
+            # These are equivalent:
+            app.add_middleware("security")
+            app.add_middleware("session", secret_key=app.secret_key)
+            app.add_middleware("csrf")
+            app.add_middleware("gzip")
+            app.add_middleware("cors", allow_origins=["*"])
+        """
+        self.add_middleware("security")        # Security headers first
+        self.add_middleware("session", secret_key=self.secret_key)
+        self.add_middleware("csrf")            # CSRF requires session
+        self.add_middleware("gzip")            # Response compression
+        self.add_middleware("cors", allow_origins=["*"])  # Allow all origins (configure as needed)
 
     # ── Lifespan Hooks ───────────────────────────────────────────────────
 
@@ -481,6 +517,7 @@ class Eden:
                         while True:
                             await websocket.receive_text()
                     except Exception:
+                        # Client disconnected or connection lost (expected)
                         pass
 
                 starlette_routes.insert(0, StarletteWebSocketRoute("/_eden/reload", reload_websocket))
@@ -503,6 +540,7 @@ class Eden:
                         elif action == "unsubscribe" and channel:
                             await manager.unsubscribe(websocket, channel)
                 except Exception:
+                    # Client disconnected or invalid message (expected)
                     pass
                 finally:
                     await manager.disconnect(websocket)
@@ -571,6 +609,11 @@ class Eden:
         # Add handler for Starlette's internal HTTPExceptions (e.g. 404, 405)
         if StarletteHTTPException not in exception_handlers:
             exception_handlers[StarletteHTTPException] = self._handle_starlette_http_exception
+
+        # Add handler for Starlette routing exceptions (e.g. NoMatchFound for missing route names)
+        from starlette.routing import NoMatchFound
+        if NoMatchFound not in exception_handlers:
+            exception_handlers[NoMatchFound] = self._handle_no_match_found
 
         # Lifespan
         @asynccontextmanager
@@ -689,7 +732,18 @@ class Eden:
         title = "Template Error"
         name = getattr(exc, "name", "Unknown Template")
         lineno = getattr(exc, "lineno", 0)
-        message = str(exc)
+        
+        # Extract message - try multiple approaches
+        message = str(exc) if exc else ""
+        if not message or message.strip() == "":
+            # Try accessing the message attribute directly
+            message = getattr(exc, "message", None)
+        if not message or message.strip() == "":
+            # Try accessing msg attribute (some Jinja2 exceptions use this)
+            message = getattr(exc, "msg", None)
+        if not message or message.strip() == "":
+            # Fallback to exception class name
+            message = f"{type(exc).__name__}: An error occurred in the template"
         
         # Initialize diagnostic context early
         found_context = {}
@@ -816,14 +870,80 @@ class Eden:
         is_htmx: bool,
         badge: str
     ) -> HTMLResponse:
-        """Renders the high-fidelity Eden debug/error page."""
+        """Renders the high-fidelity Eden debug/error page with template variables."""
         from starlette.responses import HTMLResponse
+        import html as html_mod
+        import platform
+        import sys
 
         Jakarta_Sans = "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
         Outfit = "https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700&display=swap"
         
+        # Get system info
+        python_version = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+        os_name = platform.system()
+        
         # Determine if we have Pygments code or raw pre
         is_raw = code_frame.strip().startswith("<pre>")
+        
+        # Format context variables for display
+        def format_value(value, max_length=150):
+            """Format a value safely for display."""
+            try:
+                if value is None:
+                    return '<span class="text-slate-500 italic">None</span>'
+                elif isinstance(value, bool):
+                    return f'<span class="text-blue-400 font-mono">{str(value)}</span>'
+                elif isinstance(value, (int, float)):
+                    return f'<span class="text-emerald-400 font-mono">{value}</span>'
+                elif isinstance(value, str):
+                    escaped = html_mod.escape(value[:max_length])
+                    if len(value) > max_length:
+                        escaped += '...'
+                    return f'<span class="text-amber-300 font-mono">"{escaped}"</span>'
+                elif isinstance(value, dict):
+                    return f'<span class="text-slate-400 font-mono">dict({len(value)} items)</span>'
+                elif isinstance(value, (list, tuple)):
+                    return f'<span class="text-slate-400 font-mono">{type(value).__name__}({len(value)} items)</span>'
+                else:
+                    type_name = type(value).__name__
+                    return f'<span class="text-slate-400 font-mono">&lt;{type_name}&gt;</span>'
+            except Exception:
+                return '<span class="text-red-400">Unable to format</span>'
+        
+        # Escape message for safe display
+        safe_message = html_mod.escape(message) if message else "An error occurred in the template"
+        
+        # Build variables table HTML
+        variables_html = ""
+        if context_vars:
+            var_rows = []
+            for key, value in sorted(context_vars.items())[:20]:  # Limit to 20
+                safe_key = html_mod.escape(str(key))
+                formatted_value = format_value(value)
+                var_rows.append(f'<tr><td class="px-4 py-3 border-b border-slate-700/30"><code class="text-emerald-400 text-xs font-mono">{safe_key}</code></td><td class="px-4 py-3 border-b border-slate-700/30">{formatted_value}</td></tr>')
+            
+            remaining = len(context_vars) - 20
+            if remaining > 0:
+                var_rows.append(f'<tr><td colspan="2" class="px-4 py-3 text-center text-slate-500 italic text-xs">... and {remaining} more variables</td></tr>')
+            
+            variables_html = f'''<div class="p-8 space-y-6 border-t border-white/5">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+                        Template Variables ({len(context_vars)})
+                    </h3>
+                </div>
+                <div class="rounded-2xl overflow-hidden bg-slate-900/50 border border-white/5 shadow-inner">
+                    <table class="w-full text-xs">
+                        <thead><tr class="bg-slate-800/40 border-b border-white/5">
+                            <th class="px-4 py-3 text-left text-slate-400 font-semibold">Variable</th>
+                            <th class="px-4 py-3 text-left text-slate-400 font-semibold">Value</th>
+                        </tr></thead>
+                        <tbody>{''.join(var_rows)}</tbody>
+                    </table>
+                </div>
+            </div>'''
 
         template = f"""
 <!DOCTYPE html>
@@ -909,7 +1029,7 @@ class Eden:
             <!-- Error Banner -->
             <div class="bg-red-500/10 border-b border-white/5 p-8">
                 <div class="text-slate-100 text-lg font-medium leading-relaxed">
-                    {message}
+                    {safe_message}
                 </div>
             </div>
 
@@ -918,7 +1038,7 @@ class Eden:
                 <div class="flex items-center justify-between">
                     <h3 class="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
                         <span class="w-1.5 h-1.5 rounded-full bg-slate-600"></span>
-                        Context Explorer
+                        Code Explorer
                     </h3>
                 </div>
                 
@@ -926,6 +1046,8 @@ class Eden:
                     {code_frame if not is_raw else f'<div class="p-4">{code_frame}</div>'}
                 </div>
             </div>
+
+            {variables_html}
 
             <!-- Environment Footer within Card -->
             <div class="bg-slate-900/40 p-8 border-t border-white/5">
@@ -936,11 +1058,11 @@ class Eden:
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div class="bg-slate-800/40 p-4 rounded-2xl border border-white/5">
                         <p class="text-[10px] uppercase font-bold text-slate-500 mb-1">OS</p>
-                        <p class="text-slate-200 font-semibold text-xs">Windows 11</p>
+                        <p class="text-slate-200 font-semibold text-xs">{os_name}</p>
                     </div>
                     <div class="bg-slate-800/40 p-4 rounded-2xl border border-white/5">
                         <p class="text-[10px] uppercase font-bold text-slate-500 mb-1">Python</p>
-                        <p class="text-slate-200 font-semibold text-xs">3.13.9</p>
+                        <p class="text-slate-200 font-semibold text-xs">{python_version}</p>
                     </div>
                     <div class="bg-slate-800/40 p-4 rounded-2xl border border-white/5">
                         <p class="text-[10px] uppercase font-bold text-slate-500 mb-1">Eden</p>
@@ -977,6 +1099,23 @@ class Eden:
             request=request,
             detail=exc.detail or "Not found",
             status_code=exc.status_code,
+        )
+
+    async def _handle_no_match_found(
+        self, request: Request, exc: Exception
+    ) -> StarletteResponse:
+        """Handle Starlette routing exceptions (e.g., NoMatchFound from url_for)."""
+        # Extract a friendly message from the exception
+        exc_str = str(exc)
+        if "No route exists" in exc_str:
+            detail = "The requested route or URL name does not exist."
+        else:
+            detail = exc_str if self.debug else "Route not found."
+        
+        return self._error_response(
+            request=request,
+            detail=detail,
+            status_code=404,
         )
 
     @staticmethod

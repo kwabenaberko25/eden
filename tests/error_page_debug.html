@@ -1,0 +1,144 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eden - Template Error</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --bg-slate-900: #0f172a;
+            --bg-slate-800: #1e293b;
+            --accent-blue: #2563eb;
+        }
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            background-color: var(--bg-slate-900);
+            color: #f8fafc;
+            margin: 0;
+            line-height: 1.5;
+        }
+        .premium-card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .error-badge {
+            background: rgba(239, 68, 68, 0.15);
+            color: #fca5a5;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            font-family: 'Outfit', sans-serif;
+            letter-spacing: 0.05em;
+        }
+        .highlight { background: transparent !important; }
+        pre { margin: 0; padding: 1.5rem; overflow-x: auto; background: rgba(15, 23, 42, 0.5) !important; border-radius: 0.75rem; }
+        code { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.9em; }
+        .line-no { color: #475569; padding-right: 1.5rem; user-select: none; display: inline-block; width: 3rem; text-align: right; }
+        .error-line { background: rgba(239, 68, 68, 0.15) !important; display: block; width: 100%; border-left: 3px solid #ef4444; }
+        .normal-line { display: block; width: 100%; border-left: 3px solid transparent; }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.1); }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-slide-up { animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
+    </style>
+</head>
+<body class="min-h-screen py-16 px-4 selection:bg-blue-500/30">
+    <div class="max-w-5xl mx-auto space-y-10 animate-slide-up">
+        
+        <!-- Header Section -->
+        <div class="space-y-4">
+            <div class="flex items-center gap-3">
+                <span class="px-3 py-1 text-[10px] font-black uppercase rounded-full error-badge tracking-[0.2em]">
+                    Syntax Error
+                </span>
+            </div>
+            <h1 class="text-5xl font-black tracking-tighter text-white font-['Outfit']">
+                Template Error
+            </h1>
+            <div class="flex items-center gap-2 text-slate-400 font-medium bg-slate-800/30 w-fit px-3 py-1.5 rounded-lg border border-white/5">
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <span class="text-xs font-mono">test.html</span>
+                <span class="text-slate-600">•</span>
+                <span class="text-xs">Line 5</span>
+            </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="premium-card rounded-3xl overflow-hidden">
+            <!-- Error Banner -->
+            <div class="bg-red-500/10 border-b border-white/5 p-8">
+                <div class="text-slate-100 text-lg font-medium leading-relaxed">
+                    This is a test error message that should display
+  File &quot;test.html&quot;, line 5
+                </div>
+            </div>
+
+            <!-- Code Explorer -->
+            <div class="p-8 space-y-6">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                        <span class="w-1.5 h-1.5 rounded-full bg-slate-600"></span>
+                        Code Explorer
+                    </h3>
+                </div>
+                
+                <div class="rounded-2xl overflow-hidden bg-slate-900/50 border border-white/5 shadow-inner">
+                    
+                </div>
+            </div>
+
+            
+
+            <!-- Environment Footer within Card -->
+            <div class="bg-slate-900/40 p-8 border-t border-white/5">
+                 <h3 class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-6 flex items-center gap-2">
+                    <span class="w-1.5 h-1.5 rounded-full bg-slate-600"></span>
+                    Environment Snapshot
+                </h3>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="bg-slate-800/40 p-4 rounded-2xl border border-white/5">
+                        <p class="text-[10px] uppercase font-bold text-slate-500 mb-1">OS</p>
+                        <p class="text-slate-200 font-semibold text-xs">Windows</p>
+                    </div>
+                    <div class="bg-slate-800/40 p-4 rounded-2xl border border-white/5">
+                        <p class="text-[10px] uppercase font-bold text-slate-500 mb-1">Python</p>
+                        <p class="text-slate-200 font-semibold text-xs">3.13.12</p>
+                    </div>
+                    <div class="bg-slate-800/40 p-4 rounded-2xl border border-white/5">
+                        <p class="text-[10px] uppercase font-bold text-slate-500 mb-1">Eden</p>
+                        <p class="text-slate-200 font-semibold text-xs">v0.1.0</p>
+                    </div>
+                    <div class="bg-slate-800/40 p-4 rounded-2xl border border-white/5">
+                        <p class="text-[10px] uppercase font-bold text-slate-500 mb-1">Status</p>
+                        <div class="flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]"></span>
+                            <span class="text-emerald-400 font-bold text-xs uppercase italic">Debug On</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Feedback Footer -->
+        <div class="flex justify-center pt-4">
+            <p class="text-slate-600 text-[10px] font-medium uppercase tracking-[0.3em]">
+                Eden Framework • Premium Debug Engine
+            </p>
+        </div>
+    </div>
+</body>
+</html>

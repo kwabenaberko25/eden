@@ -1,6 +1,10 @@
 """
-Eden — Task Worker CLI
+Eden — Task Queue Management CLI
+
+Unified commands for background tasks, workers, and schedulers.
 """
+
+from __future__ import annotations
 
 import importlib
 import sys
@@ -8,7 +12,13 @@ import sys
 import click
 
 
-@click.command()
+@click.group()
+def tasks() -> None:
+    """⏰ Eden Tasks — Background job management."""
+    pass
+
+
+@tasks.command()
 @click.option("--app", "app_path", default="app:app", help="App import path (module:variable).")
 @click.option("--workers", default=2, type=int, help="Number of worker processes.")
 @click.option("--log-level", default="INFO", help="Logging level.")
@@ -47,7 +57,8 @@ def worker(app_path: str, workers: int, log_level: str) -> None:
         log_level=log_level,
     ))
 
-@click.command()
+
+@tasks.command()
 @click.option("--app", "app_path", default="app:app", help="App import path (module:variable).")
 def scheduler(app_path: str) -> None:
     """Start taskiq scheduler."""

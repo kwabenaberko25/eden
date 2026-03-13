@@ -158,7 +158,25 @@ results = await User.all().aggregate(
 
 ---
 
-## Lookups & Filters Reference
+## Migrations
+
+Database schema migrations are handled automatically with Alembic integration:
+
+```python
+# Generate migration from model changes
+eden migrate create "Add user phone field"
+
+# Apply pending migrations
+eden migrate upgrade head
+
+# Rollback last migration
+eden migrate downgrade -1
+
+# View migration history
+eden migrate history
+```
+
+---
 
 Eden supports Django-style lookups across all Relationship and Field types using the `double_underscore` syntax.
 
@@ -192,19 +210,254 @@ tasks = await Task.filter(Project.name == "Eden")
 
 Define connections between your models with ease.
 
+### One-to-Many Relationships
+
 ```python
-from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import Mapped, relationship
+from typing import List
 from eden.db import Model, f
 
+# An organization has many projects
 class Organization(Model):
-    name: Mapped[str] = f()
-
-class Member(Model):
-    name: Mapped[str] = f()
+    name: Mapped[str] = f(max_length=100)
     
-    # Relationship with automatic Foreign Key (one-liner)
-    # This automatically creates member.organization_id
-    organization: Mapped["Organization"] = f(back_populates="members")
+    # One-to-many: organization -> projects
+    projects: Mapped[List["Project"]] = relationship(back_populates="organization")
+
+# A project belongs to an organization
+class Project(Model):
+    name: Mapped[str] = f(max_length=100)
+    organization_id: Mapped[int] = f(foreign_key="organizations.id")
+    
+    # Many-to-one: project -> organization
+    organization: Mapped["Organization"] = relationship(back_populates="projects")
+
+# Usage
+org = await Organization.get(1)
+projects = await org.projects  # Async access to related data
+
+# Or query through relationships
+projects = await Project.filter(organization_id=1)
+org_name = await projects[0].organization.name  # Single query with prefetch
+```
+
+### Many-to-Many Relationships
+
+```python
+from sqlalchemy import Table, Column, Integer, ForeignKey
+from typing import List
+
+# Association table for many-to-many
+student_courses = Table(
+    'student_courses',
+    Base.metadata,
+    Column('student_id', Integer, ForeignKey('students.id')),
+    Column('course_id', Integer, ForeignKey('courses.id'))
+)
+
+class Student(Model):
+    name: Mapped[str] = f()
+    # Many-to-many: student -> courses
+    courses: Mapped[List["Course"]] = relationship(
+        "Course",
+        secondary=student_courses,
+        back_populates="students"
+    )
+
+class Course(Model):
+    name: Mapped[str] = f()
+    # Many-to-many: course -> students
+    students: Mapped[List["Student"]] = relationship(
+        "Student",
+        secondary=student_courses,
+        back_populates="courses"
+    )
+
+# Usage
+student = await Student.get(1)
+courses = await student.courses  # Get all courses for student
+
+# Add relationship
+await student.courses.append(course)
+
+# Query through many-to-many
+students_in_math = await Student.filter(courses__name="Advanced Math")
+```
+
+### Querying Through Relationships
+
+```python
+# Foreign key traversal (the Eden/Django way)
+projects = await Project.filter(organization__name="Acme Corp")
+
+# Reverse relationship traversal
+orgs_with_active_projects = await Organization.filter(
+    projects__status="active"
+)
+
+# Count related objects
+org_project_counts = await Organization.all().annotate(
+    project_count=Count("projects")
+)
+```
+
+### Eager Loading (Avoiding N+1)
+
+```python
+# Bad: N+1 queries (1 fetch org + n fetches of projects)
+orgs = await Organization.all()
+for org in orgs:
+    projects = await org.projects  # Extra query per iteration!
+
+# Good: Single optimized query
+orgs = await Organization.all().prefetch_related("projects")
+for org in orgs:
+    projects = org._cached_projects  # No extra queries
+```
+
+---
+
+## Transactions & Atomicity
+
+For multi-step operations that must succeed or fail together:
+
+```python
+from eden.db import get_db
+
+# Simple transaction example
+async def transfer_funds(from_user_id: int, to_user_id: int, amount: float):
+    db = get_db()
+    
+    async with db.session() as session:
+        # All operations below are atomic
+        from_user = await User.get(from_user_id, session=session)
+        to_user = await User.get(to_user_id, session=session)
+        
+        if from_user.balance < amount:
+            raise ValueError("Insufficient funds")
+        
+from_user.balance -= amount
+        to_user.balance += amount
+        
+        # Both saves commit together, or both rollback on error
+        await from_user.save(session=session)
+        await to_user.save(session=session)
+
+# Complex transaction with savepoints
+async def process_bulk_import(file_path: str):
+    db = get_db()
+    
+    async with db.session() as session:
+        for row in read_file(file_path):
+            try:
+                # Create savepoint for each record
+                async with session.begin_nested():
+                    user = await User.create(**parse_row(row), session=session)
+                    await send_welcome_email(user)
+            except Exception as e:
+                # This record failed, but we continue with others
+                logger.error(f"Failed to import row: {row}, error: {e}")
+                continue
+        
+        # All successful records are committed
+```
+
+---
+
+## Bulk Operations
+
+For efficient batch processing:
+
+```python
+# Bulk create
+users_data = [
+    {"name": "Alice", "email": "alice@example.com"},
+    {"name": "Bob", "email": "bob@example.com"},
+    {"name": "Charlie", "email": "charlie@example.com"},
+]
+
+users = await User.bulk_create(users_data)
+
+# Bulk update
+await User.filter(is_active=False).delete()  # Soft delete
+
+# Bulk insert with returning primary keys
+users = await User.bulk_create(users_data, return_instances=True)
+print([user.id for user in users])  # Get auto-generated IDs
+
+# Update multiple records efficiently
+await Product.filter(category="electronics").update(
+    discount_percent=10
+)
+```
+
+---
+
+## Query Optimization Patterns
+
+### Select Only Needed Fields
+
+```python
+# Avoid: loads entire model
+users = await User.all()
+
+# Better: only email for list view
+class UserListSchema(Schema):
+    id: int
+    name: str
+    email: str
+
+users = await User.all().values("id", "name", "email")
+
+# Or with a schema
+users = await User.all().to_schema(UserListSchema)
+```
+
+### Pagination (Critical for Performance)
+
+```python
+# Avoid: cursor=0,limit=9999
+# Better: offset-based
+page = request.query_params.get("page", 1)
+per_page = 20
+
+users = await User.filter(is_active=True).order_by(
+    "-created_at"
+).limit(per_page).offset((page - 1) * per_page)
+
+# For APIs, use cursor-based pagination
+cursor = request.query_params.get("cursor")
+if cursor:
+    users = await User.filter(id__gt=cursor).limit(per_page)
+else:
+    users = await User.all().limit(per_page)
+
+next_cursor = users[-1].id if len(users) == per_page else None
+```
+
+### Index-Aware Queries
+
+```python
+# Good: queries on indexed columns
+class User(Model):
+    email: Mapped[str] = f(unique=True, index=True)
+    created_at: Mapped[datetime] = f(db_index=True)
+
+# This query is fast (uses created_at index)
+recent_users = await User.filter(
+    created_at__gte=datetime.now() - timedelta(days=30)
+)
+
+# This query is slower (full table scan without index on is_active+status)
+# Solution: create a composite index if this is a common query
+class User(Model):
+    __table_args__ = (
+        Index('idx_active_status', 'is_active', 'status'),
+    )
+    is_active: Mapped[bool]
+    status: Mapped[str]
+
+active_premium = await User.filter(is_active=True, status="premium")
 ```
 
 ---
@@ -229,6 +482,8 @@ tasks = await Task.all()
 ### Fail-Secure Behavior
 
 If tenant context is missing, queries return zero results to prevent data leakage. See [Tenancy Guide](tenancy.md) for admin override details.
+
+For complete tenant configuration, lifecycle management, billing integration, and multi-strategy setup, see [Tenant Configuration & Setup](tenant-configuration.md).
 
 ### Advanced Field Options
 

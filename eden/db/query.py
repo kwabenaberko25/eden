@@ -537,3 +537,67 @@ class QuerySet(Generic[T]):
             
             await session.commit()
             return result.rowcount
+
+    async def get_or_404(self, **filters) -> T:
+        """
+        Fetch a single record matching filters.
+        Raises NotFound (404) if no record matches.
+        """
+        from eden.exceptions import NotFound
+        
+        result = await self.filter(**filters).first()
+        if result is None:
+            raise NotFound(detail=f"{self._model_cls.__name__} matching query not found.")
+        return result
+
+    async def filter_one(self, **filters) -> T | None:
+        """
+        Fetch a single record matching filters.
+        Returns None if no record matches, raises if multiple records match.
+        """
+        results = await self.filter(**filters).all()
+        if len(results) > 1:
+            raise ValueError(
+                f"Expected 1 result, got {len(results)} for {self._model_cls.__name__} "
+                f"with filters {filters}"
+            )
+        return results[0] if results else None
+
+    async def get_or_create(self, defaults: dict | None = None, **filters) -> tuple[T, bool]:
+        """
+        Fetch or create a record.
+        Returns (instance, created) where created is True if a new record was created.
+        """
+        async with self._provide_session() as session:
+            # Try to get the record
+            existing = await self.filter(**filters).first()
+            if existing:
+                return (existing, False)
+            
+            # Create new instance
+            create_data = {**filters}
+            if defaults:
+                create_data.update(defaults)
+            
+            instance = self._model_cls(**create_data)
+            session.add(instance)
+            await session.commit()
+            await session.refresh(instance)
+            return (instance, True)
+
+    async def bulk_create(self, objects: list[T], batch_size: int = 100) -> int:
+        """
+        Create multiple instances in batches.
+        Returns the count of created objects.
+        """
+        async with self._provide_session() as session:
+            count = 0
+            for i in range(0, len(objects), batch_size):
+                batch = objects[i : i + batch_size]
+                for obj in batch:
+                    session.add(obj)
+                    count += 1
+                await session.flush()
+            
+            await session.commit()
+            return count

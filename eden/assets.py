@@ -12,12 +12,14 @@ from markupsafe import Markup
 ALPINE_VERSION = "3.14.9"
 HTMX_VERSION = "2.0.4"
 TAILWIND_VERSION = "4"
+FONTAWESOME_VERSION = "6.7.2"
 
 # ── CDN URLs ─────────────────────────────────────────────────────────────────
 
 ALPINE_CDN = f"https://cdn.jsdelivr.net/npm/alpinejs@{ALPINE_VERSION}/dist/cdn.min.js"
 HTMX_CDN = f"https://unpkg.com/htmx.org@{HTMX_VERSION}"
 TAILWIND_CDN = "https://cdn.tailwindcss.com"
+FONTAWESOME_CDN = f"https://cdnjs.cloudflare.com/ajax/libs/font-awesome/{FONTAWESOME_VERSION}/css/all.min.css"
 
 # Google Fonts (Plus Jakarta Sans + Outfit)
 FONTS_CDN = (
@@ -36,6 +38,7 @@ def eden_head(
     htmx: bool = True,
     tailwind: bool = True,
     fonts: bool = True,
+    fontawesome: bool = True,
 ) -> Markup:
     """
     Return ``<head>`` tags for Eden's front-end stack.
@@ -55,6 +58,8 @@ def eden_head(
         parts.append(f'<link rel="stylesheet" href="{FONTS_CDN}">')
     if tailwind:
         parts.append(f'<script src="{TAILWIND_CDN}"></script>')
+    if fontawesome:
+        parts.append(f'<link rel="stylesheet" href="{FONTAWESOME_CDN}">')
     
     # Enforce premium default styles
     parts.append("""<style>

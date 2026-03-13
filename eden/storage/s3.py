@@ -114,7 +114,13 @@ class S3StorageBackend:
         try:
             self._client.head_object(Bucket=self.bucket, Key=path)
             return True
-        except Exception:
+        except self._client.exceptions.NoSuchKey:
+            return False
+        except Exception as e:
+            # Log unexpected errors but return False for safety
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"S3 head_object failed for {path}: {e}")
             return False
 
     def presigned_url(self, path: str, expires_in: int = 3600) -> str:

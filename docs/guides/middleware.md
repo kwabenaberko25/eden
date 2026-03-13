@@ -2,6 +2,8 @@
 
 Middleware allows you to wrap your application or specific routes with additional logic. This is where security, logging, and session management live.
 
+> **Need Request/User Context?** See [Context Variables in Eden](context-variables.md) for accessing current request and user from anywhere in your code.
+
 ## Adding Middleware
 
 You can add middleware to your Eden instance globally using `add_middleware()`.

@@ -67,7 +67,7 @@ class EdenDirectivesExtension(Extension):
         # @js("path") -> <script src="{{ url_for('static', path='path') }}"></script>
         source = re.sub(r'@js\s*\(\s*[\'"](.+?)[\'"]\s*\)', r'<script src="{{ url_for("static", path="\1") }}"></script>', source)
         # @vite(["path1", "path2"]) -> {{ vite(["path1", "path2"]) }}
-        source = re.sub(r'@vite\s*\(\s*(.+?)\s*\)', r'{{ vite(\1) }}', source)
+        source = re.sub(r'@vite\s*\(\s*((?:[^()]|\([^()]*\))*)\s*\)', r'{{ vite(\1) }}', source)
 
         # Value helpers
         # @old("field", "default") -> {{ old("field", "default") }}
@@ -78,10 +78,16 @@ class EdenDirectivesExtension(Extension):
         source = re.sub(r'@old\s*\(\s*[\'"](.+?)[\'"]\s*(?:,\s*(.+?))?\s*\)', _old_replacer, source)
         
         
+        # @span(val)
+        def _span_replacer(m):
+            return f'{{{{ {m.group(1).replace("$", "")} }}}}'
+        # Handle one level of nested parentheses: @span(func(args))
+        source = re.sub(r'@span\s*\(((?:[^()]|\([^()]*\))*)\)', _span_replacer, source)
+        
         # @json(val)
-        source = re.sub(r'@json\s*\((.+?)\)', r'{{ \1 | json_encode }}', source)
+        source = re.sub(r'@json\s*\(((?:[^()]|\([^()]*\))*)\)', r'{{ \1 | json_encode }}', source)
         # @dump(val)
-        source = re.sub(r'@dump\s*\((.+?)\)', r'<div class="eden-dump p-4 bg-gray-950 text-gray-300 rounded-lg overflow-auto text-xs font-mono border border-gray-800 my-4"><pre>{{ \1 | json_encode(indent=4) }}</pre></div>', source)
+        source = re.sub(r'@dump\s*\(((?:[^()]|\([^()]*\))*)\)', r'<div class="eden-dump p-4 bg-gray-950 text-gray-300 rounded-lg overflow-auto text-xs font-mono border border-gray-800 my-4"><pre>{{ \1 | json_encode(indent=4) }}</pre></div>', source)
 
         # Inline attribute directives
         def _attr_replacer(m):
@@ -109,7 +115,7 @@ class EdenDirectivesExtension(Extension):
                 res = f'{{{{ {field_expr}.render_composite({", ".join(attr_args)}) }}}}'
             return _preserve_lines(m.group(0), res)
 
-        source = re.sub(r'@render_field\s*\(\s*(.+?)\s*(?:,\s*(.+?))?\s*\)', _render_field_replacer, source)
+        source = re.sub(r'@render_field\s*\(\s*((?:[^()]|\([^()]*\))*?)\s*(?:,\s*((?:[^()]|\([^()]*\))*))?\s*\)', _render_field_replacer, source)
 
         # 2. Block transitions (@else, @elif, @empty)
         # We must capture the whitespace/newlines to preserve them
@@ -273,16 +279,24 @@ class EdenDirectivesExtension(Extension):
         # Emits the css_class string when request.url.path matches the route.
         # Works inline inside any HTML attribute value.
         _active_re = re.compile(
-            r'@active_link\s*\(\s*[\'"]([^\'"]+)[\'"]\s*,\s*[\'"]([^\'"]+)[\'"]\s*\)',
+            r'@active_link\s*\(\s*(.+?)\s*,\s*[\'"]([^\'"]+)[\'"]\s*\)',
             re.DOTALL,
         )
 
         def _active_replacer(m):
-            raw_name = _normalise_route(m.group(1))
-            css_cls  = m.group(2)
-            res = (
-                f'{{{{ "{css_cls}" if is_active(request, "{raw_name}") else "" }}}}'
-            )
+            arg1 = m.group(1).strip()
+            css_cls = m.group(2)
+            
+            # Check if arg1 is a quoted string literal
+            m_quoted = re.match(r'^([\'"])(.*)\1$', arg1)
+            if m_quoted:
+                # It's a literal string - normalize it (e.g. 'auth:login' -> 'auth_login')
+                raw_name = _normalise_route(m_quoted.group(2))
+                res = f'{{{{ "{css_cls}" if is_active(request, "{raw_name}") else "" }}}}'
+            else:
+                # It's an expression (e.g. link.name) - pass as-is
+                res = f'{{{{ "{css_cls}" if is_active(request, {arg1}) else "" }}}}'
+            
             return _preserve_lines(m.group(0), res)
 
         source = _active_re.sub(_active_replacer, source)
@@ -589,18 +603,66 @@ class EdenTemplates(StarletteJinja2Templates):
             """
             Return True when *request.url.path* matches the URL for *route_name*.
 
-            Supports a simple prefix-match so that '/tasks/create' is considered
-            active when the route resolves to '/tasks'.
+            Supports:
+            - Exact route matching: 'dashboard'
+            - Namespace routes: 'auth:login' (converted to 'auth_login')
+            - Wildcard routes: 'students:*' (matches all students.* routes)
+            - Prefix matching: '/tasks/create' matches route '/tasks'
 
             Usage in templates::
 
                 class="nav-link {{ 'active' if is_active(request, 'dashboard') else '' }}"
+                
+            Wildcard example::
+            
+                class="nav-link {{ 'active' if is_active(request, 'students:*') else '' }}"
             """
+            import logging
+            logger = logging.getLogger("eden.templating")
+            
+            current = request.url.path.rstrip("/") or "/"
+            
             try:
+                # Handle wildcard routes (e.g., 'students:*' or 'admin:*')
+                if route_name.endswith('*'):
+                    # Extract the base namespace/prefix
+                    # Examples: 'students:*' -> 'students', 'admin:*' -> 'admin'
+                    base = route_name[:-1].rstrip(':_').replace(':', '_')
+                    
+                    # Try routes with common suffixes to get a base path
+                    suffixes = ['_index', '_create', '_list', '']
+                    base_resolved = None
+                    
+                    for suffix in suffixes:
+                        try:
+                            route_to_try = (base + suffix) if suffix else base
+                            resolved = str(request.url_for(route_to_try, **kwargs)).rstrip("/") or "/"
+                            base_resolved = resolved.split('/')
+                            # Take the base path structure
+                            if base_resolved and base_resolved[0] == '':
+                                # Extract namespace part: /students/ -> students
+                                base_resolved = '/' + base_resolved[1] if len(base_resolved) > 1 else '/'
+                            else:
+                                base_resolved = resolved
+                            break
+                        except Exception:
+                            continue
+                    
+                    if base_resolved:
+                        # Check if current path starts with any of these patterns
+                        return (current == base_resolved or 
+                                current.startswith(base_resolved + "/") or
+                                current.rstrip("/").startswith(base_resolved.rstrip("/")))
+                    else:
+                        logger.debug(f"is_active: Could not resolve wildcard route '{route_name}'")
+                        return False
+                
+                # Normal (non-wildcard) route matching
                 resolved = str(request.url_for(route_name, **kwargs)).rstrip("/") or "/"
-                current  = request.url.path.rstrip("/") or "/"
                 return current == resolved or current.startswith(resolved + "/")
-            except Exception:
+            except Exception as e:
+                # Log the error for debugging purposes
+                logger.debug(f"is_active: Error resolving route '{route_name}': {e}")
                 return False
 
         # Add default globals

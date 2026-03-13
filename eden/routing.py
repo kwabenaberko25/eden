@@ -371,15 +371,11 @@ class Router:
                 eden_request = Request(request.scope, request.receive, request._send)
                 # Extract path params from Starlette request
                 path_params = request.path_params
-                try:
-                    return await _eden_route.handle(eden_request, **path_params)
-                except Exception as exc:
-                    # Capture template errors and redirect to custom page
-                    from jinja2.exceptions import TemplateError
-                    if isinstance(exc, TemplateError) or "templating" in str(getattr(exc, '__module__', '')):
-                         if hasattr(self, "_render_enhanced_template_error"):
-                             return await self._render_enhanced_template_error(eden_request, exc)
-                    raise exc
+                # Do not intercept or handle exceptions here; let them bubble up to
+                # the application-level handlers registered in `Eden.build`. This
+                # keeps routing code simple and avoids accidentally calling
+                # methods on the Router instance that it doesn't have.
+                return await _eden_route.handle(eden_request, **path_params)
 
             starlette_routes.append(
                 StarletteRoute(

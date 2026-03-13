@@ -49,7 +49,9 @@ class CSRFMiddleware(BaseHTTPMiddleware):
                 try:
                     form_data = await request.form()
                     request_token = form_data.get("csrf_token")
-                except:
+                except (ValueError, RuntimeError):
+                    # ValueError: request body already consumed
+                    # RuntimeError: form parsing failed
                     pass
 
             if not request_token or request_token != csrf_token:
@@ -76,7 +78,13 @@ class CSRFMiddleware(BaseHTTPMiddleware):
 def get_csrf_token(request: Request) -> str:
     """
     Get the current CSRF token from the session.
+    Falls back to generating a token if session is not available.
     """
+    # Handle case where SessionMiddleware is not configured
+    if not hasattr(request, "session") or request.session is None:
+        # Return a newly generated token (won't be validated, but allows page rendering)
+        return generate_csrf_token()
+    
     token = request.session.get(CSRF_SECRET_KEY)
     if not token:
         token = generate_csrf_token()

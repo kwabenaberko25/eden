@@ -39,9 +39,12 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
             for backend in self.backends:
                 try:
                     user = await backend.authenticate(eden_request)
-                except Exception:
+                except Exception as e:
                     # Log the error but continue to next backend or deny access
                     # Do not crash the request if one backend fails (e.g. DB connection lost)
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.debug(f"Backend {backend.__class__.__name__} auth failed: {e}")
                     pass
 
                 if user:

@@ -98,4 +98,115 @@ async def create_new(request: Request):
 
 ---
 
+## 🔄 Step 4.4: Update & Delete Operations
+
+Complete your CRUD implementation with update and delete handlers:
+
+```python
+@user_router.put("/{user_id}")
+async def update_user(request: Request, user_id: int):
+    """Update an existing user with new data."""
+    data = await request.json()
+    
+    user = await User.get(id=user_id)
+    if not user:
+        return Response(
+            {"error": "User not found"}, 
+            status_code=status.HTTP_404_NOT_FOUND
+        )
+    
+    # Update only provided fields
+    await user.update(**data)
+    
+    return {
+        "message": "User updated successfully",
+        "user": user.to_dict()
+    }
+
+@user_router.delete("/{user_id}")
+async def delete_user(user_id: int):
+    """Remove a user permanently."""
+    user = await User.get(id=user_id)
+    if not user:
+        return Response(
+            {"error": "User not found"}, 
+            status_code=status.HTTP_404_NOT_FOUND
+        )
+    
+    await user.delete()
+    return Response(
+        {"message": "User deleted"}, 
+        status_code=status.HTTP_204_NO_CONTENT
+    )
+```
+
+---
+
+## ✅ Step 4.5: Request Validation with Schemas
+
+Use Pydantic schemas to automatically validate incoming data:
+
+```python
+from pydantic import BaseModel, EmailStr
+
+class UserCreateRequest(BaseModel):
+    name: str  # Required
+    email: EmailStr  # Validated email format
+    age: int | None = None  # Optional
+
+@user_router.post("/")
+async def create_user_validated(request: Request):
+    """Create a user with automatic validation."""
+    try:
+        data = await request.json()
+        validated = UserCreateRequest(**data)  # Pydantic validates here
+    except ValueError as e:
+        return Response(
+            {"error": f"Invalid input: {str(e)}"}, 
+            status_code=status.HTTP_400_BAD_REQUEST
+        )
+    
+    new_user = await User.create(**validated.dict())
+    return Response(
+        new_user.to_dict(),
+        status_code=status.HTTP_201_CREATED
+    )
+```
+
+> [!TIP]
+> Eden recommends using the `@app.validate` decorator (shown in Task 6) for cleaner form handling in web routes.
+
+---
+
+## 🎯 Step 4.6: Sub-Routers & Organization
+
+For larger applications, organize routes into logical modules:
+
+```python
+# app/routes/__init__.py
+from eden import Router
+from .user import user_router
+from .post import post_router
+from .admin import admin_router
+
+main_router = Router()
+main_router.include_router(user_router, prefix="/users", name="users")
+main_router.include_router(post_router, prefix="/posts", name="posts")
+main_router.include_router(admin_router, prefix="/admin", name="admin")
+```
+
+Now your routes are:
+- `/users/` (list users)
+- `/users/{user_id}` (get user)
+- `/posts/` (list posts)
+- `/admin/metrics` (admin dashboard)
+
+**Named routes** make templating cleaner:
+```html
+<a href="@url('users:list')">All Users</a>
+<a href="@url('posts:list')">All Posts</a>
+```
+
+---
+
 ### **Next Task**: [Implementing Premium UI with Templating](./task5_templating.md)

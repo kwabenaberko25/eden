@@ -68,7 +68,9 @@ def _get_response_schema(endpoint: Any) -> dict[str, Any]:
     """Infer response schema from return type hints."""
     try:
         hints = get_type_hints(endpoint)
-    except Exception:
+    except (NameError, AttributeError, TypeError):
+        # NameError: undefined type, AttributeError: malformed annotation
+        # TypeError: invalid type hint
         return {"200": {"description": "Successful response"}}
 
     return_type = hints.get("return")
@@ -161,7 +163,9 @@ def generate_openapi_spec(
                 try:
                     sig = inspect.signature(route.endpoint)
                     hints = get_type_hints(route.endpoint)
-                except Exception:
+                except (ValueError, TypeError, NameError):
+                    # ValueError: invalid signature, TypeError: not callable
+                    # NameError: undefined type in hint
                     sig = None
                     hints = {}
 
@@ -232,27 +236,57 @@ _SWAGGER_HTML = """<!DOCTYPE html>
 </body>
 </html>"""
 
+_REDOC_HTML = """<!DOCTYPE html>
+<html>
+<head>
+    <title>{title} — API Docs</title>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://fonts.googleapis.com/css?family=Montserrat:300,400,700|Roboto:300,400,700" rel="stylesheet">
+    <style>
+        body {{
+            margin: 0;
+            padding: 0;
+            background: #0F172A;
+        }}
+    </style>
+</head>
+<body>
+    <redoc spec-url='{spec_url}'></redoc>
+    <script src="https://cdn.jsdelivr.net/npm/redoc@latest/bundles/redoc.standalone.js"></script>
+</body>
+</html>"""
 
-def mount_openapi(app: Any, spec_path: str = "/openapi.json", docs_path: str = "/docs") -> None:
+
+def mount_openapi(app: Any, spec_path: str = "/openapi.json", docs_path: str = "/docs", redoc_path: str = "/redoc") -> None:
     """
-    Mount OpenAPI spec and Swagger UI routes onto an Eden app.
+    Mount OpenAPI spec and documentation routes onto an Eden app.
 
     Usage:
         from eden.openapi import mount_openapi
         mount_openapi(app)
-        # Now visit /docs for Swagger UI
+        # Now visit /docs for Swagger UI and /redoc for ReDoc
     """
 
-    @app.get(spec_path, name="openapi_spec", tags=["docs"])
+    @app.get(spec_path, name="openapi_spec", include_in_schema=False)
     async def openapi_spec():
         """Return the OpenAPI JSON spec."""
         spec = generate_openapi_spec(app)
         return JsonResponse(content=spec)
 
-    @app.get(docs_path, name="swagger_ui", tags=["docs"])
+    @app.get(docs_path, name="swagger_ui", include_in_schema=False)
     async def swagger_ui():
         """Swagger UI documentation page."""
         html = _SWAGGER_HTML.format(
+            title=getattr(app, "title", "Eden API"),
+            spec_url=spec_path,
+        )
+        return HtmlResponse(html)
+
+    @app.get(redoc_path, name="redoc_ui", include_in_schema=False)
+    async def redoc():
+        """ReDoc documentation page."""
+        html = _REDOC_HTML.format(
             title=getattr(app, "title", "Eden API"),
             spec_url=spec_path,
         )

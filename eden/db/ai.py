@@ -6,7 +6,10 @@ Native support for embeddings and semantic search.
 from typing import Any, List, Optional, Union
 from sqlalchemy import Column
 from sqlalchemy.orm import Mapped, mapped_column
-from pgvector.sqlalchemy import Vector
+try:
+    from pgvector.sqlalchemy import Vector
+except ImportError:
+    Vector = None
 
 from eden.db.base import Model
 from eden.db.fields import f
@@ -27,6 +30,11 @@ class VectorModel(Model):
         """
         Helper to define a vector column.
         """
+        if Vector is None:
+            raise ImportError(
+                "pgvector is required for VectorModel. "
+                "Install it with: uv add pgvector"
+            )
         return f(Vector(dimensions), widget=widget, **kwargs)
 
     @classmethod
@@ -52,4 +60,9 @@ class VectorModel(Model):
 
 def VectorField(dimensions: int, **kwargs) -> Any:
     """Shortcut for f(Vector(dimensions), ...)"""
+    if Vector is None:
+        raise ImportError(
+            "pgvector is required for VectorField. "
+            "Install it with: uv add pgvector"
+        )
     return f(Vector(dimensions), **kwargs)

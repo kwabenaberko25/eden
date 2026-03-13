@@ -59,7 +59,9 @@ def _resolve_table_name(target_name: str) -> str:
                 return target_cls.__tablename__
             elif hasattr(target_cls, "name"):  # it might be a descriptor/etc.
                 pass
-    except Exception:
+    except (KeyError, AttributeError):
+        # KeyError: target not in registry, AttributeError: malformed registry
+        # Fallback to convention-based naming below
         pass
 
     # Fallback to Eden convention: CamelCase -> camel_cases
@@ -140,7 +142,16 @@ class Model(Base, AccessControl):
 
     @classmethod
     def _infer_relationships_immediate(cls):
-        """Infers relationships from type hints before mapping. Returns list of inferred names."""
+        """Infers relationships from type hints before mapping.
+
+        This helper scans the class's ``__annotations__`` looking for hints
+        that reference other ``Model`` subclasses.  It is invoked during
+        the mapping phase so that SQLAlchemy relationships can be automatically
+        created when the user declares attributes like
+        ``owner: Mapped['User']`` or ``items: List['OrderItem']``.
+
+        Returns a list of the attribute names that were inferred.
+        """
         from sqlalchemy.orm import RelationshipProperty, relationship as sa_rel
         import re
 

@@ -12,7 +12,16 @@ import logging
 from collections.abc import Callable
 from typing import Any, TypeVar
 
-from taskiq import AsyncBroker, InMemoryBroker
+try:
+    from taskiq import AsyncBroker, InMemoryBroker
+except ImportError:
+    # We still define these as stubs to avoid class definition errors,
+    # but we'll flag that taskiq is missing.
+    class AsyncBroker: pass
+    class InMemoryBroker: pass
+    _HAS_TASKIQ = False
+else:
+    _HAS_TASKIQ = True
 
 try:
     from taskiq_redis import PubSubBroker as RedisBroker

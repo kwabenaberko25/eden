@@ -35,7 +35,9 @@ nav:
   - Getting Started:
     - The Eden Ethos: getting-started/philosophy.md
     - Installation: getting-started/installation.md
+    - Learning Path: getting-started/learning-path.md
     - Quick Start: getting-started/quickstart.md
+    - Example Snippets: getting-started/example-snippets.md
     - Project Structure: getting-started/structure.md
   - Tutorial (Task-Based):
     - 1. Environment Setup: tutorial/task1_setup.md
@@ -51,22 +53,44 @@ nav:
   - Guides:
     - Core Application: guides/core-app.md
     - Routing System: guides/routing.md
+    - Advanced Routing: guides/advanced-routing.md
     - Server-Side Components: guides/components.md
+    - Context Variables: guides/context-variables.md
+    - Dependencies: guides/dependencies.md
     - WebSockets: guides/websockets.md
+    - WebSocket Auth: guides/websocket-auth.md
     - Middleware & Security: guides/middleware.md
+    - CSRF Protection: guides/csrf-protection.md
+    - Sessions: guides/sessions.md
+    - HTMX Integration: guides/htmx.md
     - Exception Handling: guides/exceptions.md
+    - OpenAPI & Swagger: guides/openapi.md
     - CLI Suite: guides/cli.md
     - Database & ORM: guides/orm.md
     - Authentication: guides/auth.md
+    - Multi-Backend Auth: guides/multi-backend-auth.md
+    - Caching & Performance: guides/caching.md
     - Templates: guides/templating.md
+    - "📝 Templating Directives": guides/DIRECTIVES_USAGE_GUIDE.md
+    - "🔧 Directives Troubleshooting": guides/DIRECTIVES_TROUBLESHOOTING.md
     - Forms & Validation: guides/forms.md
+    - FormField API: guides/formfield-api.md
     - Multi-Tenancy: guides/tenancy.md
+    - Multi-Tenancy (PostgreSQL): guides/tenancy-postgres.md
+    - Tenant Configuration: guides/tenant-configuration.md
     - Internationalization: guides/i18n.md
     - Background Tasks: guides/background-tasks.md
     - Integrated Services: guides/services.md
+    - Optional Extras: guides/optional-extras.md
     - Admin Panel: guides/admin.md
+    - API Best Practices: guides/api.md
+    - Payment Integration: guides/payments.md
     - Deployment & Observability: guides/deployment.md
     - 🚀 Killer Features: guides/killer-features.md
+    - 🔒 Security Best Practices: guides/security.md
+    - 🚀 Performance Tuning: guides/performance.md
+    - 🧪 Testing: guides/testing.md
+    - 🔧 Troubleshooting & FAQ: guides/troubleshooting.md
 
 markdown_extensions:
   - pymdownx.highlight:

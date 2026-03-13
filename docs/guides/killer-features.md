@@ -70,10 +70,11 @@ Update a `Project` model in a background task, and the progress bar on the dashb
 Eden is built for the era of AI. We provide native support for **Vector Embeddings**, enabling you to build semantic search and RAG systems with ease.
 
 ### The `VectorModel`
-By inheriting from `VectorModel`, your objects become searchable by "meaning," not just keywords.
+By inheriting from `VectorModel`, your objects become searchable by "meaning," not just keywords. This enables Retrieval-Augmented Generation (RAG) and semantic search without leaving the framework.
 
 ```python
 from eden.db.ai import VectorModel, VectorField
+from eden import f, Mapped
 
 class Insight(VectorModel):
     text: Mapped[str] = f()
@@ -82,9 +83,16 @@ class Insight(VectorModel):
 
 # Semantic Retrieval
 async def get_related_insights(query_embedding):
-    # Built-in cosine similarity search
+    # Built-in cosine similarity search using pgvector
     return await Insight.semantic_search(query_embedding, limit=10)
 ```
+
+**Prerequisites**: Requires PostgreSQL with pgvector extension. Install via:
+```bash
+pip install eden-framework[ai]
+```
+
+**Under the Hood**: VectorModel uses PostgreSQL's pgvector extension for fast, accurate cosine distance calculations at scale.
 
 ---
 

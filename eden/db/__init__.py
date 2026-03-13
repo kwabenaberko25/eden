@@ -3,6 +3,41 @@ Eden — Database ORM Package
 
 Provides the data layer: Model base class, Field helpers,
 Database session management, and Alembic migration integration.
+
+✨ CANONICAL IMPORT PATH FOR ORM FEATURES
+
+This is the recommended way to import database and ORM functionality:
+
+    from eden.db import (
+        Model,                    # Base class for your models
+        Database,                 # Database connection manager
+        QuerySet, Q, F,          # Query interface
+        StringField, IntField,   # Field definitions
+        ForeignKeyField,         # Relationships
+        Page,                    # Pagination
+        SoftDeleteMixin,         # Soft delete behavior
+        MigrationManager,        # Database migrations
+    )
+
+    # Also available: SQLAlchemy utilities
+    from eden.db import select, insert, update, delete, func
+    from eden.db import and_, or_, not_, desc, asc
+    from eden.db import JSON, Mapped, relationship
+
+BACKWARD COMPATIBILITY:
+    from eden import Model  # Still works, but imports from here internally
+    from eden.orm import Model  # Deprecated but works until v1.0.0
+
+KEY EXPORTS (230+ items total):
+    - Model base class and ORM utilities (Mapped, relationship, etc.)
+    - Field types: StringField, IntField, FloatField, BoolField, etc.
+    - Query helpers: Q (queries), F (field references), QuerySet
+    - SQLAlchemy re-exports: select, insert, update, delete, and more
+    - Aggregation: Sum, Avg, Count, Min, Max
+    - Pagination: Page class for result sets
+    - Soft deletes: SoftDeleteMixin
+    - Row-level security: AccessControl, PermissionRule, AllowRoles, etc.
+    - AI/Vector support: VectorModel, VectorField for pgvector
 """
 
 from eden.db.base import Model
@@ -99,6 +134,7 @@ from eden.db.mixins import SoftDeleteMixin
 from eden.db.pagination import Page
 from eden.db.query import QuerySet
 from eden.db.session import Database, get_db, init_db
+from eden.db.migrations import MigrationManager
 from eden.context import request, user
 from eden.db.ai import VectorModel, VectorField
 
@@ -131,6 +167,7 @@ __all__ = [
     "ManyToManyField",
     "FileField",
     "QuerySet",
+    "MigrationManager",
     "Mapped",
     "mapped_column",
     "relationship",

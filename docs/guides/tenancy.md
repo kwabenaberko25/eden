@@ -97,6 +97,8 @@ finally:
 While Eden defaults to **Shared Database, Shared Schema** (row-level isolation), it also supports **Shared Database, Separate Schema** for higher isolation requirements.
 
 Set `TENANCY_STRATEGY=schema` in your `.env` to enable schema switching based on the current tenant's `schema_name` field.
+
+For complete implementation details, architecture explanation, and PostgreSQL configuration, see the [Tenant Schema Switching Guide](tenancy-postgres.md). It covers the `search_path` mechanism, connection pool safety, migrations, and production deployment strategies.
 ```
 
 ---

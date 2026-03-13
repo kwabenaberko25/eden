@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling>=1.25.0", "packaging>=24.0"]
+requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
@@ -7,7 +7,7 @@ name = "eden-framework"
 version = "0.1.0"
 description = "A batteries-included async Python web framework. Django's features, FastAPI's speed, Flask's simplicity."
 readme = "README.md"
-license = "MIT"
+license = {text = "MIT"}
 requires-python = ">=3.11"
 authors = [
     { name = "Eden Contributors" },
@@ -26,30 +26,79 @@ classifiers = [
 ]
 
 dependencies = [
+    # Core ASGI/Web
     "starlette>=0.37.0",
     "uvicorn[standard]>=0.29.0",
+    # Validation & Configuration
     "pydantic>=2.0",
+    # CLI & Shell
     "click>=8.1.0",
+    # Templating
     "jinja2>=3.1.0",
+    # HTTP Utilities
     "python-multipart>=0.0.9",
     "itsdangerous>=2.1.0",
+    # ORM & Database
     "sqlalchemy[asyncio]>=2.0",
     "aiosqlite>=0.20.0",
     "alembic>=1.13.0",
+    # Security
     "argon2-cffi>=23.1.0",
     "PyJWT>=2.10.1",
-    "taskiq>=0.11.0",
-    "taskiq-redis>=0.5.0",
+    # File Handling
     "aiofiles>=25.1.0",
-    "aioboto3>=15.5.0",
-    "aiosmtplib>=5.1.0",
-    "stripe>=14.4.0",
+    # Validation
     "email-validator>=2.3.0",
-    "asyncpg>=0.31.0",
-    "pgvector>=0.2.0",
+    # Background Tasks
+    "taskiq>=0.11.0",
 ]
 
 [project.optional-dependencies]
+# Database drivers (pick what you need)
+databases = [
+    "asyncpg>=0.31.0",      # PostgreSQL
+    "aiomysql>=0.2.0",      # MySQL
+]
+
+# Payments (Stripe integration)
+payments = [
+    "stripe>=14.4.0",
+]
+
+# Background tasks & queues
+tasks = [
+    "taskiq-redis>=0.5.0",
+]
+
+# Cloud storage (S3, etc.)
+storage = [
+    "aioboto3>=15.5.0",
+    "aiofiles>=25.1.0",
+]
+
+# Email/SMTP support
+mail = [
+    "aiosmtplib>=5.1.0",
+]
+
+# AI/Vector support (pgvector)
+ai = [
+    "pgvector>=0.2.0",
+]
+
+# All optional features
+all = [
+    "asyncpg>=0.31.0",
+    "aiomysql>=0.2.0",
+    "stripe>=14.4.0",
+    "taskiq>=0.11.0",
+    "taskiq-redis>=0.5.0",
+    "aioboto3>=15.5.0",
+    "aiosmtplib>=5.1.0",
+    "pgvector>=0.2.0",
+]
+
+# Development tools
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23.0",

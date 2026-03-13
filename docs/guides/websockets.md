@@ -30,6 +30,41 @@ The `websocket` object provides several methods for managing the connection life
 
 ---
 
+## Real-Time ORM Sync
+
+Eden provides automatic real-time synchronization for models marked with `__reactive__ = True`. When data changes in the database, connected WebSocket clients are notified instantly:
+
+```python
+from eden import Model
+
+class Task(Model):
+    __reactive__ = True  # Enable real-time sync
+    title: str
+    completed: bool
+
+# When any client updates a task:
+@app.post("/tasks/{task_id}/complete")
+async def complete_task(task_id: int):
+    task = await Task.get(task_id)
+    task.completed = True
+    await task.save()  # Automatically notifies all connected clients
+    return {"completed": True}
+
+# All connected WebSocket clients receive the update
+@app.websocket("/ws/tasks")
+async def tasks_sync(websocket):
+    await websocket.accept()
+    
+    # Subscribe to task updates
+    async for update in Task.__reactive__.subscribe():
+        await websocket.send_json({
+            "type": "task_updated",
+            "task": update.to_dict()
+        })
+```
+
+---
+
 ## Handling Disconnects
 
 It's important to handle disconnections gracefully to avoid leaking resources.
@@ -64,6 +99,10 @@ async def secure_socket(websocket):
         return
     ...
 ```
+
+### Advanced Authentication
+
+For production applications requiring user authentication, connection state recovery, and message handlers, see the [WebSocket Authentication & State Management](websocket-auth.md) guide. It covers token-based auth, cookie-based auth, maintaining session state, and production patterns like heartbeats and reconnection handling.
 
 ---
 
@@ -125,11 +164,11 @@ Use the `hx-sync` attribute (via our HTMX integration) to listen for specific mo
 
 #### Way 2: Single Item Update
 ```html
-<div id="task-{{ task.id }}" 
-     hx-sync="tasks:{{ task.id }}" 
+<div id="task-@span(task.id)" 
+     hx-sync="tasks:@span(task.id)" 
      hx-trigger="tasks:updated" 
-     hx-get="/tasks/{{ task.id }}">
-    {{ task.title }}
+     hx-get="/tasks/@span(task.id)">
+    @span(task.title)
 </div>
 ```
 
