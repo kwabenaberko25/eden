@@ -116,6 +116,13 @@ Make your templates dynamic and interactive:
 @section("content") {
     <h1>Welcome, @span(user.name)!</h1>
 
+    <!-- Design System Integration -->
+    <div class="{{ 'glass' | eden_surface }} {{ 'lg' | eden_shadow }} p-6 mb-8">
+        <h2 class="{{ 'bold' | eden_text }} text-blue-400">Account Overview</h2>
+        <p>Current Balance: <span class="font-mono">{{ user.balance | money }}</span></p>
+        <p>Last Login: <span class="text-slate-400">@span(user.last_login | time_ago)</span></p>
+    </div>
+
     <!-- Conditional: Show premium features only if user is subscribed -->
     @if (user.is_premium) {
         <div class="premium-badge">✨ Premium Member</div>
@@ -128,39 +135,39 @@ Make your templates dynamic and interactive:
     <!-- Switch/Case: Show different content based on user role -->
     @switch (user.role) {
         @case ("admin") {
-            <button class="btn btn-danger">Delete All Users</button>
+            <div class="p-4 border border-red-500/20 bg-red-500/5 rounded-xl">
+                <h3 class="text-red-400 font-bold">Admin Controls</h3>
+                <button class="btn btn-danger mt-2">Delete All Users</button>
+            </div>
         }
         @case ("moderator") {
-            <button class="btn btn-warning">Flag Inappropriate Content</button>
-        }
-        @default {
-            <p>You are a regular user.</p>
+            <button class="btn btn-warning">Flag Content</button>
         }
     }
 
     <!-- Loop with index and conditions -->
-    <h2>Your Recent Posts</h2>
-    @if (posts | length > 0) {
-        <ul class="post-list">
-            @for (post in posts) {
-                <li class="post-item">
-                    <span class="post-number">#@span($loop.index)</span>
-                    <strong>@span(post.title)</strong>
-                    <p>@span(post.content | truncate(100))</p>
-                    
-                    <!-- Show "Featured" badge only on the first post -->
-                    @if ($loop.first) {
-                        <span class="badge">Featured</span>
-                    }
-                    
-                    <!-- Show edit button only on user's own posts -->
-                    @if (post.user_id == current_user.id) {
-                        <a href="/posts/@span(post.id)/edit" class="btn btn-sm">Edit</a>
-                    }
-                </li>
-            }
-        </ul>
-    } @else {
+    <h2 class="mt-12 mb-6">Your Recent Posts</h2>
+    @for (post in posts) {
+        <div class="mb-4 p-4 bg-slate-800/50 rounded-xl border border-white/5">
+            <div class="flex justify-between items-start">
+                <div>
+                    <span class="text-xs text-slate-500">#@span($loop.index)</span>
+                    <h3 class="font-bold">@span(post.title)</h3>
+                    <p class="text-sm text-slate-400 mt-1">@span(post.content | truncate(100))</p>
+                </div>
+                @if ($loop.first) {
+                    <span class="badge bg-blue-600/20 text-blue-400 text-xs px-2 py-1 rounded">Featured</span>
+                }
+            </div>
+            
+            <div class="flex gap-4 mt-4 text-xs">
+                @if (post.user_id == current_user.id) {
+                    <a href="/posts/@span(post.id)/edit" class="text-blue-400 hover:underline">Edit</a>
+                }
+                <span class="text-slate-500">@span(post.created_at | time_ago)</span>
+            </div>
+        </div>
+    } @empty {
         <p class="empty-state">You haven't written any posts yet.</p>
     }
 }

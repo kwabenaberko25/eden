@@ -1,15 +1,21 @@
-# Eden Templating Engine Documentation 🎨
+# Eden Templating Engine Documentation
 
 > **Modern, Powerful, Express-Inspired Syntax for Web Templates**
 
 Eden's templating engine is a modern templating system designed to make templates readable, maintainable, and powerful. It replaces verbose Jinja2 tags with a clean, brace-based `@directive` syntax inspired by JavaScript frameworks. It is fully line-preserving and optimized for developer experience.
 
 **Quick Facts:**
+
 - **40+ Directives** covering control flow, forms, routing, authentication, and components
+
 - **38+ Filters** for string manipulation, formatting, arrays, and i18n
+
 - **Full HTML Integration** with server-side components and HTMX support
+
 - **Express-Inspired** syntax that feels familiar to JavaScript developers
-- **Type-Safe URLs** with the `@url()` directive—never hardcode routes again
+
+- **Type-Safe URLs** with the `@url()` directivenever hardcode routes again
+
 - **Automatic CSRF Protection** with the `@csrf` directive
 
 ## Table of Contents
@@ -19,74 +25,22 @@ Eden's templating engine is a modern templating system designed to make template
 3. [Control Flow Directives](#control-flow-directives)
 4. [All Filters Reference](#all-filters-reference)
 5. [Form Directives](#form-directives)
-6. [Authentication & Authorization](#authentication--authorization)
-7. [Routing & Navigation](#routing--navigation)
-8. [Template Inheritance & Layout](#template-inheritance--layout)
-9. [Components & Fragments](#components--fragments)
-10. [Loop Helpers](#loop-helpers)
-11. [Advanced Features](#advanced-features)
-12. [Best Practices & Patterns](#best-practices--patterns)
+6. [Authentication and Authorization](#authentication-and-authorization)
+7. [Routing and Navigation](#url-routing-and-navigation)
+8. [Layouts and Inheritance](#layouts-and-inheritance)
+9. [HTMX and Dynamic Updates](#htmx-dynamic-updates)
+10. [Template Component Patterns](#template-component-patterns)
+11. [Pagination and Navigation](#pagination-and-navigation)
+12. [Search and Filter Integration](#search-and-filter-integration)
+13. [Best Practices and Patterns](#best-practices-and-patterns)
 
 ---
 
 ## Rendering Templates in Routes
 
-### Using `request.render()` (Recommended)
+### Using `render_template()` Helper (Standard)
 
-Every Eden `Request` object has a built-in `.render()` method. This is the idiomatic way to render templates in your route handlers.
-
-```python
-@app.get("/dashboard")
-async def dashboard(request):
-    """Render dashboard template with context."""
-    user = await User.get(id=request.user.id)
-    posts = await Post.filter(user_id=user.id).all()
-    
-    return request.render(
-        "dashboard.html",
-        user=user,
-        posts=posts,
-        title="My Dashboard"
-    )
-```
-
-**Template file** (`templates/dashboard.html`):
-```html
-@extends("layouts/base")
-
-@section("title") { {{ title }} }
-
-@section("content") {
-    <h1>Welcome, {{ user.name }}!</h1>
-    <p>You have {{ posts | length }} posts.</p>
-    
-    @for (post in posts) {
-        <article>
-            <h2>{{ post.title }}</h2>
-            <p>{{ post.content | truncate(150) }}</p>
-        </article>
-    }
-}
-```
-
-### Using `app.render()` (Global Access)
-
-For convenience in non-request contexts, use the app-level render method:
-
-```python
-from eden import Eden
-
-app = Eden(title="My App")
-
-@app.get("/home")
-async def home():
-    """Using app.render() when you don't have request context."""
-    return app.render("home.html", title="Welcome Home")
-```
-
-### Using `render_template()` Helper (Context-Aware)
-
-For the cleanest syntax, import and use the `render_template` helper. It automatically discovers the current request context using Python context variables:
+For the cleanest syntax, import and use the `render_template` helper. It automatically discovers the current request context using Python context variables, making it ideal for most view handlers.
 
 ```python
 from eden import render_template
@@ -96,714 +50,319 @@ async def home():
     """render_template automatically uses request context."""
     return render_template("home.html", title="Welcome Home")
 
-@app.post("/submit")
-async def submit_form(request):
-    # Still works in async context
-    return render_template("confirmation.html", message="Success!")
 ```
 
-**Advantages of `render_template()`:**
-- No need to explicitly pass `request` 
-- Automatic context detection
-- Cleaner, more expressive code
-- Works in async contexts
+> [!TIP]
+> `render_template` is the preferred way to render HTML in Eden. It automatically handles HTMX fragment detection and injects the `request`, `user`, and `current_tenant` into your template context.
 
-### Passing Context Data
+### Using `request.render()`
 
-All rendering methods accept context variables as keyword arguments or a dictionary:
+Every Eden `Request` object has a built-in `.render()` method. This is a shorter alias for calling the templating engine directly.
 
 ```python
-# Method 1: Keyword arguments
-return request.render("template.html", user=user, posts=posts)
+@app.get("/profile")
+async def profile(request):
+    return request.render("profile.html", user=request.user)
 
-# Method 2: Dictionary
-context = {"user": user, "posts": posts, "theme": "dark"}
-return request.render("template.html", context)
-
-# Method 3: Mixed approach
-return request.render(
-    "template.html",
-    {"user": user},
-    posts=posts
-)
 ```
 
-### Fragment Rendering (HTMX Support)
+### Using `app.render()`
 
-Render only a specific part of a template without the layout:
+If you have a reference to the `Eden` app instance, you can render templates directly:
 
 ```python
-@app.get("/users/list")
-async def list_users_fragment(request):
-    users = await User.all()
-    
-    # Renders ONLY the fragment="users-table", not the entire layout
-    return request.render(
-        "users.html",
-        users=users,
-        fragment="users-table"
-    )
+@app.get("/health")
+async def health(request):
+    return request.app.render("status.html", status="ok")
+
 ```
 
-**Template file:**
+### HTMX Auto-Fragment Rendering
+
+Eden features deep integration with HTMX. If a request includes the `HX-Request` header, the engine automatically checks for an `HX-Target` header. If a matching `@fragment` exists in your template, Eden will render **only** that fragment, skipping the rest of the page and the layout.
+
+```python
+@app.get("/items")
+async def list_items(request):
+    items = await Item.all()
+    # If hx-target="#item-list" is sent, only the fragment is rendered.
+
+    return render_template("items.html", items=items)
+
+```
+
+**Template:**
+
 ```html
 @extends("layouts/base")
 
-@fragment("users-table") {
-    <table>
-        <thead>
-            <tr><th>Name</th><th>Email</th></tr>
-        </thead>
-        <tbody>
-            @for (user in users) {
-                <tr>
-                    <td>{{ user.name }}</td>
-                    <td>{{ user.email }}</td>
-                </tr>
-            }
-        </tbody>
-    </table>
+@section("content") {
+    <div id="item-list">
+        @fragment("item-list") {
+            <ul>
+                @for(item in items) { <li>{{ item.name }}</li> }
+            </ul>
+        }
+    </div>
 }
+
 ```
+
+> [!NOTE]
+> You can also manually trigger a fragment by passing `fragment="name"` to any render method.
 
 ---
 
 ## Syntax Basics
 
-### The `@` Syntax
-
-Unlike traditional templates that use `{% ... %}`, Eden uses `@` followed by the directive name and optional parentheses for arguments.
-
 ---
 
-## Control Flow 🎢
+## Control Flow Directives
 
-### Loops
+### Control Flow and Logic
 
-```html
-@for (item in items) {
-    <li>{{ item }}</li>
-    @even { <span class="badge">Even Row</span> }
-    @odd { <span class="badge">Odd Row</span> }
-} @empty {
-    <p>Nothing to show.</p>
-}
-```
-
-### Loop Helpers
-
-Beyond the `$loop` object, Eden provides clean directives for conditional rendering within loops:
-
-| Directive | Description |
-| :--- | :--- |
-| `@even { ... }` | Renders only on even iterations. |
-| `@odd { ... }` | Renders only on odd iterations. |
-| `@first { ... }` | Renders only on the first iteration. |
-| `@last { ... }` | Renders only on the last iteration. |
-
-#### The `$loop` Object
-
-Inside a `@for` loop, you have access to the `$loop` object (a wrapper around Jinja2's `loop` context) to get metadata about the current iteration.
-
-| Property | Description |
-| :--- | :--- |
-| `$loop.index` | The current iteration (1-indexed). |
-| `$loop.index0` | The current iteration (0-indexed). |
-| `$loop.revindex` | Number of iterations from the end (1-indexed). |
-| `$loop.revindex0` | Number of iterations from the end (0-indexed). |
-| `$loop.first` | True if this is the first iteration. |
-| `$loop.last` | True if this is the last iteration. |
-| `$loop.length` | Total number of items in the sequence. |
-| `$loop.iteration` | Same as `index`. |
-| `$loop.even` | True if the current iteration is even. |
-| `$loop.odd` | True if the current iteration is odd. |
-
-Example usage:
-```html
-@for (user in users) {
-    <div class="{{ $loop.even ? 'bg-gray-800' : 'bg-gray-900' }}">
-        {{ user.name }} @if($loop.first) { (Admin) }
-    </div>
-}
-```
-
-#### Directive Parameters & Syntax
-
-| Category | Directive | Parameters | Description |
-| :--- | :--- | :--- | :--- |
-| **Control** | `@if(cond)` | `cond`: Boolean expr | Standard if-block. |
-| | `@unless(cond)` | `cond`: Boolean expr | Inverse if (if not). |
-| | `@for(i in list)` | `i in list` | Loop. Access `$loop` properties. |
-| | `@empty` | None | Content to show if loop is empty. |
-| | `@switch(val)` | `val`: Any | Open a switch block. |
-| | `@case(val)` | `val`: Any | Match a switch case. |
-| **Auth** | `@auth` | None | Only for logged-in users. |
-| | `@guest` | None | Only for non-logged-in users. |
-| **HTMX** | `@htmx` | None | Only for HTMX requests. |
-| | `@non_htmx` | None | Only for standard (non-HTMX) requests. |
-| | `@fragment(id)` | `id`: String | Defines a targetable partial. |
-| **Forms** | `@csrf` | None | Emits hidden CSRF input. |
-| | `@checked(cond)` | `cond`: Boolean | Sets `checked` attr if true. |
-| | `@selected(cond)` | `cond`: Boolean | Sets `selected` attr if true. |
-| | `@disabled(cond)` | `cond`: Boolean | Sets `disabled` attr if true. |
-| | `@readonly(cond)` | `cond`: Boolean | Sets `readonly` attr if true. |
-| **Logic** | `@let var = val` | `var`, `val` | Inline variable assignment. |
-| | `@url(name)` | `name`, `**kwargs` | Generates a URL. Supports `component:` prefix. |
-| | `@active_link(name, cls)` | `name`, `cls` | Emits `cls` if route is active (supports wildcards). |
-| **Loop Helpers** | `@even` | None | Content for even loop rows. |
-| | `@odd` | None | Content for odd loop rows. |
-| | `@first` | None | Content for the first loop row. |
-| | `@last` | None | Content for the last loop row. |
-
----
-
-## All Filters Reference 🎯
-
-Eden provides 38+ built-in filters for formatting, transforming, and displaying data in templates. Filters are applied using the pipe operator `|`.
-
-### String Filters
-
-#### Case Conversion Filters
-
-```html
-<!-- Uppercase -->
-{{ "hello world" | upper }}
-<!-- Output: HELLO WORLD -->
-
-<!-- Lowercase -->
-{{ "HELLO WORLD" | lower }}
-<!-- Output: hello world -->
-
-<!-- Title Case (capitalize each word) -->
-{{ "hello world" | title }}
-<!-- Output: Hello World -->
-
-<!-- Capitalize (only first letter) -->
-{{ "hello" | capitalize }}
-<!-- Output: Hello -->
-```
-
-#### String Manipulation Filters
-
-```html
-<!-- Reverse string -->
-{{ "eden" | reverse }}
-<!-- Output: nede -->
-
-<!-- Trim whitespace -->
-{{ "  hello world  " | trim }}
-<!-- Output: hello world -->
-
-<!-- Trim left (leading whitespace) -->
-{{ "  hello" | ltrim }}
-<!-- Output: hello -->
-
-<!-- Trim right (trailing whitespace) -->
-{{ "hello  " | rtrim }}
-<!-- Output: hello -->
-
-<!-- Replace text -->
-{{ "hello world" | replace("world", "Eden") }}
-<!-- Output: hello Eden -->
-
-<!-- Slice (substring) -->
-{{ "hello world" | slice(0, 5) }}
-<!-- Output: hello -->
-<!-- With negative indices -->
-{{ "hello world" | slice(-5) }}
-<!-- Output: world -->
-
-<!-- Get string length -->
-{{ "hello" | length }}
-<!-- Output: 5 -->
-
-<!-- Truncate with ellipsis -->
-{{ "This is a very long text" | truncate(15) }}
-<!-- Output: This is a very... -->
-<!-- Custom suffix -->
-{{ "This is a very long text" | truncate(15, "…") }}
-<!-- Output: This is a very… -->
-
-<!-- Convert to URL-safe slug -->
-{{ "Hello World! 🌍" | slug }}
-<!-- Output: hello-world-%f0%9f%8c%8d -->
-
-<!-- Repeat string -->
-{{ "ab" | repeat(3) }}
-<!-- Output: ababab -->
-```
-
-### Numeric Filters
-
-```html
-<!-- Absolute value -->
-{{ -42 | abs }}
-<!-- Output: 42 -->
-
-<!-- Round to decimal places -->
-{{ 3.14159 | round }}
-<!-- Output: 3 -->
-{{ 3.14159 | round(2) }}
-<!-- Output: 3.14 -->
-
-<!-- Ceiling (round up) -->
-{{ 3.2 | ceil }}
-<!-- Output: 4 -->
-
-<!-- Floor (round down) -->
-{{ 3.7 | floor }}
-<!-- Output: 3 -->
-```
-
-### Array & Collection Filters
-
-```html
-<!-- Get first element -->
-{{ items | first }}
-<!-- Works with: lists, tuples, strings -->
-
-<!-- Get first with default -->
-{{ empty_list | first("No items") }}
-
-<!-- Get last element -->
-{{ items | last }}
-
-<!-- Get unique elements (removes duplicates) -->
-{{ [1, 2, 2, 3, 3, 3] | unique }}
-<!-- Output: [1, 2, 3] -->
-
-<!-- Sort array -->
-{{ numbers | sort }}
-<!-- Output: sorted in ascending order -->
-
-<!-- Reverse array -->
-{{ items | reverse_array }}
-
-<!-- Number of items -->
-{{ items | length }}
-```
-
-### Format Filters
-
-**Currency:**
-```html
-<!-- Default USD -->
-{{ 99.99 | currency }}
-<!-- Output: $99.99 -->
-
-<!-- British pounds -->
-{{ 50 | currency("GBP") }}
-<!-- Output: £50.00 -->
-
-<!-- Euro -->
-{{ 75.5 | currency("EUR") }}
-<!-- Output: €75.50 -->
-
-<!-- Ghanaian cedis -->
-{{ 100 | currency("GHS") }}
-<!-- Output: ₵100.00 -->
-
-<!-- Supported currencies: USD, EUR, GBP, GHS, JPY, CNY -->
-```
-
-**Phone Numbers:**
-```html
-<!-- US phone format -->
-{{ "2025551234" | phone }}
-<!-- Output: (202) 555-1234 -->
-
-<!-- Ghana phone format -->
-{{ "0912345678" | phone("GH") }}
-<!-- Output: +233 0 912 345678 -->
-```
-
-**Date & Time:**
-```html
-<!-- Format date -->
-{{ user.created_at | date }}
-<!-- Output: 2024-03-13 (default format) -->
-
-<!-- Custom date format -->
-{{ user.created_at | date("%B %d, %Y") }}
-<!-- Output: March 13, 2024 -->
-
-<!-- Time format -->
-{{ event.start_time | time }}
-<!-- Output: 14:30:00 -->
-
-<!-- Custom time format -->
-{{ event.start_time | time("%I:%M %p") }}
-<!-- Output: 02:30 PM -->
-```
-
-### Data Type & JSON Filters
-
-```html
-<!-- Convert to JSON (safe for JavaScript) -->
-<script>
-  const userData = @json(user);
-  console.log(userData);
-</script>
-
-<!-- Direct JSON output -->
-{{ data | json }}
-<!-- Output: {"key": "value", ...} -->
-```
-
-### Filter Chaining
-
-Filters can be chained together for powerful transformations:
-
-```html
-<!-- Chain 1: Clean and format text -->
-{{ user.email | lower | slice(0, 5) | upper }}
-
-<!-- Chain 2: Format numbers -->
-{{ price * quantity | round(2) | currency }}
-
-<!-- Chain 3: Advanced data manipulation -->
-{{ products 
-   | sort 
-   | unique 
-   | reverse_array 
-   | json }}
-```
-
-### Creating Custom Filters
-
-While Eden comes with many built-in filters, you can register custom filters:
-
-```python
-from eden import Eden
-
-app = Eden()
-
-# Simple custom filter
-def pluralize(count, word):
-    return f"{count} {word}{'s' if count != 1 else ''}"
-
-app.templates.filters.register('pluralize', pluralize)
-```
-
-Usage in templates:
-
-```html
-<!-- You have 5 items -->
-You have {{ count | pluralize("item") }}
-```
-
----
-
-## Control Flow Directives (Detailed) 🎯
-
-Now let's look more deeply at each control flow directive with comprehensive examples.
-
-### @if - Conditional Rendering
-
-```html
-<!-- Simple if -->
-@if (user.is_verified) {
-    <div class="badge badge-green">✓ Verified</div>
-}
-
-<!-- If-else -->
-@if (user.is_admin) {
-    <span>Administrator</span>
-} @else {
-    <span>Regular User</span>
-}
-
-<!-- If-else if-else chain -->
-@if (status == "active") {
-    <span class="badge badge-green">Active</span>
-} @else if (status == "pending") {
-    <span class="badge badge-yellow">Pending</span>
-} @else if (status == "suspended") {
-    <span class="badge badge-red">Suspended</span>
-} @else {
-    <span class="badge badge-gray">Unknown</span>
-}
-
-<!-- Nested conditions -->
-@if (user) {
-    @if (user.profile) {
-        <p>{{ user.profile.bio }}</p>
-    }
-}
-
-<!-- Complex boolean expressions -->
-@if (user.age >= 18 && user.is_verified && !user.is_banned) {
-    <form action="/adult-content">
-        <!-- content -->
-    </form>
-}
-
-<!-- Negation -->
-@if (!user.is_banned) {
-    <button>Post comment</button>
-}
-
-<!-- Checking for existence/null -->
-@if (user.phone) {
-    <p>Phone: {{ user.phone }}</p>
-}
-```
-
-### @unless - Inverted Conditional
-
-`@unless` is equivalent to `@if (!condition)`. Use it when you want to emphasize the negation:
-
-```html
-<!-- If NOT verified -->
-@unless (user.is_verified) {
-    <div class="warning">
-        Please verify your account before posting.
-    </div>
-}
-
-<!-- Equivalent to: -->
-@if (!user.is_verified) {
-    <div class="warning">
-        Please verify your account before posting.
-    </div>
-}
-
-<!-- Multiple negations -->
-@unless (user.is_banned || user.is_suspended) {
-    <button class="primary">Post</button>
-}
-```
-
-### @for / @foreach - Looping
-
-```html
-<!-- Basic loop -->
-@for (item in items) {
-    <li>{{ item }}</li>
-}
-
-<!-- Loop with index access -->
-@for (index, item in items) {
-    <tr>
-        <td>{{ index + 1 }}</td>
-        <td>{{ item.name }}</td>
-    </tr>
-}
-
-<!-- Loop over dictionary keys and values -->
-@for (key, value in user.metadata) {
-    <dt>{{ key }}</dt>
-    <dd>{{ value }}</dd>
-}
-
-<!-- Alternative syntax (@foreach) -->
-@foreach (product in products) {
-    <div class="product-card">
-        {{ product.name }} - ${{ product.price }}
-    </div>
-}
-
-<!-- Nested loops -->
-@for (category in categories) {
-    <h3>{{ category.name }}</h3>
-    <ul>
-        @for (product in category.products) {
-            <li>{{ product.name }}</li>
-        }
-    </ul>
-}
-
-<!-- Loop with fallback for empty lists -->
-@for (comment in post.comments) {
-    <div class="comment">{{ comment.text }}</div>
-} @empty {
-    <p>No comments yet. Be the first!</p>
-}
-```
-
-### Loop Metadata: The `$loop` Variable
-
-Inside any `@for` loop, you have access to a special `$loop` object with useful metadata:
-
-```html
-@for (item in items) {
-    <div class="item {{ $loop.even ? 'bg-gray-100' : 'bg-white' }}">
-        <!-- Basic counters -->
-        <span class="badge">{{ $loop.index }}</span>
-        <!-- 1-based index -->
-        
-        <strong>{{ item.name }}</strong>
-        
-        <!-- Conditions -->
-        @if ($loop.first) {
-            <span class="label-new">First Item</span>
-        }
-        
-        @if ($loop.last) {
-            <span class="label-last">Last Item</span>
-        }
-        
-        <!-- Display total -->
-        <small>({{ $loop.iteration }} of {{ $loop.length }})</small>
-    </div>
-}
-```
-
-**Complete `$loop` API:**
-
-| Property | Description | Example |
+| Directive | Syntax | Description |
 | :--- | :--- | :--- |
-| `$loop.index` | 1-based iteration number | 1st iteration = 1 |
-| `$loop.index0` | 0-based iteration number | 1st iteration = 0 |
-| `$loop.revindex` | Distance from end (1-based) | Last item = 1 |
-| `$loop.revindex0` | Distance from end (0-based) | Last item = 0 |
-| `$loop.first` | Is this the first iteration? | Boolean |
-| `$loop.last` | Is this the last iteration? | Boolean |
-| `$loop.even` | Is iteration number even? | Boolean |
-| `$loop.odd` | Is iteration number odd? | Boolean |
-| `$loop.length` | Total items in sequence | Integer |
-| `$loop.iteration` | Same as `index` | Alias |
 
-### @switch / @case - Multi-branch Logic
+| **@if** | `@if(cond) { ... }` | Standard conditional block. |
+
+| **@unless** | `@unless(cond) { ... }` | Renders if the condition is **false**. |
+
+| **@for** | `@for(item in list) { ... }` | Iterates over a collection. Supports `$loop`. |
+
+| **@empty** | `} @empty { ... }` | Fallback content if the loop collection is empty. |
+
+| **@switch** | `@switch(val) { ... }` | Opens a switch block for pattern matching. |
+
+| **@case** | `@case(val) { ... }` | Matches a specific value within a switch block. |
+
+| **@let** | `@let var = expr` | Inline variable assignment. |
+
+#### Templates and Layouts
+
+| Directive | Syntax | Description |
+| :--- | :--- | :--- |
+
+| **@extends** | `@extends("base")` | Specifies the parent template to inherit from. |
+
+| **@include** | `@include("partial")` | Includes another template file. |
+
+| **@section** | `@section("name") { ... }` | Defines a block of content to be yielded in a layout. |
+
+| **@yield** | `@yield("name")` | Renders the content of a defined section/block. |
+
+| **@push** | `@push("name") { ... }` | Appends content to a stack (great for scripts/styles). |
+
+| **@stack** | `@stack("name")` | Renders all pushed content for a stack. |
+
+#### Auth and Security
+
+| Directive | Syntax | Description |
+| :--- | :--- | :--- |
+
+| **@auth** | `@auth { ... }` | Renders only for authenticated users. |
+
+| **@guest** | `@guest { ... }` | Renders only for unauthenticated guests. |
+
+| **@csrf** | `@csrf` | Emits a hidden CSRF token input field. |
+
+| **@method** | `@method("PUT")` | Emits a hidden `_method` input for HTTP spoofing. |
+
+#### HTMX and Fragments
+
+| Directive | Syntax | Description |
+| :--- | :--- | :--- |
+
+| **@htmx** | `@htmx { ... }` | Renders only if the request is via HTMX. |
+
+| **@non_htmx** | `@non_htmx { ... }` | Renders only if the request is **not** via HTMX. |
+
+| **@fragment** | `@fragment("id") { ... }` | Defines a targetable partial for partial updates. |
+
+#### Forms and Attributes
+
+| Directive | Syntax | Description |
+| :--- | :--- | :--- |
+
+| **@checked** | `@checked(cond)` | Applies `checked` attribute if true. |
+
+| **@selected** | `@selected(cond)` | Applies `selected` attribute if true. |
+
+| **@disabled** | `@disabled(cond)` | Applies `disabled` attribute if true. |
+
+| **@readonly** | `@readonly(cond)` | Applies `readonly` attribute if true. |
+
+| **@old** | `@old("field", default)`| Retrieves previous input value after validation fails. |
+
+| **@error** | `@error("field") { ... }`| Renders an error message if the field has validation errors. |
+
+#### Assets and Helpers
+
+| Directive | Syntax | Description |
+| :--- | :--- | :--- |
+
+| **@css** | `@css("path")` | Link to a CSS file in static assets. |
+
+| **@js** | `@js("path")` | Link to a JS file in static assets. |
+
+| **@vite** | `@vite([...])` | Injects Vite asset bundles. |
+
+| **@span** | `@span(val)` | Safe shorthand for value interpolation ({{ val }}). |
+
+| **@json** | `@json(val)` | Encodes a value as JSON for safe use in JS. |
+
+| **@dump** | `@dump(val)` | Pretty-prints a variable for debugging. |
+
+| **@url** | `@url("name")` | Generates a URL for a named route. |
+
+| **@active_link**| `@active_link("r", "c")`| Emits class `"c"` if route `"r"` is active. |
+
+> [!WARNING]
+> The following directives are documented in legacy guides but are **not yet implemented** in the new engine: `@can`, `@cannot`, `@inject`, `@php`. Use Python standard logic handled in views for now.
+
+---
+
+## All Filters Reference
+
+Eden provides a rich set of built-in filters for formatting, transforming, and styling data.
+
+### Formatting and Utility
+
+| Filter | Description | Example |
+| :--- | :--- | :--- |
+
+| **money** | Formats value as currency. | `$99.99` |
+
+| **time_ago** | Human-readable time distance. | `2 hours ago` |
+
+| **truncate** | Truncates string with ellipsis. | `{{ text | truncate(20) }}` |
+
+| **slugify** | Converts text to URL-safe slug. | `{{ title | slugify }}` |
+
+| **mask** | Masks sensitive strings. | `u***@e.com` |
+
+| **file_size** | Formats bytes to KB/MB/GB. | `1.2 MB` |
+
+| **pluralize** | Returns suffix based on count. | `pluralize("item")` |
+
+| **title_case** | Uppercases first letter of words. | `{{ name | title_case }}` |
+
+| **default_if_none** | Fallback if value is `None`. | `default_if_none("N/A")` |
+
+| **json_encode** | Safe JSON serialization. | `{{ data | json_encode }}` |
+
+### Widget and Form Tweaks
+
+These filters allow you to dynamically modify form fields and attributes inline.
+
+| Filter | Description |
+| :--- | :--- |
+
+| **add_class** | Appends a CSS class to a field. |
+
+| **attr** | Sets an attribute (e.g., `rows="5"`). |
+
+| **append_attr** | Appends to an existing attribute. |
+
+| **remove_attr** | Removes an attribute. |
+
+| **field_type** | Returns the field's internal type name. |
+
+### Design System (Eden Tokens)
+
+Apply Eden's premium design tokens directly via filters.
 
 ```html
-<!-- Basic switch -->
-@switch (user.role) {
-    @case ('admin') {
-        <span class="role-admin">Administrator</span>
-    }
-    @case ('editor') {
-        <span class="role-editor">Editor</span>
-    }
-    @case ('viewer') {
-        <span class="role-viewer">Viewer</span>
-    }
-}
+<div class="{{ 'primary' | eden_bg }} {{ 'lg' | eden_shadow }}">
+    <p class="{{ 'slate-900' | eden_text }}">Premium Content</p>
+</div>
 
-<!-- Switch with fallback (@else/@default) -->
-@switch (status) {
-    @case ('pending') {
-        <span class="badge badge-yellow">Pending</span>
-    }
-    @case ('approved') {
-        <span class="badge badge-green">Approved</span>
-    }
-    @else {
-        <span class="badge badge-gray">Unknown</span>
-    }
-}
-
-<!-- Switch with multiple matching cases -->
-@switch (http_code) {
-    @case (200) { <span class="success">OK</span> }
-    @case (201) { <span class="success">Created</span> }
-    @case (204) { <span class="success">No Content</span> }
-    @case (400) { <span class="error">Bad Request</span> }
-    @case (404) { <span class="error">Not Found</span> }
-    @else { <span class="unknown">Unknown Code</span> }
-}
-```
-
-### Loop Helpers: @even, @odd, @first, @last
-
-These directives work inside `@for` loops to render content conditionally:
-
-```html
-<!-- Striped table with @even / @odd -->
-@for (row in table_data) {
-    <tr class="@even { bg-gray-100 } @odd { bg-white }">
-        <td>{{ row.name }}</td>
-        <td>{{ row.value }}</td>
-    </tr>
-}
-
-<!-- Add class to first row -->
-@for (item in items) {
-    <div class="@first { font-bold border-b-2 }">
-        {{ item.name }}
-    </div>
-}
-
-<!-- Add separator after last row -->
-@for (product in products) {
-    <p>{{ product.name }}: ${{ product.price }}</p>
-    @last { <hr class="my-4"> }
-}
-
-<!-- Combine multiple helpers -->
-@for (score in scores) {
-    <div class="@first { text-lg font-bold } @last { mb-4 }">
-        {{ score }}
-    </div>
-}
 ```
 
 ---
 
-## Form Directives 📋
+## Advanced Features
 
-### @csrf - CSRF Protection
+### The `$loop` Object
 
-Automatically emit a hidden CSRF token input for all forms:
+Inside a `@for` loop, use `$loop` to access iteration metadata:
+
+- `$loop.index`: 1-based index.
+
+- `$loop.first` / `$loop.last`: Boolean boundaries.
+
+- `$loop.even` / `$loop.odd`: For striped layouts.
+
+- `$loop.length`: Total count.
+
+## Loop Helpers
 
 ```html
-<form method="POST" action="/submit">
-    @csrf
-    <!-- Renders: <input type="hidden" name="_token" value="..."> -->
-    
-    <input type="email" name="email" required>
-    <button type="submit">Submit</button>
-</form>
+@for(user in users) {
+    <div class="@even { bg-slate-800 } @odd { bg-slate-900 }">
+        @first { <span class="badge">Newest</span> }
+        {{ user.name }}
+    </div>
+}
+
 ```
 
-**Note:** CSRF protection is middleware-configured and automatic for POST/PUT/PATCH/DELETE requests.
+### Fragment Extraction
 
-### @checked - Checkbox & Radio Button States
-
-Apply the `checked` attribute conditionally:
+Fragments allow you to render specific parts of a page, which is essential for HTMX "out-of-band" swaps or partial updates.
 
 ```html
-<!-- Simple checkbox -->
-<label>
-    <input type="checkbox" name="subscribe" @checked(user.subscribe_newsletter)>
-    Subscribe to newsletter
-</label>
-
-<!-- Multiple checkboxes (select multiple values) -->
-@for (tag in available_tags) {
-    <label>
-        <input 
-            type="checkbox" 
-            name="tags" 
-            value="{{ tag.id }}"
-            @checked(tag.id in user.tag_ids)
-        >
-        {{ tag.name }}
-    </label>
+@fragment("notifications-count") {
+    <span id="nav-badge">{{ count }}</span>
 }
 
-<!-- Radio buttons -->
-@for (option in payment_options) {
-    <label>
-        <input 
-            type="radio" 
-            name="payment_method" 
-            value="{{ option.id }}"
-            @checked(user.preferred_payment_id == option.id)
-        >
-        {{ option.label }}
-    </label>
-}
+```
 
-<!-- Toggling based on condition -->
-<label>
-    <input 
+### Global Helpers
+
+- **is_active(request, route_name)**: Returns `True` if the current request matches the route. Supports wildcards like `admin:*`.
+
+- **now()**: Returns current datetime.
+
+- **eden_messages()**: Retrieves current flash messages.
+
+---
+
+## Feature Parity and Implementation Notes
+
+> [!IMPORTANT]
+> To ensure consistency across the framework, please note that some legacy tags/filters documented in older versions of Eden are currently **deprecated** or **unimplemented** in the new engine.
+
+**Unimplemented Tags/Filters:**
+
+- `currency` (Use `money`)
+
+- `phone` (Currently handled via custom validators)
+
+- `date` / `time` (Use `| time_ago` or Jinja standard `| date`)
+
+- `reverse_array` (Use standard `| reverse`)
+
+- `unique` / `repeat`
+
+> [!TIP]
+> If you require a missing filter, you can register it via `app.templates.env.filters['name'] = func`.
+
+---
+
+### Best Practices and Patterns
+
+1. **Use Brace Syntax**: Always prefer `@if(cond) { ... }` over legacy `{% if %}` for consistency with the Eden design philosophy.
+2. **Leverage Fragments**: Design your pages with `@fragment` markers to enable seamless HTMX transitions without writing extra view logic.
+3. **Type-Safe URLs**: Always use `@url('route_name')` to avoid broken links during refactoring.
+
         type="checkbox" 
         name="agree_to_terms"
         @checked(!user.has_agreed_once)
     >
     I agree to the terms
 </label>
+
 ```
 
 ### @selected - Select Option States
@@ -812,6 +371,7 @@ Set the `selected` attribute on `<option>` elements:
 
 ```html
 <!-- Simple select -->
+
 <select name="role">
     <option @selected(user.role == 'admin')>Administrator</option>
     <option @selected(user.role == 'user')>User</option>
@@ -819,6 +379,7 @@ Set the `selected` attribute on `<option>` elements:
 </select>
 
 <!-- Loop-based select (dynamic options) -->
+
 <select name="category">
     <option value="">Select a category...</option>
     @for (cat in categories) {
@@ -832,6 +393,7 @@ Set the `selected` attribute on `<option>` elements:
 </select>
 
 <!-- Multi-select -->
+
 <select name="permissions" multiple>
     @for (perm in all_permissions) {
         <option 
@@ -842,6 +404,7 @@ Set the `selected` attribute on `<option>` elements:
         </option>
     }
 </select>
+
 ```
 
 ### @disabled - Disable Form Elements
@@ -850,11 +413,13 @@ Disable inputs, buttons, and selects conditionally:
 
 ```html
 <!-- Disable during submission -->
+
 <button type="submit" @disabled(form.is_submitting)>
     @if (form.is_submitting) { Processing... } @else { Submit }
 </button>
 
 <!-- Conditional field disabling -->
+
 <input 
     type="text" 
     name="company" 
@@ -863,6 +428,7 @@ Disable inputs, buttons, and selects conditionally:
 >
 
 <!-- Disable select based on other field -->
+
 <div class="form-group">
     <label>Account Type</label>
     <select name="account_type">
@@ -882,11 +448,13 @@ Disable inputs, buttons, and selects conditionally:
 </div>
 
 <!-- Disable readonly fields -->
+
 <textarea 
     name="generated_id" 
     @disabled(true)
     placeholder="Auto-generated, cannot edit"
 >{{ auto_id }}</textarea>
+
 ```
 
 ### @readonly - Make Fields Read-Only
@@ -895,6 +463,7 @@ Mark fields as read-only once data is submitted:
 
 ```html
 <!-- Readonly after submission -->
+
 <input 
     type="email"
     name="email"
@@ -903,6 +472,7 @@ Mark fields as read-only once data is submitted:
 >
 
 <!-- Showing that a field cannot be modified -->
+
 <div class="form-group">
     <label>Account Number</label>
     <input 
@@ -914,26 +484,30 @@ Mark fields as read-only once data is submitted:
 </div>
 
 <!-- Conditional readonly based on business logic -->
+
 <textarea 
     name="notes"
     @readonly(task.is_completed || !user.can_edit)
 >{{ task.notes }}</textarea>
+
 ```
 
 ---
 
-## Authentication & Authorization 🔐
+## Authentication and Authorization
 
 ### @auth - Authenticated Users Only
 
 ```html
 <!-- Simple auth check -->
+
 @auth {
     <p>Welcome, {{ request.user.name }}!</p>
     <a href="@url('logout')">Logout</a>
 }
 
 <!-- With fallback -->
+
 @auth {
     <div class="user-menu">
         <img src="{{ request.user.avatar }}" class="avatar">
@@ -943,12 +517,14 @@ Mark fields as read-only once data is submitted:
     <a href="@url('login')">Log In</a>
     <a href="@url('register')">Sign Up</a>
 }
+
 ```
 
 ### @guest - Unauthenticated Users Only
 
 ```html
 <!-- Only show to non-logged-in users -->
+
 @guest {
     <div class="banner">
         <p>Create an account to unlock premium features!</p>
@@ -957,6 +533,7 @@ Mark fields as read-only once data is submitted:
 }
 
 <!-- Restrict authenticated users from certain pages -->
+
 @guest {
     <form method="POST" action="@url('login')">
         @csrf
@@ -967,47 +544,57 @@ Mark fields as read-only once data is submitted:
 } @else {
     <p>You are already logged in. <a href="@url('dashboard')">Go to dashboard</a></p>
 }
+
 ```
 
-### Role & Permission Checks
+### Role and Permission Checks
 
 ```html
 <!-- Check user role -->
+
 @if (request.user.role == 'admin') {
     <a href="@url('admin:dashboard')">Admin Panel</a>
 }
 
 <!-- Check permission -->
+
 @if (request.user.can('delete_posts')) {
     <button class="btn-danger" onclick="deletePost()">Delete</button>
 }
 
 <!-- Check multiple permissions -->
+
 @if (request.user.can_all(['edit_post', 'delete_comments'])) {
     <!-- Full moderation controls -->
+
 }
 
 <!-- Check user ownership -->
+
 @if (post.author_id == request.user.id || request.user.is_admin) {
     <a href="@url('posts:edit', id=post.id)">Edit Post</a>
 }
 
 <!-- Complex auth logic -->
+
 @if (request.user && request.user.subscription_active && !request.user.subscription_paused) {
     <button class="premium-action">Download Report</button>
 }
+
 ```
 
 ---
 
-## HTMX & Real-Time Features 💫
+## HTMX and Real-Time Features
 
 ### @htmx / @non_htmx - Request Type Detection
 
 ```html
 <!-- Only render for HTMX requests -->
+
 @htmx {
     <!-- This content only sent for AJAX/HTMX updates -->
+
     @fragment("results") {
         @for (item in items) {
             <tr>
@@ -1022,6 +609,7 @@ Mark fields as read-only once data is submitted:
 }
 
 <!-- Full page for non-HTMX requests -->
+
 @non_htmx {
     <h1>Search Results</h1>
     <table>
@@ -1033,12 +621,14 @@ Mark fields as read-only once data is submitted:
         </tbody>
     </table>
 </div>
+
 ```
 
 ### @fragment - Define HTMX-Targetable Sections
 
 ```html
 <!-- Define a fragment for HTMX to target -->
+
 @fragment("comments-list") {
     @for (comment in post.comments) {
         <div class="comment" id="comment-{{ comment.id }}">
@@ -1052,6 +642,7 @@ Mark fields as read-only once data is submitted:
 }
 
 <!-- Another fragment -->
+
 @fragment("comment-form") {
     <form hx-post="@url('comments:create')" hx-target="#comments-list" hx-swap="beforeend">
         @csrf
@@ -1059,26 +650,35 @@ Mark fields as read-only once data is submitted:
         <button type="submit">Post Comment</button>
     </form>
 }
+
 ```
 
 ---
 
-## Conditional Attribute Directives 📋
+## Form Directives
+
+---
+
+## Conditional Attribute Directives
 
 Conditionally apply HTML attributes to form elements with clean, readable syntax.
 
 ### Attribute Directives
 
 #### `@checked(condition)`
+
 Applies the `checked` attribute when condition is true (for checkboxes and radio buttons).
 
 ```html
 <input type="checkbox" name="subscribe" @checked(user.subscribe_newsletter)>
 <!-- Renders as: -->
+
 <!-- <input type="checkbox" name="subscribe" {% if user.subscribe_newsletter %}checked{% endif %}> -->
+
 ```
 
 #### `@selected(condition)`
+
 Applies the `selected` attribute when condition is true (for select options).
 
 ```html
@@ -1087,29 +687,34 @@ Applies the `selected` attribute when condition is true (for select options).
     <option @selected(user.role == 'user')>User</option>
     <option @selected(user.role == 'guest')>Guest</option>
 </select>
+
 ```
 
 #### `@disabled(condition)`
+
 Applies the `disabled` attribute when condition is true (disables form elements).
 
 ```html
 <button @disabled(form.is_submitting)>
     @if(form.is_submitting) { Processing... } @else { Submit }
 </button>
+
 ```
 
 #### `@readonly(condition)`
+
 Applies the `readonly` attribute when condition is true (makes inputs read-only).
 
 ```html
 <textarea name="notes" @readonly(post.is_published)>
     {{ post.notes }}
 </textarea>
+
 ```
 
 ---
 
-## URL Routing & Navigation 🔗
+## URL Routing and Navigation
 
 ### @url() - Route to URL
 
@@ -1117,19 +722,26 @@ Generate URLs for your routes without hardcoding paths.
 
 ```html
 <!-- Simple route -->
+
 <a href="@url('dashboard')">Dashboard</a>
 
 <!-- Route with parameters -->
+
 <a href="@url('students:show', id=student.id)">View Student</a>
 
 <!-- Store in variable -->
+
 @let dashboard_url = @url('dashboard')
 <a href="{{ dashboard_url }}">Go Home</a>
+
 ```
 
 **Route Name Format:**
+
 - Simple routes: `'dashboard'`
+
 - Namespaced routes: `'admin:users'` (becomes `admin_users` internally)
+
 - Component routes: `'component:action-slug'` (uses special dispatcher)
 
 ### @active_link() - Highlight Active Navigation
@@ -1138,15 +750,18 @@ Conditionally add CSS classes to active links in your navigation.
 
 ```html
 <!-- Simple usage -->
+
 <a href="@url('dashboard')" class="nav-link @active_link('dashboard', 'is-active')">
     Dashboard
 </a>
 
 <!-- With custom class names -->
+
 <a href="@url('students:index')" 
    class="px-4 py-2 @active_link('students:index', 'bg-blue-600 text-white')">
     Students
 </a>
+
 ```
 
 #### Wildcard Matching (NEW!)
@@ -1155,26 +770,34 @@ Match multiple routes with wildcard syntax:
 
 ```html
 <!-- Highlights when on ANY admin page (admin:users, admin:settings, etc.) -->
+
 <a href="@url('admin:index')" 
    class="@active_link('admin:*', 'font-bold text-white')">
     Admin Panel
 </a>
 
 <!-- Matches all student routes -->
+
 <li class="@active_link('students:*', 'border-l-4 border-blue-500')">
     Students
 </li>
+
 ```
 
 **How Wildcards Work:**
+
 - Pattern: `'namespace:*'`
+
 - Matches any route starting with that namespace
+
 - Does path-based prefix matching
+
 - Falls back gracefully if base route not found
 
 **Troubleshooting:**
 If `@active_link` doesn't highlight:
-1. Verify the route name matches exactly: `@url('dashboard')` ↔ `@active_link('dashboard', ...)`
+1. Verify the route name matches exactly: `@url('dashboard')`  `@active_link('dashboard', ...)`
+
 2. Check that the route is registered in your routes file with a `name` parameter
 3. Enable debug logging to see route resolution errors:
    ```python
@@ -1184,20 +807,21 @@ If `@active_link` doesn't highlight:
 
 ---
 
-## Layouts & Inheritance 🧱
+## Layouts and Inheritance
 
 Eden's layout system allows you to build a reusable shell for your application and inject specific content for each page.
 
-### 1. The `@extends` & `@yield` Pattern
+### 1. The `@extends` and `@yield` Pattern
 
 The `@extends` directive tells Eden that this template inherits from another one. The `@yield` directive defines a placeholder in the layout that can be filled by children.
 
 #### **Layout Template** (`layouts/base.html`)
+
 ```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>@yield("title") — Eden App</title>
+    <title>@yield("title")  Eden App</title>
     @yield("styles")
 </head>
 <body class="bg-slate-900 text-white">
@@ -1205,16 +829,20 @@ The `@extends` directive tells Eden that this template inherits from another one
 
     <main class="container mx-auto p-8">
         <!-- Main content placeholder -->
+
         @yield("content")
     </main>
 
     <!-- Global scripts placeholder -->
+
     @yield("scripts")
 </body>
 </html>
+
 ```
 
 #### **Child Template** (`home.html`)
+
 ```html
 @extends("layouts/base")
 
@@ -1228,30 +856,37 @@ The `@extends` directive tells Eden that this template inherits from another one
 @section("scripts") {
     <script>console.log("Welcome home!");</script>
 }
+
 ```
 
 ---
 
-### 2. Stacks & Pushing 🏗️
+### 2. Stacks and Pushing 
 
 While `@section` replaces the content in a `@yield` placeholder, sometimes you want to *collect* content from multiple components or child templates (like adding CSS from different UI parts). For this, use `@stack` and `@push`.
 
 *   **`@stack("name")`**: Defines a location in your layout to aggregate content.
+
 *   **`@push("name") { ... }`**: Appends content to the corresponding stack.
 
 **In Layout (`base.html`):**
+
 ```html
 <head>
     <!-- Collect all pushed styles here -->
+
     @stack("styles")
 </head>
+
 ```
 
 **In Component or Page (`profile.html`):**
+
 ```html
 @push("styles") {
     <style>.profile-card { border: 1px solid teal; }</style>
 }
+
 ```
 
 ---
@@ -1260,36 +895,43 @@ While `@section` replaces the content in a `@yield` placeholder, sometimes you w
 
 | Directive | Type | Usage | Description |
 | :--- | :--- | :--- | :--- |
+
 | `@yield(name)` | Layout | `@yield("content")` | Defines a hole for child content. |
 | `@stack(name)` | Layout | `@stack("js")` | Defines an aggregation point. |
 | `@section(name)` | Child | `@section("content") { ... }` | Replaces the yield in the parent. |
 | `@push(name)` | Child | `@push("js") { ... }` | Appends content to the stack. |
 | `@super` | Child | `@super` | Access content from the parent's block. |
 
-### 🔗 Dynamic URLs (`@url`)
+###  Dynamic URLs (`@url`)
 
 The `@url` directive is the most powerful way to handle link generation in Eden. It's refactor-safe and supports multiple patterns.
 
 - **Named Routes**: `@url('route_name', param=val)`
+
 - **Namespaced Routes**: `@url('ns:route_name')` 
-- **Components**: `@url('component:action-slug')` — *New!*
+
+- **Components**: `@url('component:action-slug')`  *New!*
 
 ```html
 <!-- Regular Link -->
+
 <a href="@url('users:profile', id=user.id)">Profile</a>
 
 <!-- HTMX Component Call -->
+
 <button hx-post="@url('component:like-post', id=post.id)">
   Like
 </button>
+
 ```
 
-### 🧩 Components (`@component`)
+###  Components (`@component`)
 
 Render self-contained logic units directly in your templates.
 
 ```html
 @component("user-card", user=user, theme="dark")
+
 ```
 
 [Learn more about Server-Side Components](components.md)
@@ -1303,11 +945,12 @@ Render self-contained logic units directly in your templates.
     }
     <p>User bio goes here...</p>
 }
+
 ```
 
 ---
 
-## Forms & Security 🛡️
+## Forms and Security
 
 Secure your forms with zero effort.
 
@@ -1315,14 +958,17 @@ Secure your forms with zero effort.
 <form method="POST" action="/profile">
     @csrf
     @method("PUT")  <!-- Spoof PUT/PATCH/DELETE methods -->
+
     
     <div class="space-y-6">
         <!-- Method 1: The Magic @render_field directive -->
+
         <div class="field-wrapper">
             @render_field(form['email'], class="w-full rounded bg-slate-800 border-slate-700")
         </div>
 
         <!-- Method 2: Manual field construction using @old and @error -->
+
         <div class="manual-field-group">
             <label>Email</label>
             <input type="text" name="email" value="@old('email')" 
@@ -1337,12 +983,13 @@ Secure your forms with zero effort.
     <button type="submit">Update</button>
 </form>
 
-## HTMX & Fragment Rendering ⚡
+## HTMX and Fragment Rendering
 
 Eden provides first-class support for **HTMX** with the `@fragment` directive. This allows you to define pieces of a page that can be rendered independently.
 
 ```html
 <!-- index.html -->
+
 <div>
     <h1>Welcome</h1>
     
@@ -1354,6 +1001,7 @@ Eden provides first-class support for **HTMX** with the `@fragment` directive. T
         </ul>
     }
 </div>
+
 ```
 
 In your Python route, you can render **just the fragment** without the surrounding layout:
@@ -1363,7 +1011,9 @@ In your Python route, you can render **just the fragment** without the surroundi
 async def list_users(request):
     users = await User.all()
     # Renders ONLY the <ul>, not the <h1> or layout!
+
     return request.render("index.html", users=users, fragment="user-list")
+
 ```
 
 ### The `request.render` Method
@@ -1374,6 +1024,7 @@ Every Eden `Request` object has a built-in `.render()` method. This is the idiom
 @app.get("/dashboard")
 async def dashboard(request):
     return request.render("dashboard.html", user=request.user)
+
 ```
 
 ### The `render_template` Global Helper
@@ -1386,20 +1037,23 @@ from eden import render_template
 @app.get("/")
 async def home():
     return render_template("home.html", title="Welcome Home")
+
 ```
 
 
 ---
 
-## 🎨 Real-World Templates: Admin Dashboard
+## Real-World Templates: Admin Dashboard
 
 Building admin interfaces is a core use case. Let's create a production-ready dashboard with tables, sorting, filtering, and pagination.
 
 ### Complete Product Admin Dashboard
 
 **Template Structure**:
+
 ```html
 <!-- templates/admin/products.html -->
+
 @extends("layouts/admin")
 
 @section("title") { Product Management }
@@ -1407,17 +1061,20 @@ Building admin interfaces is a core use case. Let's create a production-ready da
 @section("content") {
     <div class="p-6">
         <!-- Header with actions -->
+
         <div class="flex justify-between items-center mb-6">
             <h1 class="text-3xl font-bold">Products</h1>
             <a href="@url('admin:products:create')" class="btn btn-primary">
-                ➕ Add Product
+                 Add Product
             </a>
         </div>
         
-        <!-- Search & FilterBar -->
+        <!-- Search and FilterBar -->
+
         <form method="GET" class="mb-6 p-4 bg-gray-50 rounded-lg">
             <div class="grid grid-cols-3 gap-4">
                 <!-- Search input -->
+
                 <input 
                     type="text" 
                     name="search" 
@@ -1427,6 +1084,7 @@ Building admin interfaces is a core use case. Let's create a production-ready da
                 >
                 
                 <!-- Category filter -->
+
                 <select name="category" class="px-4 py-2 border rounded">
                     <option value="">All Categories</option>
                     @for (cat in categories) {
@@ -1438,6 +1096,7 @@ Building admin interfaces is a core use case. Let's create a production-ready da
                 </select>
                 
                 <!-- Status filter -->
+
                 <select name="status" class="px-4 py-2 border rounded">
                     <option value="">All Status</option>
                     <option value="active" @if(request.query_params.get('status') == 'active') { selected }>Active</option>
@@ -1446,18 +1105,20 @@ Building admin interfaces is a core use case. Let's create a production-ready da
             </div>
             
             <div class="mt-3 flex gap-2">
-                <button type="submit" class="btn btn-sm btn-primary">🔍 Search</button>
+                <button type="submit" class="btn btn-sm btn-primary"> Search</button>
                 <a href="@url('admin:products')" class="btn btn-sm btn-secondary">Clear</a>
             </div>
         </form>
         
         <!-- Results info -->
+
         <div class="mb-4 text-sm text-gray-600">
             Showing {{ products.offset + 1 }} to {{ [products.offset + products.limit, products.total]|min }} 
             of {{ products.total }} products
         </div>
         
         <!-- Data table with sorting -->
+
         <div class="overflow-x-auto rounded-lg border border-gray-200">
             <table class="w-full text-sm">
                 <thead class="bg-gray-100 border-b">
@@ -1465,28 +1126,28 @@ Building admin interfaces is a core use case. Let's create a production-ready da
                         <th class="px-6 py-3 text-left font-semibold">
                             <a href="@url('admin:products', sort='name', dir=request.query_params.get('dir') == 'asc' ? 'desc' : 'asc')">
                                 Name @if(request.query_params.get('sort') == 'name') { 
-                                    {{ request.query_params.get('dir') == 'asc' ? '▲' : '▼' }} 
+                                    {{ request.query_params.get('dir') == 'asc' ? '' : '' }} 
                                 }
                             </a>
                         </th>
                         <th class="px-6 py-3 text-left font-semibold">
                             <a href="@url('admin:products', sort='sku')">
                                 SKU @if(request.query_params.get('sort') == 'sku') { 
-                                    {{ request.query_params.get('dir') == 'asc' ? '▲' : '▼' }} 
+                                    {{ request.query_params.get('dir') == 'asc' ? '' : '' }} 
                                 }
                             </a>
                         </th>
                         <th class="px-6 py-3 text-right font-semibold">
                             <a href="@url('admin:products', sort='price')">
                                 Price @if(request.query_params.get('sort') == 'price') { 
-                                    {{ request.query_params.get('dir') == 'asc' ? '▲' : '▼' }} 
+                                    {{ request.query_params.get('dir') == 'asc' ? '' : '' }} 
                                 }
                             </a>
                         </th>
                         <th class="px-6 py-3 text-right font-semibold">
                             <a href="@url('admin:products', sort='stock')">
                                 Stock @if(request.query_params.get('sort') == 'stock') { 
-                                    {{ request.query_params.get('dir') == 'asc' ? '▲' : '▼' }} 
+                                    {{ request.query_params.get('dir') == 'asc' ? '' : '' }} 
                                 }
                             </a>
                         </th>
@@ -1535,6 +1196,7 @@ Building admin interfaces is a core use case. Let's create a production-ready da
         </div>
         
         <!-- Pagination controls -->
+
         @include("components/pagination", {
             "current_page": products.page,
             "total_pages": products.total_pages,
@@ -1546,6 +1208,7 @@ Building admin interfaces is a core use case. Let's create a production-ready da
         })
     </div>
 }
+
 ```
 
 ### Response Handler for Dashboard
@@ -1557,6 +1220,7 @@ from math import ceil
 @app.get("/admin/products")
 async def admin_products_list(request):
     # Query parameters for filtering and sorting
+
     search = request.query_params.get("search", "")
     category_id = request.query_params.get("category")
     status = request.query_params.get("status")
@@ -1566,9 +1230,11 @@ async def admin_products_list(request):
     per_page = 20
     
     # Build query
+
     query = Product.all()
     
     # Apply filters
+
     if search:
         query = query.filter(
             Q(name__icontains=search) | Q(sku__icontains=search)
@@ -1583,20 +1249,26 @@ async def admin_products_list(request):
         query = query.filter(is_active=False)
     
     # Get total count before limiting
+
     total = await query.count()
     
     # Apply sorting
+
     sort_field = f"-{sort_by}" if sort_dir == "desc" else sort_by
     query = query.order_by(sort_field)
     
     # Apply pagination
+
     offset = (page - 1) * per_page
+
     products = await query.limit(per_page).offset(offset).all()
     
     # Calculate pagination info
+
     total_pages = ceil(total / per_page)
     
     # Get categories for filter dropdown
+
     categories = await Category.all()
     
     return request.render("admin/products.html", {
@@ -1614,11 +1286,12 @@ async def admin_products_list(request):
         },
         "categories": categories,
     })
+
 ```
 
 ---
 
-## 📄 Pagination & Navigation
+## Pagination and Navigation
 
 Pagination is essential for listing large datasets. Here's a reusable pagination component.
 
@@ -1626,17 +1299,21 @@ Pagination is essential for listing large datasets. Here's a reusable pagination
 
 ```html
 <!-- templates/components/pagination.html -->
+
 <div class="mt-8 flex items-center justify-between">
     <!-- Previous button -->
+
     @if(has_prev) {
-        <a href="{{ prev_url }}" class="btn btn-sm btn-secondary">← Previous</a>
+        <a href="{{ prev_url }}" class="btn btn-sm btn-secondary"> Previous</a>
     } @else {
-        <button disabled class="btn btn-sm btn-secondary opacity-50 cursor-not-allowed">← Previous</button>
+        <button disabled class="btn btn-sm btn-secondary opacity-50 cursor-not-allowed"> Previous</button>
     }
     
     <!-- Page numbers -->
+
     <div class="flex gap-1">
         @for (page_num in range(max(1, current_page - 2), min(total_pages + 1, current_page + 3))) {
+
             @if(page_num == current_page) {
                 <span class="px-3 py-2 bg-blue-600 text-white rounded font-bold">{{ page_num }}</span>
             } @else {
@@ -1648,17 +1325,20 @@ Pagination is essential for listing large datasets. Here's a reusable pagination
     </div>
     
     <!-- Next button -->
+
     @if(has_next) {
-        <a href="{{ next_url }}" class="btn btn-sm btn-primary">Next →</a>
+        <a href="{{ next_url }}" class="btn btn-sm btn-primary">Next </a>
     } @else {
-        <button disabled class="btn btn-sm btn-primary opacity-50 cursor-not-allowed">Next →</button>
+        <button disabled class="btn btn-sm btn-primary opacity-50 cursor-not-allowed">Next </button>
     }
 </div>
 
 <!-- Page info -->
+
 <div class="mt-4 text-center text-sm text-gray-500">
     Page {{ current_page }} of {{ total_pages }}
 </div>
+
 ```
 
 ### Cursor-Based Pagination (for large datasets)
@@ -1667,15 +1347,17 @@ For very large datasets, cursor-based pagination is more efficient:
 
 ```html
 <!-- Cursor-based pagination -->
+
 <div class="mt-8 flex gap-4">
     @if(has_prev) {
-        <a href="?cursor={{ prev_cursor }}" class="btn btn-secondary">← Previous</a>
+        <a href="?cursor={{ prev_cursor }}" class="btn btn-secondary"> Previous</a>
     }
     
     @if(has_next) {
-        <a href="?cursor={{ next_cursor }}" class="btn btn-primary">Next →</a>
+        <a href="?cursor={{ next_cursor }}" class="btn btn-primary">Next </a>
     }
 </div>
+
 ```
 
 ```python
@@ -1685,14 +1367,17 @@ async def items_with_cursor(request):
     limit = 25
     
     # Build query
+
     query = Item.all().order_by("-created_at")
     
     # If cursor provided, start from there
+
     if cursor:
         cursor_time = datetime.fromisoformat(cursor)
         query = query.filter(created_at__lt=cursor_time)
     
     # Fetch one extra to determine if there's a next page
+
     items = await query.limit(limit + 1).all()
     
     has_next = len(items) > limit
@@ -1700,9 +1385,11 @@ async def items_with_cursor(request):
         items = items[:limit]
     
     # Calculate next cursor (last item's timestamp)
+
     next_cursor = items[-1].created_at.isoformat() if items and has_next else None
     
     # Previous cursor (first item's timestamp)
+
     prev_cursor = items[0].created_at.isoformat() if items else None
     
     return request.render("items.html", {
@@ -1712,11 +1399,12 @@ async def items_with_cursor(request):
         "next_cursor": next_cursor,
         "prev_cursor": prev_cursor,
     })
+
 ```
 
 ---
 
-## 🔍 Search & Filter Integration
+## Search and Filter Integration
 
 Combining search, filters, and sorting creates a powerful data exploration experience.
 
@@ -1724,6 +1412,7 @@ Combining search, filters, and sorting creates a powerful data exploration exper
 
 ```html
 <!-- templates/search_results.html -->
+
 @extends("layouts/base")
 
 @section("content") {
@@ -1731,9 +1420,11 @@ Combining search, filters, and sorting creates a powerful data exploration exper
         <h1 class="text-3xl font-bold mb-6">Search Users</h1>
         
         <!-- Advanced search form -->
+
         <form method="GET" class="mb-8 p-6 bg-gray-50 rounded-xl">
             <div class="grid grid-cols-2 gap-4 mb-4">
                 <!-- Text search -->
+
                 <div>
                     <label class="block font-bold mb-2">Name or Email</label>
                     <input 
@@ -1746,6 +1437,7 @@ Combining search, filters, and sorting creates a powerful data exploration exper
                 </div>
                 
                 <!-- Role filter -->
+
                 <div>
                     <label class="block font-bold mb-2">Role</label>
                     <select name="role" class="w-full px-4 py-2 border rounded-lg">
@@ -1757,6 +1449,7 @@ Combining search, filters, and sorting creates a powerful data exploration exper
                 </div>
                 
                 <!-- Date range -->
+
                 <div>
                     <label class="block font-bold mb-2">From Date</label>
                     <input 
@@ -1779,6 +1472,7 @@ Combining search, filters, and sorting creates a powerful data exploration exper
             </div>
             
             <!-- Advanced options -->
+
             <details class="mb-4 p-3 bg-white rounded border">
                 <summary class="cursor-pointer font-bold">More Options</summary>
                 <div class="mt-3 space-y-3">
@@ -1796,12 +1490,13 @@ Combining search, filters, and sorting creates a powerful data exploration exper
             </details>
             
             <div class="flex gap-2">
-                <button type="submit" class="btn btn-primary">🔍 Search</button>
+                <button type="submit" class="btn btn-primary"> Search</button>
                 <a href="@url('users:search')" class="btn btn-secondary">Clear</a>
             </div>
         </form>
         
         <!-- Results -->
+
         @if(results.count > 0) {
             <div class="mb-4 text-sm text-gray-600">
                 Found {{ results.count }} results
@@ -1815,7 +1510,7 @@ Combining search, filters, and sorting creates a powerful data exploration exper
                                 <h3 class="font-bold text-lg">{{ user.full_name }}</h3>
                                 <p class="text-gray-600 text-sm">{{ user.email }}</p>
                                 <p class="text-gray-500 text-xs mt-1">
-                                    Joined {{ user.created_at|date }} • Role: <span class="font-semibold">{{ user.role }}</span>
+                                    Joined {{ user.created_at|date }}  Role: <span class="font-semibold">{{ user.role }}</span>
                                 </p>
                             </div>
                             <div class="text-right">
@@ -1827,6 +1522,7 @@ Combining search, filters, and sorting creates a powerful data exploration exper
             </div>
             
             <!-- Pagination -->
+
             @include("components/pagination", pagination_data)
         } @else {
             <div class="p-8 text-center text-gray-500">
@@ -1835,11 +1531,12 @@ Combining search, filters, and sorting creates a powerful data exploration exper
         }
     </div>
 }
+
 ```
 
 ---
 
-## ⚡ HTMX Dynamic Updates
+## HTMX Dynamic Updates
 
 HTMX allows you to build dynamic interfaces without writing JavaScript. Eden has first-class HTMX support.
 
@@ -1847,10 +1544,12 @@ HTMX allows you to build dynamic interfaces without writing JavaScript. Eden has
 
 ```html
 <!-- templates/tasks.html -->
+
 <div id="task-list">
     <h2 class="text-2xl font-bold mb-4">Tasks</h2>
     
     <!-- Add task form with HTMX -->
+
     <form hx-post="@url('tasks:create')" 
           hx-target="#task-list" 
           hx-swap="afterbegin"
@@ -1867,11 +1566,13 @@ HTMX allows you to build dynamic interfaces without writing JavaScript. Eden has
     </form>
     
     <!-- Tasks list with HTMX updates -->
+
     @fragment("task-items") {
         @for (task in tasks) {
             <div class="p-4 border rounded-lg flex items-center justify-between group">
                 <div class="flex items-center gap-3">
                     <!-- Toggle completion with HTMX -->
+
                     <input 
                         type="checkbox"
                         @if(task.is_completed) { checked }
@@ -1886,6 +1587,7 @@ HTMX allows you to build dynamic interfaces without writing JavaScript. Eden has
                 </div>
                 
                 <!-- Delete with confirmation -->
+
                 <button 
                     hx-delete="@url('tasks:delete', id=task.id)"
                     hx-confirm="Are you sure?"
@@ -1899,6 +1601,7 @@ HTMX allows you to build dynamic interfaces without writing JavaScript. Eden has
         }
     }
 </div>
+
 ```
 
 ### Response Handlers for HTMX
@@ -1911,6 +1614,7 @@ async def toggle_task(request, task_id: int):
     await task.save()
     
     # Return just the updated task item (HTMX will swap it)
+
     return request.render("tasks.html", {"tasks": [task]}, fragment="task-items")
 
 @app.post("/tasks")
@@ -1920,6 +1624,7 @@ async def create_task(request):
     await task.save()
     
     # Return updated task list (HTMX will prepend it)
+
     tasks = await Task.filter(user_id=request.user.id).all()
     return request.render("tasks.html", {"tasks": tasks}, fragment="task-items")
 
@@ -1928,6 +1633,7 @@ async def delete_task(request, task_id: int):
     task = await Task.get(task_id)
     await task.delete()
     return ""  # Empty response for HTMX to remove element
+
 ```
 
 ### Real-Time Form Validation with HTMX
@@ -1947,6 +1653,7 @@ async def delete_task(request, task_id: int):
         <div class="feedback text-sm mt-1"></div>
     </div>
 </form>
+
 ```
 
 ```python
@@ -1955,17 +1662,19 @@ async def validate_email(request):
     email = (await request.form()).get("email")
     
     # Check if email exists
+
     exists = await User.filter(email=email).exists()
     
     if exists:
         return "<p class='text-red-600'>Email already registered</p>"
     else:
-        return "<p class='text-green-600'>✓ Email available</p>"
+        return "<p class='text-green-600'> Email available</p>"
+
 ```
 
 ---
 
-## 🧩 Template Component Patterns
+## Template Component Patterns
 
 Building reusable template components is key to maintainable templates.
 
@@ -1973,8 +1682,10 @@ Building reusable template components is key to maintainable templates.
 
 ```html
 <!-- templates/components/card.html -->
+
 <div class="p-6 border rounded-lg shadow @yield('classes', 'bg-white')">
     <!-- Header slot -->
+
     @if(!empty($slots['header']))
         <div class="border-b pb-3 mb-4">
             @include('components/slots/header')
@@ -1982,15 +1693,18 @@ Building reusable template components is key to maintainable templates.
     }
     
     <!-- Default content -->
+
     @yield('content')
     
     <!-- Footer slot -->
+
     @if(!empty($slots['footer']))
         <div class="border-t pt-3 mt-4 flex justify-between">
             @include('components/slots/footer')
         </div>
     }
 </div>
+
 ```
 
 Usage in templates:
@@ -2009,11 +1723,12 @@ Usage in templates:
         <button class="btn btn-sm btn-danger">Delete</button>
     }
 }
+
 ```
 
 ---
 
-## Assets & Vite 📦
+## Assets and Vite
 
 Manage your CSS and JS bundles easily.
 
@@ -2022,11 +1737,12 @@ Manage your CSS and JS bundles easily.
 @js("app.js")
 
 @vite(["resources/css/app.css", "resources/js/app.js"])
+
 ```
 
 ---
 
-## Logic & Variables 🧠
+## Logic and Variables
 
 ```html
 @let price = 99.99
@@ -2035,10 +1751,13 @@ Manage your CSS and JS bundles easily.
 <p>Discounted: {{ price * (1 - discount) }}</p>
 
 <!-- Outputs safe JSON for Alpine.js or scripts -->
+
 <div x-data='@json(user_data)'> ... </div>
 
 <!-- Debugging: Pretty prints an object in a <pre> tag -->
+
 @dump(request)
+
 ```
 
 ---
@@ -2049,6 +1768,7 @@ Eden includes Jinja2 filters that map directly to the **Elite** design tokens an
 
 | Filter | Description | Example |
 | :--- | :--- | :--- |
+
 | `date` | Locale-aware date. | `{{ task.due_at\|date }}` |
 | `time` | Locale-aware time. | `{{ task.due_at\|time }}` |
 | `number` | Thousand separators. | `{{ 1500000\|number }}` |
@@ -2061,6 +1781,7 @@ Eden includes Jinja2 filters that map directly to the **Elite** design tokens an
 
 | Filter | Usage | Effect |
 | :--- | :--- | :--- |
+
 | `eden_bg` | `{{ "primary"\|eden_bg }}` | Background color token. |
 | `eden_text` | `{{ "white"\|eden_text }}` | Text color token. |
 | `eden_shadow` | `{{ "lg"\|eden_shadow }}` | Elevation tokens. |
@@ -2070,12 +1791,13 @@ Eden includes Jinja2 filters that map directly to the **Elite** design tokens an
 
 ---
 
-## Elite Component: Data Table 📊
+## Elite Component: Data Table
 
 Build a powerful, reusable data table with sorting and premium styling.
 
 ```html
 <!-- templates/components/data_table.html -->
+
 <div class="overflow-x-auto rounded-xl border border-gray-700 bg-gray-900/50 backdrop-blur-md">
     <table class="w-full text-left">
         <thead class="bg-gray-800/50 text-sm font-semibold uppercase text-gray-400">
@@ -2096,15 +1818,17 @@ Build a powerful, reusable data table with sorting and premium styling.
         </tbody>
     </table>
 </div>
+
 ```
 
 ---
 
-## 🛠️ Common Directive Patterns
+## Best Practices and Patterns
 
 Mastering these patterns will significantly speed up your development.
 
 ### 1. The Active Navigation Pattern
+
 Combine `@url` and `@active_link` for premium navigation bars.
 
 ```html
@@ -2116,32 +1840,39 @@ Combine `@url` and `@active_link` for premium navigation bars.
         Students
     </a>
 </nav>
+
 ```
 
 ### 2. The Conditional Fragment Pattern
+
 Use `@htmx` to only render parts of a page when called via AJX/HTMX.
 
 ```html
 <div class="content">
     @htmx {
         <!-- Only sent for HTMX partial updates -->
+
         @fragment("results") { ... }
     }
     @non_htmx {
         <!-- The full page layout for direct visits -->
+
         <h1>Search Results</h1>
         @fragment("results") { ... }
     }
 </div>
+
 ```
 
 ### 3. The "Pure Logic" Component
+
 Components aren't just for UI. Use them to encapsulate complex permissions or data fetching logic that needs to be reused across templates.
 
 ```html
 @component("auth-gate", role="admin") {
     <button class="delete-btn">Secret Delete Action</button>
 }
+
 ```
 
-**Next Steps**: [Forms & Validation](forms.md)
+**Next Steps**: [Forms and Validation](forms.md)

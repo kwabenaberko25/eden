@@ -22,6 +22,17 @@ except ImportError:
     aioredis = None  # type: ignore[assignment]
 
 
+# Exception classes
+class CacheException(Exception):
+    """Base exception for cache-related errors"""
+    pass
+
+
+class CacheKeyError(CacheException):
+    """Exception raised when a cache key is not found"""
+    pass
+
+
 class RedisCache:
     """
     Async Redis cache backend for Eden.

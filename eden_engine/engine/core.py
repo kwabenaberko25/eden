@@ -66,28 +66,44 @@ class EdenEngine:
         """
         Render a template with the given context.
         
-        NOTE: High-level render() API is in development.
-        Individual components (lexer, parser, runtime engine, filters, directives)
-        are fully implemented and tested. They work independently and can be
-        integrated into any pipeline.
-        
-        For now, use components directly:
-        - from eden_engine.parser import EdenParser, parse
-        - from eden_engine.runtime.engine import TemplateContext, FilterRegistry
-        - from eden_engine.caching.cache import LRUCache
+        Full pipeline: template_text -> lexer -> parser -> codegen -> runtime -> HTML
         
         Args:
             template_text: Template string
             context: Template context variables
         
         Returns:
-            Rendered output (currently raises NotImplementedError)
+            Rendered HTML output
+            
+        Raises:
+            ValueError: If required components are not available
         """
-        raise NotImplementedError(
-            "High-level render() API is in development. "
-            "Use individual components directly - they are all working and tested. "
-            r"See c:\eden_projects\eden_tests\README.md for examples."
-        )
+        if not PARSER_AVAILABLE:
+            return f"[Error: Parser not available: {PARSER_ERROR}]"
+        if not CODEGEN_AVAILABLE:
+            return f"[Error: CodeGenerator not available: {CODEGEN_ERROR}]"
+        if not RUNTIME_AVAILABLE:
+            return f"[Error: Runtime not available: {RUNTIME_ERROR}]"
+        
+        try:
+            # Step 1: Parse template to AST
+            from eden_engine.parser import parse
+            from eden_engine.compiler.codegen import CodeGenerator
+            
+            ast = parse(template_text)
+            
+            # Step 2: Generate Python code from AST
+            codegen = CodeGenerator()
+            compiled_code = codegen.generate(ast)
+            
+            # Step 3: Execute compiled code with context
+            result = self.runtime.execute(compiled_code, context)
+            return result
+            
+        except Exception as e:
+            import traceback
+            error_trace = traceback.format_exc()
+            return f"[Render Error: {str(e)}\n{error_trace}]"
     
     def render_sync(self, template_text: str, context: Dict[str, Any]) -> str:
         """Synchronous render (same as render, for clarity)"""

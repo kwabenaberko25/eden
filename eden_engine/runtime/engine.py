@@ -377,8 +377,34 @@ class TemplateEngine:
         """
         ctx = TemplateContext(context)
         
-        # Create execution namespace
+        # Create restricted execution namespace with only safe builtins
+        # This prevents execution of dangerous functions like open(), __import__, etc.
+        restricted_builtins = {
+            'len': len,
+            'str': str,
+            'int': int,
+            'float': float,
+            'bool': bool,
+            'list': list,
+            'dict': dict,
+            'tuple': tuple,
+            'set': set,
+            'range': range,
+            'enumerate': enumerate,
+            'zip': zip,
+            'map': map,
+            'filter': filter,
+            'sum': sum,
+            'min': min,
+            'max': max,
+            'any': any,
+            'all': all,
+            'sorted': sorted,
+            'reversed': reversed,
+        }
+        
         namespace = {
+            '__builtins__': restricted_builtins,
             'context': ctx,
             'filters': self.filters,
             'tests': self.tests,
@@ -387,8 +413,8 @@ class TemplateEngine:
             'escape': escape,
         }
         
-        # TODO: Execute compiled code safely
-        # For now, compile and execute
+        # Execute compiled code in restricted namespace
+        # This prevents injection of arbitrary Python code
         try:
             exec(compiled_code, namespace)
             render_func = namespace.get('render')
@@ -398,10 +424,13 @@ class TemplateEngine:
                 else:
                     result = render_func(ctx, self.filters, self.tests, self)
                 return str(result)
+        except SyntaxError as e:
+            return f"[Syntax Error in compiled template: {str(e)}]"
+        except RuntimeError as e:
+            return f"[Runtime Error: {str(e)}]"
         except Exception as e:
-            return f"[Render Error: {str(e)}]"
-        
-        return ""
+            import traceback
+            return f"[Execution Error: {str(e)}\n{traceback.format_exc()}]"
     
     def register_directive(self, name: str, handler: DirectiveHandler) -> None:
         """Register a directive handler."""

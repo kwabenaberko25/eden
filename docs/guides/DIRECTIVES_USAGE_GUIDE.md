@@ -7,19 +7,18 @@ A practical, real-world guide to every Eden templating directive with examples.
 ## Quick Reference
 
 | Category | Directives |
-|----------|-----------|
-| **Control Flow** | @if, @unless, @switch/@case, @for/@foreach |
-| **Authentication** | @auth, @guest |
-| **HTMX** | @htmx, @non_htmx, @fragment |
-| **Templating** | @extends, @include, @section/@block, @yield, @push, @stack |
-| **Forms** | @csrf, @checked, @selected, @disabled, @readonly |
-| **Routing** | @url, @active_link |
-| **Loop Helpers** | @even, @odd, @first, @last |
-| **Data** | @let, @json, @dump, @span, @old |
-| **Assets** | @css, @js, @vite |
-| **Components** | @component, @slot |
-| **Messages** | @error, @messages |
-| **Attributes** | @method |
+| :--- | :--- |
+| **Control Flow** | `@if`, `@unless`, `@switch`/`@case`, `@for`/`@foreach`, `@empty` |
+| **Authentication** | `@auth`, `@guest` |
+| **HTMX** | `@htmx`, `@non_htmx`, `@fragment` |
+| **Templating** | `@extends`, `@include`, `@section`/`@block`, `@yield`, `@push`, `@stack` |
+| **Forms** | `@csrf`, `@checked`, `@selected`, `@disabled`, `@readonly`, `@old` |
+| **Routing** | `@url`, `@active_link` |
+| **Assets** | `@css`, `@js`, `@vite` |
+| **Data** | `@let`, `@json`, `@dump`, `@span` |
+| **Components** | `@component`, `@slot` |
+| **Messages** | `@error`, `@messages` |
+| **Attributes** | `@method` |
 
 ---
 
@@ -137,19 +136,22 @@ A practical, real-world guide to every Eden templating directive with examples.
 }
 ```
 
-### @else if / @elif - Chained Conditions
+### @elsif / @else if - Chained Conditions
 
 ```html
 @if (score >= 90) {
     <div class="grade">A</div>
-} @elsif (score >= 80) {
+} @else if (score >= 80) {
     <div class="grade">B</div>
-} @elsif (score >= 70) {
+} @else if (score >= 70) {
     <div class="grade">C</div>
 } @else {
     <div class="grade">F</div>
 }
 ```
+
+> [!TIP]
+> Both `@elsif` and `@else if` are supported, but `@else if` is preferred for readability.
 
 ---
 
@@ -572,15 +574,18 @@ Subscribe to newsletter
 <!-- Styles beautifully as JSON with monospace font and dark bg -->
 ```
 
-### @span - Output Value
+### @span - Safe Interpolation
+
+The `@span` directive is a shorthand for `{{ }}` wrap, often used for clean inline interpolation or within complex attributes.
 
 ```html
-<!-- Direct output (shorthand for {{ }}) -->
-@span(user.name)
-@span(user.email)
+<!-- Direct output -->
+<p>Hello, @span(user.name)!</p>
 
-<!-- With filters -->
-@span(post.created_at | date('Y-m-d'))
+<!-- With design system filters -->
+<h1 class="{{ 'bold' | eden_text }}">
+    @span(post.title | title_case)
+</h1>
 ```
 
 ---
@@ -912,21 +917,71 @@ request.messages.info("Please read this")
 
 ---
 
-## Troubleshooting
+---
 
-**Issue:** @active_link not highlighting
-- Check route name matches exactly
-- Verify route is registered with `name` parameter
-- Enable debug logging (see Troubleshooting in docs)
+## Premium Design Integration
 
-**Issue:** @checked/@selected not working
-- Ensure expression returns boolean
-- Check HTML validity
+Eden templates are designed to work seamlessly with our core design system tokens.
 
-**Issue:** @for loop $loop not available
-- Make sure you're inside a @for block
-- Use $loop prefix: `$loop.first`, `$loop.index`, etc.
+### Typography & Colors
+
+```html
+<h1 class="{{ 'bold' | eden_text }} {{ 'primary' | eden_text_color }}">
+    @span(title)
+</h1>
+<div class="{{ 'glass' | eden_surface }} {{ 'xl' | eden_shadow }} p-6">
+    @yield("content")
+</div>
+```
+
+### Micro-Animations
+
+```html
+@for(item in gallery) {
+    <div class="transition-all duration-300 transform hover:scale-[1.02]">
+        @include("partials/image-card", item=item)
+    </div>
+}
+```
 
 ---
 
-**Happy templating! 🎉**
+## Unimplemented & Experimental
+
+> [!WARNING]
+> The following directives are present in Eden's roadmap but are **not yet implemented** in the current engine. Using them will currently result in a parsing error or no output.
+
+| Directive | Description | Planned Use Case |
+| :--- | :--- | :--- |
+| **@can** | Permission check | `@can('edit-post', post) { ... }` |
+| **@cannot** | Inverse permission | `@cannot('delete-user') { ... }` |
+| **@inject**| Service injection | `@inject('metrics', 'App\Services\Metrics')` |
+| **@php** | Raw PHP block | (Legacy support, use `@let` for logic) |
+| **@stack** | Stack rendering | (Use standard blocks for now) |
+
+---
+
+## Troubleshooting
+
+> [!NOTE]
+> Most template issues stem from incorrect indentation or unclosed brace blocks.
+
+**Issue: `@active_link` not highlighting**
+- [ ] Check route name matches exactly in the controller.
+- [ ] Verify the route is registered with a `name` parameter in `routes.py`.
+- [ ] Ensure the Request object is passed correctly (happens automatically with `render`).
+
+**Issue: `@checked` or `@selected` not appearing**
+- [ ] Ensure the expression inside parentheses returns a strictly `True` or `False` value.
+- [ ] Check if another directive is conflicting with the attribute output.
+
+**Issue: `$loop` variable is undefined**
+- [ ] Verify you are referencing `$loop` strictly inside a `@for` or `@foreach` block.
+- [ ] Check for typos (it must be `$loop`, not `loop`).
+
+---
+
+> [!TIP]
+> Use `@dump(variable)` to inspect data shapes directly in your browser during development.
+
+**Happy templating with Eden! 🚀**
