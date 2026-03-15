@@ -25,7 +25,7 @@ def test_generate_csrf_token():
     assert token2, "Token should not be empty"
     assert token1 != token2, "Tokens should be unique"
     assert len(token1) > 20, "Token should be reasonably long"
-    print("✅ CSRF token generation works")
+    print("[PASS] CSRF token generation works")
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -55,7 +55,7 @@ def test_get_csrf_token_with_session():
     data2 = response2.json()
     assert data["token"] == data2["token"], "Token should be consistent across requests"
     
-    print("✅ CSRF token with session works")
+    print("[PASS] CSRF token with session works")
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -70,7 +70,9 @@ def test_get_csrf_token_without_session():
     @app.route("/get-token")
     async def get_token(request: Request):
         token = get_csrf_token(request)
-        return JSONResponse({"token": token, "has_session": hasattr(request, "session")})
+        # Check if session is available by checking scope, not via hasattr
+        has_session = "session" in request.scope
+        return JSONResponse({"token": token, "has_session": has_session})
     
     client = TestClient(app)
     response = client.get("/get-token")
@@ -79,8 +81,9 @@ def test_get_csrf_token_without_session():
     data = response.json()
     assert "token" in data, "Should still return a token"
     assert len(data["token"]) > 20, "Fallback token should be non-empty"
+    assert data["has_session"] is False, "Session should not be available"
     
-    print("✅ CSRF token fallback (no session) works")
+    print("[PASS] CSRF token fallback (no session) works")
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -89,9 +92,17 @@ def test_get_csrf_token_without_session():
 
 def test_csrf_middleware_validation():
     """Test that CSRF middleware validates tokens on POST requests."""
-    app = Starlette()
-    app.add_middleware(SessionMiddleware, secret_key="test-secret")
-    app.add_middleware(CSRFMiddleware)
+    from starlette.middleware import Middleware
+    
+    # Create app with proper middleware stack
+    # Note: In Starlette, middleware added later execute first (outermost)
+    # So we add CSRF first, then Session, so Session is outermost
+    app = Starlette(
+        middleware=[
+            Middleware(SessionMiddleware, secret_key="test-secret"),
+            Middleware(CSRFMiddleware),
+        ]
+    )
     
     @app.route("/token", methods=["GET"])
     async def get_token_endpoint(request: Request):
@@ -107,6 +118,7 @@ def test_csrf_middleware_validation():
     
     # Get CSRF token first
     response = client.get("/token")
+    assert response.status_code == 200
     token = response.json()["token"]
     
     # POST with correct token should succeed
@@ -121,7 +133,7 @@ def test_csrf_middleware_validation():
     response = client.post("/submit", data={"csrf_token": "wrong_token"})
     assert response.status_code == 403, f"Wrong token should be rejected, got {response.status_code}"
     
-    print("✅ CSRF middleware validation works")
+    print("[PASS] CSRF middleware validation works")
 
 
 # ──────────────────────────────────────────────────────────────────────────

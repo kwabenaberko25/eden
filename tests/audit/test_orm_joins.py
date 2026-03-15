@@ -3,7 +3,7 @@ import asyncio
 import uuid
 from typing import List
 from sqlalchemy.orm import Mapped
-from eden.orm import Model, f, Database
+from eden.db import Model, f, Database
 
 # ── Audit Models ──────────────────────────────────────────────────────────
 
@@ -30,7 +30,12 @@ class AuditChild(Model):
 
 @pytest.fixture
 async def join_db():
-    db = Database("sqlite+aiosqlite:///:memory:")
+    import os
+    db_path = "test_audit_joins.db"
+    if os.path.exists(db_path):
+        os.remove(db_path)
+        
+    db = Database(f"sqlite+aiosqlite:///{db_path}")
     await db.connect()
     
     async with db.engine.begin() as conn:
@@ -43,6 +48,7 @@ async def join_db():
         await session.commit()
         
     yield db
+    
     await db.disconnect()
 
 @pytest.mark.asyncio

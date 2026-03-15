@@ -14,7 +14,7 @@ from typing import Optional
 from sqlalchemy import JSON
 from sqlalchemy.orm import mapped_column
 
-from eden.orm import Model, f
+from eden.db import Model, f
 
 
 class APIKey(Model):

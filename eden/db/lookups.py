@@ -170,46 +170,111 @@ def extract_involved_models(expression: Any) -> set[type[Any]]:
     return models
 
 
-def find_relationship_path(source_model: type[Any], target_model: type[Any]) -> list[str]:
+def find_relationship_path(
+    source_model: type[Any], 
+    target_model: type[Any],
+    max_depth: int = 3,
+) -> list[str]:
     """
     Finds the shortest path of relationship names from source_model to target_model
-    using Breadth-First Search (BFS).
+    using Breadth-First Search (BFS) with cycle detection and depth limiting.
+    
+    This function prevents stack overflows from circular relationships by:
+    - Tracking visited models (cycle detection)
+    - Limiting traversal depth (default: 3 levels)
+    - Using BFS to find the shortest path (most efficient)
+    
+    Args:
+        source_model: Starting model class
+        target_model: Target model class to find path to
+        max_depth: Maximum relationship depth to traverse (default: 3, prevents runaway traversal)
+    
+    Returns:
+        List of relationship attribute names forming the path from source to target.
+        Returns empty list if source == target.
+        Returns empty list if no path found within max_depth.
+        
+    Raises:
+        ValueError: If source_model or target_model cannot be inspected.
+    
+    Example:
+        # Assuming: Author.books -> Book.publisher -> Publisher
+        path = find_relationship_path(Author, Publisher)  # Returns ["books", "publisher"]
+        # Then use: Author.books.property.mapper.class_.publisher
     """
     from sqlalchemy import inspect as sa_inspect
     
     # Early exit if they are the same
     if source_model == target_model:
         return []
-        
-    queue = [(source_model, [])]
+    
+    # BFS queue: (current_model, path_list, depth)
+    queue = [(source_model, [], 0)]
     visited = {source_model}
     
     while queue:
-        current_model, path = queue.pop(0)
+        current_model, path, depth = queue.pop(0)
+        
+        # Check depth limit
+        if depth > max_depth:
+            continue
+        
+        # Early exit if we found the target
         if current_model == target_model:
             return path
-            
-        # Inspect the mapper for relationships
+        
+        # Inspect relationships from current model
         try:
             mapper = sa_inspect(current_model)
+            if mapper is None:
+                continue
+            
             for rel in mapper.relationships:
                 target = rel.mapper.class_
+                
+                # Skip if already visited (cycle detection)
                 if target not in visited:
                     visited.add(target)
-                    queue.append((target, path + [rel.key]))
-        except Exception:
-            # Fallback for non-mapped classes or other inspection errors
+                    new_path = path + [rel.key]
+                    queue.append((target, new_path, depth + 1))
+                    
+        except Exception as e:
+            # Log and skip non-mappable classes
+            import logging
+            logger = logging.getLogger("eden.db.lookups")
+            logger.debug(f"Could not inspect relationships for {current_model.__name__}: {e}")
             continue
-            
+    
+    # No path found within max_depth
     return []
 
 
 # ── Lookup Parser ────────────────────────────────────────────────────────
 
 
+SUPPORTED_LOOKUPS = {
+    "exact",
+    "iexact",
+    "contains",
+    "icontains",
+    "startswith",
+    "istartswith",
+    "endswith",
+    "iendswith",
+    "gt",
+    "gte",
+    "lt",
+    "lte",
+    "in",
+    "isnull",
+    "range",
+}
+
+
 def parse_lookups(model: type[Any], **kwargs: Any) -> list[ColumnElement[bool]]:
     """
     Parse Django-style lookup strings into SQLAlchemy binary expressions.
+    Supports recursive relationship traversal (e.g., `author__profile__name__icontains`).
 
     Supported lookups:
       - __exact (default)
@@ -218,7 +283,7 @@ def parse_lookups(model: type[Any], **kwargs: Any) -> list[ColumnElement[bool]]:
       - __icontains
       - __startswith / __istartswith
       - __endswith / __iendswith
-      - __gte / __lt / __lte
+      - __gt / __gte / __lt / __lte
       - __in
       - __isnull
       - __range
@@ -227,12 +292,49 @@ def parse_lookups(model: type[Any], **kwargs: Any) -> list[ColumnElement[bool]]:
 
     for key, value in kwargs.items():
         parts = key.split("__")
-        field_name = parts[0]
-        lookup = parts[1] if len(parts) > 1 else "exact"
+        
+        current_model = model
+        column = None
+        lookup = "exact"
+        
+        # Traverse relationships/fields
+        for i, part in enumerate(parts):
+            # Check if this part is an explicit lookup (must be the last part)
+            if part in SUPPORTED_LOOKUPS and i == len(parts) - 1:
+                lookup = part
+                break
+            
+            # Get attribute from current_model
+            attr = getattr(current_model, part, None)
+            if attr is None:
+                raise ValueError(f"'{current_model.__name__}' has no attribute '{part}'")
+            
+            # If it's a relationship, step into it
+            if hasattr(attr, "property") and hasattr(attr.property, "mapper"):
+                current_model = attr.property.mapper.class_
+                # If this was the last part, we are matching against the relationship itself
+                # (SQLAlchemy supports comparing relationship to instance or ID)
+                if i == len(parts) - 1:
+                    column = attr
+                continue
+            
+            # It's a column (or some other descriptor)
+            column = attr
+            # Determine if the next part is a lookup
+            if i == len(parts) - 2:
+                next_part = parts[i+1]
+                if next_part in SUPPORTED_LOOKUPS:
+                    lookup = next_part
+                    break
+                else:
+                    raise ValueError(f"Invalid lookup/field '{next_part}' after column '{part}'")
+            elif i < len(parts) - 2:
+                raise ValueError(f"Cannot traverse beyond column '{part}' in lookup path '{key}'")
+            
+            break # Found column/final target, end loop
 
-        column = getattr(model, field_name, None)
         if column is None:
-            raise ValueError(f"'{model.__name__}' has no column '{field_name}'")
+            raise ValueError(f"Could not resolve lookup path '{key}' on {model.__name__}")
 
         # Resolve F-expressions if passed as value
         if isinstance(value, (F, _FExpr)):
@@ -285,7 +387,7 @@ def parse_lookups(model: type[Any], **kwargs: Any) -> list[ColumnElement[bool]]:
             # value must be (start, end)
             expr = column.between(value[0], value[1])
         else:
-            raise ValueError(f"Unsupported lookup '{lookup}' on field '{field_name}'")
+            raise ValueError(f"Unsupported lookup '{lookup}' on path '{key}'")
 
         expressions.append(expr)
 

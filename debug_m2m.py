@@ -1,5 +1,5 @@
 import asyncio
-from eden.orm import Model, f, ManyToManyField, Mapped
+from eden.db import Model, f, ManyToManyField, Mapped
 from typing import List
 
 try:

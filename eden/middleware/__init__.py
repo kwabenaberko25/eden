@@ -1,0 +1,803 @@
+"""
+Eden — Middleware
+
+Built-in middleware for CORS, CSRF, GZip compression, sessions, and more.
+All middleware wraps Starlette's implementations with Eden-friendly configuration.
+"""
+
+from __future__ import annotations
+
+import functools
+import hmac
+import importlib
+import re
+import secrets
+from collections.abc import Callable
+from typing import Any, Optional, Sequence
+from starlette.middleware.cors import CORSMiddleware as StarletteCORS
+from starlette.middleware.gzip import GZipMiddleware as StarletteGZip
+from starlette.middleware.sessions import SessionMiddleware as StarletteSession
+from starlette.requests import Request
+from starlette.responses import JSONResponse
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
+
+# Import new feature middleware
+from eden.middleware.rate_limit import (
+    RateLimitMiddleware,
+    rate_limit,
+    RateLimitStore,
+    MemoryRateLimitStore,
+    RedisRateLimitStore,
+)
+
+# Alias for backward compatibility
+limiter = rate_limit
+
+from eden.middleware.serialize import (
+    AutoSerializeMiddleware,
+    register_serializer,
+    serialize_value,
+    serialize_model,
+    auto_serialize_response,
+)
+
+
+# ── Original Middleware Classes ──────────────────────────────────────────────
+
+
+class CORSMiddleware(StarletteCORS):
+    """
+    CORS middleware with sensible defaults.
+
+    Usage:
+        app.add_middleware("cors", allow_origins=["*"])
+    """
+
+    def __init__(
+        self,
+        app: ASGIApp,
+        allow_origins: Sequence[str] = (),
+        allow_methods: Sequence[str] = ("GET", "POST", "OPTIONS"),
+        allow_headers: Sequence[str] = (),
+        allow_credentials: bool = False,
+        expose_headers: Sequence[str] = (),
+        max_age: int = 600,
+    ) -> None:
+        super().__init__(
+            app,
+            allow_origins=list(allow_origins),
+            allow_methods=list(allow_methods),
+            allow_headers=list(allow_headers),
+            allow_credentials=allow_credentials,
+            expose_headers=list(expose_headers),
+            max_age=max_age,
+        )
+
+
+class GZipMiddleware(StarletteGZip):
+    """
+    GZip compression middleware.
+
+    Usage:
+        app.add_middleware("gzip", minimum_size=500)
+    """
+
+    def __init__(self, app: ASGIApp, minimum_size: int = 500) -> None:
+        super().__init__(app, minimum_size=minimum_size)
+
+
+class SessionMiddleware(StarletteSession):
+    """
+    Cookie-based session middleware.
+
+    Usage:
+        app.add_middleware("session", secret_key="your-secret")
+    """
+
+    def __init__(
+        self,
+        app: ASGIApp,
+        secret_key: str = "",
+        session_cookie: str = "eden_session",
+        max_age: int = 14 * 24 * 60 * 60,  # 14 days
+        path: str = "/",
+        same_site: str = "lax",
+        https_only: bool = False,
+    ) -> None:
+        if not secret_key:
+            secret_key = secrets.token_hex(32)
+        super().__init__(
+            app,
+            secret_key=secret_key,
+            session_cookie=session_cookie,
+            max_age=max_age,
+            path=path,
+            same_site=same_site,
+            https_only=https_only,
+        )
+
+
+def get_csrf_token(request: "Request") -> str:
+    """
+    Get the CSRF token for the current request.
+    
+    This is used in templates to access the current session's CSRF token.
+    Falls back to generating a token if session is unavailable.
+    
+    Args:
+        request: The Starlette Request object
+        
+    Returns:
+        str: The CSRF token (either from session or newly generated)
+        
+    Example:
+        In templates, use: {{ get_csrf_token(request) }}
+        Or access directly: request.session.get('eden_csrf_token')
+    """
+    SESSION_KEY = "eden_csrf_token"
+    
+    # Handle case where SessionMiddleware is not configured
+    # (Starlette raises AssertionError if session not in scope)
+    try:
+        if request.session is None:
+            # Return a newly generated token for rendering
+            return secrets.token_urlsafe(32)
+        
+        token = request.session.get(SESSION_KEY)
+        if not token:
+            token = secrets.token_urlsafe(32)
+            request.session[SESSION_KEY] = token
+        return token
+    except (AssertionError, AttributeError):
+        # SessionMiddleware not installed or request.session unavailable
+        # Return a newly generated token for rendering
+        return secrets.token_urlsafe(32)
+
+
+class CSRFMiddleware:
+    """
+    CSRF protection middleware.
+
+    Generates a CSRF token and validates it on state-changing requests
+    (POST, PUT, PATCH, DELETE). The token is stored in the session and
+    must be sent as a header or form field.
+    
+    **Middleware Ordering**:
+    This middleware MUST be placed AFTER SessionMiddleware in the stack,
+    as it depends on session availability. The recommended order is:
+    1. SecurityHeadersMiddleware
+    2. SessionMiddleware
+    3. CSRFMiddleware
+    4. Other middleware
+    
+    See MIDDLEWARE_EXECUTION_ORDER documentation for details.
+
+    Usage:
+        app.add_middleware("csrf", secret_key="your-secret")
+        
+    Attributes:
+        SAFE_METHODS: HTTP methods that don't require CSRF validation
+        TOKEN_HEADER: HTTP header name for CSRF token submission
+        TOKEN_FIELD: HTML form field name for CSRF token submission
+        SESSION_KEY: Session key where CSRF token is stored
+    """
+
+    SAFE_METHODS = {"GET", "HEAD", "OPTIONS", "TRACE"}
+    TOKEN_HEADER = "X-CSRF-Token"
+    TOKEN_FIELD = "csrf_token"
+    SESSION_KEY = "eden_csrf_token"
+
+    def __init__(
+        self,
+        app: ASGIApp,
+        secret_key: str = "",
+        exempt_paths: list[str] | None = None,
+    ) -> None:
+        self.app = app
+        self.secret_key = secret_key or secrets.token_hex(32)
+        # Pre-compile exempt paths as regexes for efficiency
+        self.exempt_patterns = [re.compile(p) for p in (exempt_paths or [])]
+
+    def _is_exempt(self, path: str) -> bool:
+        """Check if a path is exempt from CSRF protection."""
+        return any(pattern.match(path) for pattern in self.exempt_patterns)
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        request = Request(scope, receive, send)
+        method = request.method.upper()
+
+        # Skip safe methods and exempt paths
+        if method in self.SAFE_METHODS or self._is_exempt(request.url.path):
+            # Ensure a CSRF token exists in the session
+            if "session" in scope:
+                session = scope["session"]
+                if self.SESSION_KEY not in session:
+                    session[self.SESSION_KEY] = secrets.token_hex(32)
+            await self.app(scope, receive, send)
+            return
+
+        # Validate CSRF token on unsafe methods
+        session = scope.get("session", {})
+        expected_token = session.get(self.SESSION_KEY)
+
+        if not expected_token:
+            response = JSONResponse(
+                {"error": True, "detail": "CSRF token missing from session."},
+                status_code=403,
+            )
+            await response(scope, receive, send)
+            return
+
+        # Check header first, then form field
+        submitted_token = request.headers.get(self.TOKEN_HEADER)
+        if not submitted_token:
+            # Try to read from form data — but only for form content types
+            content_type = request.headers.get("content-type", "")
+            if "form" in content_type or "urlencoded" in content_type:
+                try:
+                    form = await request.form()
+                    submitted_token = form.get(self.TOKEN_FIELD)
+                except Exception:
+                    pass
+
+        # HTMX often uses X-XSRF-TOKEN or similar, but we'll stick to X-CSRF-Token or Form
+
+        if not submitted_token or not hmac.compare_digest(submitted_token, expected_token):
+            response = JSONResponse(
+                {"error": True, "detail": "CSRF token validation failed."},
+                status_code=403,
+            )
+            await response(scope, receive, send)
+            return
+
+        await self.app(scope, receive, send)
+
+
+class SecurityHeadersMiddleware:
+    """
+    Security headers middleware.
+
+    Injects best-practice HTTP security headers on every response
+    to protect against common web vulnerabilities (XSS, clickjacking,
+    MIME sniffing, etc.).
+
+    Usage:
+        app.add_middleware("security")
+        app.add_middleware("security", csp="default-src 'self'")
+    """
+
+    DEFAULT_HEADERS: dict[str, str] = {
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "DENY",
+        "X-XSS-Protection": "1; mode=block",
+        "Referrer-Policy": "strict-origin-when-cross-origin",
+        "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+    }
+
+    def __init__(
+        self,
+        app: ASGIApp,
+        *,
+        hsts: bool = True,
+        hsts_max_age: int = 31536000,  # 1 year
+        hsts_include_subdomains: bool = True,
+        hsts_preload: bool = False,
+        csp: str | None = None,
+        frame_options: str = "DENY",
+        custom_headers: dict[str, str] | None = None,
+    ) -> None:
+        self.app = app
+        self.headers = dict(self.DEFAULT_HEADERS)
+
+        # HSTS
+        if hsts:
+            hsts_value = f"max-age={hsts_max_age}"
+            if hsts_include_subdomains:
+                hsts_value += "; includeSubDomains"
+            if hsts_preload:
+                hsts_value += "; preload"
+            self.headers["Strict-Transport-Security"] = hsts_value
+
+        # CSP
+        if csp:
+            self.headers["Content-Security-Policy"] = csp
+
+        # Override X-Frame-Options if customized
+        if frame_options != "DENY":
+            self.headers["X-Frame-Options"] = frame_options
+
+        # Merge custom headers
+        if custom_headers:
+            self.headers.update(custom_headers)
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        async def send_with_headers(message: Message) -> None:
+            if message["type"] == "http.response.start":
+                headers = list(message.get("headers", []))
+                for key, value in self.headers.items():
+                    headers.append((key.lower().encode(), value.encode()))
+                message["headers"] = headers
+            await send(message)
+
+        await self.app(scope, receive, send_with_headers)
+
+
+class RequestContextMiddleware:
+    """
+    Ensures that the current request is available in the Eden context.
+    This is essential for app.render() and other context-aware utilities.
+    """
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        from eden.context import reset_request, set_request
+        from eden.requests import Request as EdenRequest
+
+        request = EdenRequest(scope, receive, send)
+        token = set_request(request)
+        try:
+            await self.app(scope, receive, send)
+        finally:
+            reset_request(token)
+
+
+class BrowserReloadMiddleware:
+    """
+    Middleware that injects a live-reload script into HTML responses in debug mode.
+    Connects to /_eden/reload via WebSocket to listen for reload signals.
+    """
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        # State to track if we should inject
+        should_inject = [False]
+        content_length_index = [-1]
+
+        async def send_wrapper(message: Message) -> None:
+            if message["type"] == "http.response.start":
+                headers = list(message.get("headers", []))
+                for i, (name, value) in enumerate(headers):
+                    if name.lower() == b"content-type" and b"text/html" in value.lower():
+                        should_inject[0] = True
+                    if name.lower() == b"content-length":
+                        content_length_index[0] = i
+
+                # If we are injecting, we might need to remove Content-Length
+                # because we'll change the body size.
+                if should_inject[0] and content_length_index[0] != -1:
+                    headers.pop(content_length_index[0])
+                    message["headers"] = headers
+
+            if message["type"] == "http.response.body" and should_inject[0]:
+                body = message.get("body", b"")
+                # Case-insensitive check for closing body tag
+                body_match = re.search(b"</body\\s*>", body, re.IGNORECASE)
+                if body_match:
+                    script_text = """
+<script id="eden-live-reload">
+    (function() {
+        let isReloading = false;
+        function connect() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const url = `${protocol}//${window.location.host}/_eden/reload`;
+            const socket = new WebSocket(url);
+            
+            socket.onopen = () => console.log('🌿 Eden: Live-reload connected.');
+            
+            socket.onmessage = (e) => { 
+                if (e.data === 'reload' && !isReloading) {
+                    isReloading = true;
+                    location.reload(); 
+                }
+            };
+
+            socket.onclose = () => {
+                console.log('🌿 Eden: Server disconnected. Polling for restart...');
+                const timer = setInterval(() => {
+                    fetch(window.location.href, { mode: 'no-cors', cache: 'no-cache' })
+                        .then(res => {
+                            if (res.ok && !isReloading) {
+                                isReloading = true;
+                                clearInterval(timer);
+                                // Small delay to ensure server is fully ready
+                                setTimeout(() => location.reload(), 200);
+                            }
+                        })
+                        .catch(() => {});
+                }, 500);
+            };
+        }
+        connect();
+    })();
+</script>
+"""
+                    script = script_text.encode("utf-8")
+                    idx = body_match.start()
+                    # Inject BEFORE the closing body tag
+                    message["body"] = body[:idx] + script + body[idx:]
+                    # Ensure we don't inject again if there are multiple body chunks
+                    should_inject[0] = False
+
+            await send(message)
+
+        await self.app(scope, receive, send_wrapper)
+
+
+class PerformanceTelemetryMiddleware:
+    """
+    Middleware for real-time performance telemetry.
+    Collects DB query metrics and total request time.
+    Injects Server-Timing headers for browser visualization.
+    """
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+        from eden.logging import get_logger
+        self.logger = get_logger("telemetry")
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        from eden.telemetry import start_telemetry, reset_telemetry, get_telemetry
+        
+        token = start_telemetry()
+        try:
+            async def send_wrapper(message: Message) -> None:
+                if message["type"] == "http.response.start":
+                    data = get_telemetry()
+                    if data:
+                        total_ms = data.total_duration_ms
+                        db_ms = data.db_time_ms
+                        db_queries = data.db_queries
+                        app_ms = max(0, total_ms - db_ms)
+
+                        # Construct Server-Timing header
+                        # https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Server-Timing
+                        timing = f"db;dur={db_ms:.2f};desc=\"{db_queries} queries\", app;dur={app_ms:.2f}, total;dur={total_ms:.2f}"
+                        
+                        headers = list(message.get("headers", []))
+                        headers.append((b"server-timing", timing.encode()))
+                        message["headers"] = headers
+
+                        # Log metrics
+                        self.logger.info(
+                            "Performance: Total %.2fms | DB %.2fms (%d queries) | App %.2fms",
+                            total_ms, db_ms, db_queries, app_ms
+                        )
+
+                await send(message)
+
+            await self.app(scope, receive, send_wrapper)
+        finally:
+            reset_telemetry(token)
+
+
+class CacheMiddleware:
+    """
+    Full-page caching middleware for Eden.
+    
+    Caches successful GET & HEAD responses based on path and query parameters.
+    Respects Cache-Control headers and integrates with the Eden cache system.
+    """
+    def __init__(
+        self,
+        app: ASGIApp,
+        cache: Optional[Any] = None,
+        ttl: int = 300,
+        cache_control: bool = True,
+    ) -> None:
+        self.app = app
+        self._cache = cache
+        self.default_ttl = ttl
+        self.use_cache_control = cache_control
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http" or scope["method"] not in ("GET", "HEAD"):
+            await self.app(scope, receive, send)
+            return
+
+        # Attempt to find cache instance
+        app_instance = scope.get("app")
+        cache = self._cache or getattr(app_instance, "cache", None)
+        if not cache:
+            await self.app(scope, receive, send)
+            return
+
+        # Build cache key
+        path = scope.get("path", "")
+        query = scope.get("query_string", b"").decode()
+        cache_key = f"page_cache:{path}:{query}"
+
+        # 1. Try Cache Hit
+        try:
+            cached = await cache.get(cache_key)
+            if cached and isinstance(cached, dict):
+                headers = list(cached.get("headers", []))
+                # Add HIT header
+                headers.append((b"x-eden-cache", b"HIT"))
+                
+                await send({
+                    "type": "http.response.start",
+                    "status": cached.get("status", 200),
+                    "headers": headers
+                })
+                await send({
+                    "type": "http.response.body",
+                    "body": cached.get("body", b"")
+                })
+                return
+        except Exception:
+            pass
+
+        # 2. Cache Miss: Capture response
+        response_data = {
+            "status": 200,
+            "headers": [],
+            "body": b"",
+            "cacheable": True,
+            "ttl": self.default_ttl
+        }
+
+        async def send_wrapper(message: Message) -> None:
+            if message["type"] == "http.response.start":
+                response_data["status"] = message["status"]
+                response_data["headers"] = list(message.get("headers", []))
+                
+                # Check Cache-Control headers if enabled
+                if self.use_cache_control:
+                    for name, value in response_data["headers"]:
+                        if name.lower() == b"cache-control":
+                            val_str = value.decode().lower()
+                            if any(word in val_str for word in ("no-store", "no-cache", "private")):
+                                response_data["cacheable"] = False
+                            if "max-age=" in val_str:
+                                try:
+                                    idx = val_str.find("max-age=")
+                                    if idx != -1:
+                                        rem = val_str[idx+8:].split(",")[0].strip()
+                                        response_data["ttl"] = int(rem)
+                                except Exception:
+                                    pass
+
+            if message["type"] == "http.response.body":
+                if response_data["status"] < 300 and response_data["cacheable"]:
+                    response_data["body"] += message.get("body", b"")
+                    
+                    if not message.get("more_body", False):
+                        await cache.set(cache_key, {
+                            "status": response_data["status"],
+                            "headers": response_data["headers"],
+                            "body": response_data["body"]
+                        }, ttl=response_data["ttl"])
+
+            if message["type"] == "http.response.start":
+                headers = list(message.get("headers", []))
+                headers.append((b"x-eden-cache", b"MISS"))
+                message["headers"] = headers
+
+            await send(message)
+
+        await self.app(scope, receive, send_wrapper)
+
+
+class EdenFunctionMiddleware:
+    """
+    Adapter for functional middleware.
+    Allows middleware to be defined as a simple async function:
+    async def my_middleware(request, call_next):
+        ...
+    """
+
+    def __init__(self, app: ASGIApp, handler: Callable) -> None:
+        from starlette.middleware.base import BaseHTTPMiddleware
+        
+        # We wrap the Starlette BaseHTTPMiddleware
+        self.app = app
+        self.handler = handler
+        
+        # Create an internal dispatcher that wraps Starlette's Request
+        async def dispatch(request, call_next):
+            from eden.requests import Request
+            eden_request = Request(request.scope, request.receive, request._send)
+            
+            async def eden_call_next(req):
+                # Ensure we are passing back to Starlette's call_next
+                return await call_next(req)
+                
+            return await self.handler(eden_request, eden_call_next)
+
+        self._base_middleware = BaseHTTPMiddleware(app, dispatch=dispatch)
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        await self._base_middleware(scope, receive, send)
+
+
+class MessageMiddleware:
+    """
+    Middleware that ensures messages are loaded from the session
+    and made available on the request.
+    """
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        # Request.messages is a lazy property on EdenRequest,
+        # so we don't need to do anything here except pass through.
+        # This middleware exists to provide a clean configuration point
+        # and to ensure it's placed after SessionMiddleware.
+        await self.app(scope, receive, send)
+
+
+# ── Middleware Registry and Lookup ──────────────────────────────────────────
+
+
+MIDDLEWARE_REGISTRY: dict[str, type | str] = {
+    "cors": CORSMiddleware,
+    "gzip": GZipMiddleware,
+    "session": SessionMiddleware,
+    "csrf": CSRFMiddleware,
+    "messages": MessageMiddleware,
+    "security": SecurityHeadersMiddleware,
+    "ratelimit": RateLimitMiddleware,
+    "rate_limit": RateLimitMiddleware,
+    "redis_ratelimit": "eden.middleware.rate_limit:RedisRateLimitMiddleware",
+    "logging": "eden.logging:RequestLoggingMiddleware",
+    "auth": "eden.auth.middleware:AuthenticationMiddleware",
+    "browser_reload": BrowserReloadMiddleware,
+    "tenant": "eden.tenancy.middleware:TenantMiddleware",
+    "telemetry": PerformanceTelemetryMiddleware,
+    "cache": CacheMiddleware,
+    "request": RequestContextMiddleware,
+}
+
+
+MIDDLEWARE_EXECUTION_ORDER = """
+CRITICAL MIDDLEWARE ORDERING GUIDE
+===================================
+
+Middleware is executed in REVERSE registration order (outer to inner).
+The order matters greatly for security and functionality.
+
+RECOMMENDED ORDER (from setup_defaults):
+────────────────────────────────────────
+1. SecurityHeadersMiddleware     (Inject security HTTP headers first)
+   - X-Content-Type-Options, X-Frame-Options, CSP headers
+   - Position: FIRST (outermost)
+
+2. SessionMiddleware             (Enable session before dependent middleware)
+   - Cookies, session storage
+   - MUST be before CSRF and Messages
+   - Position: SECOND
+
+3. CSRFMiddleware                (CSRF depends on session)
+   - Token generation and validation
+   - MUST be after Session, before Auth
+   - Position: THIRD
+
+4. GZipMiddleware                (Compression is neutral to most middleware)
+   - Response compression
+   - Position: FOURTH
+
+5. CORSMiddleware                (CORS allows cross-origin requests)
+   - Allow/check cross-origin headers
+   - Position: FIFTH
+
+6. Other middleware (Auth, Telemetry, etc.)
+   - Application-specific concerns
+   - Position: SIXTH+
+
+DEPENDENCY CHAIN:
+─────────────────
+⚠️  CSRF depends on Session (will fail silently if Session is missing/after)
+⚠️  Messages depend on Session (will be empty if Session is missing/after)
+⚠️  Auth may depend on CSRF (for form-based auth flows)
+⚠️  Telemetry should be early (capture all requests)
+
+FAILURE MODES IF ORDERING IS WRONG:
+───────────────────────────────────
+❌ Session after CSRF          → CSRF tokens never validated (security hole!)
+❌ CSRF without Session        → All CSRF checks fail (requests rejected)
+❌ Messages after Session      → No messages available (app broken)
+❌ CORS before Security        → Headers can be overridden
+❌ Multiple Session instances  → undefined behavior (multiple cookie jars)
+
+HOW TO CHECK:
+─────────────
+The framework validates this during setup_defaults() but NOT when manually
+adding middleware. Always use setup_defaults() for quick start, or manually
+verify your order matches the recommendation above.
+
+CUSTOM MIDDLEWARE:
+──────────────────
+If adding custom middleware, consider where it fits:
+- Early in the stack: debugging, telemetry, auth
+- Late in the stack: response modification, compression
+- Avoid placing between Security → Session → CSRF
+
+See: app.setup_defaults() for the correct sequence
+"""
+
+
+def get_middleware_class(name: str | type) -> type:
+    """Look up a middleware class by its short name or a dot-notation string."""
+    if not isinstance(name, str):
+        return name
+
+    cls = MIDDLEWARE_REGISTRY.get(name.lower())
+    if cls is not None:
+        if isinstance(cls, str):
+            # Dynamic import
+            module_name, class_name = cls.split(":")
+            module = importlib.import_module(module_name)
+            return getattr(module, class_name)
+        return cls
+
+    if ":" in name:
+        module_name, class_name = name.split(":")
+        module = importlib.import_module(module_name)
+        return getattr(module, class_name)
+
+    raise ValueError(
+        f"Unknown middleware: '{name}'. "
+        f"Available: {', '.join(MIDDLEWARE_REGISTRY.keys())}"
+    )
+
+
+# ── Public API ───────────────────────────────────────────────────────────────
+
+
+__all__ = [
+    # Original middleware
+    "CORSMiddleware",
+    "GZipMiddleware",
+    "SessionMiddleware",
+    "get_csrf_token",
+    "CSRFMiddleware",
+    "SecurityHeadersMiddleware",
+    "RequestContextMiddleware",
+    "BrowserReloadMiddleware",
+    "PerformanceTelemetryMiddleware",
+    "CacheMiddleware",
+    "EdenFunctionMiddleware",
+    "MessageMiddleware",
+    "MIDDLEWARE_EXECUTION_ORDER",
+    "get_middleware_class",
+    # New feature middleware (from submodules)
+    "RateLimitMiddleware",
+    "rate_limit",
+    "RateLimitStore",
+    "MemoryRateLimitStore",
+    "RedisRateLimitStore",
+    "AutoSerializeMiddleware",
+    "register_serializer",
+    "serialize_value",
+    "serialize_model",
+    "auto_serialize_response",
+]

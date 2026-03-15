@@ -5,6 +5,7 @@ Resolves the current tenant from the request and sets it in context.
 Supports multiple resolution strategies: subdomain, header, session, or path prefix.
 """
 
+import logging
 from typing import Any, Literal
 
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
@@ -12,6 +13,11 @@ from starlette.responses import Response as StarletteResponse
 
 from eden.requests import Request
 from eden.tenancy.context import reset_current_tenant, set_current_tenant
+
+
+def get_logger(name: str):
+    """Get a logger instance."""
+    return logging.getLogger(name)
 
 
 class TenantMiddleware(BaseHTTPMiddleware):
@@ -50,26 +56,59 @@ class TenantMiddleware(BaseHTTPMiddleware):
     async def dispatch(
         self, request: Request, call_next: RequestResponseEndpoint
     ) -> StarletteResponse:
+        """
+        Main middleware dispatch that:
+        1. Resolves the tenant from the request
+        2. Sets tenant context for the request lifetime
+        3. Switches database schema if tenant uses dedicated schema
+        4. Adds enforcement verification headers
+        5. Resets context and schema after response
+        
+        Tenant Resolution Strategies:
+        - subdomain: Extract from hostname (e.g., acme.myapp.com → acme)
+        - header: Read from custom header (default: X-Tenant-ID)
+        - session: Read tenant ID from session data
+        - path: Extract from URL path prefix (e.g., /t/acme/...)
+        
+        Response Headers Added:
+        - X-Tenant-Enforced: "true" if tenant context was active
+        - X-Tenant-ID: The UUID of the enforced tenant (if applicable)
+        """
         tenant = await self._resolve_tenant(request)
 
         token = None
+        tenant_id_str = None
+        
         if tenant:
+            # Set tenant context for this request
             token = set_current_tenant(tenant)
             request.state.tenant = tenant
+            tenant_id_str = str(tenant.id)
 
             # If the tenant has a dedicated schema, switch to it
             schema_name = getattr(tenant, "schema_name", None)
             if schema_name:
                 db_session = getattr(request.state, "db", None)
                 if db_session:
-                    from eden.orm import get_db
-                    db_manager = get_db(request)
-                    await db_manager.set_schema(db_session, schema_name)
+                    from eden.db import get_db
+                    try:
+                        db_manager = get_db(request)
+                        await db_manager.set_schema(db_session, schema_name)
+                    except Exception as e:
+                        logger = get_logger(__name__)
+                        logger.warning(f"Failed to switch to tenant schema {schema_name}: {e}")
 
         try:
             response = await call_next(request)
+            
+            # Add enforcement headers to response
+            if tenant_id_str:
+                response.headers["X-Tenant-Enforced"] = "true"
+                response.headers["X-Tenant-ID"] = tenant_id_str
+            
             return response
         finally:
+            # Reset tenant context
             if token:
                 reset_current_tenant(token)
                 
@@ -80,11 +119,11 @@ class TenantMiddleware(BaseHTTPMiddleware):
                 db_session = getattr(request.state, "db", None)
                 if db_session:
                     try:
-                        from eden.orm import get_db
+                        from eden.db import get_db
                         db_manager = get_db(request)
                         await db_manager.set_schema(db_session, "public")
                     except Exception:
-                        pass
+                        pass  # Connection will be reused; log separately if needed
 
     async def _resolve_tenant(self, request: Request) -> Any | None:
         """Resolve the tenant based on the configured strategy."""

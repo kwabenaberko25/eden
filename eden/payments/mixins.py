@@ -1,5 +1,5 @@
 from typing import Any, Optional
-from eden.orm import f
+from eden.db import f
 
 
 class BillingManager:

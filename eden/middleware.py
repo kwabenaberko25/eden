@@ -94,6 +94,43 @@ class SessionMiddleware(StarletteSession):
         )
 
 
+def get_csrf_token(request: "Request") -> str:
+    """
+    Get the CSRF token for the current request.
+    
+    This is used in templates to access the current session's CSRF token.
+    Falls back to generating a token if session is unavailable.
+    
+    Args:
+        request: The Starlette Request object
+        
+    Returns:
+        str: The CSRF token (either from session or newly generated)
+        
+    Example:
+        In templates, use: {{ get_csrf_token(request) }}
+        Or access directly: request.session.get('eden_csrf_token')
+    """
+    SESSION_KEY = "eden_csrf_token"
+    
+    # Handle case where SessionMiddleware is not configured
+    # (Starlette raises AssertionError if session not in scope)
+    try:
+        if request.session is None:
+            # Return a newly generated token for rendering
+            return secrets.token_urlsafe(32)
+        
+        token = request.session.get(SESSION_KEY)
+        if not token:
+            token = secrets.token_urlsafe(32)
+            request.session[SESSION_KEY] = token
+        return token
+    except (AssertionError, AttributeError):
+        # SessionMiddleware not installed or request.session unavailable
+        # Return a newly generated token for rendering
+        return secrets.token_urlsafe(32)
+
+
 class CSRFMiddleware:
     """
     CSRF protection middleware.
@@ -101,9 +138,25 @@ class CSRFMiddleware:
     Generates a CSRF token and validates it on state-changing requests
     (POST, PUT, PATCH, DELETE). The token is stored in the session and
     must be sent as a header or form field.
+    
+    **Middleware Ordering**:
+    This middleware MUST be placed AFTER SessionMiddleware in the stack,
+    as it depends on session availability. The recommended order is:
+    1. SecurityHeadersMiddleware
+    2. SessionMiddleware
+    3. CSRFMiddleware
+    4. Other middleware
+    
+    See MIDDLEWARE_EXECUTION_ORDER documentation for details.
 
     Usage:
         app.add_middleware("csrf", secret_key="your-secret")
+        
+    Attributes:
+        SAFE_METHODS: HTTP methods that don't require CSRF validation
+        TOKEN_HEADER: HTTP header name for CSRF token submission
+        TOKEN_FIELD: HTML form field name for CSRF token submission
+        SESSION_KEY: Session key where CSRF token is stored
     """
 
     SAFE_METHODS = {"GET", "HEAD", "OPTIONS", "TRACE"}
@@ -834,6 +887,77 @@ MIDDLEWARE_REGISTRY: dict[str, type] = {
     "cache": CacheMiddleware,
     "request": RequestContextMiddleware,
 }
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# MIDDLEWARE EXECUTION ORDER DOCUMENTATION
+# ──────────────────────────────────────────────────────────────────────────
+
+MIDDLEWARE_EXECUTION_ORDER = """
+CRITICAL MIDDLEWARE ORDERING GUIDE
+===================================
+
+Middleware is executed in REVERSE registration order (outer to inner).
+The order matters greatly for security and functionality.
+
+RECOMMENDED ORDER (from setup_defaults):
+────────────────────────────────────────
+1. SecurityHeadersMiddleware     (Inject security HTTP headers first)
+   - X-Content-Type-Options, X-Frame-Options, CSP headers
+   - Position: FIRST (outermost)
+
+2. SessionMiddleware             (Enable session before dependent middleware)
+   - Cookies, session storage
+   - MUST be before CSRF and Messages
+   - Position: SECOND
+
+3. CSRFMiddleware                (CSRF depends on session)
+   - Token generation and validation
+   - MUST be after Session, before Auth
+   - Position: THIRD
+
+4. GZipMiddleware                (Compression is neutral to most middleware)
+   - Response compression
+   - Position: FOURTH
+
+5. CORSMiddleware                (CORS allows cross-origin requests)
+   - Allow/check cross-origin headers
+   - Position: FIFTH
+
+6. Other middleware (Auth, Telemetry, etc.)
+   - Application-specific concerns
+   - Position: SIXTH+
+
+DEPENDENCY CHAIN:
+─────────────────
+⚠️  CSRF depends on Session (will fail silently if Session is missing/after)
+⚠️  Messages depend on Session (will be empty if Session is missing/after)
+⚠️  Auth may depend on CSRF (for form-based auth flows)
+⚠️  Telemetry should be early (capture all requests)
+
+FAILURE MODES IF ORDERING IS WRONG:
+───────────────────────────────────
+❌ Session after CSRF          → CSRF tokens never validated (security hole!)
+❌ CSRF without Session        → All CSRF checks fail (requests rejected)
+❌ Messages after Session      → No messages available (app broken)
+❌ CORS before Security        → Headers can be overridden
+❌ Multiple Session instances  → undefined behavior (multiple cookie jars)
+
+HOW TO CHECK:
+─────────────
+The framework validates this during setup_defaults() but NOT when manually
+adding middleware. Always use setup_defaults() for quick start, or manually
+verify your order matches the recommendation above.
+
+CUSTOM MIDDLEWARE:
+──────────────────
+If adding custom middleware, consider where it fits:
+- Early in the stack: debugging, telemetry, auth
+- Late in the stack: response modification, compression
+- Avoid placing between Security → Session → CSRF
+
+See: app.setup_defaults() for the correct sequence
+"""
 
 
 def get_middleware_class(name: str | type) -> type:

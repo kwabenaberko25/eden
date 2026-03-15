@@ -8,7 +8,7 @@ Each helper returns a `mapped_column()` with sensible defaults.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from sqlalchemy import (
@@ -82,7 +82,42 @@ def StringField(
     
     args = [String(max_length)]
     if fk: args.append(fk)
+    
+    # Store validation metadata for Model discovery
+    meta = kw.get("info", {})
+    if max_length:
+        meta["max"] = max_length
+    if not kw.get("nullable", True):
+        meta["required"] = True
+    kw["info"] = meta
+
     return mapped_column(*args, **kw)
+
+
+def SlugField(
+    max_length: int = 255,
+    *,
+    populate_from: str | None = None,
+    unique: bool = True,
+    index: bool = True,
+    **kwargs: Any,
+) -> Any:
+    """
+    Field for storing URL-friendly strings (slugs).
+    Automatically unique and indexed by default.
+
+    Args:
+        populate_from: Field name to auto-generate slug from (e.g. 'title')
+
+    Usage:
+        slug: Mapped[str] = SlugField(populate_from="title")
+    """
+    info = kwargs.get("info", {})
+    if populate_from:
+        info["populate_from"] = populate_from
+    kwargs["info"] = info
+    
+    return StringField(max_length=max_length, unique=unique, index=index, **kwargs)
 
 
 def TextField(
@@ -184,30 +219,99 @@ def DateTimeField(
 ) -> Any:
     """
     DateTime column with optional auto-timestamps.
-
+    
+    ⏰ TIMEZONE AWARENESS:
+    
+    All datetime fields should store UTC in the database. The application should:
+    1. Always store UTC timestamps in the database
+    2. Convert to user's local timezone on display
+    3. Accept input in any timezone but normalize to UTC before saving
+    
+    Example:
+        from datetime import datetime, timezone
+        
+        # Always use UTC for storage
+        created_at: Mapped[datetime] = DateTimeField(auto_now_add=True)
+        
+        # On display, convert to user timezone:
+        user_tz = pytz.timezone('America/New_York')
+        local_time = created.created_at.replace(tzinfo=timezone.utc).astimezone(user_tz)
+        
+        # On input, normalize to UTC:
+        user_input = datetime.fromisoformat("2025-01-20T10:30:00-05:00")  # New York time
+        utc_time = user_input.astimezone(timezone.utc)
+    
+    Args:
+        auto_now: Auto-update to current time on every save
+        auto_now_add: Set to current time on creation only
+        default: Static default value or callable
+        nullable: Column allows NULL or not
+        required: Alias for nullable (required=True means nullable=False)
+    
+    Returns:
+        Mapped column configured with DateTime type
+    
     Usage:
-        published_at: Mapped[datetime] = DateTimeField(auto_now_add=True)
+        # Automatically set on creation
+        created_at: Mapped[datetime] = DateTimeField(auto_now_add=True)
+        
+        # Automatically update on every change
+        updated_at: Mapped[datetime] = DateTimeField(auto_now=True)
+        
+        # Optional publish date (can be NULL until published)
+        published_at: Mapped[datetime | None] = DateTimeField(nullable=True)
+    
+    Note:
+        Both auto_now and auto_now_add can be True simultaneously:
+        - auto_now_add sets initial value
+        - auto_now updates it on every save
     """
     kw, fk = _process_field_args(nullable, required, kwargs, default_nullable=False)
+
+    # Helper to get current UTC time
+    utc_now = lambda: datetime.now(timezone.utc)
 
     if auto_now_add:
         kw["server_default"] = func.now()
         # Fallback for some DBs or drivers that don't auto-fetch server_default on insert
         if "default" not in kw:
-            kw["default"] = datetime.now
+            kw["default"] = utc_now
             
     if auto_now:
         kw["onupdate"] = func.now()
         # If auto_now is true, but auto_now_add is not, we still want an initial value
         if not auto_now_add and "default" not in kw and "server_default" not in kw:
             kw["server_default"] = func.now()
-            kw["default"] = datetime.now
+            kw["default"] = utc_now
     
     # Apply explicit default if provided and not overridden by auto_now_add
     if default is not None and "default" not in kw and "server_default" not in kw:
         kw["default"] = default
 
     args = [DateTime]
+    if fk: args.append(fk)
+    return mapped_column(*args, **kw)
+
+
+def JSONField(
+    *,
+    nullable: Any = _UNSET,
+    required: bool | None = None,
+    default: Any = None,
+    **kwargs: Any,
+) -> Any:
+    """
+    JSON column for storing structured data.
+
+    Usage:
+        data: Mapped[dict] = JSONField(required=True)
+    """
+    from sqlalchemy import JSON
+    kw, fk = _process_field_args(nullable, required, kwargs, default_nullable=True)
+    if default is not None:
+        kw["default"] = default
+    
+    args = [JSON]
     if fk: args.append(fk)
     return mapped_column(*args, **kw)
 

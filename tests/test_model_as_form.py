@@ -1,6 +1,6 @@
 import pytest
 from datetime import datetime
-from eden.orm import Model, f
+from eden.db import Model, f
 from eden.forms import BaseForm
 
 class UserProfileFormTest(Model):

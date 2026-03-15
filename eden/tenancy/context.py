@@ -40,7 +40,10 @@ def get_current_tenant_id() -> Optional[uuid.UUID]:
         
     # Assume it's a UUID or string already
     if isinstance(val, str):
-        return uuid.UUID(val)
+        try:
+            return uuid.UUID(val)
+        except ValueError:
+            return val
     return val
 
 

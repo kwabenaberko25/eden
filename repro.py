@@ -1,4 +1,4 @@
-from eden.orm import Model, f
+from eden.db import Model, f
 from sqlalchemy.orm import Mapped
 
 try:

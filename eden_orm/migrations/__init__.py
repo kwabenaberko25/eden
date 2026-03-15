@@ -1,3 +1,0 @@
-"""
-Eden ORM - Migrations Package
-"""

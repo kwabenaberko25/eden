@@ -1,6 +1,6 @@
 import pytest
 import uuid
-from eden.orm import Model, f
+from eden.db import Model, f
 from eden.tenancy.models import Tenant
 from eden.tenancy.mixins import TenantMixin
 from eden.tenancy.context import set_current_tenant, reset_current_tenant

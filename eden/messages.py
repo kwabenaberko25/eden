@@ -98,7 +98,7 @@ class MessageContainer:
     def _push_realtime(self, message: Message) -> None:
         """Attempt to broadcast the message to the user's active WebSocket room."""
         try:
-            from eden.realtime import manager
+            from eden.websocket import connection_manager as manager
             user = getattr(self.request, "user", None)
             channel = None
             
@@ -113,7 +113,7 @@ class MessageContainer:
                 import asyncio
                 try:
                     loop = asyncio.get_running_loop()
-                    loop.create_task(manager.broadcast(channel, payload))
+                    loop.create_task(manager.broadcast(payload, channel=channel))
                 except RuntimeError:
                     # No running loop, maybe in a thread
                     pass

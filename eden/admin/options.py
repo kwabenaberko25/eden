@@ -45,6 +45,9 @@ class ModelAdmin:
     # Fields to exclude from forms
     exclude_fields: list[str] = ["id", "created_at", "updated_at"]
 
+    # Custom actions (list of function names or callables)
+    actions: list[str] = ["delete_selected"]
+
     # Custom display name (defaults to model __tablename__)
     verbose_name: str | None = None
     verbose_name_plural: str | None = None

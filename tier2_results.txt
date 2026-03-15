@@ -1,0 +1,123 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.0.2, pluggy-1.6.0 -- /home/kb/projects/eden/.venv/bin/python
+cachedir: .pytest_cache
+rootdir: /home/kb/projects/eden
+configfile: pyproject.toml
+plugins: cov-7.0.0, anyio-4.12.1, asyncio-1.3.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 23 items
+
+tier2_critical_audit.py::TestMultiTenancySecurity::test_tenant_isolation_prevents_cross_tenant_read FAILED
+
+=================================== FAILURES ===================================
+__ TestMultiTenancySecurity.test_tenant_isolation_prevents_cross_tenant_read ___
+
+self = <tier2_critical_audit.TestMultiTenancySecurity object at 0x756d4ab85370>
+
+    @pytest.mark.asyncio
+    async def test_tenant_isolation_prevents_cross_tenant_read(self):
+        """Verify: User cannot read data from other tenants."""
+        from eden.tenancy import set_current_tenant, get_current_tenant_id
+        from eden.db import Database
+    
+>       db = Database(":memory:")
+             ^^^^^^^^^^^^^^^^^^^^
+
+tier2_critical_audit.py:31: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+eden/db/session.py:29: in __init__
+    self.engine = create_async_engine(url, **kwargs)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/sqlalchemy/ext/asyncio/engine.py:120: in create_async_engine
+    sync_engine = _create_engine(url, **kw)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^
+<string>:2: in create_engine
+    ???
+.venv/lib/python3.12/site-packages/sqlalchemy/util/deprecations.py:281: in warned
+    return fn(*args, **kwargs)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/sqlalchemy/engine/create.py:564: in create_engine
+    u = _url.make_url(url)
+        ^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/sqlalchemy/engine/url.py:856: in make_url
+    return _parse_url(name_or_url)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = ':memory:'
+
+    def _parse_url(name: str) -> URL:
+        pattern = re.compile(
+            r"""
+                (?P<name>[\w\+]+)://
+                (?:
+                    (?P<username>[^:/]*)
+                    (?::(?P<password>[^@]*))?
+                @)?
+                (?:
+                    (?:
+                        \[(?P<ipv6host>[^/\?]+)\] |
+                        (?P<ipv4host>[^/:\?]+)
+                    )?
+                    (?::(?P<port>[^/\?]*))?
+                )?
+                (?:/(?P<database>[^\?]*))?
+                (?:\?(?P<query>.*))?
+                """,
+            re.X,
+        )
+    
+        m = pattern.match(name)
+        if m is not None:
+            components = m.groupdict()
+            query: Optional[Dict[str, Union[str, List[str]]]]
+            if components["query"] is not None:
+                query = {}
+    
+                for key, value in parse_qsl(components["query"]):
+                    if key in query:
+                        query[key] = util.to_list(query[key])
+                        cast("List[str]", query[key]).append(value)
+                    else:
+                        query[key] = value
+            else:
+                query = None
+            components["query"] = query
+    
+            if components["username"] is not None:
+                components["username"] = unquote(components["username"])
+    
+            if components["password"] is not None:
+                components["password"] = unquote(components["password"])
+    
+            ipv4host = components.pop("ipv4host")
+            ipv6host = components.pop("ipv6host")
+            components["host"] = ipv4host or ipv6host
+            name = components.pop("name")
+    
+            if components["port"]:
+                components["port"] = int(components["port"])
+    
+            return URL.create(name, **components)  # type: ignore
+    
+        else:
+>           raise exc.ArgumentError(
+                "Could not parse SQLAlchemy URL from given URL string"
+            )
+E           sqlalchemy.exc.ArgumentError: Could not parse SQLAlchemy URL from given URL string
+
+.venv/lib/python3.12/site-packages/sqlalchemy/engine/url.py:922: ArgumentError
+=============================== warnings summary ===============================
+tier2_critical_audit.py::TestMultiTenancySecurity::test_tenant_isolation_prevents_cross_tenant_read
+  /home/kb/projects/eden/.venv/lib/python3.12/site-packages/passlib/utils/__init__.py:854: DeprecationWarning: 'crypt' is deprecated and slated for removal in Python 3.13
+    from crypt import crypt as _crypt
+
+tier2_critical_audit.py::TestMultiTenancySecurity::test_tenant_isolation_prevents_cross_tenant_read
+  /home/kb/projects/eden/eden/config.py:80: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class Config(BaseModel):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tier2_critical_audit.py::TestMultiTenancySecurity::test_tenant_isolation_prevents_cross_tenant_read
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+======================== 1 failed, 2 warnings in 1.65s =========================

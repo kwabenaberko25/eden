@@ -68,11 +68,51 @@ class EdenSatellite(Router):
         setattr(self, name, component)
 
     def add_middleware(self, middleware: str | type, **kwargs: Any) -> None:
-        """Add middleware to the satellite."""
+        """
+        Add middleware to the satellite.
+        
+        Raises:
+            RuntimeError: If middleware ordering violates critical dependencies.
+        
+        CRITICAL ORDERING RULES:
+            ⚠️  SessionMiddleware MUST be added before CSRFMiddleware
+            ⚠️  SessionMiddleware MUST be added before MessageMiddleware
+            
+        See: eden.middleware.MIDDLEWARE_EXECUTION_ORDER for full documentation
+        """
         if isinstance(middleware, str):
             cls = get_middleware_class(middleware)
+            middleware_name = middleware
         else:
             cls = middleware
+            middleware_name = getattr(cls, "__name__", str(cls))
+        
+        # Validate critical middleware ordering
+        # Get names of already-added middleware by checking class names
+        added_middleware_names = set()
+        for cls_item, _ in self._middleware_stack:
+            name = getattr(cls_item, "__name__", str(cls_item))
+            added_middleware_names.add(name)
+        
+        # SessionMiddleware MUST come before CSRF and Messages
+        if middleware_name == "csrf" and "SessionMiddleware" not in added_middleware_names:
+            raise RuntimeError(
+                "❌ CRITICAL: CSRFMiddleware requires SessionMiddleware to be added first!\n\n"
+                "Solution: Call add_middleware('session') before add_middleware('csrf')\n\n"
+                "Why: CSRF tokens are stored in the session. Without SessionMiddleware,\n"
+                "     CSRF protection silently fails (major security hole!).\n\n"
+                "Recommended: See eden.middleware.MIDDLEWARE_EXECUTION_ORDER for guidance."
+            )
+        
+        if middleware_name == "MessageMiddleware" and "SessionMiddleware" not in added_middleware_names:
+            raise RuntimeError(
+                "❌ CRITICAL: MessageMiddleware requires SessionMiddleware to be added first!\n\n"
+                "Solution: Call add_middleware('session') before using MessageMiddleware\n\n"
+                "Why: Messages are stored in the session. Without SessionMiddleware,\n"
+                "     the messages feature is non-functional.\n\n"
+                "Recommended: See eden.middleware.MIDDLEWARE_EXECUTION_ORDER for guidance."
+            )
+        
         self._middleware_stack.append((cls, kwargs))
 
     def on_startup(self, func: Callable) -> Callable:

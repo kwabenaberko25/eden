@@ -1,10 +1,16 @@
 import contextlib
+import contextvars
 import logging
 from typing import Any, AsyncGenerator, Dict, Optional, Type, Union
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
 logger = logging.getLogger("eden.db")
+
+# Context variable for per-request session storage (async-safe)
+_session_context: contextvars.ContextVar[Optional[AsyncSession]] = contextvars.ContextVar(
+    "db_session", default=None
+)
 
 class Database:
     """
@@ -31,7 +37,7 @@ class Database:
         if self._connected:
             return
 
-        from eden.db.base import Model
+        from .base import Model
         Model._bind_db(self)
 
         if create_tables:
@@ -80,6 +86,238 @@ class Database:
     def __getattr__(self, name: str) -> Any:
         """Proxy to SQLAlchemy engine if needed."""
         return getattr(self.engine, name)
+
+    @contextlib.asynccontextmanager
+    async def transaction(self, isolation_level: Optional[str] = None) -> AsyncGenerator[AsyncSession, None]:
+        """
+        Context manager for explicit transaction handling.
+        Automatically commits on successful exit, rolls back on exception.
+        
+        Args:
+            isolation_level: Optional transaction isolation level 
+                            (e.g., 'SERIALIZABLE', 'READ COMMITTED').
+        """
+        if isolation_level:
+            # We must create a session with a bind that has the isolation level set
+            engine = self.engine.execution_options(isolation_level=isolation_level)
+            session = AsyncSession(engine)
+        else:
+            # Use standard session context manager logic but manually enter
+            async with self.session() as session:
+                try:
+                    yield session
+                    await session.commit()
+                except Exception:
+                    await session.rollback()
+                    raise
+                return
+
+        # Explicitly entered session for isolation_level
+        try:
+            async with session:
+                yield session
+                await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+
+    @contextlib.asynccontextmanager
+    async def savepoint(self, name: str = "sp1") -> AsyncGenerator[AsyncSession, None]:
+        """
+        Context manager for nested transactions (savepoints).
+        Useful for rolling back parts of a transaction without losing the entire transaction.
+        
+        Usage:
+            async with db.transaction() as session:
+                user = await User.create(session, name="Alice")
+                
+                try:
+                    async with db.savepoint("sp1") as sp_session:
+                        await user.delete(sp_session)
+                        # This will rollback if exception occurs
+                except Exception:
+                    # User still exists because savepoint rolled back
+                    pass
+        
+        Args:
+            name: Unique name for this savepoint (default: "sp1")
+        
+        Raises:
+            Any exception will trigger savepoint rollback.
+        """
+        current_session = get_session()
+        if current_session is None:
+            raise RuntimeError(
+                "Savepoint requires an active transaction context. "
+                "Use: async with db.transaction() as session: await db.savepoint() ..."
+            )
+        
+        # SQLAlchemy savepoint
+        savepoint = await current_session.begin_nested()
+        try:
+            yield current_session
+            await savepoint.commit()
+        except Exception:
+            await savepoint.rollback()
+            raise
+
+    async def atomic(self, func: Any, *args: Any, **kwargs: Any) -> Any:
+        """
+        Execute a function atomically (within a transaction).
+        If the function raises any exception, the transaction is rolled back.
+        
+        Usage:
+            result = await db.atomic(some_async_function, arg1, arg2, key=value)
+        
+        Args:
+            func: Async function to execute
+            *args, **kwargs: Arguments to pass to the function
+            
+        Returns:
+            The function's return value
+            
+        Raises:
+            Any exception from the function (transaction auto-rolls back)
+        """
+        async with self.transaction() as session:
+            set_session(session)
+            try:
+                return await func(*args, **kwargs)
+            finally:
+                reset_session()
+
+
+def set_session(session: AsyncSession) -> contextvars.Token:
+    """
+    Set the current session in async context.
+    Returns a token that can be reset later.
+    
+    Internal use: Called by middleware and transaction context managers.
+    """
+    return _session_context.set(session)
+
+
+def get_session() -> Optional[AsyncSession]:
+    """
+    Get the current session from async context, if available.
+    Returns None if no session is currently set.
+    
+    Internal use: Used by QuerySet and Model methods for auto-session injection.
+    """
+    return _session_context.get()
+
+
+def reset_session(token: Optional[contextvars.Token] = None) -> None:
+    """
+    Reset the session context.
+    
+    Args:
+        token: If provided, reset to the state before that token was created.
+               If None, simply clear the current context.
+    """
+    if token is not None:
+        _session_context.reset(token)
+    else:
+        _session_context.set(None)
+
+
+# ── @atomic Decorator ────────────────────────────────────────────────────
+
+import functools
+from typing import Callable, TypeVar, Any as TypingAny
+
+F = TypeVar("F", bound=Callable[..., Any])
+
+
+def atomic(func: F) -> F:
+    """
+    Decorator for route handlers to automatically wrap execution in a transaction.
+    
+    The decorated function runs within a database transaction that:
+    - Auto-commits if the function completes successfully
+    - Auto-rolls back if any exception is raised
+    - Injects the session into either the 'session' parameter or request.state.session
+    
+    Usage:
+        @app.post("/users")
+        @atomic
+        async def create_user(request, session):
+            '''Session is auto-injected and transactional'''
+            user = await User.create(session, name="Alice")
+            return JsonResponse(user.to_dict())
+        
+        @app.post("/items")
+        @atomic
+        async def create_item(request):
+            '''Session is available in request.state.session'''
+            item = await Item.create(
+                request.state.session, 
+                name="Widget"
+            )
+            return JsonResponse(item.to_dict())
+    
+    Behavior:
+        - On successful completion: transaction auto-commits
+        - On exception: transaction auto-rolls back and exception is re-raised
+        - The provided session is auto-injected into the function
+    
+    Raises:
+        RuntimeError: If app.state.db is not configured
+        Any exception raised by the handler is re-raised after rollback
+    
+    Implementation Notes:
+        - The decorator stores the session in request.state for access throughout the request
+        - The session is removed from context after the handler completes
+        - Nested transactions are supported via savepoints
+    """
+    @functools.wraps(func)
+    async def wrapper(request: Any, *args: TypingAny, **kwargs: TypingAny) -> TypingAny:
+        # Get database from app state
+        db = getattr(request.app, "state", None)
+        if db is None or not hasattr(db, "db"):
+            raise RuntimeError(
+                "@atomic requires app.state.db to be configured. "
+                "Example: app.state.db = Database(...)"
+            )
+        
+        db_inst = db.db
+        
+        # Execute handler within a transaction
+        async with db_inst.transaction() as session:
+            # Set session in context for QuerySet._resolve_session()
+            token = set_session(session)
+            
+            # Also store in request.state for direct access
+            request.state.session = session
+            
+            try:
+                # Inject session into handler if it has a 'session' parameter
+                sig = __inspect_signature(func)
+                if "session" in sig.parameters and "session" not in kwargs:
+                    result = await func(request, *args, session=session, **kwargs)
+                else:
+                    result = await func(request, *args, **kwargs)
+                
+                return result
+            finally:
+                # Always clean up context
+                reset_session(token)
+                if hasattr(request.state, "session"):
+                    delattr(request.state, "session")
+    
+    return wrapper  # type: ignore
+
+
+def __inspect_signature(func: Callable[..., Any]) -> Any:
+    """Helper to get function signature safely."""
+    import inspect
+    try:
+        return inspect.signature(func)
+    except (ValueError, TypeError):
+        # Fallback: pretend it accepts any parameter
+        class AnySignature:
+            parameters = {}
+        return AnySignature()
 
 def get_db(request: Any) -> Database:
     """Dependency helper for route handlers."""

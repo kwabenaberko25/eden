@@ -1,6 +1,6 @@
 import pytest
 from typing import Any
-from eden.orm import Model, f, Database, inspect, Mapped
+from eden.db import Model, f, Database, inspect, Mapped
 
 class Person(Model):
     __tablename__ = "people"

@@ -64,15 +64,25 @@ class Eden:
         debug: bool = False,
         description: str = "",
         secret_key: str = "",
+        config: Optional[Any] = None,
     ) -> None:
         from eden.context import set_app
         set_app(self)
 
-        self.title = title
-        self.version = version
+        # Load configuration if not provided
+        if config is None:
+            from eden.config import get_config
+            config = get_config()
+        
+        self.config = config
+        
+        # Configure from Config object if provided, else use explicit params
+        self.title = title or config.title
+        self.version = version or config.version
         self.description = description
-        self.secret_key = secret_key
-        self.debug = debug
+        self.secret_key = secret_key or config.secret_key
+        self.debug = debug if debug else config.debug
+        
         self.browser_reload = os.getenv("EDEN_BROWSER_RELOAD", "true").lower() == "true"
         self.template_dir = "templates"
         self.media_dir = "media"
@@ -89,6 +99,7 @@ class Eden:
         # Task Queue
         self._raw_broker = create_broker()
         self._eden_broker = EdenBroker(self._raw_broker)
+        self._eden_broker.app = self
         self.broker = self._eden_broker
 
         # Templating
@@ -424,16 +435,55 @@ class Eden:
             middleware: Either a middleware class or a string shorthand
                         ("cors", "gzip", "session", "csrf").
             **kwargs: Configuration for the middleware.
+        
+        Raises:
+            RuntimeError: If middleware ordering violates critical dependencies.
+        
+        CRITICAL ORDERING RULES:
+            ⚠️  SessionMiddleware MUST be added before CSRFMiddleware
+            ⚠️  SessionMiddleware MUST be added before MessageMiddleware
+            
+        See: eden.middleware.MIDDLEWARE_EXECUTION_ORDER for full documentation
         """
 
         if isinstance(middleware, str):
             cls = get_middleware_class(middleware)
+            middleware_name = middleware
         elif not inspect.isclass(middleware) and callable(middleware):
             from eden.middleware import EdenFunctionMiddleware
             cls = EdenFunctionMiddleware
             kwargs = {"handler": middleware, **kwargs}
+            middleware_name = getattr(middleware, "__name__", "function_middleware")
         else:
             cls = middleware
+            middleware_name = getattr(cls, "__name__", str(cls))
+        
+        # Validate critical middleware ordering
+        # Get names of already-added middleware by checking class names
+        added_middleware_names = set()
+        for cls_item, _ in self._middleware_stack:
+            name = getattr(cls_item, "__name__", str(cls_item))
+            added_middleware_names.add(name)
+        
+        # SessionMiddleware MUST come before CSRF and Messages
+        if middleware_name == "csrf" and "SessionMiddleware" not in added_middleware_names:
+            raise RuntimeError(
+                "❌ CRITICAL: CSRFMiddleware requires SessionMiddleware to be added first!\n\n"
+                "Solution: Call add_middleware('session') before add_middleware('csrf')\n\n"
+                "Why: CSRF tokens are stored in the session. Without SessionMiddleware,\n"
+                "     CSRF protection silently fails (major security hole!).\n\n"
+                "Recommended: Use app.setup_defaults() for quick-start setup."
+            )
+        
+        if middleware_name == "MessageMiddleware" and "SessionMiddleware" not in added_middleware_names:
+            raise RuntimeError(
+                "❌ CRITICAL: MessageMiddleware requires SessionMiddleware to be added first!\n\n"
+                "Solution: Call add_middleware('session') before using MessageMiddleware\n\n"
+                "Why: Messages are stored in the session. Without SessionMiddleware,\n"
+                "     the messages feature is non-functional.\n\n"
+                "Recommended: Use app.setup_defaults() for quick-start setup."
+            )
+        
         self._middleware_stack.append((cls, kwargs))
 
     def setup_defaults(self) -> None:
@@ -468,6 +518,39 @@ class Eden:
         self.add_middleware("gzip")            # Response compression
         self.add_middleware("cors", allow_origins=["*"])  # Allow all origins (configure as needed)
 
+    def setup_tasks(self) -> None:
+        """
+        Register task broker lifecycle hooks with the app.
+        
+        This method is optional — the task broker is automatically started/stopped
+        with the app's lifespan. Call this only if you need to configure task-specific
+        options beyond defaults.
+        
+        The broker already comes configured with:
+        - InMemoryBroker for development (automatically switched to Redis in production)
+        - Exponential backoff retry (1s, 2s, 4s, 8s, 16s)
+        - Task result storage (7-day TTL by default)
+        - Dead-letter queue for permanently failed tasks
+        - Automatic periodic task startup/shutdown
+        
+        Example::
+        
+            app = Eden()
+            app.setup_tasks()  # Optional; not required
+            
+            @app.task()
+            async def send_email(to: str):
+                pass
+            
+            @app.task.every(minutes=5)
+            async def refresh_cache():
+                pass
+            
+            await send_email.kiq(to="user@example.com")
+        """
+        from eden.tasks.lifecycle import setup_task_broker
+        setup_task_broker(self)
+
     # ── Lifespan Hooks ───────────────────────────────────────────────────
 
     def on_startup(self, func: Callable) -> Callable:
@@ -490,6 +573,53 @@ class Eden:
             return func
 
         return decorator
+
+    def register_error_handler(self, handler) -> None:
+        """
+        Register a global error handler (Layer 5-6: Plugin system).
+        
+        Error handlers are dispatched by ErrorHandlerMiddleware in order of registration.
+        First matching handler (where matches() returns True) processes the exception.
+        
+        Args:
+            handler: ErrorHandler instance with matches() and handle() methods
+        
+        Raises:
+            ValueError: If handler doesn't implement the ErrorHandler interface
+        
+        Example:
+            from eden.error_middleware import ErrorHandler
+            
+            class DatabaseErrorHandler(ErrorHandler):
+                def matches(self, exc: Exception) -> bool:
+                    return "database" in str(type(exc)).lower()
+                
+                async def handle(self, exc: Exception, request, app):
+                    logger.error(f"Database error: {exc}")
+                    return JsonResponse(
+                        {"error": "Database error. Please try again."},
+                        status_code=500
+                    )
+            
+            app.register_error_handler(DatabaseErrorHandler())
+        
+        Implementation Notes:
+            - Handlers should have matches(exc) → bool and handle(exc, request, app) → Response
+            - Handlers are checked in registration order (FIFO)
+            - First matching handler is used
+            - Can chain handlers by having one re-raise the exception
+        """
+        from eden.exceptions import error_handler_registry, ErrorHandler
+        
+        # Validate handler interface
+        if not isinstance(handler, ErrorHandler):
+            raise ValueError(
+                f"Error handler must be an instance of ErrorHandler, got {type(handler)}"
+            )
+        
+        # Register with global registry
+        error_handler_registry.register(handler)
+
 
     # ── ASGI Interface ───────────────────────────────────────────────────
 
@@ -526,7 +656,7 @@ class Eden:
             # Add Real-time Sync WebSocket route
             from starlette.routing import WebSocketRoute as StarletteWebSocketRoute
             from starlette.websockets import WebSocket
-            from eden.realtime import manager
+            from eden.websocket import connection_manager as manager
 
             async def sync_websocket(websocket: WebSocket) -> None:
                 await manager.connect(websocket)
@@ -562,7 +692,7 @@ class Eden:
         # Auto-configure database if state.database_url is set
         db_url = getattr(self.state, "database_url", None)
         if db_url:
-            from eden.orm import Model, init_db
+            from eden.db import Model, init_db
             # Check if already bound to avoid double init
             if not hasattr(Model, "_db") or Model._db is None:
                 db = init_db(db_url, self)
@@ -581,9 +711,21 @@ class Eden:
             self.cache = RedisCache(url=redis_url)
             self.cache.mount(self)
 
-        # Always include RequestContextMiddleware as the outermost middleware
+        # Add middleware in correct order (outermost first):
+        # 1. ContextMiddleware (OUTERMOST: initializes request context, cleanup, etc.)
+        # 2. RequestContextMiddleware (makes request accessible to all downstreams)
+        # 3. ErrorHandlerMiddleware (catches exceptions from route handlers)
+        from eden.context_middleware import ContextMiddleware
+        middleware.insert(0, Middleware(ContextMiddleware))
+
+        # Always include RequestContextMiddleware as the outermost after ContextMiddleware
         # to ensure get_request() works in all other middlewares, views, and templates.
-        middleware.insert(0, Middleware(get_middleware_class("request")))
+        middleware.insert(1, Middleware(get_middleware_class("request")))
+
+        # Add ErrorHandlerMiddleware early to catch exceptions from all subsequent handlers
+        # This must come after ContextMiddleware and RequestContextMiddleware
+        from eden.error_middleware import ErrorHandlerMiddleware
+        middleware.insert(2, Middleware(ErrorHandlerMiddleware))
 
         # Add Browser Reload middleware as the INNERMOST layer (after GZip, etc.)
         # so it sees the raw HTML before it gets compressed.

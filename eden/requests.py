@@ -20,6 +20,20 @@ class Request(StarletteRequest):
     operations like reading JSON, form data, and uploaded files.
     """
     @property
+    def user(self) -> Any:
+        """
+        Return the authenticated user, or None if not authenticated.
+        """
+        return self.scope.get("user")
+
+    @user.setter
+    def user(self, value: Any) -> None:
+        """
+        Set the authenticated user in the request scope.
+        """
+        self.scope["user"] = value
+
+    @property
     def app(self) -> Any:
         """
         Return the Eden application instance.

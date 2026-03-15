@@ -2,10 +2,12 @@ import re
 import uuid
 import asyncio
 import pydantic
+import weakref
 import contextlib
 from typing import Any, ClassVar, Dict, List, Optional, Type, TypeVar, Union, get_type_hints
 from datetime import datetime
-from eden.db.access import AccessControl
+from .access import AccessControl
+from .validation import ValidatorMixin
 
 T = TypeVar("T", bound="Model")
 from sqlalchemy import (
@@ -36,6 +38,7 @@ from sqlalchemy.orm import (
     joinedload,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
+Session = AsyncSession
 
 # Internal sentinel for missing values
 _MISSING = object()
@@ -47,21 +50,34 @@ def _camel_to_snake(name: str) -> str:
     return re.sub("([a-z0-9])([A-Z])", r"\1_\2", name).lower()
 
 
+def slugify(text: str) -> str:
+    """Convert text to URL-friendly slug."""
+    text = text.lower()
+    text = re.sub(r'[^a-z0-9\s-]', '', text)
+    text = re.sub(r'[\s-]+', '-', text).strip('-')
+    return text
+
+
 def _resolve_table_name(target_name: str) -> str:
     """Safely resolve table name for a target class name, respecting custom __tablename__."""
     try:
-        # Check if target_name refers to a class already in the registry
+        # 1. Check if target_name refers to a class already in the registry
         reg = Base.registry._class_registry
         if target_name in reg:
             target_cls = reg[target_name]
-            # reg can contain strings or the actual class
             if hasattr(target_cls, "__tablename__"):
                 return target_cls.__tablename__
-            elif hasattr(target_cls, "name"):  # it might be a descriptor/etc.
-                pass
-    except (KeyError, AttributeError):
-        # KeyError: target not in registry, AttributeError: malformed registry
-        # Fallback to convention-based naming below
+            
+        # 2. Search known Model subclasses if not in registry yet 
+        # (common during early import phase or discovery)
+        for sub in Model.__subclasses__():
+            if sub.__name__ == target_name:
+                if hasattr(sub, "__tablename__"):
+                    return sub.__tablename__
+                break
+                
+    except (KeyError, AttributeError, NameError):
+        # NameError might occur if Model is not yet defined
         pass
 
     # Fallback to Eden convention: CamelCase -> camel_cases
@@ -82,7 +98,7 @@ class Base(DeclarativeBase):
 
 
 
-class Model(Base, AccessControl):
+class Model(Base, AccessControl, ValidatorMixin):
     """
     Base model for all Eden database models.
     Combines SQLAlchemy Declarative with Pydantic-like serialization and RLS.
@@ -92,13 +108,46 @@ class Model(Base, AccessControl):
     __allow_unmapped__ = True
     __reactive__: bool = False
 
+    # Default RBAC rules (allow all by default, override in subclasses)
+    from .access import AllowPublic
+    __rbac__ = {
+        "read": AllowPublic(),
+        "create": AllowPublic(),
+        "update": AllowPublic(),
+        "delete": AllowPublic(),
+    }
+
     # Track models for deferred relationship inference
     __pending_relationships__: List[Type["Model"]] = []
     __pending_m2m__: List[Dict[str, Any]] = []
     __m2m_registry__: Dict[str, Any] = {}
 
+    # WeakKeyDictionary for relationship caching to prevent memory leaks
+    _relationship_cache: ClassVar[weakref.WeakKeyDictionary] = weakref.WeakKeyDictionary()
+
     # Bound database instance
     _db: ClassVar[Optional[Any]] = None
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        """
+        Called when a subclass of Model is created.
+        Automatically infers relationships from type hints to enable fluent ORM API.
+        
+        This ensures that relationships defined in a subclass are discovered and registered
+        immediately when the class is defined, before any instances are created or queries run.
+        """
+        super().__init_subclass__(**kwargs)
+        
+        # Immediately infer relationships when subclass is defined
+        # unless it's abstract (which shouldn't have concrete relationships)
+        if not getattr(cls, "__abstract__", False):
+            try:
+                cls._infer_relationships_immediate()
+            except Exception:
+                # Log but don't fail class definition if inference has issues
+                import logging
+                logger = logging.getLogger("eden.db.base")
+                logger.debug(f"Relationship inference skipped for {cls.__name__}", exc_info=True)
 
     # Standard primary key for all models
     id: Mapped[uuid.UUID] = mapped_column(
@@ -179,6 +228,10 @@ class Model(Base, AccessControl):
                     pass
 
             # Extract name and check for basic types properly
+            # Handle <class '...'> representations
+            if "<class '" in content:
+                content = content.split("<class '", 1)[1].split("'", 1)[0]
+
             match = re.search(r"['\"](\w+)['\"]", content)
             if match:
                 target_name = match.group(1)
@@ -190,7 +243,7 @@ class Model(Base, AccessControl):
                     target_name = target_name.split("[")[-1].split("]")[0]
                 if "." in target_name:
                     target_name = target_name.split(".")[-1]
-                target_name = target_name.strip("'\" ")
+                target_name = target_name.strip("'\" >")
 
             # Skip basic types and lowercase names
             basic_types = (
@@ -199,12 +252,15 @@ class Model(Base, AccessControl):
                 "float",
                 "bool",
                 "uuid.UUID",
+                "UUID",
                 "datetime",
                 "dict",
                 "list",
                 "Any",
                 "None",
                 "uuid",
+                "Decimal",
+                "decimal",
             )
             if (
                 not target_name
@@ -214,6 +270,11 @@ class Model(Base, AccessControl):
                 continue
 
             if not target_name or not target_name[0].isupper() or "." in target_name:
+                continue
+
+            # Verify it's likely a model (starts with uppercase)
+            # and is not in basic types
+            if any(bt.lower() == target_name.lower() for bt in basic_types):
                 continue
 
             inferred_names.append(name)
@@ -369,12 +430,36 @@ class Model(Base, AccessControl):
                 if name in cls.__annotations__:
                     del cls.__annotations__[name]
 
+            # Discover validation rules BEFORE SQLAlchemy consumes the mapped_column objects
+            discovered_rules = []
+            for name, attr in cls.__dict__.items():
+                info = None
+                if hasattr(attr, "info"):
+                    info = attr.info
+                elif hasattr(attr, "column") and hasattr(attr.column, "info"):
+                    info = attr.column.info
+                
+                if info:
+                    if "max" in info:
+                        discovered_rules.append((cls.max_length, name, info["max"]))
+                    if "min" in info:
+                        discovered_rules.append((cls.min_length, name, info["min"]))
+                    if "required" in info and info["required"]:
+                        discovered_rules.append((cls.required, name, None))
+
             try:
                 super().__init_subclass__(**kwargs)
             finally:
                 # Restore original annotations for Pydantic/Forms
                 cls.__annotations__.clear()
                 cls.__annotations__.update(original_annotations)
+
+            # Apply discovered rules AFTER super() has initialized _validation_rules
+            for meth, name, val in discovered_rules:
+                if val is not None:
+                    meth(name, val)
+                else:
+                    meth(name)
         else:
             super().__init_subclass__(**kwargs)
 
@@ -522,9 +607,6 @@ class Model(Base, AccessControl):
 
     # ── Database Binding (auto-session support) ───────────────────────────
 
-    # We use Type[Database] | None to avoid circular imports during type checking
-    _db: ClassVar[Any | None] = None  # Bound Database instance
-
     @classmethod
     def _bind_db(cls, db: Any) -> None:
         """Bind a Database instance so models can auto-acquire sessions."""
@@ -539,7 +621,7 @@ class Model(Base, AccessControl):
 
     @classmethod
     @contextlib.asynccontextmanager
-    async def _get_session(cls):
+    async def _provide_session(cls):
         """
         Standard method to get a session, using the bound DB if available.
         Synchronizes with the current request context if active (B1).
@@ -547,10 +629,16 @@ class Model(Base, AccessControl):
         from eden.context import get_request
         from sqlalchemy.ext.asyncio import AsyncSession
 
+        # Check for context session first (async-safe contextvar)
+        from eden.db.session import get_session
+        context_session = get_session()
+        if context_session:
+            yield context_session
+            return
+
         request = get_request()
         if request:
             # Check if there is an active session already attached to the request state
-            # We look for 'db_session' first, then 'db'
             session = getattr(request.state, "db_session", None) or getattr(
                 request.state, "db", None
             )
@@ -565,6 +653,9 @@ class Model(Base, AccessControl):
 
         async with cls._db.session() as session:
             yield session
+
+    # Alias for backward compatibility
+    _get_session = _provide_session
 
     # ── CRUD Operations ───────────────────────────────────────────────────
 
@@ -598,6 +689,14 @@ class Model(Base, AccessControl):
         from .query import QuerySet
 
         return QuerySet(cls, session=session)
+
+    @classmethod
+    def accessible_by(cls, user: Any, action: str = "read", session: Optional[Any] = None) -> "QuerySet":
+        """
+        Returns a QuerySet pre-filtered for the given user and action.
+        This provides a secure entry point for all model queries.
+        """
+        return cls.query(session=session).for_user(user, action=action)
 
     @classmethod
     async def get(
@@ -756,8 +855,13 @@ class Model(Base, AccessControl):
         return await cls.filter(session=session, **kwargs).paginate(page, per_page)
 
     async def _call_hook(self, hook_name: str, session: Any) -> None:
-        if hasattr(self, hook_name) and callable(getattr(self, hook_name)):
-            await getattr(self, hook_name)(session)
+        """Call a lifecycle hook if it exists, supporting both sync and async implementations."""
+        hook = getattr(self, hook_name, None)
+        if hook and callable(hook):
+            import inspect
+            res = hook(session)
+            if inspect.isawaitable(res):
+                await res
 
     @classmethod
     async def create(cls, session: Optional[Any] = None, **kwargs) -> T:
@@ -878,7 +982,7 @@ class Model(Base, AccessControl):
                 await inst._call_hook("before_save", session)
 
                 if validate:
-                    inst.full_clean()
+                    await inst.full_clean()
 
                 session.add(inst)
 
@@ -892,13 +996,13 @@ class Model(Base, AccessControl):
             return actual_instances
 
         # No session provided, use context manager
-        async with cls._get_session() as sess:
+        async with cls._provide_session() as sess:
             for inst in actual_instances:
                 await inst._call_hook("before_create", sess)
                 await inst._call_hook("before_save", sess)
 
                 if validate:
-                    inst.full_clean()
+                    await inst.full_clean()
 
                 sess.add(inst)
 
@@ -910,6 +1014,101 @@ class Model(Base, AccessControl):
 
             await sess.commit()
             return actual_instances
+
+    @classmethod
+    async def bulk_update_mapping(
+        cls, mappings: list[dict[str, Any]], id_field: str = "id", session: Optional[Any] = None
+    ) -> int:
+        """
+        Efficiently update multiple records with different values in a single statement.
+        Uses SQL CASE statements for high-performance batch updates.
+
+        Args:
+            mappings: List of dicts with id and fields to update.
+            id_field: Name of the ID field (default: 'id').
+            session: Optional database session.
+
+        Example:
+            await User.bulk_update_mapping([
+                {"id": 1, "status": "active", "points": 100},
+                {"id": 2, "status": "inactive", "points": 0},
+            ])
+        """
+        if not mappings:
+            return 0
+
+        from sqlalchemy import case, update
+
+        # Extract all field names that appear in the mappings (excluding ID)
+        all_fields = {k for d in mappings for k in d.keys() if k != id_field}
+        if not all_fields:
+            return 0
+
+        id_col = getattr(cls, id_field)
+        ids = [m[id_field] for m in mappings]
+
+        set_values = {}
+        for field in all_fields:
+            whens = []
+            for m in mappings:
+                if field in m:
+                    whens.append((id_col == m[id_field], m[field]))
+
+            if whens:
+                # Build CASE WHEN id = 1 THEN 'val1' ... ELSE current_val END
+                set_values[field] = case(*whens, else_=getattr(cls, field))
+
+        stmt = update(cls).where(id_col.in_(ids)).values(set_values)
+
+        if session:
+            result = await session.execute(stmt)
+            return result.rowcount
+
+        async with cls._provide_session() as sess:
+            result = await sess.execute(stmt)
+            await sess.commit()
+            return result.rowcount
+
+    @classmethod
+    async def checkpoint(cls, session: Optional[Any] = None) -> Any:
+        """
+        Start a nested transaction (SAVEPOINT).
+        Returns a transaction object that acts as a context manager.
+        """
+        if session:
+            return await session.begin_nested()
+
+        # Savepoints require an explicit session context to be useful
+        raise ValueError("checkpoint() requires an explicit session.")
+
+    @classmethod
+    async def rollback_to(self, savepoint: Any) -> None:
+        """Rollback to a specific savepoint."""
+        await savepoint.rollback()
+
+    @classmethod
+    def raw(cls, sql: str, params: Optional[List[Any]] = None) -> Any:
+        """
+        Execute raw SQL and map results to model instances.
+        Example: users = await User.raw("SELECT * FROM users WHERE active = $1", [True])
+        """
+        from .raw_sql import RawQuery
+        
+        async def _execute():
+            results = await RawQuery.execute(sql, params)
+            if not results: return []
+            
+            instances = []
+            for row in results:
+                instance = cls()
+                # Populate instance with row data
+                for field in cls.__table__.columns.keys():
+                    if field in row:
+                        setattr(instance, field, row[field])
+                instances.append(instance)
+            return instances
+            
+        return _execute()
 
     async def save(self, session: Optional[Any] = None, validate: bool = True) -> None:
         """
@@ -928,6 +1127,23 @@ class Model(Base, AccessControl):
         except Exception:
             is_new = True
 
+        # Phase C.1: Change detection for Audit Log
+        changes = {}
+        if not is_new:
+            from sqlalchemy import inspect as sa_inspect
+            from sqlalchemy.orm import attributes
+            try:
+                insp = sa_inspect(self)
+                for attr in insp.attrs:
+                    history = attributes.get_history(self, attr.key)
+                    if history.has_changes():
+                        changes[attr.key] = {
+                            "old": self._make_json_safe(history.deleted[0]) if history.deleted else None,
+                            "new": self._make_json_safe(history.added[0]) if history.added else None
+                        }
+            except Exception:
+                pass
+
         # Detect and flag JSON fields as modified to ensure they are saved
         # even if only nested values changed.
         if not is_new:
@@ -942,15 +1158,28 @@ class Model(Base, AccessControl):
                     # or just flag it for safety in Eden.
                     flag_modified(self, column.key)
 
+        # Handle Auto-Slugging
+        await self._auto_slugify()
+
         if session:
             # Lifecycle hooks - Phase 1: Before
             if is_new:
                 await self._call_hook("before_create", session)
             await self._call_hook("before_save", session)
+            
+            # Eden Validation Hooks & Rules (Discovery Phase 4)
+            await self._trigger_hooks(self._pre_save_hooks)
 
             # Validation occurs AFTER 'before' hooks so they can populate required fields (e.g. tenant_id)
             if validate:
-                self.full_clean()
+                errors = await self.validate()
+                if errors:
+                    from .validation import ValidationError as DBValidationError
+                    from eden.exceptions import ValidationError
+                    formatted_errors = [{"loc": [err.field or "__all__"], "msg": err.message, "type": "validation"} for err in errors]
+                    raise ValidationError(detail="Model validation failed", errors=formatted_errors)
+            
+            is_new = self.id is None or not await session.get(self.__class__, self.id)
 
             # Sync to DB
             session.add(self)
@@ -960,20 +1189,32 @@ class Model(Base, AccessControl):
             if is_new:
                 await self._call_hook("after_create", session)
             await self._call_hook("after_save", session)
+            await self._trigger_hooks(self._post_save_hooks)
 
             # Refresh to ensure database-generated fields are loaded
             await session.refresh(self)
+
+            # Audit Trail Integration (Option C.1)
+            await self._log_audit(is_new, self._make_json_safe(changes) if not is_new else None)
             return
 
         # No session provided, use context manager
-        async with self._get_session() as sess:
+        async with self._provide_session() as sess:
             # Lifecycle hooks - Phase 1: Before
             if is_new:
                 await self._call_hook("before_create", sess)
             await self._call_hook("before_save", sess)
+            
+            # Eden Validation Hooks & Rules (Discovery Phase 4)
+            await self._trigger_hooks(self._pre_save_hooks)
 
             if validate:
-                self.full_clean()
+                errors = await self.validate()
+                if errors:
+                    from .validation import ValidationError as DBValidationError
+                    from eden.exceptions import ValidationError
+                    formatted_errors = [{"loc": [err.field or "__all__"], "msg": err.message, "type": "validation"} for err in errors]
+                    raise ValidationError(detail="Model validation failed", errors=formatted_errors)
 
             sess.add(self)
             await sess.flush()
@@ -982,11 +1223,31 @@ class Model(Base, AccessControl):
             if is_new:
                 await self._call_hook("after_create", sess)
             await self._call_hook("after_save", sess)
+            await self._trigger_hooks(self._post_save_hooks)
 
             await sess.commit()
             await sess.refresh(self)
 
-    def full_clean(self) -> None:
+        # Audit Trail Integration (Option C.1)
+        # Call OUTSIDE the session block to ensure Project is committed and visible
+        await self._log_audit(is_new, self._make_json_safe(changes) if not is_new else None)
+
+    async def _auto_slugify(self) -> None:
+        """Automatically generate slugs for fields marked as SlugField with populate_from."""
+        from sqlalchemy import inspect as sa_inspect
+        
+        mapper = sa_inspect(self.__class__)
+        for column in mapper.columns:
+            if "populate_from" in column.info:
+                current_val = getattr(self, column.key, None)
+                # Only generate if current value is empty or hasn't been set
+                if not current_val:
+                    source_field = column.info["populate_from"]
+                    source_val = getattr(self, source_field, None)
+                    if source_val:
+                        setattr(self, column.key, slugify(str(source_val)))
+
+    async def full_clean(self) -> None:
         """
         Run comprehensive validation including Pydantic rules and custom hooks.
         Raises ValidationError on failure.
@@ -994,15 +1255,12 @@ class Model(Base, AccessControl):
         # 1. Internal Pydantic declarative cleaning
         self.clean()
 
-        # 2. Custom logical cleaning (can be overridden)
-        self.validate()
-
-    def validate(self) -> None:
-        """
-        Custom validation hook. Override this in your model to add
-        complex logical validation. Raise eden.exceptions.ValidationError on failure.
-        """
-        pass
+        # 2. Custom logical cleaning (via ValidatorMixin)
+        errors = await self.validate()
+        if errors:
+            from eden.exceptions import ValidationError
+            formatted_errors = [{"loc": [err.field or "__all__"], "msg": err.message, "type": "validation"} for err in errors]
+            raise ValidationError(detail="Model validation failed", errors=formatted_errors)
 
     async def update(self, session: Optional[Any] = None, **kwargs) -> None:
         """Update instance attributes and save."""
@@ -1031,13 +1289,34 @@ class Model(Base, AccessControl):
         await self.save(session)
 
     async def delete(self, session: Optional[Any] = None, hard: bool = False) -> None:
-        """Delete the current record."""
+        """
+        Delete the current record.
+        
+        Automatically triggers file cleanup for linked files (Layer 2).
+        If model has file references (via FileReference model), associated files
+        are deleted from S3/Supabase/Local storage before the model instance is deleted.
+        """
+        # Trigger automatic file cleanup (Layer 2: Auto-cleanup on File Deletion)
+        try:
+            # Import here to avoid circular imports
+            from eden.db.file_reference import FileReference
+            await FileReference.cleanup_by_model(self.__class__, self.id)
+        except Exception as exc:
+            import logging
+            logger = logging.getLogger("eden.db.base")
+            logger.warning(f"File cleanup failed for {self.__class__.__name__}({self.id}): {exc}")
+            # Continue with deletion even if file cleanup fails
+        
         # Handle SoftDeleteMixin
         if hasattr(self, "deleted_at") and not hard:
             from datetime import datetime
 
             self.deleted_at = datetime.utcnow()
             await self.save(session)
+            return
+
+        if not hard:
+            await self.hard_delete(session=session)
             return
 
         if session:
@@ -1052,7 +1331,72 @@ class Model(Base, AccessControl):
         async with self._db.session() as sess:
             await self._call_hook("before_delete", sess)
             await sess.delete(self)
+            await sess.flush()
             await sess.commit()
+
+    async def hard_delete(self, session: Optional[Any] = None) -> None:
+        """Permanently delete the record, bypassing soft delete (Layer 2)."""
+        await self.delete(session=session, hard=True)
+
+    async def _log_audit(self, is_new: bool, changes: dict | None = None) -> None:
+        """Helper to record audit trail of changes."""
+        # Avoid circular imports at module level
+        try:
+            from eden.admin.models import AuditLog
+            from eden.context import get_user
+        except Exception as e:
+            return
+        
+        # Avoid auditing AuditLog itself (infinite loop)
+        if isinstance(self, AuditLog):
+            return
+
+        try:
+            user = get_user()
+            user_id = str(getattr(user, "id", user)) if user else None
+            action = "create" if is_new else "update"
+            
+            # For creation, if changes not provided, we can build a snapshot
+            if is_new and not changes:
+                changes = {}
+                from sqlalchemy import inspect as sa_inspect
+                insp = sa_inspect(self)
+                for attr in insp.attrs:
+                    val = getattr(self, attr.key)
+                    if val is not None:
+                        changes[attr.key] = {"old": None, "new": self._make_json_safe(val)}
+
+            await AuditLog.log(
+                user_id=user_id,
+                action=action,
+                model=self.__class__,
+                record_id=str(self.id),
+                changes=changes
+            )
+        except Exception as e:
+            # Audit logging should never break the main transaction/save
+            import logging
+            logger = logging.getLogger("eden.db")
+            logger.warning(f"Audit logging failed for {self.__class__.__name__}: {e}")
+
+    def _make_json_safe(self, val: Any) -> Any:
+        """Helper to recursively convert non-JSON types (UUID, datetime) to primitives."""
+        import uuid
+        from datetime import datetime
+        
+        if isinstance(val, (str, int, float, bool, type(None))):
+            return val
+        if isinstance(val, uuid.UUID):
+            return str(val)
+        if isinstance(val, datetime):
+            return val.isoformat()
+        if isinstance(val, dict):
+            return {str(k): self._make_json_safe(v) for k, v in val.items()}
+        if isinstance(val, (list, tuple, set)):
+            return [self._make_json_safe(v) for v in val]
+        
+        # Fallback to string representation for complex objects
+        return str(val)
 
     def to_dict(self, **kwargs) -> Dict[str, Any]:
         """Convert model instance to dictionary (utility)."""
@@ -1234,13 +1578,13 @@ def _get_reactive_channels(target: Any) -> list[str]:
     return channels
 
 async def _async_broadcast(channels: list[str], event_type: str, data: dict):
-    """Bridge to the async RealTimeManager."""
-    from eden.realtime import manager
+    """Bridge to the unified ConnectionManager."""
+    from eden.websocket import connection_manager
     for channel in channels:
-        await manager.broadcast(channel, {
+        await connection_manager.broadcast({
             "event": event_type,
             "data": data
-        })
+        }, channel=channel)
 
 def _trigger_broadcast(mapper, connection, target, event_type: str):
     """Sync listener that triggers the async broadcast."""

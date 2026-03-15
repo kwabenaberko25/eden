@@ -13,7 +13,7 @@ import click
 
 @click.group()
 def generate() -> None:
-    """🌿 Eden Framework — The elite web framework for professionals."""
+    """Eden Generate — Code generation (model, form, resource)."""
     pass
 
 
@@ -55,7 +55,7 @@ class {class_name}(Model):
         if model_file.exists():
             click.echo(f"  ❌ Error: Model file '{model_file.name}' already exists.", err=True)
             return
-        full_content = f"from eden.orm import Model, f\n{content}"
+        full_content = f"from eden.db import Model, f\n{content}"
         model_file.write_text(full_content, encoding="utf-8")
         
         # Update app/models/__init__.py
@@ -76,7 +76,7 @@ class {class_name}(Model):
                 return
             model_file.write_text(existing + content, encoding="utf-8")
         else:
-            full_content = f"from eden.orm import Model, f\n{content}"
+            full_content = f"from eden.db import Model, f\n{content}"
             model_file.write_text(full_content, encoding="utf-8")
 
     click.echo(f"  ✨ {'Created' if layout=='package' else 'Updated'} model: {display_path}")
@@ -264,7 +264,7 @@ def entity(name: str) -> None:
     if layout == "package":
         model_file = models_dir / f"{snake_name}.py"
         if not model_file.exists():
-            model_content = f'''from eden.orm import Model, f
+            model_content = f'''from eden.db import Model, f
 
 class {class_name}(Model):
     """{class_name} model."""
@@ -392,7 +392,7 @@ def resource(name: str, tenant: bool) -> None:
     if layout == "package":
         model_file = models_dir / f"{snake_name}.py"
         if not model_file.exists():
-            model_content = f'''from eden.orm import Model, f
+            model_content = f'''from eden.db import Model, f
 
 class {class_name}(Model):
     """{class_name} model."""

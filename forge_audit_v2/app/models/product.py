@@ -1,5 +1,5 @@
 from typing import Mapped
-from eden.orm import EdenModel, StringField
+from eden.db import Model as EdenModel, StringField
 
 class Product(EdenModel):
     """

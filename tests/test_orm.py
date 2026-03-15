@@ -1,7 +1,7 @@
 import pytest
 import uuid
 from datetime import datetime
-from eden.orm import Model, f, Mapped, Uuid
+from eden.db import Model, f, Mapped, Uuid
 
 class Task(Model):
     title: str = f(max_length=100)

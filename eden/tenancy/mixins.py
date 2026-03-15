@@ -12,7 +12,7 @@ import uuid
 from sqlalchemy import ForeignKey, Uuid
 from sqlalchemy.orm import Mapped, mapped_column
 
-from eden.orm import f
+from eden.db import f
 
 
 class TenantMixin:
@@ -70,7 +70,7 @@ class TenantMixin:
 
             return stmt.where(false())
 
-        return stmt.where(cls.tenant_id == tenant_id)
+        return stmt.where(getattr(cls, "tenant_id") == tenant_id)
 
     async def before_create(self, session):
         """Auto-set tenant_id from context if not already set."""

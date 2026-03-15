@@ -19,23 +19,17 @@ def ratelimit_app() -> Eden:
 async def test_redis_ratelimit_burst(ratelimit_app: Eden):
     """Verify that RedisRateLimitMiddleware denies requests after the limit is reached."""
     
-    # 1. Mock RedisCache within the middleware
-    # Note: Middleware imports RedisCache inside _get_cache
-    with patch("eden.cache.redis.RedisCache") as mock_cache_cls:
-        mock_cache = mock_cache_cls.return_value
-        mock_cache.connect = AsyncMock()
+    # 1. Mock RedisRateLimitStore within the middleware
+    with patch("eden.middleware.rate_limit.RedisRateLimitStore") as mock_store_cls:
+        mock_store = mock_store_cls.return_value
         
-        # Simulate counter in Redis
+        # Simulate counter
         counters = {}
-        async def mock_incr(key):
+        async def mock_increment(key, ttl):
             counters[key] = counters.get(key, 0) + 1
             return counters[key]
         
-        mock_cache.incr = AsyncMock(side_effect=mock_incr)
-        mock_cache._client = MagicMock()
-        mock_cache._client.expire = AsyncMock()
-        mock_cache._client.ttl = AsyncMock(return_value=60)
-        mock_cache._key = lambda k: f"ratelimit:{k}"
+        mock_store.increment = AsyncMock(side_effect=mock_increment)
 
         transport = ASGITransport(app=ratelimit_app)
         async with AsyncClient(transport=transport, base_url="http://testserver") as client:

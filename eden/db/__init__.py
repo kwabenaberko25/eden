@@ -26,7 +26,6 @@ This is the recommended way to import database and ORM functionality:
 
 BACKWARD COMPATIBILITY:
     from eden import Model  # Still works, but imports from here internally
-    from eden.orm import Model  # Deprecated but works until v1.0.0
 
 KEY EXPORTS (230+ items total):
     - Model base class and ORM utilities (Mapped, relationship, etc.)
@@ -40,7 +39,8 @@ KEY EXPORTS (230+ items total):
     - AI/Vector support: VectorModel, VectorField for pgvector
 """
 
-from eden.db.base import Model
+from eden.db.base import Model, _MISSING
+from eden.db.file_reference import FileReference
 from eden.db.fields import (
     BoolField,
     DateTimeField,
@@ -51,8 +51,10 @@ from eden.db.fields import (
     Relationship,
     Reference,
     StringField,
+    SlugField,
     TextField,
     UUIDField,
+    JSONField,
     FileField,
     f,
 )
@@ -129,24 +131,79 @@ from sqlalchemy.orm import (
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from eden.db.aggregates import Sum, Avg, Count, Min, Max
-from eden.db.lookups import F, Q
+from eden.db.lookups import F, Q, parse_lookups
 from eden.db.mixins import SoftDeleteMixin
-from eden.db.pagination import Page
+from eden.db.pagination import Page, PaginationLinks
 from eden.db.query import QuerySet
-from eden.db.session import Database, get_db, init_db
+from eden.db.session import Database, get_db, init_db, get_session, set_session, reset_session
+from eden.db.session import atomic as _session_atomic
+from eden.db.transactions import atomic, read_only, serializable, transaction, savepoint
+from eden.db.cache import QueryCache, InMemoryCache, RedisCache, generate_cache_key
+from eden.db.slugs import SlugMixin, slugify, auto_slugify_field
 from eden.db.migrations import MigrationManager
 from eden.context import request, user
 from eden.db.ai import VectorModel, VectorField
+from eden.db.access import (
+    AccessControl,
+    PermissionRule,
+    AllowRoles,
+    AllowOwner,
+    AllowPublic,
+    AllowAuthenticated,
+)
+
+
+def get_models():
+    """Return all registered (non-abstract) Model subclasses."""
+    def _all_subclasses(cls):
+        result = []
+        for sub in cls.__subclasses__():
+            if not getattr(sub, '__abstract__', False):
+                result.append(sub)
+            result.extend(_all_subclasses(sub))
+        return result
+    return _all_subclasses(Model)
+
+
+def get_engine():
+    """Return the SQLAlchemy engine from the bound database, if available."""
+    db = getattr(Model, '_db', None)
+    if db is None:
+        raise RuntimeError("No database bound. Call db.connect() first.")
+    return db.engine
 
 
 __all__ = [
     "Model",
+    "_MISSING",
+    "FileReference",
     "Database",
     "get_db",
     "init_db",
+    # Session context & transactions
+    "get_session",
+    "set_session",
+    "reset_session",
+    "atomic",
+    "read_only",
+    "serializable",
+    "transaction",
+    "savepoint",
+    # Utilities
+    "get_models",
+    "get_engine",
+    # Access Control
+    "AccessControl",
+    "PermissionRule",
+    "AllowRoles",
+    "AllowOwner",
+    "AllowPublic",
+    "AllowAuthenticated",
+    # Lookups
     "Q",
     "F",
     "f",
+    "parse_lookups",
     "Sum",
     "Avg",
     "Count",
@@ -155,6 +212,7 @@ __all__ = [
     "Page",
     "SoftDeleteMixin",
     "StringField",
+    "SlugField",
     "IntField",
     "TextField",
     "BoolField",
@@ -165,6 +223,7 @@ __all__ = [
     "Relationship",
     "Reference",
     "ManyToManyField",
+    "JSONField",
     "FileField",
     "QuerySet",
     "MigrationManager",

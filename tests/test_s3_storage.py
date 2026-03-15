@@ -15,17 +15,19 @@ class TestS3StorageBackend:
 
     @pytest.fixture
     def mock_aioboto3(self):
-        with patch("aioboto3.Session") as mock_session:
-            # Setup session
-            session_instance = mock_session.return_value
-            
-            # Setup s3 client mock
-            client_mock = AsyncMock()
-            client_ctx = AsyncMock()
-            client_ctx.__aenter__.return_value = client_mock
-            
-            session_instance.client.return_value = client_ctx
-            
+        """Mock aioboto3 Session and Client."""
+        mock_aioboto3 = MagicMock()
+        session_instance = MagicMock()
+        
+        # Setup s3 client mock
+        client_mock = AsyncMock()
+        client_ctx = AsyncMock()
+        client_ctx.__aenter__.return_value = client_mock
+        
+        session_instance.client.return_value = client_ctx
+        mock_aioboto3.Session.return_value = session_instance
+        
+        with patch.dict("sys.modules", {"aioboto3": mock_aioboto3}):
             yield client_mock
 
     @pytest.mark.asyncio

@@ -9,8 +9,9 @@ from typing import Any
 
 from eden.exceptions import Forbidden, NotFound
 from eden.requests import Request
-from eden.responses import HtmlResponse, RedirectResponse
+from eden.responses import HtmlResponse, RedirectResponse, JsonResponse
 from eden.security.csrf import get_csrf_token
+from eden.admin.models import AuditLog
 
 
 async def _check_staff(request: Request) -> None:
@@ -52,7 +53,7 @@ async def admin_list_view(
     await _check_staff(request)
 
     session = getattr(request.state, "db", None)
-    from eden.orm import _MISSING
+    from eden.db import _MISSING
     qs = model.query(session or _MISSING)
 
     page = int(request.query_params.get("page", 1))
@@ -61,7 +62,7 @@ async def admin_list_view(
 
     # Search
     if search and model_admin.search_fields:
-        from eden.orm import Q
+        from eden.db import Q
         conditions = []
         for field_name in model_admin.search_fields:
             conditions.append(Q(**{f"{field_name}__icontains": search}))
@@ -101,27 +102,44 @@ async def admin_list_view(
 async def admin_detail_view(
     request: Request, model: type, model_admin: Any, record_id: str
 ) -> HtmlResponse:
-    """Detail view for a single record."""
+    """Detail view for a single record with rich field rendering."""
     await _check_staff(request)
 
     session = getattr(request.state, "db", None)
-    from eden.orm import _MISSING
+    from eden.db import _MISSING
     record = await model.get(session or _MISSING, record_id)
     if not record:
         raise NotFound(detail=f"Record {record_id} not found.")
 
     from sqlalchemy import inspect as sa_inspect
     mapper = sa_inspect(model)
-    fields = [(col.key, getattr(record, col.key, "")) for col in mapper.columns]
+    
+    fields_data = []
+    for col in mapper.columns:
+        value = getattr(record, col.key, "")
+        # Get field info from Model
+        field_info = {}
+        if hasattr(model, col.key):
+            attr = getattr(model, col.key)
+            if hasattr(attr, "info"):
+                field_info = attr.info
+        
+        fields_data.append({
+            "key": col.key,
+            "label": field_info.get("label", col.key.replace("_", " ").title()),
+            "value": value,
+            "widget": field_info.get("widget"),
+            "type": str(col.type)
+        })
 
     model_name = model_admin.get_verbose_name(model)
-
     csrf_token = get_csrf_token(request)
+    
     html = _render_detail(
         model_name=model_name,
         table_name=model.__tablename__,
         record_id=str(record.id),
-        fields=fields,
+        fields=fields_data,
         csrf_token=csrf_token,
     )
     return HtmlResponse(html)
@@ -130,20 +148,43 @@ async def admin_detail_view(
 async def admin_delete_view(
     request: Request, model: type, model_admin: Any, record_id: str
 ) -> RedirectResponse:
-    """Delete a record."""
+    """Delete a record and log the action."""
+    user = getattr(request.state, "user", None)
     await _check_staff(request)
 
     session = getattr(request.state, "db", None)
-    from eden.orm import _MISSING
+    from eden.db import _MISSING
     
-    # Use QuerySet.delete() which handles sessions and existence checks internally for bulk/filtered deletes
-    # but here we use it for a single record delete by ID.
+    # Audit log before delete
+    await AuditLog.log(
+        user_id=str(user.id) if user else None,
+        action="delete",
+        model=model,
+        record_id=record_id
+    )
+
     count = await model.query(session or _MISSING).filter(id=record_id).delete()
     
     if count == 0:
         raise NotFound(detail=f"Record {record_id} not found.")
 
     return RedirectResponse(url=f"/admin/{model.__tablename__}/", status_code=303)
+
+
+async def admin_action_view(
+    request: Request, model: type, model_admin: Any
+) -> JsonResponse:
+    """Execute bulk actions."""
+    await _check_staff(request)
+    data = await request.json()
+    action = data.get("action")
+    ids = data.get("ids", [])
+    
+    if action == "delete_selected":
+        count = await model.query().filter(id__in=ids).delete()
+        return JsonResponse({"status": "ok", "message": f"Deleted {count} records"})
+    
+    return JsonResponse({"status": "error", "message": "Unknown action"}, status=400)
 
 
 # ── HTML Rendering Helpers ────────────────────────────────────────────
@@ -234,28 +275,41 @@ def _render_dashboard(models_info: list[dict]) -> str:
 def _render_list(
     model_name, table_name, columns, records, page, total_pages, total, search
 ) -> str:
-    header_html = "".join(f"<th>{col.replace('_', ' ').title()}</th>" for col in columns)
+    header_html = "<th><input type='checkbox' onclick='toggleAll(this)'></th>"
+    header_html += "".join(f"<th>{col.replace('_', ' ').title()}</th>" for col in columns)
     header_html += "<th>Actions</th>"
 
     rows_html = ""
     for record in records:
-        cells = "".join(
-            f"<td>{_truncate(str(getattr(record, col, '')))}</td>" for col in columns
-        )
         rid = str(record.id)
+        cells = f"<td><input type='checkbox' name='selected_ids' value='{rid}'></td>"
+        for col in columns:
+            val = getattr(record, col, "")
+            cells += f"<td>{_render_value(val)}</td>"
+        
         cells += f'<td><a href="/admin/{table_name}/{rid}" class="admin-btn admin-btn-ghost" style="padding:4px 12px;font-size:12px;">View</a></td>'
         rows_html += f"<tr>{cells}</tr>"
 
     pagination = ""
     if total_pages > 1:
         pages = ""
-        for p in range(1, total_pages + 1):
+        # Simple pagination buttons
+        for p in range(max(1, page-2), min(total_pages+1, page+3)):
             active = "admin-btn-primary" if p == page else "admin-btn-ghost"
             pages += f'<a href="/admin/{table_name}/?page={p}&q={search}" class="admin-btn {active}" style="padding:4px 12px;">{p}</a>'
         pagination = f'<div class="admin-pagination">{pages}</div>'
 
     return f"""<!DOCTYPE html>
-<html lang="en"><head><title>{model_name} — Eden Admin</title>{_ADMIN_CSS}</head>
+<html lang="en"><head><title>{model_name} — Eden Admin</title>{_ADMIN_CSS}
+<script>
+    function toggleAll(source) {{
+        checkboxes = document.getElementsByName('selected_ids');
+        for(var i=0, n=checkboxes.length;i<n;i++) {{
+            checkboxes[i].checked = source.checked;
+        }}
+    }}
+</script>
+</head>
 <body>
 <div class="admin-sidebar">
     <h1>🌿 Eden Admin</h1>
@@ -265,10 +319,13 @@ def _render_list(
 <div class="admin-main">
     <div class="admin-header">
         <h2>{model_name} <span style="color:#64748B;font-size:16px;">({total})</span></h2>
-        <div class="admin-search">
-            <form method="get">
-                <input type="text" name="q" placeholder="Search..." value="{search}">
-            </form>
+        <div style="display:flex; gap:16px;">
+            <div class="admin-search">
+                <form method="get">
+                    <input type="text" name="q" placeholder="Search..." value="{search}">
+                </form>
+            </div>
+            <button class="admin-btn admin-btn-danger" onclick="executeAction('delete_selected')">Delete Selected</button>
         </div>
     </div>
     <div class="admin-card" style="padding:0;overflow:hidden;">
@@ -279,16 +336,32 @@ def _render_list(
     </div>
     {pagination}
 </div>
+<script>
+    async def executeAction(action) {{
+        const ids = Array.from(document.getElementsByName('selected_ids'))
+            .filter(i => i.checked).map(i => i.value);
+        if(!ids.length) return alert('Select items first');
+        if(!confirm('Apply ' + action + ' to ' + ids.length + ' items?')) return;
+        
+        const resp = await fetch('/admin/{table_name}/action', {{
+            method: 'POST',
+            body: JSON.stringify({{action, ids}}),
+            headers: {{'Content-Type': 'application/json'}}
+        }});
+        if(resp.ok) window.location.reload();
+        else alert('Error: ' + (await resp.json()).message);
+    }}
+</script>
 </body></html>"""
 
 
 def _render_detail(model_name, table_name, record_id, fields, csrf_token="") -> str:
     fields_html = ""
-    for key, value in fields:
+    for field in fields:
         fields_html += f"""
         <div class="field-row">
-            <div class="field-label">{key.replace('_', ' ')}</div>
-            <div class="field-value">{_truncate(str(value), 500)}</div>
+            <div class="field-label">{field['label']}</div>
+            <div class="field-value">{_render_widget(field)}</div>
         </div>
         """
 
@@ -317,6 +390,57 @@ def _render_detail(model_name, table_name, record_id, fields, csrf_token="") -> 
     </div>
 </div>
 </body></html>"""
+
+
+def _render_value(val: Any) -> str:
+    """Format simple values for list view."""
+    if val is True:
+        return "<span style='color:#22C55E'>▲ Yes</span>"
+    if val is False:
+        return "<span style='color:#EF4444'>▼ No</span>"
+    if val is None:
+        return "<i style='color:#64748B'>null</i>"
+    
+    from datetime import datetime
+    if isinstance(val, datetime):
+        return val.strftime("%Y-%m-%d %H:%M")
+        
+    return _truncate(str(val))
+
+
+def _render_widget(field: dict) -> str:
+    """Render rich detail view widgets."""
+    val = field["value"]
+    widget = field.get("widget")
+    
+    # Check if widget is a FieldWidget instance and use its render method
+    from eden.admin.widgets import FieldWidget
+    if isinstance(widget, FieldWidget):
+        try:
+            return widget.render(val)
+        except Exception as e:
+            return f"<span style='color:red'>Error rendering widget: {e}</span>"
+
+    if widget == "file" and val:
+        return f'<a href="{val}" target="_blank" style="color:#2563EB">📂 {val}</a>'
+    
+    if isinstance(val, bool):
+        color = "#22C55E" if val else "#EF4444"
+        text = "YES" if val else "NO"
+        return f'<span style="background:{color}20; color:{color}; padding:2px 8px; border-radius:4px; font-weight:600; font-size:12px;">{text}</span>'
+    
+    from datetime import datetime
+    if isinstance(val, datetime):
+        return f"<div style='color:#F8FAFC;font-family:monospace;'>{val.isoformat()}</div>"
+        
+    if field.get("type", "").lower() == "json":
+        import json
+        try:
+            formatted = json.dumps(val, indent=2)
+            return f"<pre style='background:#0F172A; padding:12px; border-radius:8px; border:1px solid #334155; overflow:auto;'>{formatted}</pre>"
+        except: pass
+        
+    return _truncate(str(val), 500)
 
 
 def _truncate(text: str, max_len: int = 80) -> str:

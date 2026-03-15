@@ -12,10 +12,12 @@ Usage:
     app.scheduler.schedule(daily_cleanup, "0 */6 * * *")  # Every 6 hours
 """
 
-from typing import Callable, Optional, List
+from typing import Callable, Optional, List, Any
 from datetime import datetime, timedelta
 import re
 import asyncio
+
+from eden.tasks.exceptions import SchedulerException
 
 
 class CronExpression:
@@ -64,6 +66,7 @@ class CronExpression:
         
         self.expression = expression
         self.parts = parts
+        self._is_wildcard = [part == "*" for part in parts]
         self.fields = [self._parse_field(i, parts[i]) for i in range(5)]
     
     def _parse_field(self, field_index: int, field: str) -> set[int]:
@@ -85,8 +88,10 @@ class CronExpression:
                     min_val, max_val = self.RANGES[field_index]
                     values.update(range(min_val, max_val + 1, step))
                 else:
-                    # Range with step: "10-50/5"
-                    start, end = map(int, range_part.split("-"))
+                    # Range with step: "10-50/5" or "mon-fri/2"
+                    start, end = range_part.split("-")
+                    start = self._resolve_name(field_index, start)
+                    end = self._resolve_name(field_index, end)
                     values.update(range(start, end + 1, step))
             
             elif "-" in part:
@@ -98,14 +103,25 @@ class CronExpression:
             
             else:
                 # Single value
-                values.add(self._resolve_name(field_index, part))
+                val = self._resolve_name(field_index, part)
+                values.add(val)
+        
+        # Validate values are within range
+        min_range, max_range = self.RANGES[field_index]
+        for val in values:
+            if not (min_range <= val <= max_range):
+                raise ValueError(
+                    f"Value {val} out of range ({min_range}-{max_range}) for field {field_index}"
+                )
         
         return values
     
     def _resolve_name(self, field_index: int, value: str) -> int:
         """Resolve month/day names to numbers."""
         if field_index in self.NAMES:
-            return self.NAMES[field_index].get(value.lower(), int(value))
+            val_lower = value.lower()
+            if val_lower in self.NAMES[field_index]:
+                return self.NAMES[field_index][val_lower]
         return int(value)
     
     def matches(self, dt: Optional[datetime] = None) -> bool:
@@ -114,13 +130,27 @@ class CronExpression:
             dt = datetime.now()
         
         # Check each field
-        return (
-            dt.minute in self.fields[self.MINUTE] and
-            dt.hour in self.fields[self.HOUR] and
-            (dt.day in self.fields[self.DAY_OF_MONTH] or
-             dt.weekday() + 1 % 7 in self.fields[self.DAY_OF_WEEK]) and
-            dt.month in self.fields[self.MONTH]
-        )
+        # Note: day of month and day of week have special "OR" relationship 
+        # when both are restricted.
+        dom_restricted = not self._is_wildcard[self.DAY_OF_MONTH]
+        dow_restricted = not self._is_wildcard[self.DAY_OF_WEEK]
+        
+        minute_match = dt.minute in self.fields[self.MINUTE]
+        hour_match = dt.hour in self.fields[self.HOUR]
+        month_match = dt.month in self.fields[self.MONTH]
+        
+        if dom_restricted and dow_restricted:
+            day_match = (
+                dt.day in self.fields[self.DAY_OF_MONTH] or
+                (dt.weekday() + 1) % 7 in self.fields[self.DAY_OF_WEEK]
+            )
+        else:
+            day_match = (
+                dt.day in self.fields[self.DAY_OF_MONTH] and
+                (dt.weekday() + 1) % 7 in self.fields[self.DAY_OF_WEEK]
+            )
+            
+        return minute_match and hour_match and month_match and day_match
     
     def next_run(self, after: Optional[datetime] = None) -> datetime:
         """Calculate next execution time."""
@@ -146,7 +176,7 @@ class TaskScheduler:
     Schedule async tasks using cron expressions.
     
     Usage:
-        scheduler = TaskScheduler()
+        scheduler = TaskScheduler(app)
         
         @scheduler.schedule("0 12 * * *")
         async def daily_task():
@@ -155,8 +185,14 @@ class TaskScheduler:
         await scheduler.start()  # Start the scheduler
     """
     
-    def __init__(self):
-        """Initialize task scheduler."""
+    def __init__(self, app: Optional[Any] = None):
+        """
+        Initialize task scheduler.
+        
+        Args:
+            app: Optional Eden application instance
+        """
+        self.app = app
         self.tasks: List[tuple[CronExpression, Callable, str]] = []
         self._running = False
     
@@ -165,7 +201,7 @@ class TaskScheduler:
         def decorator(func: Callable) -> Callable:
             try:
                 cron = CronExpression(cron_expr)
-                self.tasks.append((cron, func, cron_expr))
+                self.tasks.append((cron, func, func.__name__))
                 return func
             except ValueError as e:
                 raise ValueError(f"Invalid cron expression in @schedule: {e}")
@@ -184,6 +220,10 @@ class TaskScheduler:
             self.tasks.append((cron, func, name or func.__name__))
         except ValueError as e:
             raise ValueError(f"Invalid cron expression: {e}")
+
+    def remove_task(self, name: str) -> None:
+        """Remove a task by name."""
+        self.tasks = [t for t in self.tasks if t[2] != name]
     
     async def start(self) -> None:
         """Start the scheduler (runs until stop() called)."""
@@ -237,14 +277,19 @@ class TaskScheduler:
     
     def list_tasks(self) -> list[dict]:
         """Get list of scheduled tasks."""
-        return [
-            {
+        results = []
+        for cron, func, name in self.tasks:
+            try:
+                next_run = cron.next_run().isoformat()
+            except ValueError:
+                next_run = None
+                
+            results.append({
                 "name": name,
                 "cron": cron.expression,
-                "next_run": cron.next_run().isoformat(),
-            }
-            for cron, func, name in self.tasks
-        ]
+                "next_run": next_run,
+            })
+        return results
 
 
 # Global scheduler instance

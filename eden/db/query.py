@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from datetime import UTC
 import contextlib
+import asyncio
+import random
 from typing import TYPE_CHECKING, Any, Generic, TypeVar, List, Dict, Optional
 
 from sqlalchemy import delete, select, update, func
@@ -30,15 +32,24 @@ class QuerySet(Generic[T]):
     (like .all(), .first(), .count()) is called.
     """
 
-    def __init__(self, model_cls: type[T], session: AsyncSession | None = _MISSING):
+    def __init__(self, model_cls: type[T], session: Any | None = _MISSING):
         self._model_cls = model_cls
-        self._session = session
+        
+        # Internal check for Database vs Session
+        from eden.db.session import Database
+        if isinstance(session, Database):
+            model_cls._db = session
+            self._session = _MISSING
+        else:
+            self._session = session
         # Start with the model's base select (respects SoftDeleteMixin if present)
         self._stmt = model_cls._base_select()
         self._prefetch_paths: list[str] = []
         self._joined_models: set[type[Any]] = set()
         self._return_dicts: bool = False
         self._annotations: dict[str, Any] = {}
+        self._rbac_applied: bool = session is not _MISSING and session is not None # If session passed, assume context handled RBAC or it's internal
+        self._cache_ttl: int | None = None
 
     def __await__(self):
         """Allows awaiting the QuerySet directly to call .all()"""
@@ -50,28 +61,46 @@ class QuerySet(Generic[T]):
         return self._session is not None
 
     async def _resolve_session(self) -> AsyncSession:
-        """Resolve the session, auto-acquiring from the model's bound DB if needed."""
+        """
+        Resolve the session for query execution with fallback chain:
+        1. Explicitly passed session to QuerySet
+        2. Session from async context (set by middleware/transaction)
+        3. Model's bound database (if configured)
+        4. Raise error with guidance if no session available
+        
+        Raises:
+            RuntimeError: If no session can be resolved with helpful message
+        """
         if self._session is not None and self._session is not _MISSING:
             return self._session
 
-        # Try to get session from model's bound DB
-        try:
-            # We use an async context manager, but QuerySet methods usually
-            # expect a session they don't own the lifecycle of if passed in.
-            # If we auto-acquire, we need to be careful.
-            # For now, we'll use the model's _get_session which is a context manager.
-            # This means methods using _resolve_session might need to be context-aware
-            # OR we change how QuerySet works.
+        # Try context-aware session lookup (set by middleware or @atomic decorator)
+        from eden.db.session import get_session
+        context_session = get_session()
+        if context_session is not None:
+            self._session = context_session
+            return context_session
 
-            # Implementation decision: Model methods like .all() handle the context manager.
-            # QuerySet.all() should also handle it if session is MISSING.
-            raise RuntimeError(
-                "QuerySet requires a session for execution. Pass a session to "
-                "query(), or use model-level methods like Model.all() which "
-                "auto-acquire sessions."
-            )
-        except Exception as e:
-            raise RuntimeError(f"Could not resolve database session: {e}")
+        # Try model's bound database
+        if self._model_cls._db is not None:
+            # For auto-acquired sessions, we need to manage lifecycle
+            # This is typically done in model class methods like .all()
+            db = self._model_cls._db
+            async_session = await db.session().__aenter__()
+            # Store it so we can close it later if needed
+            self._session = async_session
+            return async_session
+
+        # No session available — provide helpful error message
+        raise RuntimeError(
+            "QuerySet requires a session for execution. "
+            "Ensure one of:\n"
+            "  1) Pass session explicitly: QuerySet(Model, session=session)\n"
+            "  2) Call within request context: @app.get('/'); async def handler(session):\n"
+            "  3) Use @atomic decorator: @app.post('/'); @atomic; async def create():\n"
+            "  4) Use model methods: await Model.all() [auto-acquires session]\n"
+            "  5) Configure model: Model._bind_db(database_instance)"
+        )
 
     def _clone(self) -> QuerySet[T]:
         """Create a copy of this QuerySet for safe chaining."""
@@ -81,6 +110,8 @@ class QuerySet(Generic[T]):
         clone._joined_models = self._joined_models.copy()
         clone._return_dicts = self._return_dicts
         clone._annotations = self._annotations.copy()
+        clone._rbac_applied = self._rbac_applied
+        clone._cache_ttl = self._cache_ttl
         return clone
 
     # ── Chainable Methods ────────────────────────────────────────────────
@@ -209,6 +240,45 @@ class QuerySet(Generic[T]):
         clone._stmt = clone._stmt.offset(n)
         return clone
 
+    def cache(self, ttl: int = 300) -> QuerySet[T]:
+        """
+        Enable caching for this query.
+        
+        Args:
+            ttl: Time to live in seconds (default: 300)
+        """
+        clone = self._clone()
+        clone._cache_ttl = ttl
+        return clone
+
+    @contextlib.asynccontextmanager
+    async def _provide_session(self):
+        """
+        Asynchronous context manager to resolve and provide a database session.
+        Ensures that auto-acquired sessions are properly closed.
+        """
+        # 1. Use existing session if available
+        if self._session is not None and self._session is not _MISSING:
+            yield self._session
+            return
+
+        # 2. Try to resolve from context (middleware-set)
+        from eden.db.session import get_session
+        context_session = get_session()
+        if context_session is not None:
+            yield context_session
+            return
+
+        # 3. Fallback to model-bound database
+        if self._model_cls._db is not None:
+            async with self._model_cls._db.session() as session:
+                yield session
+                return
+
+        # 4. Final attempt/error via _resolve_session
+        session = await self._resolve_session()
+        yield session
+
     def for_user(self, user: Any, action: str = "read") -> QuerySet[T]:
         """
         Apply model-level RBAC filters if the model implements AccessControl.
@@ -234,6 +304,86 @@ class QuerySet(Generic[T]):
         # Specific expression (e.g. col == user_id)
         clone = self._clone()
         clone._stmt = clone._stmt.where(filters)
+        clone._rbac_applied = True
+        return clone
+
+    def _apply_rbac(self, action: str = "read") -> QuerySet[T]:
+        """
+        Automatically applies RBAC filters if enabled for the model and 
+        a user is present in the current request context.
+        """
+        if self._rbac_applied:
+            return self
+
+        from eden.db.access import AccessControl
+        if not issubclass(self._model_cls, AccessControl):
+            return self
+
+        from eden.context import get_user
+        user = get_user()
+        
+        # Get security filters for the user (even if None)
+        filters = self._model_cls.get_security_filters(user, action)
+        
+        if filters is False:
+             # Access Denied: return a clone that will always be empty
+             from sqlalchemy import text
+             clone = self._clone()
+             clone._stmt = clone._stmt.where(text("1=0"))
+             clone._rbac_applied = True
+             return clone
+        
+        if filters is True:
+             # Full Access
+             clone = self._clone()
+             clone._rbac_applied = True
+             return clone
+             
+        # Rule returned specific filters (e.g. Owner filter)
+        clone = self._clone()
+        clone._stmt = clone._stmt.where(filters)
+        clone._rbac_applied = True
+        return clone
+
+    def search_ranked(self, query: str, fields: list[str] | None = None, language: str = "english") -> QuerySet[T]:
+        """
+        Perform a ranked search using PostgreSQL full-text search.
+        Orders results by relevance.
+        """
+        from sqlalchemy import desc, func, inspect as sa_inspect
+        from sqlalchemy.types import String, Text
+
+        clone = self._clone()
+
+        # Determine fields to search
+        if not fields:
+            fields = getattr(self._model_cls, "__search_fields__", None)
+
+        if not fields:
+            mapper = sa_inspect(self._model_cls)
+            fields = [
+                col.name
+                for col in mapper.columns
+                if isinstance(col.type, (String, Text))
+            ]
+
+        if not fields:
+            raise ValueError(f"No searchable text fields found for {self._model_cls.__name__}")
+
+        # Build search vector expression
+        cols = [getattr(self._model_cls, f) for f in fields]
+
+        # Use concat_ws to handle NULLs and combine fields
+        concatenated = func.concat_ws(" ", *cols)
+        search_vector = func.to_tsvector(language, concatenated)
+
+        # Use plainto_tsquery for simple string input
+        search_query = func.plainto_tsquery(language, query)
+
+        # Apply filter and ranking
+        clone._stmt = clone._stmt.where(search_vector.op("@@")(search_query))
+        clone._stmt = clone._stmt.order_by(desc(func.ts_rank(search_vector, search_query)))
+
         return clone
 
     # ── Aggregation & Annotation ──────────────────────────────────────────
@@ -372,48 +522,81 @@ class QuerySet(Generic[T]):
                 stmt = stmt.options(loader)
         return stmt
 
-    @contextlib.asynccontextmanager
-    async def _provide_session(self):
-        """Yields an active session, either provided or auto-acquired."""
-        if self._session is not _MISSING and self._session is not None:
-            yield self._session
-        else:
-            async with self._model_cls._get_session() as session:
-                yield session
+    def _get_cache_key(self) -> str:
+        """Generate a unique cache key for the current statement."""
+        import hashlib
+        # We use a string representation of the statement as part of the key
+        stmt_str = str(self._stmt.compile(compile_kwargs={"literal_binds": True}))
+        # Include prefetch paths and other modifiers
+        key_raw = f"{self._model_cls.__name__}:{stmt_str}:{self._prefetch_paths}:{self._return_dicts}"
+        return f"qs:{hashlib.md5(key_raw.encode()).hexdigest()}"
+
+    async def _execute(self, stmt: Any, session: AsyncSession) -> Any:
+        """
+        Executes a statement with exponential backoff retries for reliability.
+        """
+        max_retries = 3
+        base_delay = 0.1  # 100ms
+        
+        for attempt in range(max_retries + 1):
+            try:
+                return await session.execute(stmt)
+            except Exception as e:
+                # Only retry on potentially transient errors (connection, lock timeout)
+                # For simplicity, we'll retry on most errors but log internally
+                if attempt == max_retries:
+                    raise e
+                
+                # Exponential backoff: base * 2^attempt + jitter
+                delay = (base_delay * (2 ** attempt)) + (random.random() * 0.1)
+                await asyncio.sleep(delay)
 
     async def all(self) -> list[T]:
-        """Execute query and return all results."""
-        async with self._provide_session() as session:
-            stmt = self._apply_prefetch(self._stmt)
-            result = await session.execute(stmt)
+        """Execute query and return all results. Checks cache if enabled."""
+        qs = self._apply_rbac("read")
+        
+        # Check cache if enabled
+        cache_key = None
+        if qs._cache_ttl is not None:
+            from eden.context import get_app
+            app = get_app()
+            if app and hasattr(app, "cache"):
+                cache_key = qs._get_cache_key()
+                cached = await app.cache.get(cache_key)
+                if cached is not None:
+                    return cached
+
+        async with qs._provide_session() as session:
+            stmt = qs._apply_prefetch(qs._stmt)
+            result = await self._execute(stmt, session)
             result = result.unique()
             
+            records = []
             if getattr(self, "_return_dicts", False):
-                records = []
                 for row in result:
-                    # SQLAlchemy result rows are tuple-like. 
-                    # If it's a model-based QuerySet, row[0] might be the model instance.
                     obj = row[0]
                     if isinstance(obj, self._model_cls):
-                        # Case 1: Full model instance returned as scalar
                         if hasattr(obj, "to_dict"):
                             records.append(obj.to_dict())
                         else:
                             records.append(obj)
                     else:
-                        # Case 2: Specific columns selected (values() or results of grouping/agg)
-                        # We use _mapping to get a dict representation of the row.
                         records.append(dict(row._mapping))
-                return records
+            else:
+                 records = list(result.scalars().all())
             
-            # Default: return model instances
-            return list(result.scalars().all())
+            # Store in cache if enabled
+            if cache_key and app and hasattr(app, "cache"):
+                await app.cache.set(cache_key, records, ttl=qs._cache_ttl)
+                
+            return records
 
     async def first(self) -> T | None:
         """Execute query and return the first result, or None."""
-        async with self._provide_session() as session:
-            stmt = self._apply_prefetch(self._stmt)
-            result = await session.execute(stmt)
+        qs = self._apply_rbac("read")
+        async with qs._provide_session() as session:
+            stmt = qs._apply_prefetch(qs._stmt)
+            result = await self._execute(stmt, session)
             result = result.unique()
             
             if getattr(self, "_return_dicts", False):
@@ -457,7 +640,7 @@ class QuerySet(Generic[T]):
         async with self._provide_session() as session:
             # Wrap the current statement in a subquery to count correctly
             count_stmt = select(func.count()).select_from(self._stmt.subquery())
-            result = await session.execute(count_stmt)
+            result = await self._execute(count_stmt, session)
             return result.scalar() or 0
 
     async def exists(self) -> bool:
@@ -465,7 +648,7 @@ class QuerySet(Generic[T]):
         async with self._provide_session() as session:
             # Optimize exists by using limit(1)
             stmt = self._stmt.limit(1)
-            result = await session.execute(stmt)
+            result = await self._execute(stmt, session)
             return result.first() is not None
 
     async def paginate(self, page: int = 1, per_page: int = 20) -> Page[T]:

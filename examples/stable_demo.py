@@ -8,8 +8,8 @@ Run:
 
 import uuid
 from eden import Eden, Router, Depends
-from eden.orm import Model, Mapped, f
-from eden.orm import AccessControl, AllowOwner, AllowRoles
+from eden.db import Model, Mapped, f
+from eden.db import AccessControl, AllowOwner, AllowRoles
 
 # 1. Models with RBAC and Unified Aliases
 # Note: In Eden 1.0, we prefer importing everything from 'eden.db'

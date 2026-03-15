@@ -14,7 +14,7 @@ from eden import (
     FloatField,
     Relationship
 )
-from eden.orm import init_db
+from eden.db import init_db
 from eden.admin import admin, ModelAdmin
 
 # Initialize DB globally

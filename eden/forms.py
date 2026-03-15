@@ -2,10 +2,31 @@ from __future__ import annotations
 
 import io
 from dataclasses import dataclass
-from typing import Any, Dict, Optional, Type, List, Union, Iterator
+from typing import Any, Dict, Optional, Type, List, Union, Iterator, Callable, Awaitable
+from uuid import uuid4
 
 from markupsafe import Markup
 from pydantic import BaseModel, Field as PydanticField, ValidationError, EmailStr, AnyUrl
+
+
+# ── Upload Progress Protocol ──────────────────────────────────────────────────────
+
+
+ProgressCallback = Callable[[int, int], Awaitable[None]]
+"""
+Protocol for upload progress callbacks.
+
+The callback receives two arguments:
+- bytes_written: int - Bytes uploaded so far
+- total_bytes: int - Total bytes to upload
+
+Example:
+    async def progress(bytes_written, total_bytes):
+        percentage = (bytes_written / total_bytes) * 100
+        print(f"Upload: {percentage:.1f}%")
+
+    await storage.save_with_progress(file, callback=progress)
+"""
 
 
 # ── Form Field Helper ─────────────────────────────────────────────────────────────
@@ -91,10 +112,14 @@ __all__ = [
     "field",
     "v",
     "BaseForm",
+    "FormField",
+    "FileField",
     "UploadedFile",
+    "ProgressCallback",
     "EmailStr",
     "AnyUrl",
 ]
+
 
 
 # ── Uploaded File ─────────────────────────────────────────────────────────────
@@ -361,6 +386,167 @@ class FormField:
 
     def __html__(self) -> str:
         return self.render()
+
+
+class FileField(FormField):
+    """
+    Specialized form field for file uploads with progress tracking support.
+    
+    Extends FormField to provide:
+    - Accept filter specification (MIME types/extensions)  
+    - Multiple file support
+    - Progress bar rendering for real-time upload tracking
+    - WebSocket integration template for client-side progress
+    - Integration with StorageManager for atomic uploads with callbacks
+    
+    Attributes:
+        accept: Comma-separated MIME types or file extensions
+        multiple: Allow multiple file selection
+        show_progress: Render progress bar HTML
+        progress_element_id: ID for progress bar DOM element
+        
+    Usage:
+        # In a form schema
+        class UploadSchema(Schema):
+            avatar: Optional[bytes] = f(widget="file", label="Avatar")
+        
+        # In a template
+        {{ form['avatar'].as_file(accept='image/*') }}
+        
+        # In a handler with progress tracking
+        async def handle_upload(request):
+            form = await UploadSchema.from_request(request)
+            if form.is_valid():
+                file = form.files['avatar']
+                
+                # With progress tracking
+                async def on_progress(bytes_written, total_bytes):
+                    percentage = (bytes_written / total_bytes) * 100
+                    print(f"Upload: {percentage:.1f}%")
+                
+                result = await storage.get("s3").save(
+                    file.filename,
+                    file.data,
+                    progress_callback=on_progress
+                )
+    """
+    
+    def __init__(
+        self,
+        name: Optional[str] = None,
+        value: Any = None,
+        error: str = None,
+        required: bool = False,
+        label: str = None,
+        accept: str = "",
+        multiple: bool = False,
+        show_progress: bool = False,
+        progress_element_id: Optional[str] = None,
+        **kwargs,
+    ):
+        """
+        Initialize a FileField.
+        
+        Args:
+            name: Field name
+            value: Current value  
+            error: Validation error message
+            required: Whether field is required
+            label: Human-readable label
+            accept: MIME types or extensions (e.g., 'image/*,.pdf')
+            multiple: Allow multiple file selection
+            show_progress: Render progress bar HTML
+            progress_element_id: Custom ID for progress element (auto-generated if not set)
+            **kwargs: Additional attributes
+        """
+        super().__init__(
+            name=name,
+            value=value,
+            error=error,
+            required=required,
+            label=label,
+            widget="file",
+            **kwargs,
+        )
+        self.accept = accept
+        self.multiple = multiple
+        self.show_progress = show_progress
+        self.progress_element_id = progress_element_id or f"progress_{uuid4().hex[:8]}"
+    
+    def as_file(
+        self,
+        accept: str = "",
+        multiple: bool = False,
+        show_progress: bool = False,
+        **kwargs: Any,
+    ) -> Markup:
+        """
+        Render a file upload input with optional progress bar.
+        
+        Args:
+            accept: MIME types or extensions (e.g., 'image/*,.pdf')
+            multiple: Allow multiple file selection
+            show_progress: Include progress bar HTML
+            **kwargs: Additional attributes
+            
+        Usage:
+            # Basic file input
+            {{ form['avatar'].as_file(accept='image/*') }}
+            
+            # With progress bar
+            {{ form['document'].as_file(accept='.pdf', show_progress=True) }}
+            
+            # Multiple files
+            {{ form['attachments'].as_file(accept='.jpg,.png,.pdf', multiple=True, show_progress=True) }}
+        """
+        # Use parameters or instance attributes
+        accept = accept or self.accept
+        multiple = multiple or self.multiple
+        show_progress = show_progress or self.show_progress
+        
+        # Build input attributes
+        attrs: dict[str, str] = {**self.attributes, **kwargs}
+        attrs["type"] = "file"
+        attrs["name"] = self.name
+        attrs["id"] = attrs.get("id", f"id_{self.name}")
+        if accept:
+            attrs["accept"] = accept
+        if multiple:
+            attrs["multiple"] = "multiple"
+        
+        # Add data attributes for client-side progress tracking
+        attrs["data-progress-element"] = self.progress_element_id
+        
+        # CSS classes
+        classes = list(self.css_classes)
+        if self.error:
+            classes.append("border-red-500")
+        if classes:
+            attrs["class"] = " ".join(classes)
+        
+        # Render input element
+        attr_str = " ".join(f'{k}="{v}"' for k, v in attrs.items())
+        html = f"<input {attr_str} />"
+        
+        # Optionally render progress bar
+        if show_progress:
+            progress_html = f'''
+<div id="{self.progress_element_id}" style="display:none;">
+  <progress id="{self.progress_element_id}_bar" value="0" max="100" style="width:100%;"></progress>
+  <span id="{self.progress_element_id}_text">0%</span>
+</div>
+'''
+            html += progress_html
+        
+        return Markup(html)
+    
+    def render(self, **kwargs) -> str:
+        """Render file field (delegates to as_file)."""
+        return self.as_file(**kwargs)
+    
+    def render_with_progress(self, **kwargs) -> Markup:
+        """Render file field with progress bar enabled."""
+        return self.as_file(show_progress=True, **kwargs)
 
 
 class BaseForm:

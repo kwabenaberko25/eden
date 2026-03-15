@@ -1,8 +1,8 @@
 import pytest
 import asyncio
-from eden.orm import parse_lookups
-from eden.orm import Model
-from eden.orm import StringField
+from eden.db import parse_lookups
+from eden.db import Model
+from eden.db import StringField
 from unittest.mock import AsyncMock, MagicMock
 
 class DummyModel(Model):

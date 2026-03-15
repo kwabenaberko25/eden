@@ -1,3 +1,0 @@
-"""
-Eden ORM - Tests Package
-"""

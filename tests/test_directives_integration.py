@@ -296,12 +296,12 @@ class TestRealWorldScenarios:
 def test_all_directives_recognized():
     """Verify all directives are recognized"""
     directives = {
-        "control": ["@if", "@unless", "@for", "@switch", "@case"],
+        "control": ["@if", "@unless", "@for", "@foreach", "@switch", "@case", "@else", "@elif"],
         "auth": ["@auth", "@guest"],
         "htmx": ["@htmx", "@non_htmx", "@fragment"],
-        "templating": ["@extends", "@include", "@section", "@yield", "@push"],
-        "data": ["@let", "@old", "@json", "@dump"],
-        "forms": ["@csrf", "@checked", "@selected", "@disabled", "@readonly"],
+        "templating": ["@extends", "@include", "@section", "@yield", "@push", "@block", "@stack"],
+        "data": ["@let", "@old", "@json", "@dump", "@props", "@status"],
+        "forms": ["@csrf", "@method", "@checked", "@selected", "@disabled", "@readonly"],
         "routing": ["@url", "@active_link"],
         "components": ["@component", "@slot"],
     }

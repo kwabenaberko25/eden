@@ -1,7 +1,7 @@
 import pytest
 from click.testing import CliRunner
 from eden import Eden, Router, FileField, Service
-from eden.middleware import limiter, ratelimit
+from eden.middleware import limiter, rate_limit
 from eden.auth.providers import JWTProvider
 from eden.admin import TabularInline
 

@@ -1,0 +1,205 @@
+{# Counter Component Template #}
+{# This template is rendered by CounterComponent.render() #}
+{# It has access to: count, step, title, action_url, component_attrs, can_decrement #}
+
+<div class="counter-widget" id="counter-{{ count }}">
+    <div class="counter-header">
+        <h3 class="counter-title">{{ title }}</h3>
+        <p class="counter-subtitle">step: <code>{{ step }}</code></p>
+    </div>
+
+    <div class="counter-display">
+        <div class="counter-value">{{ count }}</div>
+    </div>
+
+    <div class="counter-controls">
+        {# Increment button #}
+        <button 
+            class="btn btn-primary"
+            hx-post="{{ action_url('increment') }}"
+            {{ component_attrs }}
+        >
+            <span class="btn-icon">+</span>
+            <span class="btn-text">Increment by {{ step }}</span>
+        </button>
+
+        {# Decrement button - disabled when count is 0 #}
+        <button 
+            class="btn btn-secondary"
+            hx-post="{{ action_url('decrement') }}"
+            {{ component_attrs }}
+            {% if not can_decrement %}disabled{% endif %}
+        >
+            <span class="btn-icon">−</span>
+            <span class="btn-text">Decrement by {{ step }}</span>
+        </button>
+
+        {# Reset button #}
+        <button 
+            class="btn btn-danger"
+            hx-post="{{ action_url('reset') }}"
+            {{ component_attrs }}
+        >
+            <span class="btn-icon">↻</span>
+            <span class="btn-text">Reset</span>
+        </button>
+    </div>
+
+    {# Form for setting count directly #}
+    <div class="counter-form">
+        <form 
+            hx-post="{{ action_url('set_count') }}"
+            {{ component_attrs }}
+            class="form-inline"
+        >
+            <label for="set-count-input">Set Count:</label>
+            <input
+                id="set-count-input"
+                type="number"
+                name="value"
+                class="form-input"
+                placeholder="Enter value"
+            />
+            <button type="submit" class="btn btn-info">Set</button>
+        </form>
+    </div>
+
+    <style scoped>
+        .counter-widget {
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            padding: 20px;
+            background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+            max-width: 350px;
+        }
+
+        .counter-header {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .counter-title {
+            margin: 0 0 8px;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .counter-subtitle {
+            margin: 0;
+            font-size: 12px;
+            opacity: 0.7;
+        }
+
+        .counter-display {
+            background: rgba(0, 0, 0, 0.05);
+            border-radius: 4px;
+            padding: 30px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .counter-value {
+            font-size: 48px;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .counter-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #0056b3;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: #545b62;
+        }
+
+        .btn-secondary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            background: #c82333;
+        }
+
+        .btn-info {
+            background: #17a2b8;
+            color: white;
+            padding: 8px 12px;
+        }
+
+        .btn-info:hover {
+            background: #138496;
+        }
+
+        .counter-form {
+            margin-top: 15px;
+        }
+
+        .form-inline {
+            display: flex;
+            gap: 8px;
+        }
+
+        .form-inline label {
+            font-size: 13px;
+            font-weight: 500;
+            align-self: center;
+        }
+
+        .form-input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid rgba(0, 0, 0, 0.2);
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+        }
+
+        {# HTMX loading state styling #}
+        &.htmx-request .btn {
+            opacity: 0.7;
+            pointer-events: none;
+        }
+    </style>
+</div>

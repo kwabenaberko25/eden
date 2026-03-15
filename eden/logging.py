@@ -39,6 +39,14 @@ class EdenFormatter(logging.Formatter):
         self.json_format = json_format
 
     def format(self, record: logging.LogRecord) -> str:
+        from eden.context import get_request_id
+
+        # Try to get request_id from context if not already on record
+        if not hasattr(record, "request_id"):
+            rid = get_request_id()
+            if rid:
+                record.request_id = rid
+
         if self.json_format:
             import json
 
@@ -53,8 +61,12 @@ class EdenFormatter(logging.Formatter):
                 val = getattr(record, key, None)
                 if val is not None:
                     log_data[key] = val
-            if record.exc_info and record.exc_info[1]:
+            if record.exc_info:
                 log_data["exception"] = self.formatException(record.exc_info)
+                # Include stack trace in JSON if possible
+                if record.stack_info:
+                    log_data["stack_info"] = record.stack_info
+            
             return json.dumps(log_data)
 
         # Human-readable format
@@ -69,26 +81,39 @@ class EdenFormatter(logging.Formatter):
         if request_id:
             extra = f" [{request_id[:8]}]"
 
-        return f"{color}{ts} {record.levelname:<8}{reset}{extra} {record.name} — {msg}"
+        log_line = f"{color}{ts} {record.levelname:<8}{reset}{extra} {record.name} — {msg}"
+
+        if record.exc_info:
+            log_line += "\n" + self.formatException(record.exc_info)
+        
+        return log_line
 
 
 def setup_logging(
     level: str = "INFO",
     json_format: bool = False,
+    loggers: dict[str, str] | None = None,
 ) -> None:
     """
     Configure Eden's logging system.
 
     Args:
-        level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL).
+        level: Default logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL).
         json_format: If True, output structured JSON logs for production.
+        loggers: Dictionary of logger names mapping to their specific levels.
 
     Usage:
         from eden.logging import setup_logging
-        setup_logging(level="DEBUG", json_format=False)
+        setup_logging(
+            level="INFO",
+            loggers={"eden.db": "DEBUG", "eden.auth": "WARNING"}
+        )
     """
+    default_level = getattr(logging, level.upper(), logging.INFO)
+    
+    # Configure root eden logger
     root_logger = logging.getLogger("eden")
-    root_logger.setLevel(getattr(logging, level.upper(), logging.INFO))
+    root_logger.setLevel(default_level)
 
     # Remove existing handlers
     root_logger.handlers.clear()
@@ -99,6 +124,15 @@ def setup_logging(
 
     # Prevent propagation to root logger to avoid duplicates
     root_logger.propagate = False
+
+    # Configure specific loggers
+    if loggers:
+        for name, specific_level in loggers.items():
+            lgr = logging.getLogger(name)
+            lgr.setLevel(getattr(logging, specific_level.upper(), default_level))
+            # If it's an eden logger, it shouldn't propagate to root, 
+            # but it should have same handler as root if it's not a child of 'eden'
+            # (though usually they are children of 'eden')
 
 
 def get_logger(name: str = "eden") -> logging.Logger:

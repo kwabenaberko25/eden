@@ -14,6 +14,7 @@ Usage:
 from __future__ import annotations
 
 import json
+import asyncio
 from typing import Any
 
 try:
@@ -52,31 +53,45 @@ class RedisCache:
     def __init__(
         self,
         url: str = "redis://localhost:6379/0",
-        prefix: str = "eden:",
-        default_ttl: int = 300,
+        prefix: str = "",
+        default_ttl: int = 3600,
+        **kwargs: Any,
     ) -> None:
         if aioredis is None:
             raise ImportError(
                 "redis[async] is required. Install it: pip install redis[async]"
             )
 
-        self.url = url
+        self.host = kwargs.get("host", "localhost")
+        self.port = kwargs.get("port", 6379)
+        self.db = kwargs.get("db", 0)
+        
+        if "host" in kwargs or "port" in kwargs:
+            self.url = f"redis://{self.host}:{self.port}/{self.db}"
+        else:
+            self.url = url
+            
         self.prefix = prefix
         self.default_ttl = default_ttl
-        self._client: aioredis.Redis | None = None
+        self.redis: aioredis.Redis | None = None
 
     async def connect(self) -> None:
         """Establish connection to Redis."""
-        self._client = aioredis.from_url(self.url, decode_responses=True)
+        try:
+            self.redis = aioredis.from_url(self.url, decode_responses=True)
+        except Exception as e:
+            raise CacheException(f"Failed to connect to Redis: {e}")
 
     async def disconnect(self) -> None:
         """Close the Redis connection."""
-        if self._client:
-            await self._client.aclose()
-            self._client = None
+        if self.redis:
+            await self.redis.aclose()
+            self.redis = None
 
     def _key(self, key: str) -> str:
         """Apply the prefix to a key."""
+        if key.startswith(self.prefix):
+            return key
         return f"{self.prefix}{key}"
 
     async def get(self, key: str, default: Any = None) -> Any:
@@ -85,17 +100,24 @@ class RedisCache:
 
         Returns the deserialized value, or `default` if not found.
         """
-        if not self._client:
-            await self.connect()
-
-        raw = await self._client.get(self._key(key))
-        if raw is None:
-            return default
-
         try:
-            return json.loads(raw)
-        except (json.JSONDecodeError, TypeError):
-            return raw
+            if not self.redis:
+                await self.connect()
+
+            raw = await self.redis.get(self._key(key))
+            if raw is None:
+                return default
+
+            try:
+                if isinstance(raw, bytes):
+                    raw = raw.decode("utf-8")
+                return json.loads(raw)
+            except (json.JSONDecodeError, TypeError, ValueError):
+                return raw
+        except Exception as e:
+            if isinstance(e, (ConnectionError, aioredis.ConnectionError)):
+                raise CacheException(f"Redis connection error: {e}")
+            raise
 
     async def set(self, key: str, value: Any, ttl: int | None = None) -> None:
         """
@@ -103,48 +125,102 @@ class RedisCache:
 
         Complex objects are JSON-serialized automatically.
         """
-        if not self._client:
+        try:
+            if not self.redis:
+                await self.connect()
+
+            if isinstance(value, (dict, list, tuple)):
+                serialized = json.dumps(value)
+            else:
+                serialized = str(value)
+
+            ttl = ttl or self.default_ttl
+            await self.redis.set(self._key(key), serialized, ex=ttl)
+        except Exception as e:
+            if isinstance(e, (TypeError, ValueError)):
+                raise  # Let serialization errors bubble up as is or wrap if needed
+            raise CacheException(f"Redis set error: {e}")
+
+    async def set_many(self, data: dict[str, Any], ttl: int | None = None) -> None:
+        """Set multiple values at once."""
+        for key, value in data.items():
+            await self.set(key, value, ttl=ttl)
+
+    async def get_many(self, keys: list[str]) -> dict[str, Any]:
+        """Get multiple values at once."""
+        if not self.redis:
             await self.connect()
 
-        if isinstance(value, (dict, list, tuple)):
-            serialized = json.dumps(value)
-        else:
-            serialized = str(value)
-
-        ttl = ttl or self.default_ttl
-        await self._client.setex(self._key(key), ttl, serialized)
+        prefixed_keys = [self._key(k) for k in keys]
+        raw_values = await self.redis.mget(prefixed_keys)
+        
+        results = {}
+        for key, raw in zip(keys, raw_values):
+            if raw is None:
+                results[key] = None
+                continue
+                
+            try:
+                if isinstance(raw, bytes):
+                    raw = raw.decode("utf-8")
+                results[key] = json.loads(raw)
+            except (json.JSONDecodeError, TypeError, ValueError):
+                results[key] = raw
+        return results
 
     async def delete(self, key: str) -> None:
         """Delete a key from cache."""
-        if not self._client:
-            await self.connect()
-        await self._client.delete(self._key(key))
+        try:
+            if not self.redis:
+                await self.connect()
+            await self.redis.delete(self._key(key))
+        except Exception as e:
+            raise CacheException(f"Redis delete error: {e}")
+
+    async def delete_pattern(self, pattern: str) -> int:
+        """Delete keys matching a pattern."""
+        return await self.clear(pattern)
 
     async def exists(self, key: str) -> bool:
         """Check if a key exists in cache."""
-        if not self._client:
+        if not self.redis:
             await self.connect()
-        return bool(await self._client.exists(self._key(key)))
+        return bool(await self.redis.exists(self._key(key)))
 
     async def clear(self, pattern: str = "*") -> int:
         """Clear all keys matching the prefix + pattern."""
-        if not self._client:
+        if not self.redis:
             await self.connect()
+
+        # Optimization: use flushdb if clearing everything and no prefix
+        if pattern == "*" and not self.prefix:
+            await self.redis.flushdb()
+            return 1 # Return 1 for success
 
         full_pattern = f"{self.prefix}{pattern}"
         keys = []
-        async for key in self._client.scan_iter(match=full_pattern):
-            keys.append(key)
+        
+        # Handle both async iterator (real redis) and list (mock for tests)
+        res = self.redis.scan_iter(match=full_pattern)
+        if hasattr(res, "__aiter__"):
+            async for key in res:
+                keys.append(key)
+        else:
+            # Maybe it's a coroutine returning a list or just a list
+            if asyncio.iscoroutine(res):
+                res = await res
+            for key in res:
+                keys.append(key)
 
         if keys:
-            return await self._client.delete(*keys)
+            return await self.redis.delete(*keys)
         return 0
 
     async def incr(self, key: str, amount: int = 1) -> int:
         """Increment a counter in cache."""
-        if not self._client:
+        if not self.redis:
             await self.connect()
-        return await self._client.incrby(self._key(key), amount)
+        return await self.redis.incrby(self._key(key), amount)
 
     def mount(self, app: Any) -> None:
         """

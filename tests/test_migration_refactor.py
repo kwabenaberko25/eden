@@ -1,8 +1,8 @@
 import pytest
 from click.testing import CliRunner
 from eden.cli.main import cli
-from eden.orm import MigrationManager
-from eden.orm import Model, f
+from eden.db import MigrationManager
+from eden.db import Model, f
 from eden.tenancy.mixins import TenantMixin
 
 def test_cli_structure_separation():

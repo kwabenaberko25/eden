@@ -30,7 +30,7 @@ For Admin Panel (built-in):
 __version__ = "0.1.0"
 
 # ── Core Application ──────────────────────────────────────────────────────
-from eden.app import Eden
+from eden.app import Eden, Eden as App
 from eden.routing import Route, Router, WebSocketRoute
 from eden.requests import Request
 from eden.responses import (
@@ -86,7 +86,14 @@ from eden.db import (
 )
 
 # ── WebSocket & Realtime ──────────────────────────────────────────────────
-from eden.websocket import WebSocket, WebSocketDisconnect, WebSocketRouter, ConnectionManager
+from eden.websocket import (
+    WebSocket, 
+    WebSocketDisconnect, 
+    WebSocketRouter, 
+    ConnectionManager,
+    connection_manager
+)
+realtime_manager = connection_manager
 
 # ── Routing & Context ─────────────────────────────────────────────────────
 from eden.context import request, user
@@ -114,6 +121,18 @@ from eden.components import Component, render_component, action
 
 # ── Forms & Validation ────────────────────────────────────────────────────
 from eden.forms import BaseForm, ModelForm, FormField, Schema, v, field
+from eden.validators import (
+    validate_email,
+    validate_phone,
+    validate_password,
+    validate_url,
+    validate_slug,
+    validate_ip,
+    validate_color,
+    validate_credit_card,
+    validate_date,
+    validate_username,
+)
 
 # ── HTML Utilities ────────────────────────────────────────────────────────
 from eden.htmx import HtmxResponse, is_htmx
@@ -126,9 +145,19 @@ from eden.logging import get_logger, setup_logging
 
 # ── Authentication (API Keys, Decorators) ────────────────────────────────
 # Note: Advanced auth features (OAuth, SAML) may require additional extras
-from eden.auth.api_key_model import APIKey
-from eden.auth.backends.api_key import APIKeyBackend
-from eden.auth.decorators import login_required, roles_required, require_permission
+from eden.auth import (
+    APIKey,
+    APIKeyBackend,
+    login_required,
+    roles_required,
+    require_permission,
+    staff_required,
+    check_permission,
+    authenticate,
+    create_user,
+)
+from eden.auth.complete import permission_required
+from eden.middleware.rate_limit import rate_limit
 
 # ── Tenancy (Multi-tenant row-level security, built-in) ───────────────────
 from eden.tenancy.models import Tenant, AnonymousTenant
@@ -140,9 +169,36 @@ from eden.tenancy.context import get_current_tenant
 from eden.admin import AdminSite, ModelAdmin, admin
 admin_site = admin
 
+# ── Testing & Client ──────────────────────────────────────────────────────
+try:
+    from eden.testing import TestClient
+except ImportError:
+    # pytest not installed; provide stub
+    TestClient = None
+
+# ── Migrations ────────────────────────────────────────────────────────────
+try:
+    from eden.db.migrations import (
+        init_migrations,
+        create_migration,
+        run_upgrade as apply_migrations,
+        run_downgrade as rollback_migration,
+        show_history
+    )
+except ImportError:
+    init_migrations = None
+    create_migration = None
+    apply_migrations = None
+    rollback_migration = None
+    show_history = None
+
+# ── Configuration ─────────────────────────────────────────────────────────
+from eden.config import Config
+
 __all__ = [
     # ── Core Application ───────────────────────────────────────────────────
     "Eden",
+    "App",
     "Router",
     "Route",
     "WebSocketRoute",
@@ -197,6 +253,8 @@ __all__ = [
     # ── WebSocket & Realtime ──────────────────────────────────────────────
     "WebSocketRouter",
     "ConnectionManager",
+    "connection_manager",
+    "realtime_manager",
     
     # ── Context ────────────────────────────────────────────────────────────
     "request",
@@ -231,6 +289,16 @@ __all__ = [
     "Schema",
     "v",
     "field",
+    "validate_email",
+    "validate_phone",
+    "validate_password",
+    "validate_url",
+    "validate_slug",
+    "validate_ip",
+    "validate_color",
+    "validate_credit_card",
+    "validate_date",
+    "validate_username",
     
     # ── HTML Utilities ────────────────────────────────────────────────────
     "HtmxResponse",
@@ -243,12 +311,18 @@ __all__ = [
     "get_logger",
     "setup_logging",
     
-    # ── Authentication (API Keys) ─────────────────────────────────────────
+    # ── Authentication & Security ─────────────────────────────────────────
     "APIKey",
     "APIKeyBackend",
     "login_required",
     "roles_required",
     "require_permission",
+    "staff_required",
+    "permission_required",
+    "check_permission",
+    "authenticate",
+    "create_user",
+    "rate_limit",
     
     # ── Tenancy (Multi-tenant row-level security) ──────────────────────────
     "Tenant",
@@ -262,4 +336,17 @@ __all__ = [
     "ModelAdmin",
     "admin",
     "admin_site",
+    
+    # ── Testing & Client ──────────────────────────────────────────────────
+    "TestClient",
+    
+    # ── Migrations ────────────────────────────────────────────────────────
+    "init_migrations",
+    "create_migration",
+    "apply_migrations",
+    "rollback_migration",
+    "show_history",
+    
+    # ── Configuration ─────────────────────────────────────────────────────
+    "Config",
 ]

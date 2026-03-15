@@ -2,7 +2,7 @@ import asyncio
 import uuid
 import os
 from sqlalchemy import select
-from eden.orm import init_db, Model, f
+from eden.db import init_db, Model, f
 from eden.tenancy.models import Tenant
 from eden.tenancy.mixins import TenantMixin
 from eden.tenancy.context import set_current_tenant

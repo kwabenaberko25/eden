@@ -1,7 +1,7 @@
 import pytest
 import uuid
 from sqlalchemy.orm import Mapped
-from eden.orm import Model, f, Database, Q
+from eden.db import Model, f, Database, Q
 
 # ── Audit Models ──────────────────────────────────────────────────────────
 
@@ -94,4 +94,4 @@ async def test_orm_raw_expression_bypass(audit_db):
         with pytest.raises(ValueError) as exc:
             # Attempt to use a non-existent field as a vector
             await UserAccount.filter(session, **{"username=1; --": "dummy"}).all()
-        assert "has no column" in str(exc.value)
+        assert "has no attribute" in str(exc.value)

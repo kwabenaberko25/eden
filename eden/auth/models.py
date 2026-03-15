@@ -8,7 +8,7 @@ from sqlalchemy import JSON, Integer
 from sqlalchemy.orm import mapped_column, Mapped, declared_attr
 
 from eden.auth.hashers import check_password, hash_password
-from eden.orm import Model, f, Relationship, Reference
+from eden.db import Model, f, Relationship, Reference
 
 
 class BaseUser:
@@ -35,7 +35,7 @@ class BaseUser:
     # Track linked social accounts for multi-provider login
     @declared_attr
     def social_accounts(self) -> Mapped[list["SocialAccount"]]:
-        return Relationship("SocialAccount", back_populates="user", cascade="all, delete-orphan")
+        return Relationship("SocialAccount", back_populates="user", cascade="all, delete-orphan", overlaps="social_account")
 
     def set_password(self, password: str) -> None:
         """Hash and set the user's password."""

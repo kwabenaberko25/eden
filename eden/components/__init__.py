@@ -31,43 +31,179 @@ class Component:
     """
     Base class for defining an Eden UI Component.
 
-    Components are pure-Python classes that handle their own rendering and actions.
-    When an action is triggered via HTMX, Eden re-instantiates the component,
-    populated with any request data, and calls the action method.
+    Components are pure-Python classes that encapsulate both rendering logic and 
+    interactivity. They manage their own reactive state and respond to user actions 
+    via HTMX. When an action is triggered, Eden re-instantiates the component with 
+    any request data and calls the corresponding action method.
+
+    **Core Capabilities:**
+    - Render templates with reactive state
+    - Handle HTMX-triggered actions with automatic request/response cycles
+    - Persist state across requests using hidden form fields
+    - Automatic type coercion for action parameters
+
+    **Lifecycle:**
+    1. Component is instantiated with initial state (via __init__)
+    2. get_context_data() is called to prepare template variables
+    3. Template renders with access to state and action URLs
+    4. User triggers HTMX action (form submission, click handler, etc.)
+    5. Component is re-instantiated with request data + persisted state
+    6. Action method runs and returns updated HTML/component
+
+    **Example - Simple Counter:**
+        @register("counter")
+        class CounterComponent(Component):
+            template_name = "counter.html"
+            
+            def __init__(self, count=0, **kwargs):
+                self.count = count
+                super().__init__(**kwargs)
+            
+            @action
+            async def increment(self, request):
+                self.count += 1
+                return await self.render()
+            
+            @action
+            async def decrement(self, request):
+                self.count -= 1
+                return await self.render()
+
+    **Template Usage:**
+        @component("counter", count=initial_value) {
+            <div class="counter">
+                <p>Count: {{ count }}</p>
+                <button hx-post="{{ action_url('increment') }}" 
+                        {{ component_attrs }}>
+                    +1
+                </button>
+                <button hx-post="{{ action_url('decrement') }}" 
+                        {{ component_attrs }}>
+                    -1
+                </button>
+            </div>
+        }
+
+    **Key Attributes:**
+    - template_name: Path to the component's Jinja2 template (required)
+    - _component_name: Auto-set by @register decorator
     """
     template_name: str = ""
     _component_name: str = ""
+    _reactive_state: List[str] = []  # Override in subclass to whitelist reactive properties
 
     def __init__(self, **kwargs: Any):
-        # Allow passing state via __init__
+        """
+        Initialize component with optional state.
+        
+        Args:
+            **kwargs: Arbitrary key-value pairs that become component state.
+                     These are preserved across HTMX requests via hx-vals.
+        
+        Example:
+            component = CounterComponent(count=5, title="My Counter")
+        """
         for k, v in kwargs.items():
             setattr(self, k, v)
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         """
-        Prepare the context for template rendering.
-        By default, includes all instance attributes.
+        Prepare the context dictionary for template rendering.
+
+        This method is called before rendering the template. By default, it includes 
+        all instance attributes, plus framework helpers for triggering actions.
+
+        **Returned Context Includes:**
+        - All component state (instance attributes)
+        - component: Reference to self
+        - action_url: Method to generate action URLs: {{ action_url('method_name') }}
+        - component_attrs: HTMX attributes for state persistence
+        - Any additional kwargs passed (higher priority)
+
+        Args:
+            **kwargs: Additional context variables to include (override defaults).
+
+        Returns:
+            dict: Template context ready for Jinja2 rendering.
+
+        Example:
+            @register("widget")
+            class WidgetComponent(Component):
+                template_name = "widget.html"
+                
+                def __init__(self, title="Default", **kwargs):
+                    self.title = title
+                    super().__init__(**kwargs)
+                
+                def get_context_data(self, **kwargs):
+                    ctx = super().get_context_data(**kwargs)
+                    # Add computed properties
+                    ctx['title_upper'] = self.title.upper()
+                    return ctx
+
+            # When rendered:
+            # ctx = component.get_context_data()
+            # ctx['title']       -> "My Widget"
+            # ctx['title_upper'] -> "MY WIDGET"
+            # ctx['action_url']  -> <function>
         """
         ctx = self.__dict__.copy()
         ctx.pop("_component_name", None)
+        ctx.pop("_reactive_state", None)
         ctx["component"] = self
         ctx["action_url"] = self.action_url
-        ctx["component_attrs"] = self.get_hx_attrs
+        ctx["component_attrs"] = self.get_hx_attrs()
         ctx.update(kwargs)
         return ctx
 
-
     @property
     def request(self) -> Optional[Any]:
-        """Accessor for the current request."""
+        """
+        Accessor for the current HTTP request context.
+        
+        Returns:
+            Request object from context, or None if no request is active.
+        
+        Usage:
+            user_agent = self.request.headers.get('user-agent')
+        """
         from eden.context import get_request
         return get_request()
 
     def get_state(self) -> dict[str, Any]:
         """
-        Returns the serializable state of the component.
-        Excludes everything by default unless it's a simple type (str, int, bool, float, list, dict).
-        Also excludes internal framework attributes.
+        Returns the serializable state of the component for persistence.
+
+        Only includes attributes that are:
+        - Simple types (str, int, bool, float, list, dict, None)
+        - Not prefixed with underscore (framework internals)
+        - Not in the exclusion list (request, component, slots, etc.)
+
+        This state is encoded into HTMX requests (via hx-vals) so that when the 
+        user triggers an action, the component can be re-instantiated with all 
+        current state automatically restored.
+
+        **Type Restrictions:**
+        Complex objects (custom classes, functions, etc.) are excluded automatically 
+        to ensure JSON serializability. If you need to persist complex state, 
+        serialize it to a string/dict before storing.
+
+        Returns:
+            dict: Serializable key-value pairs representing component state.
+
+        Example:
+            class CartComponent(Component):
+                def __init__(self, items=None, total=0.0, **kwargs):
+                    self.items = items or []      # List is OK
+                    self.total = total             # Float is OK
+                    self.user = get_user()         # User object - EXCLUDED
+                    self.user_id = 123             # Int is OK - will persist
+                    super().__init__(**kwargs)
+                
+                def get_state(self):
+                    state = super().get_state()
+                    # state = {'items': [...], 'total': 0.0, 'user_id': 123}
+                    return state
         """
         exclude = {"request", "component", "slots", "action_url", "component_attrs"}
         state = {}
@@ -79,29 +215,122 @@ class Component:
                 state[k] = v
         return state
 
-
     def get_hx_attrs(self) -> Markup:
         """
         Returns the HTMX attributes required for state persistence.
+
+        Generates a JSON-encoded hx-vals attribute that embeds the component's 
+        current state. When the user triggers an action, HTMX includes these 
+        values in the request, allowing the component to be re-instantiated 
+        with all state restored.
+
+        Returns:
+            Markup: Safe HTML-escaped string containing hx-vals attribute.
+
+        Template Usage:
+            <button hx-post="{{ action_url('save') }}" {{ component_attrs }}>
+                Save Changes
+            </button>
+
+        Generated HTML:
+            <button hx-post="/_eden/component/form/save" 
+                    hx-vals='{"title": "Hello", "draft": true}'>
+                Save Changes
+            </button>
         """
         import json
         state = self.get_state()
         return Markup(f'hx-vals=\'{json.dumps(state)}\'')
 
-
     async def render(self, **kwargs: Any) -> Markup:
-        """Render the component using its template."""
+        """
+        Render the component's template with current state.
+
+        This is the main method for converting a component instance to HTML. 
+        It calls get_context_data() to build the template context, then renders 
+        the associated template.
+
+        Args:
+            **kwargs: Additional context variables to pass to get_context_data().
+
+        Returns:
+            Markup: Safe HTML-escaped rendered template.
+
+        Example:
+            component = CounterComponent(count=5)
+            html = await component.render()
+            # Returns: <div class="counter">Count: 5...</div>
+
+            # Can also pass additional context:
+            html = await component.render(show_reset=True)
+        """
         from eden.components import render_component
         return render_component(self._component_name, **self.get_context_data(**kwargs))
 
     def action_url(self, action_name: str) -> str:
-        """Return the URL to trigger an action on this component."""
+        """
+        Generate the URL to trigger an action on this component.
+
+        Returns a URL that, when POSTed to (via HTMX), will re-instantiate this 
+        component with current state and call the specified action method.
+
+        Args:
+            action_name: Name of the action method to call (e.g., 'increment', 'save').
+
+        Returns:
+            str: Absolute URL path for the action.
+
+        Example:
+            # In component:
+            url = self.action_url('increment')
+            # url = '/_eden/component/counter/increment'
+
+            # In template:
+            <button hx-post="{{ action_url('increment') }}" {{ component_attrs }}>
+                +1
+            </button>
+        """
         return f"/_eden/component/{self._component_name}/{action_name}"
 
 
 
 def register(name: str):
-    """Decorator to register a component class by name."""
+    """
+    Decorator to register a component class by name in the global registry.
+
+    This decorator makes a component available for use in templates via the 
+    @component directive. It also automatically discovers and registers any 
+    methods decorated with @action.
+
+    Args:
+        name: Unique identifier for the component (e.g., 'counter', 'user-card').
+              Used in templates as @component("name", ...).
+
+    Returns:
+        Decorator function that registers the class and returns it unchanged.
+
+    Example:
+        @register("counter")
+        class CounterComponent(Component):
+            template_name = "counter.html"
+            
+            def __init__(self, count=0, **kwargs):
+                self.count = count
+                super().__init__(**kwargs)
+            
+            @action
+            async def increment(self, request):
+                self.count += 1
+                return await self.render()
+
+        # Now usable in templates:
+        # @component("counter", count=initial) { ... }
+
+    **Automatic Action Discovery:**
+    When @register is applied, it scans the class for methods decorated with 
+    @action and registers them globally for fast lookup. This allows the 
+    dispatcher to route incoming requests to the correct action quickly.
+    """
     def decorator(cls: type[Component]) -> type[Component]:
         cls._component_name = name
         _registry[name] = cls
@@ -119,7 +348,79 @@ def register(name: str):
 def action(arg=None):
     """
     Decorator to mark a component method as an HTMX-callable action.
-    Can be used as @action or @action("slug").
+
+    Actions are component methods that respond to user interactions triggered from 
+    templates via HTMX. When a user initiates an action (e.g., form submission, 
+    button click), the framework:
+    1. Re-instantiates the component with persisted state
+    2. Calls the action method
+    3. Returns the result (usually updated HTML)
+
+    **Usage Variations:**
+
+    Without arguments (uses method name as action slug):
+        @action
+        async def increment(self, request):
+            self.count += 1
+            return await self.render()
+
+    With custom slug:
+        @action("update")
+        async def save_changes(self, request):
+            # Updated from template: action_url('update')
+            return await self.render()
+
+    **Return Value Handling:**
+    - str or Markup: Returned directly as HTML response
+    - Component instance: Re-rendered and returned as HTML
+    - dict: Returned as JSON response (for API usage)
+    - Any other Response object: Returned unchanged
+
+    **Action Parameters:**
+    Actions can accept parameters that are automatically coerced from request data:
+
+        @action
+        async def add_item(self, request, name: str, quantity: int):
+            # 'name' and 'quantity' are extracted from request form data
+            # Type hints are used for automatic coercion
+            self.items.append({'name': name, 'qty': quantity})
+            return await self.render()
+
+    **State Persistence:**
+    The current component state is automatically included in HTMX requests via 
+    hx-vals. When the component is re-instantiated, its state is restored before 
+    the action method is called.
+
+    Args:
+        arg: Optional action slug (name for accessing from template).
+            If omitted, method name is used.
+
+    Returns:
+        Decorated function with _is_eden_action and _action_slug attributes set.
+
+    Example (Full Counter Component):
+        @register("counter")
+        class CounterComponent(Component):
+            template_name = "counter.html"
+            
+            def __init__(self, count=0, **kwargs):
+                self.count = count
+                super().__init__(**kwargs)
+            
+            @action
+            async def increment(self, request):
+                self.count += 1
+                return await self.render()
+            
+            @action
+            async def decrement(self, request):
+                self.count -= 1
+                return await self.render()
+            
+            @action("reset")
+            async def reset_count(self, request):
+                self.count = 0
+                return await self.render()
     """
     if callable(arg): # Used as @action (no parentheses)
         func = arg
@@ -351,13 +652,14 @@ async def component_dispatcher(request: Any) -> Any:
     # Cast types based on signature hints
     sig = inspect.signature(method)
     casted_params = {}
+    has_kwargs = any(p.kind == p.VAR_KEYWORD for p in sig.parameters.values())
     
     # Always pass request if it's in the signature
     if "request" in sig.parameters:
         casted_params["request"] = request
 
     for name, param in sig.parameters.items():
-        if name == "request":
+        if name == "request" or param.kind == param.VAR_KEYWORD:
             continue
             
         if name in raw_state:
@@ -373,6 +675,12 @@ async def component_dispatcher(request: Any) -> Any:
                 except (ValueError, TypeError): pass
                 
             casted_params[name] = val
+    
+    # If method has **kwargs, pass remaining raw_state
+    if has_kwargs:
+        for k, v in raw_state.items():
+            if k not in casted_params:
+                casted_params[k] = v
     
     # Filter out internal params from state if they don't match signature
     # (they are already in 'inst' but we only pass relevant ones to method)

@@ -1,7 +1,4 @@
-"""
-Eden — Modern Templating Engine
-"""
-
+from __future__ import annotations
 import datetime
 import json as _json
 import re
@@ -20,6 +17,577 @@ DEFAULT_DUMP_STYLE = (
     "text-xs font-mono border border-gray-800 my-4"
 )
 
+from enum import Enum, auto
+from dataclasses import dataclass, field
+
+class TokenType(Enum):
+    TEXT = auto()
+    DIRECTIVE = auto()      # @name
+    EXPRESSION = auto()     # (args)
+    BLOCK_OPEN = auto()     # {
+    BLOCK_CLOSE = auto()    # }
+    ESCAPED_AT = auto()     # @@
+    COMMENT = auto()        # <!-- ... --> or {# ... #}
+    JINJA_TAG = auto()      # {{ ... }} or {% ... %}
+    STRING = auto()         # "..." or '...' or `...`
+    EOF = auto()
+
+@dataclass
+class Token:
+    type: TokenType
+    value: str
+    line: int
+    column: int
+
+class Node:
+    pass
+
+@dataclass
+class TextNode(Node):
+    content: str
+
+@dataclass
+class DirectiveNode(Node):
+    name: str
+    expression: str | None = None
+    body: list[Node] | None = None
+    line: int = 0
+    orelse: list[Node] = field(default_factory=list)
+
+class TemplateLexer:
+    """
+    State-aware scanner for Eden templates.
+    Ensures @directives are NOT identified inside strings, comments, or script/style blocks.
+    """
+    def __init__(self, source: str):
+        self.source = source
+        self.pos = 0
+        self.line = 1
+        self.column = 1
+        self.tokens = []
+
+    def peek(self, n=1):
+        return self.source[self.pos : self.pos + n]
+
+    def advance(self, n=1):
+        res = self.source[self.pos : self.pos + n]
+        for char in res:
+            if char == '\n':
+                self.line += 1
+                self.column = 1
+            else:
+                self.column += 1
+        self.pos += n
+        return res
+
+    def tokenize(self) -> list[Token]:
+        while self.pos < len(self.source):
+            char = self.peek()
+            
+            # 1. Escaped @
+            if char == '@' and self.peek(2) == '@@':
+                self.tokens.append(Token(TokenType.ESCAPED_AT, self.advance(2), self.line, self.column))
+                continue
+
+            # 2. Comments & Script/Style Blocks (Special Text)
+            if char == '<':
+                if self.peek(4) == '<!--':
+                    content = self.read_until('-->', consume_enclosure=True)
+                    self.tokens.append(Token(TokenType.COMMENT, content, self.line, self.column))
+                    continue
+                if self.peek(7).lower() == '<script':
+                    self.tokens.append(Token(TokenType.TEXT, self.read_until_tag('script'), self.line, self.column))
+                    continue
+                if self.peek(6).lower() == '<style':
+                    self.tokens.append(Token(TokenType.TEXT, self.read_until_tag('style'), self.line, self.column))
+                    continue
+
+            # 3. Jinja2 Tags
+            if char == '{':
+                if self.peek(2) in ('{{', '{%', '{#'):
+                    closer = '}}' if self.peek(2) == '{{' else '%}' if self.peek(2) == '{%' else '#}'
+                    content = self.read_until(closer, consume_enclosure=True)
+                    self.tokens.append(Token(TokenType.JINJA_TAG, content, self.line, self.column))
+                    continue
+
+            # 4. Directives
+            if char == '@':
+                # Avoid matching emails: must be at start or preceded by non-alphanumeric
+                can_be_directive = True
+                if self.pos > 0:
+                    prev_char = self.source[self.pos - 1]
+                    if prev_char.isalnum() or prev_char == '_':
+                        can_be_directive = False
+                
+                if can_be_directive:
+                    # Check if it's a valid directive name prefix
+                    m = re.match(r'@([a-zA-Z_]\w*)', self.source[self.pos:])
+                    if m:
+                        name = m.group(1)
+                        full_match = m.group(0)
+                        
+                        # Support "@else if" syntax by normalizing to "elif"
+                        if name == "else":
+                            remaining = self.source[self.pos + len(full_match):]
+                            m_elif = re.match(r'\s+if\b', remaining)
+                            if m_elif:
+                                name = "elif"
+                                full_match += m_elif.group(0)
+
+                        token_line, token_col = self.line, self.column
+                        self.advance(len(full_match))
+                        self.tokens.append(Token(TokenType.DIRECTIVE, name, token_line, token_col))
+                        
+                        # Optional arguments: @name(...)
+                        # Skip whitespace to find (
+                        saved_pos_expr = self.pos
+                        saved_line_expr, saved_col_expr = self.line, self.column
+                        ws_expr = ""
+                        while self.pos < len(self.source) and self.source[self.pos].isspace():
+                            ws_expr += self.advance()
+                        
+                        if self.peek() == '(':
+                            expr_line, expr_col = self.line, self.column
+                            expr = self.read_balanced('(', ')')
+                            self.tokens.append(Token(TokenType.EXPRESSION, expr, expr_line, expr_col))
+                        elif name in ("let", "php", "json", "dump", "css", "js", "vite", "method", "csrf"):
+                            # Directives that might take the rest of the line as expression
+                            # Consumed above ws_expr, but if not ( it might be a raw expr
+                            # Backtrack to after name
+                            self.pos = saved_pos_expr
+                            self.line = saved_line_expr
+                            self.column = saved_col_expr
+                            
+                            # Read until end of line or {
+                            raw_expr = self.read_until(lambda c: c == '\n' or c == '{').strip()
+                            if raw_expr:
+                                self.tokens.append(Token(TokenType.EXPRESSION, raw_expr, self.line, self.column))
+                        else:
+                            # Backtrack
+                            self.pos = saved_pos_expr
+                            self.line = saved_line_expr
+                            self.column = saved_col_expr
+
+                        # Optional block open: {
+                        # Skip whitespace to find {
+                        saved_pos = self.pos
+                        saved_line, saved_col = self.line, self.column
+                        ws = ""
+                        while self.pos < len(self.source) and self.source[self.pos].isspace():
+                            ws += self.advance()
+                        
+                        if self.peek() == '{':
+                            # It's a block!
+                            if ws: self.tokens.append(Token(TokenType.TEXT, ws, saved_line, saved_col))
+                            self.tokens.append(Token(TokenType.BLOCK_OPEN, self.advance(), self.line, self.column))
+                        else:
+                            # Not a block, backtrack WS move
+                            self.pos = saved_pos
+                            self.line = saved_line
+                            self.column = saved_col
+                            self.pos = saved_pos
+                            self.line = saved_line
+                            self.column = saved_col
+                        continue
+
+            # 5. Braces (for blocks)
+            if char == '}':
+                self.tokens.append(Token(TokenType.BLOCK_CLOSE, self.advance(), self.line, self.column))
+                continue
+            
+            if char == '{':
+                self.tokens.append(Token(TokenType.BLOCK_OPEN, self.advance(), self.line, self.column))
+                continue
+
+            # 6. Fallback: Generic Text
+            text = self.read_until(lambda c: c in ('@', '{', '}', '<'), False)
+            if not text and self.pos < len(self.source):
+                text = self.advance()
+            if text:
+                self.tokens.append(Token(TokenType.TEXT, text, self.line, self.column))
+
+        self.tokens.append(Token(TokenType.EOF, '', self.line, self.column))
+        return self.tokens
+
+    def read_until(self, closer: str | Any, consume_enclosure: bool = False) -> str:
+        start = self.pos
+        if isinstance(closer, str):
+            idx = self.source.find(closer, self.pos)
+            if idx == -1:
+                res = self.source[self.pos:]
+                self.advance(len(self.source) - self.pos)
+                return res
+            target = idx + (len(closer) if consume_enclosure else 0)
+            res = self.source[start:target]
+            self.advance(target - self.pos)
+            return res
+        else:
+            # Predicate version
+            while self.pos < len(self.source) and not closer(self.source[self.pos]):
+                self.advance()
+            return self.source[start : self.pos]
+
+    def read_until_tag(self, tag_name: str) -> str:
+        closer = f"</{tag_name}>"
+        idx = self.source.lower().find(closer.lower(), self.pos)
+        if idx == -1:
+            return self.advance(len(self.source) - self.pos)
+        
+        target = idx + len(closer)
+        return self.advance(target - self.pos)
+
+    def read_balanced(self, open_str: str, close_str: str) -> str:
+        start_pos = self.pos
+        self.advance(len(open_str))
+        depth = 1
+        while self.pos < len(self.source):
+            char = self.source[self.pos]
+            if char in ("'", '"', '`'):
+                # Skip strings
+                quote = self.advance()
+                while self.pos < len(self.source):
+                    if self.source[self.pos] == quote:
+                        if self.source[self.pos - 1] != '\\':
+                            self.advance()
+                            break
+                    self.advance()
+                continue
+                
+            if self.source.startswith(open_str, self.pos):
+                depth += 1
+                self.advance(len(open_str))
+            elif self.source.startswith(close_str, self.pos):
+                depth -= 1
+                self.advance(len(close_str))
+                if depth == 0:
+                    return self.source[start_pos : self.pos]
+            else:
+                self.advance()
+        return self.source[start_pos:]
+
+class TemplateParser:
+    def __init__(self, tokens: list[Token]):
+        self.tokens = tokens
+        self.pos = 0
+
+    def peek(self):
+        return self.tokens[self.pos]
+
+    def advance(self):
+        res = self.tokens[self.pos]
+        self.pos += 1
+        return res
+
+    def parse(self) -> list[Node]:
+        nodes = []
+        while self.peek().type != TokenType.EOF:
+            node = self.parse_node()
+            if node:
+                nodes.append(node)
+        
+        # Group if/elif/else chains
+        return self._group_conditionals(nodes)
+
+    def _group_conditionals(self, nodes: list[Node]) -> list[Node]:
+        new_nodes = []
+        i = 0
+        while i < len(nodes):
+            node = nodes[i]
+            if isinstance(node, DirectiveNode) and node.name in ("if", "unless"):
+                chain = node
+                curr = chain
+                while i + 1 < len(nodes):
+                    next_idx = i + 1
+                    maybe_ws = nodes[next_idx]
+                    if isinstance(maybe_ws, TextNode) and maybe_ws.content.isspace():
+                        if next_idx + 1 < len(nodes):
+                            next_node = nodes[next_idx + 1]
+                            if isinstance(next_node, DirectiveNode) and next_node.name in ("else", "elif", "elseif"):
+                                curr.orelse.extend([maybe_ws, next_node])
+                                curr = next_node
+                                i = next_idx + 1
+                                continue
+                    elif isinstance(maybe_ws, DirectiveNode) and maybe_ws.name in ("else", "elif", "elseif"):
+                        curr.orelse.append(maybe_ws)
+                        curr = maybe_ws
+                        i = next_idx
+                        continue
+                    break
+                new_nodes.append(chain)
+            else:
+                new_nodes.append(node)
+            i += 1
+        return new_nodes
+
+    def parse_node(self) -> Node | None:
+        token = self.peek()
+        
+        if token.type == TokenType.DIRECTIVE:
+            directive_token = self.advance()
+            expression = None
+            if self.peek().type == TokenType.EXPRESSION:
+                expression = self.advance().value
+            
+            block_directives = (
+                "if", "unless", "else", "elif", "elseif", "for", "foreach", "switch", "case", "default",
+                "auth", "guest", "htmx", "non_htmx", "fragment", "push", "verbatim",
+                "section", "block", "slot", "component", "error", "messages",
+                "even", "odd", "first", "last"
+            )
+            
+            if directive_token.value in block_directives:
+                saved_pos = self.pos
+                ws_nodes = []
+                while self.peek().type == TokenType.TEXT and self.peek().value.isspace():
+                    ws_nodes.append(TextNode(content=self.advance().value))
+                
+                if self.peek().type == TokenType.BLOCK_OPEN:
+                    self.advance() # consume {
+                    body = []
+                    while self.peek().type != TokenType.BLOCK_CLOSE and self.peek().type != TokenType.EOF:
+                        n = self.parse_node()
+                        if n: body.append(n)
+                    
+                    if self.peek().type == TokenType.BLOCK_CLOSE:
+                        self.advance() # consume }
+                    
+                    # Group conditionals recursively within the body
+                    grouped_body = self._group_conditionals(body)
+                    
+                    return DirectiveNode(
+                        name=directive_token.value,
+                        expression=expression,
+                        body=grouped_body,
+                        line=directive_token.line
+                    )
+                else:
+                    self.pos = saved_pos
+            
+            return DirectiveNode(
+                name=directive_token.value,
+                expression=expression,
+                line=directive_token.line
+            )
+            
+        elif token.type == TokenType.BLOCK_CLOSE:
+            return TextNode(content=self.advance().value)
+        else:
+            t = self.advance()
+            content = t.value
+            if t.type == TokenType.ESCAPED_AT:
+                content = '@'
+            return TextNode(content=content)
+
+class TemplateCompiler:
+    def compile(self, nodes: list[Node]) -> str:
+        parts = []
+        for node in nodes:
+            parts.append(self.visit(node))
+        return "".join(parts)
+
+    def visit(self, node: Node) -> str:
+        if isinstance(node, TextNode): return node.content
+        if isinstance(node, DirectiveNode): return self.visit_directive(node)
+        return ""
+
+    def visit_directive(self, node: DirectiveNode) -> str:
+        name = node.name
+        expr = node.expression
+        if expr and expr.startswith('(') and expr.endswith(')'):
+            expr = expr[1:-1]
+        
+        if name == "csrf": return '<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">'
+        if name == "eden_head": return '{{ eden_head() }}'
+        if name == "eden_scripts": return '{{ eden_scripts() }}'
+        if name == "method": 
+            val = expr.strip("'\"") if expr else "POST"
+            return f'<input type="hidden" name="_method" value="{val}">'
+        if name == "yield": 
+            val = expr.strip("'\"") if expr else "content"
+            return f'{{% block {val} %}}{{% endblock %}}'
+        if name == "stack": return f'{{{{ eden_stack({expr}) }}}}'
+        if name == "super": return '{{ super() }}'
+        if name == "extends": return f'{{% extends {expr} %}}'
+        if name == "include": return f'{{% include {expr} %}}'
+        if name == "css": return f'<link rel="stylesheet" href={expr}>'
+        if name == "js": return f'<script src={expr}></script>'
+        if name == "vite": return f'{{{{ vite({expr}) }}}}'
+        if name == "old":
+            parts = [p.strip() for p in (expr or "").split(',', 1)]
+            name_v = parts[0]
+            def_v = parts[1] if len(parts) > 1 else "None"
+            return f'{{{{ old({name_v}, {def_v}) }}}}'
+        if name == "span": return f'{{{{ {expr.replace("$", "")} }}}}' if expr else ""
+        if name == "json": return f'{{{{ {expr} | json_encode }}}}'
+        if name == "dump": 
+            clean_expr = expr.replace("$", "").replace("(", "").replace(")", "").strip()
+            return f'{{{{ eden_dump({expr}, "{clean_expr}") }}}} {{# eden-dump json_encode #}}'
+        if name == "status": return f'{{{{ set_response_status({expr}) }}}}'
+        if name in ("checked", "selected", "disabled", "readonly"): 
+            return f'{{% if {expr} %}}{name}{{% endif %}}'
+        if name == "let": return f"{{% set {expr} %}}"
+        if name == "props": return self.handle_props(expr)
+        if name == "render_field":
+            parts = [p.strip() for p in (expr or "").split(',', 1)]
+            field_expr = parts[0].replace('$', '')
+            kwargs = parts[1] if len(parts) > 1 else ""
+            return f'{{{{ {field_expr}.render_composite({kwargs}) }}}}'
+        if name == "url": return self.handle_url(expr)
+        if name == "active_link":
+            parts = [p.strip() for p in (expr or "").split(',', 1)]
+            url_v = parts[0]
+            css_v = parts[1].strip('"\'')
+            if url_v.startswith("'") or url_v.startswith('"'):
+                url_v = f'"{url_v[1:-1].replace(":", "_")}"'
+            return f'{{{{ "{css_v}" if is_active(request, {url_v}) else "" }}}}'
+        if name == "class": return self.handle_class(expr)
+
+        body_compiled = self.compile(node.body or []) if node.body is not None else ""
+        if name == "if":
+            res = [f"{{% if {expr} %}}" + body_compiled]
+            for orelse in node.orelse:
+                res.append(self.visit(orelse))
+            res.append("{% endif %}")
+            return "".join(res)
+        
+        if name == "unless":
+            res = [f"{{% if not ({expr}) %}}" + body_compiled]
+            for orelse in node.orelse:
+                res.append(self.visit(orelse))
+            res.append("{% endif %}")
+            return "".join(res)
+        
+        if name in ("elif", "elseif"):
+            res = [f"{{% elif {expr} %}}{body_compiled}"]
+            for o in node.orelse: res.append(self.visit(o))
+            return "".join(res)
+        
+        if name == "else":
+            res = [f"{{% else %}}{body_compiled}"]
+            for o in node.orelse: res.append(self.visit(o))
+            return "".join(res)
+
+        if name in ("for", "foreach"):
+            inner = expr.replace('$', '') if expr else ""
+            if ' as ' in inner:
+                parts = inner.split(' as ')
+                inner = f"{parts[1].strip()} in {parts[0].strip()}"
+            return f"{{% for {inner} %}}" + body_compiled + "{% endfor %}"
+        
+        if name == "switch":
+            # Process switch body to identify cases/default
+            cases_compiled = []
+            default_compiled = ""
+            has_cases = False
+            
+            if node.body:
+                for n in node.body:
+                    if isinstance(n, DirectiveNode):
+                        if n.name == "case":
+                            c_expr = n.expression[1:-1] if n.expression else "None"
+                            c_body = self.compile(n.body or [])
+                            pfx = "{% if" if not has_cases else "{% elif"
+                            cases_compiled.append(f"{pfx} __sw == {c_expr} %}}" + c_body)
+                            has_cases = True
+                        elif n.name == "default":
+                            pfx = "{% else %}" if has_cases else "{% if True %}"
+                            default_compiled = pfx + self.compile(n.body or [])
+            
+            res = [f"{{% with __sw = {expr} %}}"]
+            res.extend(cases_compiled)
+            if default_compiled:
+                res.append(default_compiled)
+                if not has_cases:
+                    res.append("{% endif %}")
+            if has_cases:
+                res.append("{% endif %}")
+            res.append("{% endwith %}")
+            return "".join(res)
+
+        if name == "case": return "" # Handled by switch
+        if name == "default": return "" # Handled by switch
+        if name == "auth":
+            if expr:
+                roles_list = [r.strip().strip("'\"").replace('$', '') for r in (expr or "").split(',')]
+                cond = f'request.user.role == "{roles_list[0]}"' if len(roles_list) == 1 else f'request.user.role in {roles_list}'
+                return f'{{% if request.user and request.user.is_authenticated and {cond} %}}{body_compiled}{{% endif %}}'
+            return f'{{% if request.user and request.user.is_authenticated %}}{body_compiled}{{% endif %}}'
+        if name == "guest": return f'{{% if not (request.user and request.user.is_authenticated) %}}{body_compiled}{{% endif %}}'
+        if name == "htmx": return f'{{% if request.headers.get("HX-Request") == "true" %}}{body_compiled}{{% endif %}}'
+        if name == "non_htmx": return f'{{% if request.headers.get("HX-Request") != "true" %}}{body_compiled}{{% endif %}}'
+        if name == "fragment":
+            val = expr.strip('"\'') if expr else ""
+            return f'{{% block fragment_{val} %}}{body_compiled}{{% endblock %}}'
+        if name == "push":
+            val = expr.strip('"\'') if expr else ""
+            return f'{{% set __push_content %}}{body_compiled}{{% endset %}}{{{{ eden_push("{val}", __push_content) }}}}'
+        if name == "verbatim": return f'{{% raw %}}{body_compiled}{{% endraw %}}'
+        if name in ("section", "block"):
+            val = expr.strip('"\'') if expr else ""
+            return f'{{% block {val} %}}{body_compiled}{{% endblock %}}'
+        if name == "slot": return f'{{% slot {expr} %}}{body_compiled}{{% endslot %}}'
+        if name == "component": return f'{{% component {expr} %}}{body_compiled}{{% endcomponent %}}'
+        if name == "error": return f'{{% if errors and errors.has({expr}) %}}{{% set error = errors.first({expr}) %}}{body_compiled}{{% endif %}}'
+        if name == "messages": return f'{{% for message in eden_messages() %}}{body_compiled}{{% endfor %}}'
+        if name in ("even", "odd", "first", "last"): return f'{{% if loop.{name} %}}{body_compiled}{{% endif %}}'
+        return f"<!-- Unknown @{name} -->"
+
+    def handle_props(self, props_val: str) -> str:
+        try:
+            import ast
+            props_val = props_val.strip()
+            if '=>' in props_val:
+                items = []
+                content = props_val.strip(' []{}')
+                for part in content.split(','):
+                    if '=>' in part:
+                        k, v = part.split('=>')
+                        items.append(f"{k.strip()}: {v.strip()}")
+                    else:
+                        items.append(f"{part.strip()}: None")
+                props_val = "{" + ", ".join(items) + "}"
+            props_dict = ast.literal_eval(props_val)
+            if isinstance(props_dict, list): props_dict = {k: None for k in props_dict}
+            res_lines = []
+            for k, v in props_dict.items():
+                jinja_val = _json.dumps(v)
+                res_lines.append(f'{{% set {k} = {k} if {k} is defined else {jinja_val} %}}')
+            return "".join(res_lines)
+        except Exception as e: return f"<!-- @props error: {str(e)} -->"
+
+    def handle_class(self, val: str) -> str:
+        try:
+            content = val.strip(' []{}')
+            if not content: return 'class=""'
+            parts = []
+            for part in content.split(','):
+                part = part.strip()
+                if '=>' in part:
+                    k, v = part.split('=>', 1)
+                    k = k.strip().strip('"\'')
+                    v = v.strip().replace('$', '')
+                    parts.append(f'("{k}" if {v} else "")')
+                elif ':' in part:
+                    k, v = part.split(':', 1)
+                    k = k.strip().strip('"\'')
+                    v = v.strip().replace('$', '')
+                    parts.append(f'("{k}" if {v} else "")')
+                else:
+                    k = part.strip().strip('"\'')
+                    parts.append(f'"{k}"')
+            res = " + \" \" + ".join(parts)
+            return f'class="{{{{ ({res}).strip() }}}}"'
+        except Exception as e: return f'class="<!-- @class error: {str(e)} -->"'
+
+    def handle_url(self, expr: str) -> str:
+        name_part, alias = expr.split(' as ') if ' as ' in expr else (expr, None)
+        parts = [p.strip() for p in name_part.strip().split(',', 1)]
+        raw_name = parts[0].strip('"\'')
+        kwargs = parts[1] if len(parts) > 1 else ""
+        normalized_name = raw_name.replace(':', '_')
+        args = f'"component:dispatch", action_slug="{raw_name.split(":")[1]}"' + (f", {kwargs}" if kwargs else "") if raw_name.startswith("component:") else f'"{normalized_name}"' + (f", {kwargs}" if kwargs else "")
+        return f'{{% set {alias.strip()} = url_for({args}) %}}' if alias else f'{{{{ url_for({args}) }}}}'
+
 
 class EdenDirectivesExtension(Extension):
     """
@@ -27,191 +595,26 @@ class EdenDirectivesExtension(Extension):
     Ensures that directives are not replaced within strings or comments.
     """
     def preprocess(self, source: str, name: str | None, filename: str | None = None) -> str:
-        # 0. Protection: Extract strings and comments to avoid accidental replacement
-        protected_blocks = []
-        def _protect(match):
-            placeholder = f"__EDEN_PROTECTED_{len(protected_blocks)}__"
-            protected_blocks.append(match.group(0))
-            return placeholder
+        # 0. Tokenize
+        lexer = TemplateLexer(source)
+        tokens = lexer.tokenize()
 
-        # Protect HTML comments
-        source = re.sub(r'<!--.*?-->', _protect, source, flags=re.DOTALL)
-        # Protect single and double quoted strings (carefully)
-        source = re.sub(r'\'[^\']*\'|"[^"]*"', _protect, source)
+        # 1. Parse into AST
+        parser = TemplateParser(tokens)
+        nodes = parser.parse()
 
-        def _preserve_lines(match_str: str, replacement: str) -> str:
-            """Ensure replacement has same number of newlines as match_str."""
-            original_lines = match_str.count('\n')
-            replacement_lines = replacement.count('\n')
-            if original_lines > replacement_lines:
-                return replacement + ('\n' * (original_lines - replacement_lines))
-            return replacement
+        # 2. Compile AST to Jinja2
+        compiler = TemplateCompiler()
+        compiled = compiler.compile(nodes)
 
-        # 1. Simple replacements (no block context)
-        source = re.sub(r'@csrf', r'<input type="hidden" name="csrf_token" value="{{ request.session.eden_csrf_token }}" />', source)
-        source = re.sub(r'@eden_head', r'{{ eden_head() }}', source)
-        source = re.sub(r'@eden_scripts', r'{{ eden_scripts() }}', source)
-        
-        # yield and stack fundamentals
-        source = re.sub(r'@yield\s*\(\s*[\'"]?([^\'"\)]+?)[\'"]?\s*\)', r'{% block \1 %}{% endblock %}', source)
-        source = re.sub(r'@render\s*\(\s*[\'"]?([^\'"\)]+?)[\'"]?\s*\)', r'{% block \1 %}{% endblock %}', source)
-        source = re.sub(r'@show\s*\(\s*[\'"]?([^\'"\)]+?)[\'"]?\s*\)', r'{{ super() }}', source)
-
-        # Basic Layout Helpers
-        source = re.sub(r'@extends\s*\(\s*([\'"].+?[\'"])\s*\)', r'{% extends \1 %}', source)
-        source = re.sub(r'@include\s*\(\s*([\'"].+?[\'"])\s*\)', r'{% include \1 %}', source)
-        source = re.sub(r'@super\s*\(\s*\)|@super(?![\w(])', r'{{ super() }}', source)
-
-        # Form Helpers
-        source = re.sub(r'@method\s*\(\s*[\'"](.+?)[\'"]\s*\)', r'<input type="hidden" name="_method" value="\1" />', source)
-        
-        # Asset helpers
-        source = re.sub(r'@css\s*\(\s*[\'"](.+?)[\'"]\s*\)', r'<link rel="stylesheet" href="{{ url_for("static", path="\1") }}" />', source)
-        source = re.sub(r'@js\s*\(\s*[\'"](.+?)[\'"]\s*\)', r'<script src="{{ url_for("static", path="\1") }}"></script>', source)
-        source = re.sub(r'@vite\s*\(\s*((?:[^()]|\([^()]*\))*)\s*\)', r'{{ vite(\1) }}', source)
-
-        # Value helpers
-        source = re.sub(r'@old\s*\(\s*[\'"](.+?)[\'"]\s*(?:,\s*(.+?))?\s*\)', 
-                        lambda m: f'{{{{ old("{m.group(1)}", {m.group(2) or "None"}) }}}}', source)
-        source = re.sub(r'@span\s*\(((?:[^()]|\([^()]*\))*)\)', lambda m: f'{{{{ {m.group(1).replace("$", "")} }}}}' if m.group(1) else "", source)
-        source = re.sub(r'@json\s*\(((?:[^()]|\([^()]*\))*)\)', r'{{ \1 | json_encode }}', source)
-        source = re.sub(r'@dump\s*\(((?:[^()]|\([^()]*\))*)\)', fr'<div class="{DEFAULT_DUMP_STYLE}"><pre>{{{{ \1 | json_encode(indent=4) }}}}</pre></div>', source)
-        source = re.sub(r'@status\s*\(\s*(\d+)\s*\)', r'{{ set_response_status(\1) }}', source)
-
-        # Inline attribute directives
-        source = re.sub(r'@(checked|selected|disabled|readonly)\s*\((.+?)\)', 
-                        lambda m: f'{{% if {m.group(2)} %}}{m.group(1)}{{% endif %}}', source)
-
-        # @props directive
-        def _props_replacer(m):
-            import ast
-            raw_props = m.group(1).strip()
-            try:
-                props_dict = ast.literal_eval(raw_props)
-                res_lines = []
-                for k, v in props_dict.items():
-                    jinja_val = _json.dumps(v)
-                    res_lines.append(f'{{% set {k} = {k} if {k} is defined else {jinja_val} %}}')
-                return "\n".join(res_lines)
-            except Exception:
-                return m.group(0)
-        source = re.sub(r'@props\s*\(\s*(\{.*?\})\s*\)', _props_replacer, source, flags=re.DOTALL)
-
-        # Recursive Block Directives
-        # Format: (name, pattern, open_tag_tmpl or callback, close_tag_name)
-        directives = [
-            ("if", r'@if\s*\((.*?)\)\s*\{', r'{% if \1 %}', "endif"),
-            ("unless", r'@unless\s*\((.*?)\)\s*\{', r'{% if not (\1) %}', "endif"),
-            ("for", r'@(?:for|foreach)\s*\((.*?)\)\s*\{', None, "endfor"),
-            ("switch", r'@switch\s*\((.*?)\)\s*\{', None, "endwith"),
-            ("case", r'@case\s*\((.*?)\)\s*\{', r'__EDEN_CASE__(\1)__', "__EDEN_ENDCASE__"),
-            ("default", r'@default\s*\{', r'__EDEN_DEFAULT__', "__EDEN_ENDDEFAULT__"),
-            ("auth", r'@auth(?:\s*\((.*?)\))?\s*\{', None, "endif"),
-            ("guest", r'@guest\s*\{', r'{% if not (request.user and request.user.is_authenticated) %}', "endif"),
-            ("htmx", r'@htmx\s*\{', r'{% if request.headers.get("HX-Request") == "true" %}', "endif"),
-            ("fragment", r'@fragment\s*\("(.*?)"\)\s*\{', r'{% block fragment_\1 %}', "endblock"),
-            ("push", r'@push\s*\("(.*?)"\)\s*\{', r'{{ eden_push("\1", """', '""") }}'),
-            ("verbatim", r'@verbatim\s*\{', r'{% raw %}', "endraw"),
-            ("error", r'@error\s*\(\s*[\'"]?([^\'"\s\)]+?)[\'"]?\s*\)\s*\{', 
-             r'{% if errors and errors.has("\1") %}{% set error = errors.first("\1") %}', "endif"),
-        ]
-
-        def find_balancing_brace(text, start_pos):
-            depth = 1
-            for i in range(start_pos, len(text)):
-                if text[i] == '{': depth += 1
-                elif text[i] == '}': 
-                    depth -= 1
-                    if depth == 0: return i
-            return -1
-
-        while True:
-            best_match = None
-            best_end = float('inf')
-
-            for name, pattern, open_tmpl, close_tag in directives:
-                for match in re.finditer(pattern, source, re.DOTALL):
-                    start_brace = match.end() - 1
-                    end_brace = find_balancing_brace(source, start_brace + 1)
-                    if end_brace != -1 and end_brace < best_end:
-                        best_end = end_brace
-                        best_match = (match, start_brace, end_brace, name, open_tmpl, close_tag)
-
-            if not best_match: break
-
-            match, start_brace, end_brace, name, open_tmpl, close_tag = best_match
-            body = source[start_brace+1 : end_brace]
-            
-            if name == "for":
-                inner = match.group(1).replace('$', '')
-                if ' as ' in inner:
-                    parts = inner.split(' as ')
-                    inner = f"{parts[1].strip()} in {parts[0].strip()}"
-                open_tag = f'{{% for {inner} %}}'
-            elif name == "switch":
-                # Convert markers inside body to exclusive if/elif
-                cases_replaced = 0
-                def _case_cb(cm):
-                    nonlocal cases_replaced
-                    res = f"{{% {'if' if cases_replaced == 0 else 'elif'} __sw == {cm.group(1)} %}}"
-                    cases_replaced += 1
-                    return res
-                body = re.sub(r'__EDEN_CASE__\((.*?)\)__', _case_cb, body)
-                body = body.replace('__EDEN_ENDCASE__', '').replace('__EDEN_DEFAULT__', '{% else %}').replace('__EDEN_ENDDEFAULT__', '')
-                if cases_replaced > 0: body += "{% endif %}"
-                open_tag = f'{{% with __sw = {match.group(1)} %}}'
-            elif name == "auth":
-                raw_args = match.group(1)
-                if raw_args:
-                    roles_list = [r.strip().strip("'\"").replace('$', '') for r in raw_args.split(',')]
-                    cond = f'request.user.role == "{roles_list[0]}"' if len(roles_list) == 1 else f'request.user.role in {roles_list}'
-                    open_tag = f'{{% if request.user and request.user.is_authenticated and {cond} %}}'
-                else:
-                    open_tag = '{% if request.user and request.user.is_authenticated %}'
-            else:
-                open_tag = open_tmpl
-                for idx, g in enumerate(match.groups()):
-                    open_tag = open_tag.replace(f'\\{idx+1}', (g or "").replace('$', ''))
-
-            # Apply replacement
-            source = source[:match.start()] + open_tag + body + (f"{{% {close_tag} %}}" if close_tag else "") + source[end_brace+1:]
-
-        # ── @url() & @active_link() ───────────────────────────────────────────
-        def _url_normalise(raw): return raw.replace(':', '_')
-        
-        def _url_replacer(m):
-            raw_name, kwargs, alias = m.group(1), m.group(2), m.group(3)
-            if raw_name.startswith("component:"):
-                args = f'"component:dispatch", action_slug="{raw_name.split(":")[1]}"' + (f", {kwargs.strip()}" if kwargs else "")
-            else:
-                args = f'"{_url_normalise(raw_name)}"' + (f", {kwargs.strip()}" if kwargs else "")
-            res = f'{{% set {alias} = url_for({args}) %}}' if alias else f'{{{{ url_for({args}) }}}}'
-            return res
-
-        source = re.sub(r'@url\s*\(\s*[\'"]([^\'"]+)[\'"]\s*(?:,\s*([^)]+?))?\s*\)(?:\s+as\s+(\w+))?', _url_replacer, source)
-
-        def _active_replacer(m):
-            arg1, css = m.group(1).strip(), m.group(2)
-            if (arg1.startswith("'") or arg1.startswith('"')):
-                res = f'{{{{ "{css}" if is_active(request, "{_url_normalise(arg1[1:-1])}") else "" }}}}'
-            else:
-                res = f'{{{{ "{css}" if is_active(request, {arg1}) else "" }}}}'
-            return res
-
-        source = re.sub(r'@active_link\s*\(\s*(.+?)\s*,\s*[\'"]([^\'"]+)[\'"]\s*\)', _active_replacer, source)
-
-        # ── Security: Automate target="_blank" protection ─────────────────────
+        # 4. Security: Automate target="_blank" protection
         def _enforce_noopener(m):
             tag = m.group(0)
             if 'rel=' not in tag.lower(): return tag[:-1] + ' rel="noopener noreferrer">'
             return tag
-        source = re.sub(r'<a\s+[^>]*?target=[\'"]_blank[\'"][^>]*>', _enforce_noopener, source, flags=re.IGNORECASE)
+        compiled = re.sub(r'<a\s+[^>]*?target=[\'"]_blank[\'"][^>]*>', _enforce_noopener, compiled, flags=re.IGNORECASE)
 
-        # 4. Restoration: Bring back protected strings and comments
-        for i, original in enumerate(protected_blocks):
-            source = source.replace(f"__EDEN_PROTECTED_{i}__", original)
-
-        return source
+        return compiled
 
 
 def format_time_ago(value: datetime.datetime) -> str:
@@ -575,6 +978,8 @@ class EdenTemplates(StarletteJinja2Templates):
             "tailwind_version": TAILWIND_VERSION,
             "old": self._old_helper,
             "vite": self._vite_helper,
+            "csrf_field": self._csrf_helper,
+            "eden_dump": self._dump_helper,
         })
 
         # ── Messaging helper ──────────────────────────────────────────────────
@@ -724,6 +1129,30 @@ class EdenTemplates(StarletteJinja2Templates):
             else:
                 tags.append(f'<script type="module" src="/{inp}"></script>')
         return Markup("\n".join(tags))
+
+    def _csrf_helper(self) -> Markup:
+        """Render a hidden CSRF token input field."""
+        from eden.context import get_request
+        request = get_request()
+        token = ""
+        if request and hasattr(request, "scope"):
+            # Try to get from state or session
+            token = getattr(request.state, "csrf_token", "")
+        return Markup(f'<input type="hidden" name="_token" value="{token}">')
+
+    def _dump_helper(self, value: Any, label: str = "") -> Markup:
+        """Premium @dump directive implementation with syntax highlighting feel."""
+        import pprint
+        formatted = pprint.pformat(value, indent=2)
+        
+        header = f'<div class="text-xs font-bold text-blue-400 mb-1">@dump: {label}</div>' if label else ""
+        html = (
+            f'<div class="{DEFAULT_DUMP_STYLE}">'
+            f'{header}'
+            f'<pre class="whitespace-pre-wrap"><code>{formatted}</code></pre>'
+            f'</div>'
+        )
+        return Markup(html)
 
     def render(self, request: Any, template_name: str, context: dict[str, Any], **kwargs: Any) -> Any:
         """

@@ -2,7 +2,7 @@ import pytest
 import uuid
 from typing import List
 from sqlalchemy.orm import Mapped
-from eden.orm import Model, f, Database
+from eden.db import Model, f, Database
 from eden.tenancy.mixins import TenantMixin
 from eden.tenancy.models import Tenant
 from eden.tenancy.context import set_current_tenant

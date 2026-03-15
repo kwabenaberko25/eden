@@ -1,7 +1,7 @@
 import pytest
 from uuid import uuid4
 from datetime import datetime
-from eden.orm import Model, f, QuerySet, Sum, Avg, Max, Q
+from eden.db import Model, f, QuerySet, Sum, Avg, Max, Q
 from sqlalchemy import func
 from sqlalchemy.orm import Mapped
 

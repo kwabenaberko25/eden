@@ -377,6 +377,12 @@ class Router:
                 # methods on the Router instance that it doesn't have.
                 return await _eden_route.handle(eden_request, **path_params)
 
+            # Copy rate limit metadata from original endpoint to the Starlette wrapper
+            if hasattr(eden_route.endpoint, "_rate_limit"):
+                endpoint._rate_limit = eden_route.endpoint._rate_limit
+            if hasattr(eden_route.endpoint, "_rate_limit_key"):
+                endpoint._rate_limit_key = eden_route.endpoint._rate_limit_key
+
             starlette_routes.append(
                 StarletteRoute(
                     path=path,

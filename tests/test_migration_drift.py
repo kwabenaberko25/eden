@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import MagicMock, patch, AsyncMock
-from eden.orm import MigrationManager
+from eden.db import MigrationManager
 
 @pytest.mark.asyncio
 async def test_migration_check_drift_detection():

@@ -18,7 +18,7 @@ def test_directives_preprocessing():
         <li>{{ item }}</li>
     }
     
-    @auth {
+    @auth("admin", "editor") {
         <button>Logout</button>
     }
     
@@ -27,6 +27,19 @@ def test_directives_preprocessing():
     }
     
     @csrf
+    @method("PUT")
+    @old("email", "default@site.com")
+    <input type="checkbox" @checked(active)>
+    <option @selected(item.id == 1)>One</option>
+    <input @disabled(true) @readonly(false)>
+    
+    @css("app.css")
+    @js("app.js")
+    @vite("main.ts")
+    
+    @json(my_dict)
+    @dump(user)
+    
     @let x = 10
     @fragment("inbox") {
         <ul id="inbox"></ul>
@@ -42,9 +55,31 @@ def test_directives_preprocessing():
     assert "{% endif %}" in processed
     assert "{% for item in items %}" in processed
     assert "{% endfor %}" in processed
-    assert "{% if request.user and request.user.is_authenticated %}" in processed
-    assert "{% if not request.user or not request.user.is_authenticated %}" in processed
-    assert '<input type="hidden" name="csrf_token" value="{{ request.session.eden_csrf_token }}" />' in processed
+    
+    # Premium Meta
+    assert '<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">' in processed
+    assert '<input type="hidden" name="_method" value="PUT">' in processed
+    assert '{{ old("email", "default@site.com") }}' in processed
+    
+    # Premium Attributes
+    assert "{% if active %}checked{% endif %}" in processed
+    assert "{% if item.id == 1 %}selected{% endif %}" in processed
+    assert "{% if true %}disabled{% endif %}" in processed
+    assert "{% if false %}readonly{% endif %}" in processed
+    
+    # Premium Assets
+    assert '<link rel="stylesheet" href="app.css">' in processed
+    assert '<script src="app.js"></script>' in processed
+    assert '{{ vite("main.ts") }}' in processed
+    
+    # Premium Data/Debug
+    assert '{{ my_dict | json_encode }}' in processed
+    assert '{{ eden_dump(user, "user") }}' in processed
+    
+    # Auth/Guest Check
+    assert "request.user.role in ['admin', 'editor']" in processed
+    assert "{% if not (request.user and request.user.is_authenticated) %}" in processed
+    
     assert "{% set x = 10 %}" in processed
     assert "{% block fragment_inbox %}" in processed
 

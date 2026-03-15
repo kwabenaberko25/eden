@@ -9,7 +9,7 @@ import json
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from eden.websocket.auth import (
+from eden.websocket import (
     AuthenticatedWebSocket,
     ConnectionManager,
     ConnectionState,
@@ -21,6 +21,7 @@ from eden.websocket.auth import (
 @pytest.fixture
 def mock_websocket():
     """Create a mock WebSocket."""
+    from starlette.websockets import WebSocketState
     ws = AsyncMock()
     ws.query_params = {"token": "valid_token"}
     ws.session = {"user_id": "user123"}
@@ -30,6 +31,7 @@ def mock_websocket():
     ws.receive_json = AsyncMock()
     ws.receive_text = AsyncMock()
     ws.close = AsyncMock()
+    ws.client_state = WebSocketState.CONNECTED
     return ws
 
 
@@ -288,13 +290,14 @@ class TestAuthenticatedWebSocket:
         assert call_args["message"] == "hello world"
 
 
+@pytest.fixture
+def connection_manager():
+    """Create a ConnectionManager."""
+    return ConnectionManager()
+
+
 class TestConnectionManager:
     """Tests for ConnectionManager class."""
-    
-    @pytest.fixture
-    def connection_manager(self):
-        """Create a ConnectionManager."""
-        return ConnectionManager()
     
     @pytest.mark.asyncio
     async def test_add_connection(self, connection_manager):
@@ -311,21 +314,27 @@ class TestConnectionManager:
     @pytest.mark.asyncio
     async def test_remove_connection(self, connection_manager):
         """Test removing a connection from a room."""
+        from starlette.websockets import WebSocketState
         ws = MagicMock()
-        connection_manager.rooms["room_1"] = [ws]
-        ws.room = "room_1"
+        ws.client_state = WebSocketState.CONNECTED
+        
+        await connection_manager.add_connection(ws, "room_1")
         
         await connection_manager.remove_connection(ws)
         
-        assert ws not in connection_manager.rooms["room_1"]
+        assert "room_1" not in connection_manager.rooms or ws not in connection_manager.rooms["room_1"]
     
     @pytest.mark.asyncio
     async def test_broadcast_to_room(self, connection_manager):
         """Test broadcasting to all in a room."""
+        from starlette.websockets import WebSocketState
         ws1 = AsyncMock()
+        ws1.client_state = WebSocketState.CONNECTED
         ws2 = AsyncMock()
+        ws2.client_state = WebSocketState.CONNECTED
         
-        connection_manager.rooms["room_1"] = [ws1, ws2]
+        await connection_manager.add_connection(ws1, "room_1")
+        await connection_manager.add_connection(ws2, "room_1")
         
         message = {"type": "chat", "text": "hello"}
         await connection_manager.broadcast_to_room("room_1", message)
@@ -336,13 +345,22 @@ class TestConnectionManager:
     @pytest.mark.asyncio
     async def test_broadcast_exclude_user(self, connection_manager):
         """Test broadcasting with user exclusion."""
+        from starlette.websockets import WebSocketState
         ws1 = AsyncMock()
         ws1.user = MagicMock(id="user1")
+        ws1.client_state = WebSocketState.CONNECTED
         
         ws2 = AsyncMock()
         ws2.user = MagicMock(id="user2")
+        ws2.client_state = WebSocketState.CONNECTED
         
-        connection_manager.rooms["room_1"] = [ws1, ws2]
+        await connection_manager.add_connection(ws1, "room_1")
+        # Manually register user mapping since move to add_connection might not do it 
+        # for these specific mock structures if they don't have user initially
+        connection_manager._user_sockets["user1"].add(ws1)
+        
+        await connection_manager.add_connection(ws2, "room_1")
+        connection_manager._user_sockets["user2"].add(ws2)
         
         message = {"type": "chat"}
         await connection_manager.broadcast_to_room(
@@ -424,16 +442,22 @@ class TestWebSocketIntegration:
     @pytest.mark.asyncio
     async def test_room_broadcast_flow(self, connection_manager):
         """Test broadcasting in a room."""
+        from starlette.websockets import WebSocketState
         # Create multiple connections
         ws1 = AsyncMock()
         ws1.user = MagicMock(id="user1", name="Alice")
+        ws1.client_state = WebSocketState.CONNECTED
         
         ws2 = AsyncMock()
         ws2.user = MagicMock(id="user2", name="Bob")
+        ws2.client_state = WebSocketState.CONNECTED
         
         # Add to room
         await connection_manager.add_connection(ws1, "chat_1")
+        connection_manager._user_sockets["user1"].add(ws1)
+        
         await connection_manager.add_connection(ws2, "chat_1")
+        connection_manager._user_sockets["user2"].add(ws2)
         
         # Broadcast message
         msg = {"type": "user_joined", "user": "Alice"}

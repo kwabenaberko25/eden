@@ -8,10 +8,15 @@ class PermissionRule:
     def resolve(self, model_cls: Type, user: Any) -> Union[bool, ColumnElement[bool]]:
         return False
 
-class AllowAll(PermissionRule):
-    """Grants access to all authenticated users."""
+class AllowPublic(PermissionRule):
+    """Grants access to everyone, even unauthenticated users."""
     def resolve(self, model_cls, user):
         return True
+
+class AllowAuthenticated(PermissionRule):
+    """Grants access to all authenticated users."""
+    def resolve(self, model_cls, user):
+        return user is not None
 
 class AllowOwner(PermissionRule):
     """Grants access only if the user is the owner of the record."""
@@ -45,6 +50,6 @@ class AccessControl:
         """
         rule = cls.__rbac__.get(action)
         if not rule:
-            return True  # Default to allowing if no rule is defined
+            return False  # Deny by default if AccessControl is implemented but action is not defined
         
         return rule.resolve(cls, user)

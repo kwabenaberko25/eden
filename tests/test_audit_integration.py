@@ -735,7 +735,7 @@ class TestWebSocket:
     def test_connection_manager(self):
         from eden import ConnectionManager
         mgr = ConnectionManager()
-        assert mgr.rooms == []
+        assert not mgr.rooms
         assert mgr.count() == 0
 
     def test_websocket_router_event_registration(self):

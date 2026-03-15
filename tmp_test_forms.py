@@ -3,7 +3,7 @@ import uuid
 from typing import List, Optional
 from sqlalchemy.orm import Mapped
 from sqlalchemy import String, Text, Integer, Boolean, Enum
-from eden.orm import Model, f, Database
+from eden.db import Model, f, Database
 from eden.forms import BaseForm
 
 class User(Model):

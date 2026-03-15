@@ -35,11 +35,12 @@ async def test_task_decorator_and_defer(app):
 
 @pytest.mark.asyncio
 async def test_task_schedule(app):
-    # This might be tricky to test with InMemoryBroker without a real event loop / clock control
-    # but we can at least verify the call doesn't crash.
-    @app.task
-    async def delayed_task():
-        pass
-        
-    # Just verify it doesn't fail
-    await app.task.schedule(delayed_task, 0.1)
+    await app.broker.startup()
+    try:
+        @app.task
+        async def delayed_task():
+            pass
+            
+        await app.task.schedule(delayed_task, 0.1)
+    finally:
+        await app.broker.shutdown()

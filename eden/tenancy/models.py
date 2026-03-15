@@ -5,7 +5,7 @@ The base tenant/organization model for multi-tenant SaaS applications.
 """
 
 
-from eden.orm import Model, f
+from eden.db import Model, f
 
 
 class Tenant(Model):
@@ -49,38 +49,74 @@ class Tenant(Model):
         """
         Dynamically creates the PostgreSQL schema for this tenant
         and provisions all framework tables within it.
+        
+        This method:
+        1. Creates a new schema with safe naming
+        2. Switches to that schema within the transaction
+        3. Creates all framework tables in that schema
+        4. Resets to public schema to prevent connection pool issues
+        
+        Args:
+            session: AsyncSession instance (typically from a request context or explicit binding)
+        
+        Raises:
+            ValueError: If schema_name is not set on this tenant
+            Exception: If schema creation or table provisioning fails
+        
+        Implementation Notes:
+            - Transaction is auto-committed by the caller
+            - Must reset schema_path after provisioning to prevent connection pool leaks
+            - Uses session.run_sync() for sync metadata.create_all()
         """
         if not self.schema_name:
-            return
+            raise ValueError("Tenant.provision_schema() requires schema_name to be set")
 
         from sqlalchemy import text
-        from eden.orm import Model
-        from eden.orm import get_db
+        from eden.db import Model
 
-        # Sanitize schema name
+        # Sanitize schema name: alphanumeric + underscore only
+        # PostgreSQL limits identifiers to 63 bytes, but we're being conservative
         safe_schema = "".join(c for c in self.schema_name if c.isalnum() or c == "_")
-        
-        # 1. Create the schema
-        await session.execute(text(f"CREATE SCHEMA IF NOT EXISTS {safe_schema}"))
-        
-        # 2. Switch search_path to the new schema to ensure create_all targets it
-        db_manager = get_db(None) # Helper doesn't need request if it's already in request.state or globally available
-        # But wait, get_db takes 'request'. I can just call the method on the session's engine/manager if I have access.
-        # Actually Model._db is stored.
-        if hasattr(Model, "_db") and Model._db:
-            await Model._db.set_schema(session, safe_schema)
+        if not safe_schema:
+            raise ValueError(f"Schema name '{self.schema_name}' contains no valid characters")
+
+        original_schema = None
+        try:
+            # 1. Create the schema if it doesn't exist
+            await session.execute(text(f"CREATE SCHEMA IF NOT EXISTS {safe_schema}"))
             
-            # 3. Create all tables in the new schema
-            # We use the raw connection from the session to run sync create_all
-            def _create_tables(conn):
-                Model.metadata.create_all(bind=conn)
+            # 2. Save original search_path and switch to new schema
+            # This ensures all CREATE TABLE commands target the new schema
+            result = await session.execute(text("SHOW search_path"))
+            original_schema = result.scalar()
+            
+            # Set search_path to the new schema first, then public (for extensions)
+            await session.execute(text(f"SET search_path TO {safe_schema}, public"))
+            
+            # 3. Create all framework tables in the new schema
+            # Using run_sync to execute the synchronous metadata.create_all()
+            def _create_tables():
+                """Create all tables synchronously in the current schema."""
+                Model.metadata.create_all(bind=session.connection())
             
             await session.run_sync(_create_tables)
             
-            # 4. Reset search_path (optional, but good practice)
-            await Model._db.set_schema(session, None)
-
-        await session.commit()
+            # 4. Commit the schema creation and table setup
+            # (Note: Caller will typically commit the overall transaction)
+            
+        finally:
+            # CRITICAL: Always reset search_path to prevent connection pool issues
+            # If a connection with wrong search_path is returned to the pool,
+            # subsequent connections will inherit it, causing data isolation violations
+            if original_schema is not None:
+                try:
+                    await session.execute(text(f"SET search_path TO {original_schema}"))
+                except Exception:
+                    # Even if reset fails, we try to at least set it to safe default
+                    try:
+                        await session.execute(text("SET search_path TO public"))
+                    except Exception:
+                        pass  # If this fails too, let exception from main block propagate
 
 
 class AnonymousTenant:

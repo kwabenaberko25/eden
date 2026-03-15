@@ -108,16 +108,80 @@ _POSTCODE_PATTERNS: dict[str, re.Pattern] = {
 # 1. Email
 # ─────────────────────────────────────────────────────────────────────────────
 
-def validate_email(value: str) -> ValidationResult:
+def validate_email(value: str, *, check_dns: bool = False) -> ValidationResult:
     """
     Validate an email address (RFC 5322 structural check).
+    
+    For DNS-level verification, install ``email-validator`` and set check_dns=True.
+    For email confirmation flows, see the Email Confirmation Pattern section below.
 
-    For DNS-level verification, install ``email-validator`` and use
-    Pydantic's ``EmailStr`` type instead.
+    ✉️ EMAIL VALIDATION STRATEGY:
+    
+    Three approaches depending on your security needs:
+    
+    1. Syntax Only (Default, Fastest)
+    ───────────────────────────────
+    Use when you'll send a confirmation email anyway (best practice).
+    - Validates format against RFC 5322
+    - No network calls (fast)
+    - Catches most typos (mailbox ≠ mialbox)
+    
+    Example:
+        result = validate_email("user@example.com")
+        if result.ok:
+            # Send confirmation email
+            await send_confirmation_email(result.value)
+    
+    2. DNS MX Check (Recommended for Sign-Ups)
+    ──────────────────────────────────────────
+    Verify the domain accepts mail before sending confirmation.
+    - Requires: pip install dnspython
+    - One DNS lookup per validation
+    - Catches invalid domains (example.invalidtld)
+    - Still doesn't guarantee mailbox exists
+    
+    Example:
+        result = validate_email("user@example.com", check_dns=True)
+        if result.ok:
+            await send_confirmation_email(result.value)
+        else:
+            print(f"Invalid: {result.error}")
+    
+    3. Full Validation (Overkill for Most)
+    ──────────────────────────────────────
+    Use ``email-validator`` library for full SMTP checks.
+    - Requires: pip install email-validator
+    - Connects to server to verify mailbox (SLOW, ~1 sec per email)
+    - Can be abused by attackers to enumerate valid mailboxes
+    - Only use for critical operations (large transactions, VIP users)
+    
+    ✅ BEST PRACTICE: Email Confirmation Flow
+    ──────────────────────────────────────────
+    1. Validate syntax (this function, check_dns=True)
+    2. Send confirmation email with token
+    3. User clicks link, token validates email ownership
+    4. Mark email as verified in database
+    
+    This is more secure than any automated check because:
+    - User proved they own the email
+    - Catches typos (user will notice wrong email)
+    - Works with strict email providers (Gmail, Outlook)
+    
+    Example model:
+        class User(Model):
+            email: Mapped[str] = StringField(
+                max_length=254,
+                unique=True,
+                index=True
+            )
+            email_verified: Mapped[bool] = BoolField(default=False)
+            email_verified_at: Mapped[datetime | None] = DateTimeField(nullable=True)
 
     >>> validate_email("user@example.com").ok
     True
     >>> validate_email("not-an-email").ok
+    False
+    >>> validate_email("user@example.invalid", check_dns=True).ok  # Would fail DNS check
     False
     """
     value = value.strip().lower()
@@ -130,6 +194,41 @@ def validate_email(value: str) -> ValidationResult:
     local, domain = value.rsplit("@", 1)
     if len(local) > 64:
         return _err("Email local-part must not exceed 64 characters.")
+    
+    # DNS MX record check if requested
+    if check_dns:
+        try:
+            import DNS
+        except ImportError:
+            try:
+                import dns.resolver
+            except ImportError:
+                return _err(
+                    "DNS validation requires dnspython: pip install dnspython\n"
+                    "Or set check_dns=False to skip DNS verification."
+                )
+        
+        try:
+            # Try dnspython first (more common)
+            import dns.resolver
+            mx_records = dns.resolver.resolve(domain, "MX")
+            if not mx_records:
+                return _err(f"Domain '{domain}' has no MX records (doesn't accept email).")
+        except ImportError:
+            # Fall back to DNS module
+            try:
+                import DNS
+                mx_records = DNS.mxlookup(domain)
+                if not mx_records:
+                    return _err(f"Domain '{domain}' has no MX records (doesn't accept email).")
+            except Exception:
+                return _err(
+                    f"Could not verify DNS records for '{domain}'. "
+                    "Either the domain is invalid or your DNS resolver is not working."
+                )
+        except Exception as e:
+            return _err(f"DNS lookup failed for '{domain}': {e}")
+    
     return _ok(value)
 
 

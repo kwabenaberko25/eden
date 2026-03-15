@@ -9,6 +9,34 @@ from typing import Any, Optional
 from eden.admin.options import ModelAdmin
 from eden.routing import Router
 
+# Re-export new widget system for backward compatibility
+try:
+    from eden.admin.widgets import (
+        FieldWidget,
+        TextField,
+        EmailField,
+        PasswordField,
+        TextAreaField,
+        SelectField,
+        CheckboxField,
+        DateTimeField,
+        ImageField,
+        Action,
+        DeleteAction,
+        DeactivateAction,
+        ExportAction,
+        ApproveAction,
+        AuditEntry,
+        AuditTrail,
+        AdminPanel,
+        AdminRegistry,
+        register_admin,
+        get_admin,
+    )
+except ImportError:
+    # Graceful fallback if widgets module not available
+    pass
+
 
 class AdminSite:
     """
@@ -135,8 +163,33 @@ class TabularInline:
 
 
 __all__ = [
+    # Legacy admin interface
     "admin",
     "AdminSite",
     "ModelAdmin",
     "TabularInline",
+    # New widget system
+    "FieldWidget",
+    "TextField",
+    "EmailField",
+    "PasswordField",
+    "TextAreaField",
+    "SelectField",
+    "CheckboxField",
+    "DateTimeField",
+    "ImageField",
+    # Actions
+    "Action",
+    "DeleteAction",
+    "DeactivateAction",
+    "ExportAction",
+    "ApproveAction",
+    # Audit
+    "AuditEntry",
+    "AuditTrail",
+    # Admin configurations
+    "AdminPanel",
+    "AdminRegistry",
+    "register_admin",
+    "get_admin",
 ]

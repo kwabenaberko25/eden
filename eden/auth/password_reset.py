@@ -28,7 +28,7 @@ class PasswordResetToken(Model):
     """
     __tablename__ = "password_reset_tokens"
     
-    user_id: UUID = UUIDField(required=True, foreign_key="users.id")
+    user_id: UUID = UUIDField(required=True, foreign_key="eden_users.id")
     token: str = StringField(required=True, unique=True, index=True)
     expires_at: datetime = DateTimeField(required=True)
     used_at: Optional[datetime] = DateTimeField(required=False, default=None)

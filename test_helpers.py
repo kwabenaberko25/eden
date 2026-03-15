@@ -107,7 +107,7 @@ async def test_template_url():
 async def test_router_crud_generation():
     print("\nTesting Router CRUD auto-generation...")
     from eden.routing import Router
-    from eden.orm import Model, f
+    from eden.db import Model, f
     
     class MockModel(Model):
         __tablename__ = "mock_models"

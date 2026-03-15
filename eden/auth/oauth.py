@@ -37,87 +37,66 @@ class OAuthProvider:
     name: str
     client_id: str
     client_secret: str
-    authorize_url: str
-    token_url: str
-    userinfo_url: str
+    authorize_url: str = ""
+    token_url: str = ""
+    userinfo_url: str = ""
     scopes: list[str] = field(default_factory=list)
-    # Callback after successful login: async def handler(user_info: dict) -> Response
+    # Callback after successful login: async def handler(request, user_info: dict) -> Response
     on_login: Callable[..., Any] | None = None
 
+    async def get_user_info(self, client: httpx.AsyncClient, access_token: str) -> dict:
+        """Fetch user profile from provider."""
+        resp = await client.get(
+            self.userinfo_url,
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        return resp.json()
 
-# ── Pre-built Providers ──────────────────────────────────────────────────
+class GoogleProvider(OAuthProvider):
+    def __init__(self, client_id: str, client_secret: str, scopes: list[str] | None = None, on_login: Callable | None = None):
+        super().__init__(
+            name="google",
+            client_id=client_id,
+            client_secret=client_secret,
+            authorize_url="https://accounts.google.com/o/oauth2/v2/auth",
+            token_url="https://oauth2.googleapis.com/token",
+            userinfo_url="https://www.googleapis.com/oauth2/v2/userinfo",
+            scopes=scopes or ["openid", "email", "profile"],
+            on_login=on_login,
+        )
 
-_GOOGLE_AUTHORIZE = "https://accounts.google.com/o/oauth2/v2/auth"
-_GOOGLE_TOKEN = "https://oauth2.googleapis.com/token"
-_GOOGLE_USERINFO = "https://www.googleapis.com/oauth2/v2/userinfo"
-_GOOGLE_SCOPES = ["openid", "email", "profile"]
-
-_GITHUB_AUTHORIZE = "https://github.com/login/oauth/authorize"
-_GITHUB_TOKEN = "https://github.com/login/oauth/access_token"
-_GITHUB_USERINFO = "https://api.github.com/user"
-_GITHUB_SCOPES = ["read:user", "user:email"]
-
+class GitHubProvider(OAuthProvider):
+    def __init__(self, client_id: str, client_secret: str, scopes: list[str] | None = None, on_login: Callable | None = None):
+        super().__init__(
+            name="github",
+            client_id=client_id,
+            client_secret=client_secret,
+            authorize_url="https://github.com/login/oauth/authorize",
+            token_url="https://github.com/login/oauth/access_token",
+            userinfo_url="https://api.github.com/user",
+            scopes=scopes or ["read:user", "user:email"],
+            on_login=on_login,
+        )
 
 # ── OAuthManager ─────────────────────────────────────────────────────────
 
 class OAuthManager:
     """
     Manages OAuth providers and mounts login/callback routes.
-
-    Usage:
-        oauth = OAuthManager()
-        oauth.register_google(
-            client_id="YOUR_GOOGLE_CLIENT_ID",
-            client_secret="YOUR_GOOGLE_CLIENT_SECRET",
-            on_login=handle_google_login,
-        )
-        oauth.mount(app)
     """
 
     def __init__(self) -> None:
         self._providers: dict[str, OAuthProvider] = {}
 
     def register(self, provider: OAuthProvider) -> None:
-        """Register a custom OAuth provider."""
+        """Register an OAuth provider."""
         self._providers[provider.name] = provider
 
-    def register_google(
-        self,
-        client_id: str,
-        client_secret: str,
-        scopes: list[str] | None = None,
-        on_login: Callable[..., Any] | None = None,
-    ) -> None:
-        """Register Google as an OAuth provider."""
-        self.register(OAuthProvider(
-            name="google",
-            client_id=client_id,
-            client_secret=client_secret,
-            authorize_url=_GOOGLE_AUTHORIZE,
-            token_url=_GOOGLE_TOKEN,
-            userinfo_url=_GOOGLE_USERINFO,
-            scopes=scopes or _GOOGLE_SCOPES,
-            on_login=on_login,
-        ))
+    def register_google(self, client_id: str, client_secret: str, **kwargs) -> None:
+        self.register(GoogleProvider(client_id, client_secret, **kwargs))
 
-    def register_github(
-        self,
-        client_id: str,
-        client_secret: str,
-        scopes: list[str] | None = None,
-        on_login: Callable[..., Any] | None = None,
-    ) -> None:
-        """Register GitHub as an OAuth provider."""
-        self.register(OAuthProvider(
-            name="github",
-            client_id=client_id,
-            client_secret=client_secret,
-            authorize_url=_GITHUB_AUTHORIZE,
-            token_url=_GITHUB_TOKEN,
-            userinfo_url=_GITHUB_USERINFO,
-            scopes=scopes or _GITHUB_SCOPES,
-            on_login=on_login,
-        ))
+    def register_github(self, client_id: str, client_secret: str, **kwargs) -> None:
+        self.register(GitHubProvider(client_id, client_secret, **kwargs))
 
     def mount(self, app: Any, prefix: str = "/auth/oauth") -> None:
         """
