@@ -9,7 +9,7 @@ from typing import Any
 
 from eden.exceptions import Forbidden, NotFound
 from eden.requests import Request
-from eden.responses import HtmlResponse, RedirectResponse, JsonResponse
+from eden.responses import HtmlResponse, RedirectResponse, JsonResponse, Response
 from eden.security.csrf import get_csrf_token
 from eden.admin.models import AuditLog
 
@@ -145,6 +145,190 @@ async def admin_detail_view(
     return HtmlResponse(html)
 
 
+async def admin_add_view(
+    request: Request, model: type, model_admin: Any
+) -> Response:
+    """View to create a new record."""
+    await _check_staff(request)
+    csrf_token = get_csrf_token(request)
+    
+    if request.method == "POST":
+        form_data = await request.form()
+        try:
+            instance = model()
+            # Process fields
+            from sqlalchemy import inspect as sa_inspect
+            mapper = sa_inspect(model)
+            for col in mapper.columns:
+                if col.key in form_data and col.key not in model_admin.exclude_fields:
+                    val = form_data[col.key]
+                    if str(col.type) == "BOOLEAN":
+                        val = val.lower() == "on"
+                    setattr(instance, col.key, val)
+            
+            await model_admin.save_model(request, instance, form_data, change=False)
+            
+            # Log action
+            user = getattr(request.state, "user", None)
+            from eden.admin.models import AuditLog
+            await AuditLog.log(
+                user_id=str(user.id) if user else None,
+                action="create",
+                model=model,
+                record_id=str(instance.id)
+            )
+            
+            return RedirectResponse(url=f"/admin/{model.__tablename__}/", status_code=303)
+        except Exception as e:
+            return HtmlResponse(_render_form(
+                model_name=model_admin.get_verbose_name(model),
+                table_name=model.__tablename__,
+                fields=await _get_fields_data(model, model_admin),
+                csrf_token=csrf_token,
+                error=str(e),
+                is_add=True,
+                inlines=await _get_inlines_data(model, model_admin)
+            ))
+
+    # GET request
+    fields_data = await _get_fields_data(model, model_admin)
+    html = _render_form(
+        model_name=model_admin.get_verbose_name(model),
+        table_name=model.__tablename__,
+        fields=fields_data,
+        csrf_token=csrf_token,
+        is_add=True,
+        inlines=await _get_inlines_data(model, model_admin)
+    )
+    return HtmlResponse(html)
+
+
+async def admin_edit_view(
+    request: Request, model: type, model_admin: Any, record_id: str
+) -> Response:
+    """View to edit an existing record."""
+    await _check_staff(request)
+    csrf_token = get_csrf_token(request)
+    
+    session = getattr(request.state, "db", None)
+    from eden.db import _MISSING
+    instance = await model.get(session or _MISSING, record_id)
+    if not instance:
+        raise NotFound(detail=f"Record {record_id} not found.")
+
+    if request.method == "POST":
+        form_data = await request.form()
+        try:
+            from sqlalchemy import inspect as sa_inspect
+            mapper = sa_inspect(model)
+            for col in mapper.columns:
+                if col.key in form_data and col.key not in model_admin.exclude_fields:
+                    val = form_data[col.key]
+                    if str(col.type) == "BOOLEAN":
+                        val = val.lower() == "on"
+                    setattr(instance, col.key, val)
+            
+            await model_admin.save_model(request, instance, form_data, change=True)
+            
+            from eden.admin.models import AuditLog
+            user = getattr(request.state, "user", None)
+            await AuditLog.log(
+                user_id=str(user.id) if user else None,
+                action="update",
+                model=model,
+                record_id=str(instance.id)
+            )
+            
+            return RedirectResponse(url=f"/admin/{model.__tablename__}/", status_code=303)
+        except Exception as e:
+             return HtmlResponse(_render_form(
+                model_name=model_admin.get_verbose_name(model),
+                table_name=model.__tablename__,
+                record_id=record_id,
+                fields=await _get_fields_data(model, model_admin, instance),
+                csrf_token=csrf_token,
+                error=str(e),
+                is_add=False,
+                inlines=await _get_inlines_data(model, model_admin, instance)
+            ))
+
+    fields_data = await _get_fields_data(model, model_admin, instance)
+    html = _render_form(
+        model_name=model_admin.get_verbose_name(model),
+        table_name=model.__tablename__,
+        record_id=record_id,
+        fields=fields_data,
+        csrf_token=csrf_token,
+        is_add=False,
+        inlines=await _get_inlines_data(model, model_admin, instance)
+    )
+    return HtmlResponse(html)
+
+
+async def _get_fields_data(model, model_admin, instance=None) -> list[dict]:
+    """Helper to prepare field data for templates."""
+    from sqlalchemy import inspect as sa_inspect
+    mapper = sa_inspect(model)
+    fields_data = []
+    
+    for col in mapper.columns:
+        if col.key in model_admin.exclude_fields and not (instance and col.key == "id"):
+            continue
+            
+        value = getattr(instance, col.key, "") if instance else ""
+        field_info = {}
+        if hasattr(model, col.key):
+            attr = getattr(model, col.key)
+            if hasattr(attr, "info"):
+                field_info = attr.info
+        
+        fields_data.append({
+            "key": col.key,
+            "label": field_info.get("label", col.key.replace("_", " ").title()),
+            "value": value,
+            "widget": field_info.get("widget"),
+            "required": not col.nullable,
+            "readonly": col.key in model_admin.readonly_fields or col.key == "id",
+            "type": str(col.type)
+        })
+    return fields_data
+
+
+async def _get_inlines_data(model, model_admin, instance=None) -> list[dict]:
+    """Prepare data for inline models."""
+    inlines_data = []
+    for inline_class in model_admin.inlines:
+        inline = inline_class()
+        inline_model = inline.model
+        
+        # In a real app, we'd query for records related to 'instance'
+        # For now, we'll just show the 'extra' blank rows
+        fields = inline.get_form_fields()
+        rows = []
+        
+        # If we had an instance, we would fetch related records here
+        # Example: related_records = await inline_model.query(filter={...})
+        
+        # Add blank rows
+        for _ in range(inline.extra):
+            row_fields = []
+            for field_name in fields:
+                row_fields.append({
+                    "name": field_name,
+                    "label": field_name.replace("_", " ").title(),
+                    "value": ""
+                })
+            rows.append(row_fields)
+            
+        inlines_data.append({
+            "model_name": inline_model.__name__,
+            "template": inline.template,
+            "rows": rows,
+            "fields": fields
+        })
+    return inlines_data
+
+
 async def admin_delete_view(
     request: Request, model: type, model_admin: Any, record_id: str
 ) -> RedirectResponse:
@@ -201,8 +385,8 @@ _ADMIN_CSS = """
                        font-size: 14px; transition: all 0.2s; }
     .admin-sidebar a:hover { background: #334155; color: #F8FAFC; }
     .admin-sidebar a.active { background: #2563EB20; color: #2563EB; border-right: 3px solid #2563EB; }
-    .admin-main { margin-left: 260px; padding: 32px 40px; min-height: 100vh; }
-    .admin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+    .admin-main { margin-left: 260px; padding: 32px 40px; min-height: 100vh; position: relative; }
+    .admin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; position: sticky; top: -32px; background: #0F172A; z-index: 10; padding: 20px 0; }
     .admin-header h2 { font-family: 'Outfit', sans-serif; font-size: 28px; font-weight: 600; }
     .admin-card { background: rgba(30,41,59,0.7); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
                   border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 20px; margin-bottom: 16px;
@@ -325,6 +509,7 @@ def _render_list(
                     <input type="text" name="q" placeholder="Search..." value="{search}">
                 </form>
             </div>
+            <a href="/admin/{table_name}/add" class="admin-btn admin-btn-primary">+ Add {model_name.rstrip('s')}</a>
             <button class="admin-btn admin-btn-danger" onclick="executeAction('delete_selected')">Delete Selected</button>
         </div>
     </div>
@@ -447,3 +632,131 @@ def _truncate(text: str, max_len: int = 80) -> str:
     if len(text) > max_len:
         return text[:max_len] + "…"
     return text
+
+
+def _render_form(model_name, table_name, fields, record_id=None, csrf_token="", error=None, is_add=False, inlines=None) -> str:
+    title = f"Add {model_name}" if is_add else f"Edit {model_name}"
+    action_url = f"/admin/{table_name}/add" if is_add else f"/admin/{table_name}/{record_id}/edit"
+    
+    inlines = inlines or []
+    inlines_html = ""
+    for inline in inlines:
+        rows_html = ""
+        if inline['template'] == "tabular_inline":
+            header_html = "".join([f"<th style='padding:12px; border-bottom:1px solid #334155; text-align:left;'>{f}</th>" for f in inline['fields']])
+            for row in inline['rows']:
+                cols_html = "".join([f"<td style='padding:8px 12px; border-bottom:1px solid #1E293B;'><input type='text' name='inline_{inline['model_name']}_{f['name']}' value='{f['value']}' class='admin-input' style='background:transparent; border:none; padding:4px;'></td>" for f in row])
+                rows_html += f"<tr>{cols_html}</tr>"
+            
+            inlines_html += f"""
+            <div class="admin-card" style="margin-top:24px; padding:0; overflow:hidden;">
+                <div style="background:#1E293B; padding:12px 20px; font-weight:600; border-bottom:1px solid #334155;">{inline['model_name']}s</div>
+                <table style="width:100%; border-collapse:collapse;">
+                    <thead><tr>{header_html}</tr></thead>
+                    <tbody>{rows_html}</tbody>
+                </table>
+            </div>
+            """
+        else: # stacked_inline
+             for i, row in enumerate(inline['rows']):
+                fields_html = "".join([f"<div style='margin-bottom:12px;'><label style='display:block; font-size:12px; color:#94A3B8; margin-bottom:4px;'>{f['label']}</label><input type='text' name='inline_{inline['model_name']}_{f['name']}_{i}' value='{f['value']}' class='admin-input'></div>" for f in row])
+                rows_html += f"<div style='padding:16px; border-bottom:1px solid #334155;'>{fields_html}</div>"
+             
+             inlines_html += f"""
+             <div class="admin-card" style="margin-top:24px; padding:0;">
+                <div style="background:#1E293B; padding:12px 20px; font-weight:600; border-bottom:1px solid #334155;">{inline['model_name']}s</div>
+                {rows_html}
+             </div>
+             """
+
+    fields_html = ""
+    for field in fields:
+        readonly = "readonly style='background:#1E293B20; color:#64748B; cursor:not-allowed;'" if field.get('readonly') else ""
+        required = "required" if field.get('required') and not is_add else ""
+        
+        widget_html = ""
+        from eden.admin.widgets import FieldWidget
+        widget = field.get("widget")
+        
+        if isinstance(widget, FieldWidget):
+            try:
+                widget_html = widget.render(field['key'], field['value'])
+            except Exception as e:
+                widget_html = f"<div class='text-red-500'>Error rendering widget: {e}</div>"
+        else:
+            if field['type'] == "BOOLEAN":
+                checked = "checked" if field['value'] else ""
+                widget_html = f'<input type="checkbox" name="{field["key"]}" {checked} class="admin-checkbox">'
+            else:
+                 widget_html = f'<input type="text" name="{field["key"]}" value="{field["value"]}" class="admin-input" {readonly} {required}>'
+
+        fields_html += f"""
+        <div class="field-row" style="flex-direction: column; align-items: flex-start; gap: 8px; border-bottom: 1px solid #1E293B; padding: 16px 0;">
+            <label class="field-label" style="width: auto; font-weight: 600; font-size: 14px; color: #94A3B8;">{field['label']}</label>
+            <div style="width: 100%;">
+                {widget_html}
+            </div>
+        </div>
+        """
+
+    error_banner = f'<div style="background:#EF444420; color:#EF4444; padding:12px; border-radius:8px; border:1px solid #EF444440; margin-bottom:20px;">{error}</div>' if error else ""
+
+    return f"""<!DOCTYPE html>
+<html lang="en"><head><title>{title} — Eden Admin</title>
+{_ADMIN_CSS}
+<style>
+    .admin-input {{ width: 100%; background: #0F172A; border: 1px solid #334155; border-radius: 8px; padding: 10px 16px; color: #E2E8F0; font-size: 14px; transition: border-color 0.2s; }}
+    .admin-input:focus {{ outline: none; border-color: #2563EB; }}
+    .admin-checkbox {{ width: 18px; height: 18px; border-radius: 4px; border: 1px solid #334155; accent-color: #2563EB; }}
+    .field-row:last-child {{ border-bottom: none; }}
+</style>
+</head>
+<body>
+<div class="admin-sidebar">
+    <h1>🌿 Eden Admin</h1>
+    <a href="/admin/">Dashboard</a>
+    <a href="/admin/{table_name}/" class="active">{model_name}</a>
+</div>
+<div class="admin-main">
+    <div class="admin-header">
+        <h2>{title}</h2>
+        <div>
+            <a href="/admin/{table_name}/" class="admin-btn admin-btn-ghost">Cancel</a>
+        </div>
+    </div>
+    {error_banner}
+    <div class="admin-card">
+        <form method="post" action="{action_url}">
+            <input type="hidden" name="csrf_token" value="{csrf_token}">
+            {fields_html}
+            {inlines_html}
+            <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #334155; display: flex; gap: 12px;">
+                <button type="submit" class="admin-btn admin-btn-primary">Save {model_name}</button>
+            </div>
+        </form>
+    </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
+<script>
+    require.config({{ paths: {{ vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' }} }});
+    require(['vs/editor/editor.main'], function () {{
+        const containers = document.querySelectorAll('.monaco-editor-instance');
+        containers.forEach(container => {{
+            const name = container.dataset.name;
+            const language = container.dataset.language;
+            const textarea = document.getElementById('textarea_' + name);
+            const editor = monaco.editor.create(container, {{
+                value: textarea.value,
+                language: language,
+                theme: 'vs-dark',
+                automaticLayout: true,
+                minimap: {{ enabled: false }},
+                fontSize: 14
+            }});
+            editor.onDidChangeModelContent(() => {{
+                textarea.value = editor.getValue();
+            }});
+        }});
+    }});
+</script>
+</body></html>"""

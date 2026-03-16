@@ -109,4 +109,72 @@ Eden includes internal utilities to detect when queries might be missing a tenan
 
 ---
 
-**Next Steps**: [Internationalization](i18n.md)
+---
+
+## 🛠️ Tenant Identification Strategies
+
+Eden's middleware can identify tenants through multiple channels. You can configure this in your `Eden` app settings.
+
+### 1. Subdomain Resolution (`customer.eden.dev`)
+The most professional pattern for SaaS.
+
+```python
+app = Eden(
+    tenancy_resolver="subdomain",
+    tenancy_domain="eden.dev" # Optional base domain
+)
+```
+
+### 2. Custom Header Resolver (`X-Tenant-ID`)
+Ideal for internal APIs or mobile apps.
+
+```python
+from eden.tenancy import TenantResolver
+
+class HeaderResolver(TenantResolver):
+    async def resolve(self, request):
+        return request.headers.get("X-Tenant-ID")
+
+app = Eden(tenancy_resolver=HeaderResolver())
+```
+
+---
+
+## 👑 Super-Admin & Cross-Tenant Operations
+
+System administrators often need to overlook all data without individual tenant scoping.
+
+### The `AcrossTenants` Context Manager
+A safe way to temporarily disable row-level isolation for high-level reporting or cross-tenant data migrations.
+
+```python
+from eden.tenancy import AcrossTenants
+
+@app.get("/system/stats")
+@require_role("super_admin")
+async def global_stats(request):
+    async with AcrossTenants():
+        # Scoping is disabled here
+        total_projects = await Project.count()
+        total_revenue = await Invoice.sum("amount")
+        
+    return {"total_projects": total_projects, "revenue": total_revenue}
+```
+
+### Best Practices for Super-Admins
+1.  **Never Use Global Scope by Default**: Always keep isolation ON and use `AcrossTenants()` only when needed.
+2.  **Logging**: Eden automatically logs when `AcrossTenants()` is invoked, providing an audit trail for security compliance.
+3.  **UI Feedback**: When an admin is in "Global View", ensure the UI clearly indicates this state with a prominent banner to prevent accidental data modification.
+
+---
+
+## Best Practices
+
+- ✅ **Inherit Correctly**: Always put `TenantMixin` **before** `Model`.
+- ✅ **Test Isolation**: Use Eden's `TenantTestCase` to verify that data from Tenant A never leaks into Tenant B.
+- ✅ **Scoped Tasks**: When triggering background tasks, Eden automatically passes the `tenant_id` to the worker. If you need a cross-tenant worker, invoke the task from an `AcrossTenants()` block.
+- ✅ **Default Scoping**: Use `shared=True` in your models only for truly public/system data.
+
+---
+
+**Next Steps**: [Internationalization & Localization](i18n.md)

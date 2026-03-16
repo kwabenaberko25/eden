@@ -1,87 +1,109 @@
-# Exception Handling 🚥
+# Exception Handling 🚨
 
-Eden makes it easy to capture errors and present them beautifully or handle them programmatically.
+Eden provides a robust system for capturing and responding to errors, from automatic validation failures to custom business logic exceptions.
 
-## Custom Error Handlers
+## Built-in Exception Handling
 
-You can register handlers for specific HTTP status codes or Python exceptions.
+Eden automatically catches common errors and converts them into safe, aesthetic HTTP responses.
+
+### The Debug Error Page
+In development mode (`debug=True`), Eden displays a "Premium" error page. It includes:
+- **Glassmorphic Design**: A clean, modern aesthetic.
+- **Traceback**: The exact line of code where the error occurred.
+- **Request Context**: Inspect headers, cookies, and query parameters.
+- **Environment Details**: See the current state of your system.
+
+---
+
+## Custom Exception Handlers
+
+You can define how Eden should handle specific exception types globally using the `@app.exception_handler` decorator.
 
 ```python
-from eden import JsonResponse, NotFound
+from eden import Response, logger
 
-@app.exception_handler(NotFound)
-async def not_found(request, exc):
-    return JsonResponse(
-        {"error": "This place is a desert. No resource found here."}, 
-        status_code=404
-    )
+class CustomLogicError(Exception):
+    pass
 
-@app.exception_handler(ValueError)
-async def handle_value_error(request, exc):
-    return JsonResponse(
-        {"error": str(exc)}, 
+@app.exception_handler(CustomLogicError)
+async def handle_logic_error(request, exc):
+    logger.warning(f"Domain logic failure: {exc}")
+    return Response(
+        {"error": str(exc), "code": "logic_failure"},
         status_code=400
     )
+```
 
----
+### Common HTTP Exceptions
+It's often useful to override default handlers for common status codes like 404 or 500.
 
-## Template Error Pages 🎨
+```python
+from eden.exceptions import HTTPException
 
-Eden automatically looks for custom error templates in your `templates/errors/` directory.
+@app.exception_handler(404)
+async def not_found(request, exc):
+    return render_template("errors/404.html"), 404
 
-- `templates/errors/404.html`
-- `templates/errors/500.html`
-- `templates/errors/exception.html` (General fallback)
-
-If these files exist, Eden will render them instead of the default text response when an error occurs in production.
+@app.exception_handler(500)
+async def server_error(request, exc):
+    # Log the full traceback to your observability tool
+    logger.critical("Fatal application error", exc_info=True)
+    return render_template("errors/500.html"), 500
 ```
 
 ---
 
-## Premium Debug Page
+## The `@app.validate` Error Flow
 
-In `debug=True` mode, Eden replaces the standard stack trace with a **Premium Debug UI**.
-
-This page includes:
-- **Fuzzy Suggestions**: Suggests corrections for common typos.
-- **Environment Snapshots**: Shows current Python and framework state.
-- **Request Metadata**: Inspect headers, cookies, and parameters.
-
----
-
-## Built-in HTTP Exceptions
-
-Eden leverages Starlette's `HTTPException` for easy error signaling inside routes.
+When using the built-in validation system, Eden handles errors for you.
 
 ```python
-from eden import Forbidden
-
-@app.get("/secret")
-async def secret_area(request):
-    if not request.user.is_authenticated:
-        raise Forbidden("Not permitted.")
-    return {"secret": "Eden 🌿"}
+@app.post("/register")
+@app.validate(UserSchema, template="register.html")
+async def register(request, data: UserSchema):
+    # If validation fails, Eden automatically:
+    # 1. Renders 'register.html'
+    # 2. Injects the 'form' object with error messages
+    # 3. Sets the status code to 422 (Unprocessable Entity)
+    pass
 ```
 
 ---
 
-## Global Error Logging
+## Raising Exceptions in Logic
 
-For production, you should combine custom exception handlers with a logging service to capture and monitor application health.
+You can raise exceptions anywhere in your code to stop execution and return an error response.
 
 ```python
-from eden import JsonResponse
-import logging
+from eden.exceptions import HTTPException
 
+async def get_user_profile(user_id):
+    user = await User.get(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if user.is_private and not can_access(user):
+        raise HTTPException(status_code=403, detail="This profile is private")
+        
+    return user
+```
+
+---
+
+## Error Reporting Integration
+
+For production, you should combine Eden's handlers with external error tracking.
+
+```python
 @app.exception_handler(Exception)
 async def global_exception_handler(request, exc):
-    logging.error(f"Global Error: {exc}", exc_info=True)
-    return JsonResponse(
-        {"error": "An internal error occurred. Our gardeners are on it."},
-        status_code=500
-    )
+    # 1. Capture for Sentry/Bugsnag
+    capture_exception(exc)
+    
+    # 2. Return a generic safe response to the user
+    return render_template("errors/generic.html"), 500
 ```
 
 ---
 
-**Next Steps**: [CLI Suite](cli.md)
+**Next Steps**: [Logging & Telemetry](logging.md)

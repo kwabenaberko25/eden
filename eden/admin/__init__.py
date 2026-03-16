@@ -6,8 +6,9 @@ Auto-generated admin interface for managing Model data.
 
 from typing import Any, Optional
 
-from eden.admin.options import ModelAdmin
+from eden.admin.options import ModelAdmin, TabularInline, StackedInline
 from eden.routing import Router
+from eden.responses import JsonResponse, Response
 
 # Re-export new widget system for backward compatibility
 try:
@@ -45,13 +46,11 @@ class AdminSite:
     Generates CRUD views and a dashboard for all registered models.
 
     Usage:
-        from eden.admin import admin, ModelAdmin
+        from eden.responses import HtmlResponse, RedirectResponse, JsonResponse
 
         class UserAdmin(ModelAdmin):
             list_display = ["email", "full_name", "is_active"]
             search_fields = ["email", "full_name"]
-
-        admin.register(User, UserAdmin)
 
         # In your app setup:
         app.mount_admin()
@@ -106,9 +105,11 @@ class AdminSite:
         Returns a Router that can be included in the app.
         """
         from eden.admin.views import (
+            admin_add_view,
             admin_dashboard,
             admin_delete_view,
             admin_detail_view,
+            admin_edit_view,
             admin_list_view,
         )
         from eden.auth.decorators import roles_required
@@ -140,6 +141,35 @@ class AdminSite:
                 async def detail_view(request, record_id: str):
                     return await admin_detail_view(request, m, ma, record_id)
 
+                @router.get(f"/{t}/add", name=f"admin_{t}_add")
+                @router.post(f"/{t}/add")
+                @auth_guard
+                async def add_view(request):
+                    return await admin_add_view(request, m, ma)
+
+                @router.get(f"/{t}/{{record_id}}/edit", name=f"admin_{t}_edit")
+                @router.post(f"/{t}/{{record_id}}/edit")
+                @auth_guard
+                async def edit_view(request, record_id: str):
+                    return await admin_edit_view(request, m, ma, record_id)
+
+                @router.post(f"/{t}/action", name=f"admin_{t}_action")
+                @auth_guard
+                async def action_view(request):
+                    # For bulk actions
+                    data = await request.json()
+                    action_name = data.get("action")
+                    selected_ids = data.get("ids", [])
+                    
+                    # Find action in model_admin.actions
+                    for action_class in ma.actions:
+                        action = action_class()
+                        if action.name == action_name:
+                            result = await action.execute(selected_ids, model=m)
+                            return JsonResponse(result)
+                    
+                    return JsonResponse({"message": f"Action {action_name} not found"}, status_code=404)
+
                 @router.post(f"/{t}/{{record_id}}/delete", name=f"admin_{t}_delete")
                 @auth_guard
                 async def delete_view(request, record_id: str):
@@ -153,13 +183,7 @@ class AdminSite:
 # Global default admin site
 admin = AdminSite()
 
-class TabularInline:
-    """
-    Stub for TabularInline admin classes.
-    Allows defining related models to be edited inline on the parent page.
-    """
-    model: type | None = None
-    extra: int = 3
+# Inlines are now fully implemented in options.py
 
 
 __all__ = [
@@ -168,6 +192,7 @@ __all__ = [
     "AdminSite",
     "ModelAdmin",
     "TabularInline",
+    "StackedInline",
     # New widget system
     "FieldWidget",
     "TextField",

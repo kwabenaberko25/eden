@@ -69,6 +69,12 @@ class Page(BaseModel, Generic[T]):
 
     @computed_field
     @property
+    def pages(self) -> int:
+        """Alias for total_pages for Django compatibility."""
+        return self.total_pages
+
+    @computed_field
+    @property
     def has_next(self) -> bool:
         """True if there is a page after the current one."""
         return self.page < self.total_pages

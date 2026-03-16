@@ -55,9 +55,14 @@ class FieldWidget(ABC):
         self.hidden = hidden
     
     @abstractmethod
-    def render(self, value: Any) -> str:
+    def render(self, name: str, value: Any) -> str:
         """Render widget as HTML."""
         raise NotImplementedError("Subclasses must implement render()")
+    
+    def process_form_data(self, name: str, data: dict) -> Any:
+        """Process value from form data."""
+        value = data.get(name)
+        return self.clean(value)
     
     @abstractmethod
     def clean(self, value: Any) -> Any:
@@ -73,12 +78,14 @@ class TextField(FieldWidget):
         self.max_length = max_length
         self.pattern = pattern
     
-    def render(self, value: Any) -> str:
+    def render(self, name: str, value: Any) -> str:
         value_str = value or ""
-        attrs = f' maxlength="{self.max_length}"' if self.max_length else ""
+        attrs = f' name="{name}"'
+        if self.max_length:
+            attrs += f' maxlength="{self.max_length}"'
         if self.pattern:
             attrs += f' pattern="{self.pattern}"'
-        return f'<input type="text" value="{value_str}"{attrs}>'
+        return f'<input type="text" value="{value_str}"{attrs} class="admin-input">'
     
     def clean(self, value: Any) -> Any:
         value = str(value) if value else ""
@@ -90,8 +97,8 @@ class TextField(FieldWidget):
 class EmailField(FieldWidget):
     """Email input with validation."""
     
-    def render(self, value: Any) -> str:
-        return f'<input type="email" value="{value or ""}">'
+    def render(self, name: str, value: Any) -> str:
+        return f'<input type="email" name="{name}" value="{value or ""}" class="admin-input">'
     
     def clean(self, value: Any) -> Any:
         if not value:
@@ -107,8 +114,8 @@ class EmailField(FieldWidget):
 class PasswordField(FieldWidget):
     """Password input."""
     
-    def render(self, value: Any) -> str:
-        return '<input type="password" value="">'
+    def render(self, name: str, value: Any) -> str:
+        return f'<input type="password" name="{name}" value="" class="admin-input" autocomplete="new-password">'
     
     def clean(self, value: Any) -> Any:
         if not value:
@@ -125,8 +132,8 @@ class TextAreaField(FieldWidget):
         super().__init__(**kwargs)
         self.rows = rows
     
-    def render(self, value: Any) -> str:
-        return f'<textarea rows="{self.rows}">{value or ""}</textarea>'
+    def render(self, name: str, value: Any) -> str:
+        return f'<textarea name="{name}" rows="{self.rows}" class="admin-input">{value or ""}</textarea>'
     
     def clean(self, value: Any) -> Any:
         return str(value) if value else ""
@@ -140,8 +147,10 @@ class SelectField(FieldWidget):
         self.choices = choices or []
         self.multiple = multiple
     
-    def render(self, value: Any) -> str:
-        tag = "select multiple" if self.multiple else "select"
+    def render(self, name: str, value: Any) -> str:
+        tag = f'select name="{name}" class="admin-input"'
+        if self.multiple:
+            tag += " multiple"
         options = "\n".join(
             f'<option value="{k}" {"selected" if value == k else ""}>{v}</option>'
             for k, v in self.choices
@@ -165,9 +174,9 @@ class CheckboxField(FieldWidget):
         super().__init__(**kwargs)
         self.required = False
     
-    def render(self, value: Any) -> str:
+    def render(self, name: str, value: Any) -> str:
         checked = "checked" if value else ""
-        return f'<input type="checkbox" {checked}>'
+        return f'<input type="checkbox" name="{name}" {checked} class="admin-checkbox">'
     
     def clean(self, value: Any) -> Any:
         return bool(value)
@@ -176,10 +185,10 @@ class CheckboxField(FieldWidget):
 class DateTimeField(FieldWidget):
     """Date/time input."""
     
-    def render(self, value: Any) -> str:
+    def render(self, name: str, value: Any) -> str:
         if isinstance(value, datetime):
             value = value.isoformat()
-        return f'<input type="datetime-local" value="{value or ""}">'
+        return f'<input type="datetime-local" name="{name}" value="{value or ""}" class="admin-input">'
     
     def clean(self, value: Any) -> Any:
         if not value:
@@ -205,10 +214,10 @@ class ImageField(FieldWidget):
         self.allowed_formats = allowed_formats or ["jpg", "png", "gif"]
         self.max_size_mb = max_size_mb
     
-    def render(self, value: Any) -> str:
+    def render(self, name: str, value: Any) -> str:
         accept = ",".join(f".{fmt}" for fmt in self.allowed_formats)
-        current = f'<p>Current: <img src="{value}" max-width="200"></p>' if value else ""
-        return f'{current}<input type="file" accept="{accept}">'
+        current = f'<div class="mb-2"><img src="{value}" class="h-20 w-20 object-cover rounded border"></div>' if value else ""
+        return f'{current}<input type="file" name="{name}" accept="{accept}" class="admin-input">'
     
     def clean(self, value: Any) -> Any:
         if not value:
@@ -216,6 +225,48 @@ class ImageField(FieldWidget):
                 raise ValueError("Image required")
             return None
         return value
+
+
+class CodeWidget(FieldWidget):
+    """Monaco Editor powered code input."""
+    
+    def __init__(self, language: str = "python", height: str = "300px", **kwargs):
+        super().__init__(**kwargs)
+        self.language = language
+        self.height = height
+    
+    def render(self, name: str, value: Any) -> str:
+        value_str = value or ""
+        return f"""
+        <div class="code-editor-container" style="height: {self.height}; border: 1px solid #334155; border-radius: 8px; overflow: hidden;">
+            <div id="editor_{name}" class="monaco-editor-instance" data-language="{self.language}" data-name="{name}" style="height: 100%;"></div>
+            <textarea name="{name}" id="textarea_{name}" style="display:none;">{value_str}</textarea>
+        </div>
+        """
+    
+    def clean(self, value: Any) -> Any:
+        return str(value) if value else ""
+
+
+class JsonWidget(CodeWidget):
+    """Monaco Editor powered JSON input."""
+    
+    def __init__(self, **kwargs):
+        kwargs.setdefault("language", "json")
+        super().__init__(**kwargs)
+    
+    def clean(self, value: Any) -> Any:
+        if not value:
+            return {} if not self.required else None
+        
+        import json
+        if isinstance(value, (dict, list)):
+            return value
+            
+        try:
+            return json.loads(value)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Invalid JSON: {e}")
 
 
 # ============================================================================
@@ -228,7 +279,7 @@ class Action(ABC):
     name: str = "action"
     description: str = "Perform action"
     confirmation_required: bool = False
-    permission_required: Optional[str] = None
+    permission_required: str | None = None
     
     @abstractmethod
     async def execute(self, selected_ids: List[Any], **kwargs) -> Dict[str, Any]:
@@ -423,6 +474,7 @@ get_admin = _registry.get
 __all__ = [
     "FieldWidget", "TextField", "EmailField", "PasswordField", "TextAreaField",
     "SelectField", "CheckboxField", "DateTimeField", "ImageField",
+    "CodeWidget", "JsonWidget",
     "Action", "DeleteAction", "DeactivateAction", "ExportAction", "ApproveAction",
     "AuditEntry", "AuditTrail",
     "AdminPanel", "AdminRegistry", "register_admin", "get_admin",

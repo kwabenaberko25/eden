@@ -757,6 +757,40 @@ def title_case(value: Any) -> str:
     return str(value).title()
 
 
+def format_date(value: Any, fmt: str = "%Y-%m-%d") -> str:
+    """Format a date object or ISO string."""
+    if not value: return ""
+    if isinstance(value, str):
+        try:
+            value = datetime.datetime.fromisoformat(value)
+        except ValueError:
+            return value
+    if hasattr(value, "strftime"):
+        return value.strftime(fmt)
+    return str(value)
+
+
+def format_time(value: Any, fmt: str = "%H:%M") -> str:
+    """Format a time/datetime object or ISO string."""
+    if not value: return ""
+    if isinstance(value, str):
+        try:
+            value = datetime.datetime.fromisoformat(value)
+        except ValueError:
+            return value
+    if hasattr(value, "strftime"):
+        return value.strftime(fmt)
+    return str(value)
+
+
+def format_number(value: Any) -> str:
+    """Format a number with thousand separators."""
+    try:
+        return "{:,}".format(float(value))
+    except (TypeError, ValueError):
+        return str(value)
+
+
 def mask_filter(value: Any) -> str:
     """Mask a string, showing first and last character (e.g. emails → ``u***@e.com``)."""
     s = str(value)
@@ -782,6 +816,25 @@ def file_size_filter(value: Any) -> str:
             return f"{size:.1f} {unit}"
         size /= 1024
     return f"{size:.1f} PB"
+    
+def repeat_filter(value: Any, count: int = 1) -> str:
+    """Repeat a string *count* times."""
+    return str(value) * count
+
+def phone_filter(value: Any, country_code: str = "US") -> str:
+    """Format a string as a phone number."""
+    s = str(value)
+    digits = re.sub(r'\D', '', s)
+    if country_code == "US" and len(digits) == 10:
+        return f"({digits[:3]}) {digits[3:6]}-{digits[6:]}"
+    return s
+
+def unique_filter(value: Any) -> list:
+    """Remove duplicates from a list while preserving order."""
+    if not isinstance(value, (list, tuple, set)):
+        return value
+    seen = set()
+    return [x for x in value if not (x in seen or seen.add(x))]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -866,8 +919,15 @@ class EdenTemplates(StarletteJinja2Templates):
         self.env.filters.update({
             # Built-in helpers
             "time_ago": format_time_ago,
-            "money": format_money,
             "class_names": class_names,
+            "date": format_date,
+            "time": format_time,
+            "number": format_number,
+            "currency": format_money,
+            "money": format_money,
+            "repeat": repeat_filter,
+            "phone": phone_filter,
+            "unique": unique_filter,
             # Widget tweaks
             "add_class": add_class,
             "remove_class": remove_class,

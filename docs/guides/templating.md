@@ -2,213 +2,244 @@
 
 > **Modern, Powerful, Express-Inspired Syntax for Web Templates**
 
-Eden's templating engine is a modern templating system designed to make templates readable, maintainable, and powerful. It replaces verbose Jinja2 tags with a clean, brace-based `@directive` syntax inspired by JavaScript frameworks. It is fully line-preserving and optimized for developer experience.
+Eden's templating engine is a state-of-the-art templating system designed for maximum readability and performance. It translates a clean, brace-based `@directive` syntax (inspired by Blade and JavaScript frameworks) into optimized Jinja2 code.
 
-**Quick Facts:**
+**Key Features:**
 
-- **40+ Directives** covering control flow, forms, routing, authentication, and components
+- **40+ Directives**: Covering control flow, forms, authorization, and fragment rendering.
+- **35+ Built-in Filters**: For string manipulation, currency, date formatting, and more.
+- **HTMX Auto-Fragment Detection**: Render only the changed part of a page automatically.
+- **Premium Design System**: Injected CSS variables and utility classes for a "wow" aesthetic.
+- **Type-Safe Dynamic URLs**: Built-in `@url()` directive with named route support.
 
-- **38+ Filters** for string manipulation, formatting, arrays, and i18n
-
-- **Full HTML Integration** with server-side components and HTMX support
-
-- **Express-Inspired** syntax that feels familiar to JavaScript developers
-
-- **Type-Safe URLs** with the `@url()` directivenever hardcode routes again
-
-- **Automatic CSRF Protection** with the `@csrf` directive
+---
 
 ## Table of Contents
 
 1. [Rendering Templates](#rendering-templates)
 2. [Quick Start Guide](#quick-start-guide)
 3. [Control Flow Directives](#control-flow-directives)
-4. [Global Variables and Helpers](#global-variables-and-helpers)
-5. [Feature Parity and Implementation Notes](#feature-parity-and-implementation-notes)
-6. [Layouts and Inheritance](#layouts-and-inheritance)
-7. [Advanced Block Controls](#advanced-block-controls)
-8. [Dynamic URLs (@url)](#dynamic-urls-url)
-9. [Component System (@component)](#component-system-component)
-10. [Forms and Security](#forms-and-security)
-11. [HTMX Integration](#htmx-integration)
-12. [Filters Reference](#filters-reference)
-13. [Elite Component: Data Table](#elite-component-data-table)
-14. [Best Practices and Patterns](#best-practices-and-patterns)
-15. [Complete Directives Reference](#complete-directives-reference)
+4. [Design System & Assets](#design-system-assets)
+5. [HTMX & Fragments](#htmx-fragments)
+6. [Global Variables & Helpers](#global-variables-and-helpers)
+7. [Filters Reference](#filters-reference)
+8. [Advanced Component Patterns](#advanced-component-patterns)
 
 ---
 
 ## Rendering Templates
 
-Eden provides multiple ways to render templates, giving you flexibility depending on your routing style.
+Eden provides multiple ways to render templates, providing flexibility for different routing styles.
 
-### Using `render_template()` Helper (Standard)
+### 1. Using `@app.get` (Magic Return)
 
-For the cleanest syntax, import and use the `render_template` helper. It automatically discovers the current request context using Python context variables, making it ideal for most view handlers.
+Eden route handlers can return templates directly using the `render()` method of the `Eden` application.
+
+```python
+@app.get("/")
+async def home(request):
+    return app.render(request, "home.html", {"title": "Welcome"})
+```
+
+### 2. The `render_template()` Helper (Standard)
+
+For the most ergonomic experience, use the `render_template` shortcut. It automatically discovers the current request context using Python context variables.
 
 ```python
 from eden import render_template
 
-@app.get("/")
-async def home():
-    """render_template automatically uses request context."""
-    return render_template("home.html", title="Welcome Home")
-
+@app.get("/profile/{username}")
+async def profile(username: str):
+    user = await User.get_by_username(username)
+    return render_template("profile.html", user=user)
 ```
 
 > [!TIP]
-> `render_template` is the preferred way to render HTML in Eden. It automatically handles HTMX fragment detection and injects the `request`, `user`, and `current_tenant` into your template context.
-
-### Using `request.render()`
-
-Every Eden `Request` object has a built-in `.render()` method. This is a shorter alias for calling the templating engine directly.
-
-```python
-@app.get("/profile")
-async def profile(request):
-    return request.render("profile.html", user=request.user)
-
-```
-
-### Using `app.render()`
-
-If you have a reference to the `Eden` app instance, you can render templates directly:
-
-```python
-@app.get("/health")
-async def health(request):
-    return request.app.render("status.html", status="ok")
-
-```
-
-### HTMX Auto-Fragment Rendering
-
-Eden features deep integration with HTMX. If a request includes the `HX-Request` header, the engine automatically checks for an `HX-Target` header. If a matching `@fragment` exists in your template, Eden will render **only** that fragment, skipping the rest of the page and the layout.
-
-```python
-@app.get("/items")
-async def list_items(request):
-    items = await Item.all()
-    # If hx-target="#item-list" is sent, only the fragment is rendered.
-
-    return render_template("items.html", items=items)
-
-```
-
-**Template:**
-
-```html
-@extends("layouts/base")
-
-@section("content") {
-    <div id="item-list">
-        @fragment("item-list") {
-            <ul>
-                @for(item in items) { <li>{{ item.name }}</li> }
-            </ul>
-        }
-    </div>
-}
-
-```
-
-> [!NOTE]
-> You can also manually trigger a fragment by passing `fragment="name"` to any render method.
+> `render_template` is the preferred way to render HTML in Eden. It handles HTMX fragment detection and injects the `request`, `user`, and `current_tenant` into your template context automatically.
 
 ---
 
 ## Quick Start Guide
 
-Eden uses a clean, brace-based syntax. All directives start with the `@` symbol, and expressions are wrapped in double curly braces `{{ }}`.
+Eden uses a brace-based syntax for logic and double curly braces for interpolation.
 
-| Directive | Syntax | Description | Example |
-| :--- | :--- | :--- | :--- |
-| **Interpolation** | `{{ expression }}` | Renders the result of a Python expression. | `{{ user.name }}` |
-| **Directives** | `@directive(args)` | Calls a built-in Eden function or control flow. | `@if(user.is_admin)` |
-| **Comments** | `{# comment #}` | Internal notes that won't appear in the HTML. | `{# TODO: check icons #}` |
-| **Escaping** | `{{ val \| safe }}` | Marks content as safe (disables auto-escaping). | `{{ html_content \| safe }}` |
-
-> [!TIP]
-> Always prefer standard `{{ }}` interpolation for user-generated content to prevent XSS. Eden automatically escapes all variables unless you explicitly use `@output`.
+| Feature | Syntax | Description |
+| :--- | :--- | :--- |
+| **Interpolation** | `{{ user.name }}` | Renders the result of a Python expression (auto-escaped). |
+| **Directives** | `@directive(args)` | Control flow or built-in helper functions. |
+| **Blocks** | `@{ ... }` | Multi-line logic blocks (rarely needed). |
+| **Raw Output** | `{{ html \| safe }}` | Renders unescaped HTML content. |
 
 ---
 
 ## Control Flow Directives
 
-Manage logic directly within your templates with standard 4-column standardized syntax.
+### Conditional Logic
 
-| Directive | Syntax | Description | Example |
-| :--- | :--- | :--- | :--- |
-| **If Statement** | `@if(cond) { ... }` | Standard conditional block. | `@if(user.is_admin)` |
-| **Else If** | `@else_if(c)` | Multiple condition checking. | `@else_if(user.editor)` |
-| **Else** | `@else { ... }` | Default fallback block. | `@else { Guest }` |
-| **Switch** | `@switch(val) { ... }` | Pattern matching for discrete values. | `@switch(item.status)` |
-| **For Loop** | `@for(i in list) { ... }` | Iterate over collections. | `@for(post in posts)` |
-| **Empty State** | `@empty { ... }` | Shown if the loop target is empty. | `@empty { No items }` |
-| **While Loop** | `@while(cond) { ... }` | Loop while condition is true. | `@while(gen.has_next())` |
+```html
+@if(user.is_admin) {
+    <div class="admin-badge">Admin</div>
+} @else_if(user.is_moderator) {
+    <div class="mod-badge">Moderator</div>
+} @else {
+    <div class="user-badge">User</div>
+}
+```
 
-> [!NOTE]
-> The `@empty` directive must immediately follow the closing brace of a `@for` loop. It's the most efficient way to handle "No Results Found" states without manual length checks.
+### Authentication Guards
+A cleaner way to handle user states:
 
-### Layouts and Inheritance (Preview)
+```html
+@auth {
+    <p>Welcome back, {{ user.name }}!</p>
+} @guest {
+    <a href="/login">Sign In</a>
+}
+```
 
-| Directive | Syntax | Description | Example |
-| :--- | :--- | :--- | :--- |
-| **Extends** | `@extends("base")` | Inherit from a parent template. | `@extends("layouts/main")` |
-| **Section** | `@section("n") { ... }` | Define content for a specific block. | `@section("title") { Home }` |
-| **@yield** | `@yield("n")` | Renders content from a child section. | `<title>@yield("title")</title>`|
-| **@include** | `@include("p")` | Includes a static partial or fragment. | `@include("shared/nav")` |
-| **@push** | `@push("n") { ... }` | Appends content to a global stack. | `@push("css") { <style>...` |
-| **@stack** | `@stack("n")` | Renders all content pushed to a stack. | `@stack("scripts")` |
+### Looping & Iteration
+Eden's `@for` loop includes an optional `@empty` block for graceful empty states.
 
-> [!TIP]
-> Use `@push` and `@stack` for page-specific scripts and styles. This ensures your layout remains clean while allowing individual components to inject their own dependencies.
+```html
+<ul class="user-list">
+    @for(user in users) {
+        <li class="@even { bg-slate-800 } @odd { bg-slate-900 }">
+            {{ user.name }} ({{ $loop.index }} of {{ $loop.length }})
+        </li>
+    } @empty {
+        <li class="p-4 text-center text-slate-500">No users found.</li>
+    }
+</ul>
+```
 
-### Auth and Security
+---
 
-| Directive | Syntax | Description | Example |
-| :--- | :--- | :--- | :--- |
-| **@auth** | `@auth { ... }` | Render for authenticated users only. | `@auth { Hello, User! }` |
-| **@guest** | `@guest { ... }` | Render for unauthenticated visitors. | `@guest { Please Log In }` |
-| **@csrf** | `@csrf` | Emits a hidden CSRF token input. | `<form>@csrf ...</form>` |
-| **@method** | `@method("PUT")` | Spoofs HTTP methods for forms. | `@method("DELETE")` |
+## Design System & Assets
 
-### HTMX and Dynamic Interactivity
+Eden injects a premium design system by default. Use the `@eden_head` and `@eden_scripts` directives to activate it.
 
-| Directive | Syntax | Description | Example |
-| :--- | :--- | :--- | :--- |
-| **@htmx** | `@htmx { ... }` | Renders only for HTMX requests. | `@htmx { Part of page }` |
-| **@non_htmx** | `@non_htmx { ... }` | Renders only for standard GET/POST. | `@non_htmx { Full Layout }` |
-| **@fragment** | `@fragment("id") { ... }`| Defines a partial targeted by HTMX. | `@fragment("list") { ... }` |
+### Foundation Directives
 
-> [!WARNING]
-> Ensure your `@fragment` IDs are unique across the template. HTMX uses these IDs to identify which part of the DOM to swap during partial updates.
+- **`@eden_head`**: Injects `<head>` metadata, Tailwind v4, Jakarta Sans & Outfit fonts, and premium CSS variables (glassmorphism, obsidian theme).
+- **`@eden_scripts`**: Injects the Eden runtime, auto-CSRF for HTMX, and the `eden-sync` real-time websocket extension.
 
-### Form Helpers
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    @eden_head
+    <title>@yield("title")</title>
+</head>
+<body class="bg-slate-950">
+    @yield("content")
+    @eden_scripts
+</body>
+</html>
+```
 
-| Directive | Syntax | Description | Example |
-| :--- | :--- | :--- | :--- |
-| **@checked** | `@checked(cond)` | Sets `checked` attribute if true. | `@checked(user.active)` |
-| **@selected** | `@selected(cond)` | Sets `selected` attribute if true. | `@selected(role == 'admin')` |
-| **@disabled** | `@disabled(cond)` | Sets `disabled` attribute if true. | `@disabled(is_loading)` |
-| **@readonly** | `@readonly(cond)` | Sets `readonly` attribute if true. | `@readonly(verified)` |
-| **@old** | `@old("f")` | Persists form input after error. | `value="@old('email')"` |
-| **@error** | `@error("f") { ... }` | Renders if field has a validation error. | `@error('name') { ... }` |
+### Design Tokens (Filters)
 
-### Asset and Debugging Helpers
+Eden provides filters to quickly apply brand-consistent styling.
 
-| Directive | Syntax | Description | Example |
-| :--- | :--- | :--- | :--- |
-| **@url** | `@url("name")` | Generates a named route URL. | `<a href="@url('home')">` |
-| **@active_link**| `@active_link("r", "c")`| Emits class `"c"` if route `"r"` active. | `class="@active_link('h', 'a')"`|
-| **@json** | `@json(val)` | Safe JSON encoding for JS scripts. | `const data = @json(stats);` |
-| **@dump** | `@dump(val)` | Pretty-prints variable for debugging. | `@dump(form.errors)` |
-| **@vite** | `@vite([...])` | Injects Vite HMR asset bundles. | `@vite(['js/app.js'])` |
-| **@css** | `@css("path")` | Link to a static CSS file. | `@css("css/theme.css")` |
-| **@js** | `@js("path")` | Link to a static JS file. | `@js("js/utils.js")` |
+| Filter | Example | Result (Tailwind Classes) |
+| :--- | :--- | :--- |
+| `eden_bg` | `{{ 'primary' \| eden_bg }}` | `bg-emerald-600` |
+| `eden_text` | `{{ 'danger' \| eden_text }}` | `text-red-500` |
+| `eden_shadow` | `{{ 'lg' \| eden_shadow }}` | `shadow-lg shadow-black/20` |
 
-> [!CAUTION]
-> The following directives are documented in legacy guides but are **not yet implemented** in the new engine: `@can`, `@cannot`, `@inject`, `@php`. Use standard `@if` logic handled in views for now.
+---
+
+## HTMX & Fragments
+
+### Auto-Fragment Swaps
+
+Eden eliminates the need for manual partial templates. Wrap dynamic regions in `@fragment("name")`. If HTMX requests that fragment specifically (via `HX-Target`), Eden renders **only** that block.
+
+```html
+<div id="user-count">
+    @fragment("count") {
+        <span>{{ total_users }} Users Online</span>
+    }
+</div>
+
+<button hx-get="/refresh" hx-target="#user-count">
+    Update Count
+</button>
+```
+
+---
+
+## Filters Reference
+
+### String Manipulation
+
+- **`| upper` / `| lower`**: Case conversion.
+- **`| truncate(n)`**: Truncate to $n$ characters with `…`.
+- **`| slugify`**: URL-safe slug generation.
+- **`| mask`**: Mask sensitive info (e.g. `u***@e.com`).
+
+### Formatting
+
+- **`| money`**: Format as currency (e.g., `$1,250.00`).
+- **`| date(format)`**: Standard Jinja date formatting.
+- **`| time_ago`**: Human-readable relative time (e.g., "3 hours ago").
+
+### Form & Logic
+
+- **`| add_class('cls')`**: Append CSS class to a form field.
+- **`| attr('rows', 5)`**: Add HTML attribute to a field.
+- **`@json(val)`**: Serialize Python object for use in JavaScript.
+
+---
+
+## Advanced Component Patterns
+
+### Elite Pattern: The Data Table
+
+Data tables often require complex logic. Combine `@for`, `@empty`, and `@fragment` for a robust implementation.
+
+```html
+@fragment("users-table") {
+    <div class="glass rounded-xl overflow-hidden border border-white/10">
+        <table class="w-full">
+            <thead class="bg-white/5 border-b border-white/10">
+                <tr>
+                    <th class="p-4 text-left">User</th>
+                    <th class="p-4 text-left">Role</th>
+                    <th class="p-4 text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @for(user in users) {
+                    <tr class="hover:bg-white/5 transition">
+                        <td class="p-4">
+                            <div class="font-medium">{{ user.name }}</div>
+                            <div class="text-xs text-slate-400">{{ user.email }}</div>
+                        </td>
+                        <td class="p-4">
+                            <span class="px-2 py-1 rounded text-xs {{ 'bg-blue-500/20 text-blue-400' if user.is_admin else 'bg-slate-500/20 text-slate-400' }}">
+                                {{ user.role }}
+                            </span>
+                        </td>
+                        <td class="p-4 text-right">
+                            <button hx-delete="@url('users:delete', id=user.id)" 
+                                    hx-confirm="Delete {{ user.name }}?"
+                                    class="text-red-400 hover:text-red-300">
+                                <i class="fa fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                } @empty {
+                    <tr>
+                        <td colspan="3" class="p-12 text-center text-slate-500 italic">
+                            No matching users found in your tenant.
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
 
 ---
 
@@ -693,26 +724,6 @@ Eden automatically injects several useful variables and helper functions into ev
 > You can also access any variable defined in your `settings.py` via the `settings` global, which is extremely useful for things like `APP_NAME` or `SUPPORT_EMAIL`.
 
 ---
-
-## Feature Parity and Implementation Notes
-
-> [!IMPORTANT]
-> To ensure consistency across the framework, please note that some legacy tags/filters documented in older versions of Eden are currently **deprecated** or **unimplemented** in the new engine.
-
-**Unimplemented Tags/Filters:**
-
-- `currency` (Use `money`)
-
-- `phone` (Currently handled via custom validators)
-
-- `date` / `time` (Use `| time_ago` or Jinja standard `| date`)
-
-- `reverse_array` (Use standard `| reverse`)
-
-- `unique` / `repeat`
-
-> [!TIP]
-> If you require a missing filter, you can register it via `app.templates.env.filters['name'] = func`.
 
 ---
 
@@ -2268,5 +2279,84 @@ Components aren't just for UI. Use them to encapsulate complex permissions or da
 }
 
 ```
+
+---
+
+## Advanced Architecture & Customization
+
+### 1. Custom Directives (`@custom`)
+Eden allows you to extend the templating engine by registering your own directives. This is useful for project-specific logic or integrating 3rd-party libraries.
+
+**Definition (`app/main.py`):**
+```python
+from eden import Eden
+
+app = Eden()
+
+@app.templates.directive("uppercase_block")
+def uppercase_directive(content, **kwargs):
+    """A simple directive that transforms block content to uppercase."""
+    return content.upper()
+
+@app.templates.directive("badge")
+def badge_directive(label, tone="primary"):
+    """A standalone directive that renders a themed badge."""
+    colors = {"primary": "bg-blue-500", "success": "bg-green-500"}
+    cls = colors.get(tone, "bg-gray-500")
+    return f'<span class="px-2 py-1 rounded {cls} text-white">{label}</span>'
+```
+
+**Usage:**
+```html
+@uppercase_block {
+    this text will be shouty
+}
+
+@badge("New Update", tone="success")
+```
+
+---
+
+### 2. Global Context Processors
+Context processors are functions that return a dictionary of variables to be injected into **every** template automatically.
+
+```python
+@app.templates.context_processor
+def inject_globals():
+    return {
+        "site_name": "Eden Pro",
+        "current_year": datetime.now().year,
+        "is_beta": settings.BETA_ENABLED
+    }
+```
+
+Now, `{{ site_name }}` and `{{ current_year }}` are available in all templates without being passed from the view.
+
+---
+
+### 3. Recursive Context Rendering (Nested Data)
+Eden's template engine supports recursion, which is ideal for rendering tree-like structures such as comment threads or multi-level navigation menus.
+
+**Template (`partials/comment.html`):**
+```html
+<div class="comment ml-{{ level * 4 }}">
+    <p>{{ comment.text }}</p>
+    
+    @if(comment.replies) {
+        @for(reply in comment.replies) {
+            @include("partials/comment", {"comment": reply, "level": level + 1})
+        }
+    }
+</div>
+```
+
+**Main Template:**
+```html
+@for(top_comment in thread) {
+    @include("partials/comment", {"comment": top_comment, "level": 0})
+}
+```
+
+---
 
 **Next Steps**: [Forms and Validation](forms.md)

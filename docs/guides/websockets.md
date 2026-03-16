@@ -109,9 +109,105 @@ async def handle_tenant_msg(socket, data, manager):
     await manager.broadcast(data, room=room)
 ```
 
-## Best Practices
+---
 
-- ✅ **Use Rooms**: Never broadcast globally if you can target a specific room.
-- ✅ **JSON Always**: Stick to JSON for your WebSocket protocol to leverage automatic parsing.
-- ✅ **Graceful Handling**: The `WebSocketRouter` handles `WebSocketDisconnect` automatically, but you can use `@ws.on_disconnect` for cleanup (e.g., status updates).
-- ✅ **Reactive synergy**: Use the ORM's `__reactive__` flag for state synchronization rather than manual broadcasting where possible.
+## 🚀 Tutorial: Building a Professional Chat App
+
+This tutorial demonstrates a feature-complete chat system with **room isolation**, **authenticated users**, and **presence tracking**.
+
+### 1. The Backend (`app/realtime.py`)
+
+```python
+from eden.websocket import WebSocketRouter
+
+chat_ws = WebSocketRouter(prefix="/ws/chat")
+
+@chat_ws.on_connect
+async def auth_and_join(socket, manager):
+    # 1. Enforce authentication
+    if not socket.user.is_authenticated:
+        return await socket.close(code=1008)
+    
+    # 2. Extract room from query string (e.g., ?room=marketing)
+    room = socket.query_params.get("room", "lobby")
+    
+    # 3. Join room and notify others
+    await manager.join(socket, room=room)
+    await manager.broadcast({
+        "event": "presence",
+        "user": socket.user.name,
+        "action": "joined",
+        "count": manager.count(room)
+    }, room=room)
+
+@chat_ws.on("new_message")
+async def handle_message(socket, data, manager):
+    # Broadcast to the specific room only
+    room = socket.query_params.get("room", "lobby")
+    
+    await manager.broadcast({
+        "event": "chat",
+        "user": socket.user.name,
+        "text": data["text"],
+        "timestamp": datetime.now().isoformat()
+    }, room=room)
+```
+
+### 2. The Frontend (`chat.html`)
+Using standard WebSockets with HTMX for surgical message insertion.
+
+```html
+<div class="chat-container h-96 flex flex-col border rounded-xl shadow-lg">
+    <div id="chat-messages" 
+         class="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50"
+         hx-ext="ws" 
+         ws-connect="/ws/chat?room={{ current_room }}">
+        
+        <!-- Welcome Message -->
+        <div class="text-center text-xs text-gray-400">
+            Welcome to the #{{ current_room }} room
+        </div>
+    </div>
+
+    <!-- Message Input -->
+    <form ws-send class="p-4 border-t bg-white flex gap-2">
+        <input name="text" 
+               placeholder="Type a message..." 
+               class="flex-1 px-4 py-2 border rounded-full focus:ring-2"
+               autocomplete="off">
+        <button type="submit" class="p-2 bg-blue-600 text-white rounded-full">
+            <svg ...></svg>
+        </button>
+    </form>
+</div>
+
+<!-- Fragment for surgical message insertion -->
+@fragment("message-bubble") {
+    <div class="flex flex-col {{ 'items-end' if is_me else 'items-start' }}">
+        <span class="text-[10px] text-gray-400 mb-1">{{ user }}</span>
+        <div class="px-4 py-2 rounded-2xl max-w-[80%] {{ 'bg-blue-600 text-white' if is_me else 'bg-white border' }}">
+            {{ text }}
+        </div>
+    </div>
+}
+```
+
+---
+
+## 🛠️ Advanced: Heartbeats & Reconnection
+
+For high-availability real-time systems, always implement heartbeats to detect "zombie" connections.
+
+```python
+@chat_ws.on("heartbeat")
+async def handle_ping(socket, data, manager):
+    # Simply echo back to keep the connection alive
+    await manager.send_to(socket, {"event": "heartbeat_ack"})
+```
+
+**Client-side best practice:**
+The `ws` extension in HTMX automatically handles reconnection with exponential backoff if the server goes down, ensuring a premium "it just works" experience for your users.
+
+---
+
+**Next Steps**: [Background Tasks & Scheduling](background-tasks.md)

@@ -80,12 +80,33 @@ class CustomerMixin:
         return BillingManager(self)
 
     @property
-    def is_subscribed(self) -> bool:
+    async def is_subscribed(self) -> bool:
         """
-        Helper to check if this entity has an active subscription.
-        Real implementation would check the Subscriptions table.
+        Check if this customer has an active subscription in the database.
         """
-        return False
+        if not self.stripe_customer_id:
+            return False
+
+        from eden.payments.models import Customer, Subscription
+        from eden.db import Q
+
+        try:
+            # First, find the Customer record to get its primary key
+            customer = await Customer.filter(provider_customer_id=self.stripe_customer_id).first()
+            if not customer:
+                return False
+
+            # Check for active or trialing subscriptions
+            # We use Q to support multiple active statuses
+            has_active = await Subscription.filter(
+                Q(customer_id=customer.id) & 
+                Q(status__in=["active", "trialing"])
+            ).exists()
+            
+            return has_active
+        except Exception:
+            # Fallback if payments models aren't migrated or available
+            return False
 
     def __repr__(self) -> str:
         return f"<Customer(stripe_id='{self.stripe_customer_id}')>"

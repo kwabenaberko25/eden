@@ -19,10 +19,15 @@ from starlette.responses import Response as StarletteResponse
 from starlette.responses import StreamingResponse as StarletteStreamingResponse
 
 
+import datetime
+import uuid
+from decimal import Decimal
+
 def _serialize(data: Any) -> Any:
     """
     Recursively serialize data for JSON encoding.
-    Handles Pydantic models, dicts, lists, and primitives.
+    Handles Pydantic models, dicts, lists, sets, and common primitives
+    like datetime, UUID, and Decimal.
     """
     if isinstance(data, pydantic.BaseModel):
         return data.model_dump(mode="json")
@@ -32,6 +37,15 @@ def _serialize(data: Any) -> Any:
         return [_serialize(item) for item in data]
     if isinstance(data, (set, frozenset)):
         return [_serialize(item) for item in data]
+    
+    # Handle common non-JSON types
+    if isinstance(data, (datetime.datetime, datetime.date)):
+        return data.isoformat()
+    if isinstance(data, uuid.UUID):
+        return str(data)
+    if isinstance(data, Decimal):
+        return str(data)
+    
     return data
 
 

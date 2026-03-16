@@ -114,6 +114,14 @@ class QuerySet(Generic[T]):
         clone._cache_ttl = self._cache_ttl
         return clone
 
+    @property
+    def statement(self) -> Any:
+        """
+        Return the underlying SQLAlchemy statement.
+        Use this to 'drop down' to raw SQLAlchemy power when needed.
+        """
+        return self._stmt
+
     # ── Chainable Methods ────────────────────────────────────────────────
 
     def filter(self, *args: Any, **kwargs: Any) -> QuerySet[T]:
@@ -192,7 +200,7 @@ class QuerySet(Generic[T]):
         for field in fields:
             desc = False
             if field.startswith("-"):
-                field = field[1:]
+                field = field.removeprefix("-")
                 desc = True
 
             column = getattr(self._model_cls, field, None)
@@ -204,6 +212,43 @@ class QuerySet(Generic[T]):
                 raise ValueError(f"'{self._model_cls.__name__}' has no field or annotation '{field}'")
 
             clone._stmt = clone._stmt.order_by(column.desc() if desc else column.asc())
+        return clone
+
+    def group_by(self, *fields: str) -> QuerySet[T]:
+        """
+        Group by the specified fields.
+        Useful for aggregation across multiple columns.
+        """
+        clone = self._clone()
+        for field in fields:
+            column = getattr(self._model_cls, field, None)
+            if column is None:
+                column = self._annotations.get(field)
+            
+            if column is None:
+                raise ValueError(f"'{self._model_cls.__name__}' has no field or annotation '{field}'")
+            clone._stmt = clone._stmt.group_by(column)
+        return clone
+
+    def having(self, *args: Any, **kwargs: Any) -> QuerySet[T]:
+        """
+        Add HAVING conditions for aggregated queries.
+        """
+        from eden.db.lookups import Q, parse_lookups
+        clone = self._clone()
+        expressions = []
+        
+        for q in args:
+            if isinstance(q, Q):
+                expressions.append(q.resolve(self._model_cls))
+            else:
+                expressions.append(q)
+                
+        if kwargs:
+            expressions.extend(parse_lookups(self._model_cls, **kwargs))
+            
+        if expressions:
+            clone._stmt = clone._stmt.having(*expressions)
         return clone
 
     def values(self, *fields: str) -> "QuerySet[T]":
@@ -397,40 +442,19 @@ class QuerySet(Generic[T]):
             # returns {"total_stock": 100, "avg_price": 49.99}
         """
         async with self._provide_session() as session:
-            from eden.db.aggregates import Aggregate
+            from eden.db.aggregates import Aggregate, AggregateExpression
 
             # Use a subquery to wrap filters/joins before aggregating
             subq = self._stmt.subquery()
             sel_exprs = []
             
             for alias, agg in aggregates.items():
-                if not isinstance(agg, Aggregate):
-                    raise ValueError(f"Value for '{alias}' must be an Aggregate instance")
+                if not hasattr(agg, "resolve"):
+                    raise ValueError(f"Value for '{alias}' must be an Aggregate or AggregateExpression")
                 
-                # Attempt to find the column in the subquery
-                column = getattr(subq.c, agg.field, None)
-                
-                if column is None:
-                    # Heuristic: Check for column name in mapper if attribute name not found
-                    from sqlalchemy import inspect as sa_inspect
-                    mapper = sa_inspect(self._model_cls)
-                    if agg.field in mapper.all_orm_descriptors:
-                        desc = mapper.all_orm_descriptors[agg.field]
-                        if hasattr(desc, "property") and hasattr(desc.property, "columns"):
-                            col_name = desc.property.columns[0].name
-                            column = getattr(subq.c, col_name, None)
-
-                if column is None:
-                    # Final debug/fallback: what columns ARE there?
-                    cols = list(subq.c.keys()) if subq.c is not None else []
-                    raise ValueError(
-                        f"Field '{agg.field}' not found in subquery for {self._model_cls.__name__}. "
-                        f"Available columns: {cols}"
-                    )
-                
-                agg_func = getattr(func, agg.function.lower())
-                expr = agg_func(column).label(alias)
-                sel_exprs.append(expr)
+                # Resolve the aggregate using subquery columns
+                expr = agg.resolve(self._model_cls, columns=subq.c)
+                sel_exprs.append(expr.label(alias))
 
             stmt = select(*sel_exprs)
             result = await session.execute(stmt)

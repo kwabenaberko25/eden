@@ -1568,6 +1568,71 @@ async def new_blog_post(request):
         };
     }
 </script>
+
+---
+
+## 🚀 Elite Pattern: Reactive Dynamic Forms
+
+Standard forms are static. Elite forms are **Reactive**. Using Eden's HTMX integration, you can build forms that surgically re-render themselves as the user interacts with them—without writing custom JavaScript.
+
+### Scenario: Category-Specific Fields
+Imagine a product form where selecting a "Category" dynamically injects different validation fields (e.g., "Voltage" for Electronics, "Size" for Clothing).
+
+**The Multi-Schema Definition:**
+```python
+from eden.forms import Schema, field
+
+class BaseProductSchema(Schema):
+    name: str = field(min_length=3, label="Product Name")
+    category: str = field(widget="select", choices=[("elec", "Electronics"), ("cloth", "Clothing")])
+
+class ElectronicsSchema(BaseProductSchema):
+    voltage: int = field(gt=0, label="Voltage (V)")
+    warranty_months: int = field(default=12, label="Warranty Period")
+
+class ClothingSchema(BaseProductSchema):
+    fabric: str = field(label="Fabric Type")
+    size_system: str = field(choices=[("eu", "EU"), ("us", "US")], label="Size System")
+```
+
+**The Intelligent Route:**
+```python
+@app.post("/products/fragment")
+async def product_form_fragment(request):
+    data = await request.form()
+    category = data.get("category")
+    
+    # Select the schema based on the current selection
+    schema_map = {"elec": ElectronicsSchema, "cloth": ClothingSchema}
+    schema_class = schema_map.get(category, BaseProductSchema)
+    
+    # Create form and populate with current data
+    form = schema_class.as_form(data=data)
+    
+    return request.render("products/form.html", {"form": form}, fragment="dynamic-fields")
+```
+
+**The Reactive Template:**
+```html
+<form hx-post="@url('products:save')">
+    @render_field(form['name'])
+    
+    <!-- This select trigger the fragment update -->
+    @render_field(form['category'], 
+                  hx_post="@url('products:fragment')", 
+                  hx_target="#dynamic-area",
+                  hx_trigger="change")
+
+    <div id="dynamic-area">
+        @fragment("dynamic-fields") {
+            @for(field in form.fields_after('category')) {
+                @render_field(field)
+            }
+        }
+    </div>
+
+    <button type="submit">Save Product</button>
+</form>
 ```
 
 ---

@@ -42,7 +42,7 @@ async def get_user(request, user_id: int):
 | `uuid` | `{id:uuid}` | Captures and casts to a UUID object. |
 | `path` | `{file:path}` | Captures everything, including slashes. |
 
-### Path Parameters in Practice
+### 1. The Backend (`app/realtime.py`)
 
 ```python
 # Single parameter
@@ -79,7 +79,7 @@ async def serve_file(request, filepath: str):
 
 ---
 
-## Query Parameters
+## 🚀 Tutorial: Search-as-you-type Dashboard
 
 Query parameters are accessed via `request.query_params`:
 
@@ -479,35 +479,101 @@ async def search(request):
 
 ---
 
-## Request & Response
+## Deep Dive: Request & Response API
 
-### The `Request` object
+### 1. The `Request` Object
+The `Request` object encapsulates the incoming HTTP message. It is passed as the first argument to every route handler.
 
-Access headers, cookies, query Params, and body content.
+| Property / Method | Description |
+| :--- | :--- |
+| `request.method` | The HTTP method (GET, POST, etc). |
+| `request.url` | The full URL object. |
+| `request.headers` | Multi-dict of HTTP headers. |
+| `request.query_params` | Dictionary of URL query parameters. |
+| `request.path_params` | Dictionary of captured path segments. |
+| `request.cookies` | Dictionary of request cookies. |
+| `request.client` | The client's host and port. |
+| `request.state` | A mutable object for storing request-local data (common in middleware). |
+| `request.session` | The encrypted session dictionary (if SessionMiddleware is active). |
+| `request.user` | The authenticated user object (if AuthMiddleware is active). |
+| **`await request.json()`** | Parses the body as JSON. |
+| **`await request.form()`** | Parses the body as multi-part or form data. |
+| **`await request.body()`** | Returns the raw binary content of the body. |
+
+---
+
+### 2. Response Types
+Eden supports multiple response types. You can return a dictionary (auto-JSON), a string (auto-HTML), or an explicit Response object.
+
+#### JSON Response
 
 ```python
-@app.get("/info")
-async def info(request):
-    ua = request.headers.get("user-agent")
-    q = request.query_params.get("q")
-    return {"ua": ua, "query": q}
+from eden import json
+
+@app.get("/api/ping")
+async def ping():
+    return json({"status": "ok"}, status=200)
+
+# Shortcut: Return a dict directly
+@app.get("/api/v1")
+async def api_root():
+    return {"version": "1.0.0"}
 ```
 
-### Response Helpers
-
-Eden provides a range of response types.
+#### Redirect Response
 
 ```python
-from eden import json, redirect, html
+from eden import redirect
 
-@app.get("/redirect")
-async def do_redirect(request):
-    return redirect(url="/")
+@app.get("/legacy")
+async def legacy():
+    # Supports internal routes and external URLs
+    return redirect("/new-home")
+
+@app.get("/named-redirect")
+async def named():
+    # Redirect to a named route
+    return redirect(url_for("home"))
+```
+
+#### File & Streaming Responses
+Used for serving downloads or large data sets.
+
+```python
+from eden.responses import FileResponse, StreamingResponse
+
+@app.get("/download/{filename}")
+async def download(request, filename: str):
+    return FileResponse(
+        path=f"storage/public/{filename}",
+        filename=filename,
+        content_type="application/octet-stream"
+    )
+
+@app.get("/log-stream")
+async def stream_logs():
+    async def log_generator():
+        for i in range(100):
+            yield f"Line {i}\n"
+            await asyncio.sleep(0.1)
+            
+    return StreamingResponse(log_generator(), media_type="text/plain")
+```
+
+#### HTMX Response
+Specialized response for HTMX interactions (see [HTMX Guide](htmx.md)).
+
+```python
+from eden.htmx import HtmxResponse
+
+@app.post("/action")
+async def htmx_action():
+    return HtmxResponse("Action successful", trigger="refresh-list")
 ```
 
 ---
 
-## Advanced SaaS Routing Example 🏢
+## 🚀 Advanced SaaS Routing 🏢
 
 For enterprise applications, Eden supports sophisticated routing patterns using sub-domains and recursive middleware.
 

@@ -32,13 +32,75 @@ theme:
 
 nav:
   - Home: index.md
-  - Getting Started:
+  - I. Getting Started:
     - The Eden Ethos: getting-started/philosophy.md
     - Installation: getting-started/installation.md
-    - Learning Path: getting-started/learning-path.md
     - Quick Start: getting-started/quickstart.md
     - Example Snippets: getting-started/example-snippets.md
+    - Killer Features: guides/killer-features.md
     - Project Structure: getting-started/structure.md
+    - Learning Path: getting-started/learning-path.md
+  - II. Core Application Framework:
+    - Core Application: guides/core-app.md
+    - Routing System: guides/routing.md
+    - Advanced Routing: guides/advanced-routing.md
+    - Context Variables: guides/context-variables.md
+    - Dependency Injection: guides/dependencies.md
+    - Middleware & Security: guides/middleware.md
+    - Exception Handling: guides/exceptions.md
+    - Sessions: guides/sessions.md
+    - Requests & Responses: guides/requests-responses.md
+    - Service Layer: guides/services.md
+    - Caching: guides/caching.md
+    - CLI Suite: guides/cli.md
+  - III. Database & ORM:
+    - ORM Overview: guides/orm.md
+    - QuerySet & Lookups: guides/orm-querying.md
+    - Relationship Patterns: guides/orm-relationships.md
+    - Transactions & Atomicity: guides/orm-transactions.md
+    - Migrations: guides/orm-migrations.md
+    - JSON Functionality: guides/json.md
+  - IV. Security & Authentication:
+    - Auth Overview: guides/auth.md
+    - Role-Based Access (RBAC): guides/auth-rbac.md
+    - Social Login (OAuth): guides/auth-oauth.md
+    - Multi-Backend Auth: guides/multi-backend-auth.md
+    - Multi-Tenancy Patterns: guides/tenancy.md
+    - Tenant Persistence (PostgreSQL): guides/tenancy-postgres.md
+    - Tenant Config & Lifecycle: guides/tenant-configuration.md
+    - Security Best Practices: guides/security.md
+    - CSRF Protection: guides/csrf-protection.md
+  - V. UI & Frontend Integration:
+    - Templating System: guides/templating.md
+    - Directives Guide: guides/DIRECTIVES_USAGE_GUIDE.md
+    - Directives Troubleshooting: guides/DIRECTIVES_TROUBLESHOOTING.md
+    - Server-Side Components: guides/components.md
+    - Forms & Validation: guides/forms.md
+    - Advanced FormField API: guides/formfield-api.md
+    - HTMX Integration: guides/htmx.md
+    - Internationalization (i18n): guides/i18n.md
+  - VI. Background Tasks & Real-time:
+    - Background Tasks: guides/background-tasks.md
+    - WebSockets & Streaming: guides/websockets.md
+    - Real-time Operations: guides/realtime.md
+    - WebSocket Auth: guides/websocket-auth.md
+  - VII. Storage & Assets:
+    - File Storage: guides/storage.md
+    - Asset Pipeline: guides/assets.md
+    - Optional Extras: guides/optional-extras.md
+  - VIII. Testing & Debugging:
+    - Testing Framework: guides/testing.md
+    - Troubleshooting & FAQ: guides/troubleshooting.md
+    - Performance Tuning: guides/performance.md
+  - IX. Built-in Admin & Audit:
+    - Admin Panel: guides/admin.md
+    - Audit System: guides/audit.md
+    - Logging & Telemetry: guides/logging.md
+  - X. Deployment & Operations:
+    - Deployment Guide: guides/deployment.md
+    - API Standards: guides/api.md
+    - OpenAPI & Swagger: guides/openapi.md
+    - Payment Integration: guides/payments.md
   - Tutorial (Task-Based):
     - 1. Environment Setup: tutorial/task1_setup.md
     - 2. App Configuration: tutorial/task2_core.md
@@ -50,47 +112,6 @@ nav:
     - 8. SaaS Features: tutorial/task8_saas.md
     - 9. Deployment: tutorial/task9_deployment.md
     - 10. Testing: tutorial/task10_testing.md
-  - Guides:
-    - Core Application: guides/core-app.md
-    - Routing System: guides/routing.md
-    - Advanced Routing: guides/advanced-routing.md
-    - Server-Side Components: guides/components.md
-    - Context Variables: guides/context-variables.md
-    - Dependencies: guides/dependencies.md
-    - WebSockets: guides/websockets.md
-    - WebSocket Auth: guides/websocket-auth.md
-    - Middleware & Security: guides/middleware.md
-    - CSRF Protection: guides/csrf-protection.md
-    - Sessions: guides/sessions.md
-    - HTMX Integration: guides/htmx.md
-    - Exception Handling: guides/exceptions.md
-    - OpenAPI & Swagger: guides/openapi.md
-    - CLI Suite: guides/cli.md
-    - Database & ORM: guides/orm.md
-    - Authentication: guides/auth.md
-    - Multi-Backend Auth: guides/multi-backend-auth.md
-    - Caching & Performance: guides/caching.md
-    - Templates: guides/templating.md
-    - "📝 Templating Directives": guides/DIRECTIVES_USAGE_GUIDE.md
-    - "🔧 Directives Troubleshooting": guides/DIRECTIVES_TROUBLESHOOTING.md
-    - Forms & Validation: guides/forms.md
-    - FormField API: guides/formfield-api.md
-    - Multi-Tenancy: guides/tenancy.md
-    - Multi-Tenancy (PostgreSQL): guides/tenancy-postgres.md
-    - Tenant Configuration: guides/tenant-configuration.md
-    - Internationalization: guides/i18n.md
-    - Background Tasks: guides/background-tasks.md
-    - Integrated Services: guides/services.md
-    - Optional Extras: guides/optional-extras.md
-    - Admin Panel: guides/admin.md
-    - API Best Practices: guides/api.md
-    - Payment Integration: guides/payments.md
-    - Deployment & Observability: guides/deployment.md
-    - 🚀 Killer Features: guides/killer-features.md
-    - 🔒 Security Best Practices: guides/security.md
-    - 🚀 Performance Tuning: guides/performance.md
-    - 🧪 Testing: guides/testing.md
-    - 🔧 Troubleshooting & FAQ: guides/troubleshooting.md
 
 markdown_extensions:
   - pymdownx.highlight:

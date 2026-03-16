@@ -81,13 +81,13 @@ To execute your background tasks, you must run the Eden worker process in a sepa
 
 ```bash
 # Run 4 parallel worker processes
-eden worker --workers 4
+eden tasks worker --workers 4
 ```
 
 For scheduled tasks (`.every()` or delayed tasks), you also need to run the scheduler:
 
 ```bash
-eden scheduler
+eden tasks scheduler
 ```
 
 ## Lifecycle & Synergies
@@ -109,9 +109,90 @@ async def process_video(video_id: int, user_id: int):
     )
 ```
 
+---
+
+## 🛡️ Error Handling & Retries
+
+Background tasks can sometimes fail due to external network issues or database locks. Eden allows you to define retry policies to make your tasks resilient.
+
+### Automatic Retries
+```python
+@app.task(
+    retries=3,          # Retry up to 3 times
+    retry_on=[TimeoutError, NetworkError], # Only retry on these errors
+    delay=5             # Wait 5 seconds between retries
+)
+async def fetch_external_data(api_url: str):
+    # Logic...
+```
+
+### Manual Retry Logic
+You can also trigger a retry manually from within the task based on custom logic.
+
+```python
+from taskiq import TaskiqRetry
+
+@app.task()
+async def provision_server(server_id: int):
+    status = await check_status(server_id)
+    if status != "ready":
+        # Raise this to put the task back in the queue
+        raise TaskiqRetry("Server not ready yet, retrying...")
+```
+
+---
+
+## 📊 Task Results & Monitoring
+
+Sometimes you need to know what a task returned or if it succeeded.
+
+### Fetching Results
+To get the return value of a task, ensure you use the Redis broker as it stores task results.
+
+```python
+# 1. Dispatch the task
+task_handle = await app.task.defer(heavy_calc, 10, 20)
+
+# 2. Wait for the result (in a route or another task)
+result = await task_handle.wait_result(timeout=10.0)
+print(f"Computed value: {result.return_value}")
+```
+
+### Result Persistence
+By default, results are kept for 24 hours in Redis. You can configure this in your `EDEN_SETTINGS` to store them longer for auditing.
+
+---
+
+## 🛠️ Advanced: Progress Tracking
+For very long tasks, you can report progress that the UI can pick up via WebSockets.
+
+```python
+@app.task()
+async def import_csv(file_id: int):
+    rows = await load_csv(file_id)
+    total = len(rows)
+    
+    for i, row in enumerate(rows):
+        await process_row(row)
+        
+        # Report progress every 10%
+        if i % (total // 10) == 0:
+            await app.ws.broadcast(
+                {"event": "import_progress", "percent": (i/total)*100},
+                room=f"file_{file_id}"
+            )
+```
+
+---
+
 ## Best Practices
 
 - ✅ **Small Arguments**: Pass IDs (like `user_id`) instead of large objects. Let the worker fetch the data it needs.
 - ✅ **Atomic Tasks**: Ensure your tasks are idempotent (safe to run multiple times if retried).
 - ✅ **Redis for Production**: Always use the Redis broker in production to handle persistence and concurrency.
 - ✅ **Monitor Logs**: Use `eden worker --debug` during development to see task output in real-time.
+- ✅ **Timeout Control**: Use `timeout` in your `.kiq()` calls to prevent tasks from hanging forever.
+
+---
+
+**Next Steps**: [Advanced SaaS & Multi-Tenancy](tenancy.md)

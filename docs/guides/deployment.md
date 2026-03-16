@@ -1,114 +1,105 @@
-# Deployment & Observability 🚀
+# Deployment & Operations 🚀
 
-Taking your Eden application from development to production requires attention to performance, security, and monitoring.
-
-## Local Development
-
-Run your Eden application locally during development:
-
-```bash
-eden run
-```
-
-This starts the development server with auto-reload enabled.
+Taking your Eden application from development to production requires attention to performance, security, and scalability. This guide covers the end-to-end production workflow.
 
 ---
 
-## Production Configuration
+## Production Runtime (Gunicorn + Uvicorn)
 
-Always use environment variables for sensitive configuration.
-
-```text
-EDEN_DEBUG=False
-DATABASE_URL=postgresql+asyncpg://user:pass@db:5432/eden
-REDIS_URL=redis://queue:6379/0
-SECRET_KEY=y0ur-5ecr3t-k3y-h3r3
-```
-
----
-
-## Scaling with Uvicorn
-
-In production, run your Eden application using Gunicorn with Uvicorn workers for optimized performance.
+In development, `eden start` is sufficient. In production, you must use a process manager like **Gunicorn** with **Uvicorn workers** to handle concurrent loads and automatic process recycling.
 
 ```bash
+# Example: 4 workers (typically 2 x num_cores + 1)
 gunicorn app:app -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
 ```
 
 ---
 
-## Docker Deployment 🐳
+## Nginx Reverse Proxy 🛠️
 
-Eden is designed to be container-first. Here is a standard `Dockerfile` for an Eden project:
+Always put a reverse proxy like Nginx in front of your Python application. It handles SSL termination, static file serving, and buffers slow clients.
 
-```dockerfile
-FROM python:3.12-slim
+```nginx
+server {
+    listen 80;
+    server_name yourdomain.com;
 
-WORKDIR /app
+    location /static/ {
+        alias /app/static/;
+        expires 30d;
+    }
 
-# Install dependencies
-COPY pyproject.toml .
-RUN pip install --no-cache-dir .
-
-# Copy application files
-COPY . .
-
-# Run as non-root user
-RUN useradd -m edenuser
-USER edenuser
-
-CMD ["gunicorn", "app:app", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000"]
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
 ```
 
 ---
 
-## Observability 🛰️
+## Environment Management
 
-Eden includes native telemetry hooks that can be integrated with tools like **Prometheus** and **OpenTelemetry**.
+Eden uses `.env` files for local development, but in production, you should use system environment variables or a secret manager (Secrets Manager, Vault).
 
-### Logging
-Configure structured logging for better searchability in production.
+### Required Variables
+- `EDEN_DEBUG=False`
+- `DATABASE_URL=postgresql+asyncpg://user:pass@db:5432/eden`
+- `SECRET_KEY`: A cryptographically secure random string.
+- `ALLOWED_HOSTS`: Comma-separated list of domains.
 
-```python
-import logging
-from eden.logging import JSONFormatter
+---
 
-handler = logging.StreamHandler()
-handler.setFormatter(JSONFormatter())
-logging.getLogger("eden").addHandler(handler)
+## Zero-Downtime Migrations 🔄
+
+When deploying new code that involves database changes:
+1. **Pre-deploy**: Apply "additive" migrations (new tables/columns) that don't break old code.
+2. **Deploy**: Roll out the new application code.
+3. **Post-deploy**: Clean up old columns or data if necessary.
+
+```bash
+# Apply pending migrations before restarting the app
+eden migrate upgrade head
 ```
 
-### Error Tracking (Sentry) 🏹
-Eden integrates seamlessly with Sentry for real-time error tracking.
+---
 
+## Health & Monitoring
+
+Eden exposes a built-in health check endpoint that verifies database and cache connectivity.
+
+- **Endpoint**: `GET /health`
+- **Response**:
+  ```json
+  {
+    "status": "healthy",
+    "db": "connected",
+    "cache": "connected",
+    "uptime": "5d 12h"
+  }
+  ```
+
+### Sentry Integration
 ```python
 import sentry_sdk
-from sentry_sdk.integrations.starlette import StarletteIntegration
+from eden.extras import sentry
 
-sentry_sdk.init(
-    dsn="your-dsn-here",
-    integrations=[StarletteIntegration(app=app)]
-)
-```
-
-### Health Probes
-Expose standard health check endpoints for Kubernetes liveness and readiness probes.
-
-```python
-# Available at /health/ by default
+sentry.init(dsn="your-sentry-dsn")
 ```
 
 ---
 
-## Security Checklist 🛡️
+## Security Hardening Checklist
 
-Before going live, ensure:
-1. `EDEN_DEBUG` is set to `False`.
-2. `SECRET_KEY` is a long, random string.
-3. `csrf` and `security` middlewares are enabled.
-4. Database connections are pooled correctly.
-5. All traffic is served over HTTPS.
+- [ ] Disable `DEBUG` mode.
+- [ ] Set `SESSION_COOKIE_SECURE=True`.
+- [ ] Use `Strict-Transport-Security` (HSTS) headers.
+- [ ] Ensure `ALLOWED_HOSTS` is strictly defined.
+- [ ] Run your Docker container as a non-root user.
 
 ---
 
-**Congratulations!** You have mastered the Eden Framework documentation.
+**Next Steps**: [Troubleshooting Guide](troubleshooting.md)

@@ -1,106 +1,80 @@
-# CLI Suite 🛠️
+# CLI Suite: Mastering the `eden` Command 💻
 
-The Eden CLI is your essential companion for project management, code generation, and database administration.
+Eden's command-line interface is designed to automate repetitive tasks and manage your application's lifecycle from development to production.
 
 ## Core Commands
 
-### `eden version`
-Displays the current version of the Eden Framework.
+### `eden start`
+Starts the development server.
+- **Auto-reload**: Restarts whenever code changes.
+- **Debug Port**: Default is `8000`.
+- **Options**:
+  - `--host`: Host to bind to (default: `127.0.0.1`).
+  - `--port`: Port to listen on (default: `5000`).
 
-### `eden run`
-Starts the development server with auto-discovery and hot-reloading.
+### `eden init [name]`
+Scaffolds a new Eden project with the "Premium" structure.
+- Creates folders: `app/`, `eden/`, `static/`, `templates/`.
+- Generates: `app.py`, `models.py`, `eden.json`, `.env`.
 
-```bash
-# Start auto-detecting app.py/main.py
-eden run
+---
 
-# Specify app instance manually
-eden run --app main:app --port 8000
+## Database Migrations (`eden migrate`)
+
+Manage your schema evolution.
+
+- **`create [message]`**: Generates a new migration script based on model changes.
+- **`upgrade head`**: Applies all pending migrations.
+- **`downgrade -1`**: Reverts the last migration.
+- **`history`**: View the list of migrations.
+
+---
+
+## Static Assets (`eden assets`)
+
+Optimize your frontend for production.
+
+- **`build`**: Minifies and hashes assets in your `static/` folder.
+- **`clean`**: Removes old hashed assets.
+
+---
+
+## Task Management (`eden tasks`)
+
+Manage your background workers (requires `[tasks]` extra).
+
+- **`worker`**: Starts the taskiq-based background worker.
+- **`scheduler`**: Starts the periodic task scheduler (cron jobs).
+
+---
+
+## User & Auth Management
+
+### `eden createsuperuser`
+Creates an administrative user with full permissions. It will prompt for email and password.
+
+### `eden changepassword [email]`
+Resets the password for a specific user.
+
+---
+
+## Custom CLI Commands
+
+You can extend the Eden CLI with your own commands by using the `@app.command` decorator.
+
+```python
+# app.py
+@app.command(name="sync-stripe", help="Sync customers from Stripe")
+async def sync_stripe():
+    # your logic here
+    print("Done! 🎉")
 ```
 
-### `eden new`
-Scaffolds a premium, production-ready Eden project with Docker and Pytest.
-
+Now you can run it via:
 ```bash
-# Basic setup (creates a folder)
-eden new my_awesome_app
-
-# Current directory setup
-eden new my_awesome_app .
-
-# Specify database choice (sqlite, postgresql, mysql)
-eden new my_awesome_app --db postgresql
+eden sync-stripe
 ```
 
 ---
 
-## The Forge ⚒️
-
-"The Forge" is Eden's rapid scaffolding engine. In the new **Premium-Flat** structure, it generates code relative to your project root.
-
-| Command | Usage | Output |
-| :--- | :--- | :--- |
-| `model` | `eden forge model Post` | Appends to or creates `models.py`. |
-| `route` | `eden forge route Blog` | Creates a router in `routes/`. |
-| `component` | `eden forge component Navbar` | Creates a UI component. |
-| `entity` | `eden forge entity Product` | Full stack: Model + Schema + CRUD Router. |
-| `resource` | `eden forge resource Post` | Unified Resource: Model + Router + Templates. |
-
----
-
-## Database Management (`eden db`) 🗄️
-
-Manage migrations and schema drift across all tenants.
-
-### `eden db init`
-Initializes the `migrations/` directory and `alembic.ini`.
-
-### `eden db generate`
-Generates a new versioned migration script based on model changes.
-
-```bash
-eden db generate -m "add_user_profile"
-```
-
-### `eden db migrate`
-Applies all pending migrations to the database.
-
-### `eden db check`
-🕵️ Detects schema drift between your models and the actual database state across all tenants.
-
----
-
-## Authentication (`eden auth`) 🔑
-
-### `eden auth createsuperuser`
-Creates an administrative user with full permissions.
-
-```bash
-eden auth createsuperuser
-```
-
----
-
-## Background Workers ⚙️
-
-Eden uses a distributed task queue for background processing.
-
-### `eden worker`
-
-Starts one or more worker processes to consume tasks.
-
-```bash
-eden worker --workers 4
-```
-
-### `eden scheduler`
-
-Starts the periodic task scheduler for cron-style jobs.
-
-```bash
-eden scheduler
-```
-
----
-
-**Next Steps**: [Database & ORM](orm.md)
+**Next Steps**: [Deployment Guide](deployment.md)

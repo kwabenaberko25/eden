@@ -155,6 +155,136 @@ async def add_to_cart(request):
     """
 ```
 
+---
+
+## 🚀 Tutorial: Search-as-you-type Dashboard
+
+This tutorial demonstrates building a live-filtering user table with professional loading states and zero custom JavaScript.
+
+### 1. The Frontend (`users/index.html`)
+We use `hx-trigger="keyup delay:500ms, changed"` to avoid overwhelming the server.
+
+```html
+<div class="max-w-4xl mx-auto p-6">
+    <div class="flex justify-between items-center mb-8">
+        <h1 class="text-2xl font-bold">User Directory</h1>
+        
+        <!-- Search Input -->
+        <div class="relative">
+            <input type="text" 
+                   name="search" 
+                   placeholder="Search name or email..." 
+                   class="pl-10 pr-4 py-2 border rounded-lg w-64"
+                   hx-get="@url('users:index')" 
+                   hx-target="#user-results" 
+                   hx-indicator="#search-spinner"
+                   hx-trigger="keyup delay:500ms, changed">
+            
+            <!-- Loading Indicator -->
+            <div id="search-spinner" class="htmx-indicator absolute right-3 top-3">
+                <svg class="animate-spin h-4 w-4 text-blue-500" ...></svg>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results Container -->
+    <div id="user-results">
+        @fragment("user-list") {
+            <table class="w-full border-collapse">
+                <thead>
+                    <tr class="text-left border-b bg-gray-50">
+                        <th class="p-4">Name</th>
+                        <th class="p-4">Email</th>
+                        <th class="p-4">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y">
+                    @for(user in users) {
+                        <tr class="hover:bg-blue-50/50 transition">
+                            <td class="p-4 font-medium">{{ user.name }}</td>
+                            <td class="p-4 text-gray-600">{{ user.email }}</td>
+                            <td class="p-4">
+                                <span class="px-2 py-1 rounded-full text-xs {{ 'bg-green-100 text-green-700' if user.is_active else 'bg-gray-100 text-gray-700' }}">
+                                    {{ 'Active' if user.is_active else 'Inactive' }}
+                                </span>
+                            </td>
+                        </tr>
+                    } @empty {
+                        <tr>
+                            <td colspan="3" class="p-12 text-center text-gray-500">
+                                No users found matching "{{ search_query }}".
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+</div>
+```
+
+### 2. The Backend (`app/routes/users.py`)
+Eden's `@app.get` automatically handles the fragment swap if `HX-Target` matches.
+
+```python
+@app.get("/users", name="users:index")
+async def list_users(request):
+    search = request.query_params.get("search", "")
+    
+    # Query logic
+    query = User.all()
+    if search:
+        query = query.filter(Q(name__icontains=search) | Q(email__icontains=search))
+    
+    users = await query.limit(20).all()
+    
+    return request.render("users/index.html", {
+        "users": users,
+        "search_query": search
+    })
+```
+
+---
+
+## 📜 Pattern: Infinite Scroll
+Infinite scroll is trivial with Eden's `hx-swap="afterend"`.
+
+**The Template (`feed.html`):**
+```html
+<div id="feed">
+    @fragment("posts") {
+        @for(post in posts) {
+            <div class="post-card">...</div>
+
+            <!-- If this is the last post, add the trigger -->
+            @if(loop.last and has_more) {
+                <div hx-get="@url('feed:load_more', page=next_page)"
+                     hx-trigger="revealed"
+                     hx-swap="afterend">
+                     Loading more...
+                </div>
+            }
+        }
+    }
+</div>
+```
+
+**The Backend:**
+```python
+@app.get("/feed/more", name="feed:load_more")
+async def load_more(request, page: int):
+    posts, has_more = await Post.get_paginated(page=page)
+    
+    # Render ONLY the 'posts' fragment
+    return request.render("feed.html", {
+        "posts": posts,
+        "next_page": page + 1,
+        "has_more": has_more
+    }, fragment="posts")
+```
+
+---
+
 ## Best Practices
 
 - ✅ **Use Fragments**: Lean on `@fragment` instead of separate partial files.
@@ -162,3 +292,7 @@ async def add_to_cart(request):
 - ✅ **Loading States**: Use the `htmx-request` class to show premium spinner components automatically.
 - ✅ **OOB for Side Effects**: Use Out-of-Band swaps for updating global UI elements like cart counts or notification bells.
 - ✅ **Fluent API**: Prefer `HtmxResponse` over manually setting headers.
+
+---
+
+**Next Steps**: [WebSockets & Real-Time](websockets.md)

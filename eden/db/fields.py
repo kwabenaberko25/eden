@@ -167,6 +167,10 @@ def IntField(
     return mapped_column(*args, **kw)
 
 
+# Alias for Django compatibility
+IntegerField = IntField
+
+
 def FloatField(
     *,
     nullable: Any = _UNSET,

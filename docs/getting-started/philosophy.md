@@ -1,21 +1,25 @@
 # The Eden Ethos 🌿
 
-Eden is not just another web framework; it is a philosophy of **"Elite-First"** development. It was born from the realization that modern developers are often forced to choose between speed (DX), performance (execution), and security. 
+Eden is not just another web framework; it is a philosophy of **"Elite-First"** development. It was born from the realization that modern developers are often forced to choose between speed (DX), performance (execution), and security.
 
 In Eden, we believe you should never have to compromise.
 
 ## Core Values
 
 ### 1. Aesthetics by Default
+
 We believe that professional software should look professional. From our built-in design tokens to the glassmorphic debug interface, Eden ensures that even your error pages provide a premium experience.
 
 ### 2. Conventional Excellence
+
 Borrowing from the "Convention over Configuration" mantra of Django, but maintaining the lightweight flexibility of FastAPI and Flask, Eden provides sane defaults that "just work" while allowing you to peel back the layers when needed.
 
 ### 3. Security as a Core Primitive
+
 Security is not a plugin in Eden; it's a first-class citizen. CSRF protection, secure headers, and row-level multi-tenancy are baked into the core engine, ensuring your applications are safe by default.
 
 ### 4. Developer Joy
+
 We prioritize the developer's experience (DX). This means clear error messages, intuitive APIs, and a command-line interface that allows you to forge new features at the speed of thought.
 
 ## Opinionated Architecture
@@ -27,6 +31,7 @@ Eden is opinionated where it matters most: **Project Structure**, **Data Integri
 ## The Three Pillars of Eden
 
 ### I. Elite Performance (Async-Native)
+
 Every component in Eden is built for the modern, asynchronous web. From our database drivers to our template rendering engine, everything is non-blocking. This ensures that your application can handle thousands of concurrent users with minimal resource overhead.
 
 ```python
@@ -40,10 +45,13 @@ async def get_data():
 ```
 
 ### II. DX-First (The Forge)
+
 We believe that a framework should be your partner, not your master. Our CLI, **The Forge**, acts as an automated architect, scaffolding resources, models, and migrations so you can prototype in minutes, not days.
 
 ### III. Security at the Core (The Vault)
+
 In many frameworks, security is an afterthought. In Eden, it is the first thing we check.
+
 - **CSRF**: Initialized by default on all state-changing routes.
 - **Multi-Tenancy**: Built-in row-level isolation that prevents data leakage between organizations.
 - **Argon2**: The industry standard for password hashing, used as our default.
@@ -131,6 +139,7 @@ async def register(request, credentials: RegisterSchema):
 ## Philosophy: What We Believe
 
 ### 1. Async-First is Non-Negotiable
+
 The web is asynchronous. Your framework should be too.
 
 ```python
@@ -150,6 +159,7 @@ async def get_users():
 ```
 
 ### 2. Security Defaults Trump Configuration
+
 Don't make developers *opt-in* to security. Make insecurity the opt-in.
 
 ```python
@@ -169,6 +179,7 @@ async def public_endpoint():
 ```
 
 ### 3. Validation is Core, Not Bolted-On
+
 Other frameworks treat validation as separate from routing/forms. In Eden, it's unified.
 
 ```python
@@ -197,6 +208,7 @@ async def create_post(request):
 ```
 
 ### 4. Multi-Tenancy is a First-Class Feature
+
 SaaS is the future. Tenant isolation shouldn't be a plugin.
 
 ```python
@@ -222,6 +234,7 @@ async def list_documents(request):
 ```
 
 ### 5. DX is as Important as Performance
+
 A 10% faster framework that takes 2x longer to develop is a net loss.
 
 ```python
@@ -250,10 +263,10 @@ async def list_users():
 
 Eden is powerful but opinionated. You might prefer alternatives if:
 
-- **You want total flexibility** - Django/Flask offer more customization
-- **You need complex query builders** - SQLAlchemy directly offers more power
-- **You're building microservices** - A lightweight framework might be overkill
-- **You have existing FastAPI codebases** - Eden is compatible but a migration effort
+- **You want total flexibility** - Django/Flask offer more low-level customization of the request/response lifecycle.
+- **You need specialized SQL features** - While Eden's `QuerySet` handles most use cases (including complex joins and grouping), specialized features like **Recursive CTEs**, **Window Functions**, or **Set operations (UNION/EXCEPT)** are best handled by dropping down to raw SQLAlchemy.
+- **You're building microservices** - A lightweight framework like FastAPI or Litestar might be better for single-purpose utilities.
+- **You have legacy FastAPI apps** - Eden shares the same Starlette core, making business logic reuse straightforward. However, the transition from a "hand-glued" library stack to Eden's unified architecture is an intentional refactor. We recommend Eden for new features or when your current "glued" stack becomes a maintenance burden.
 
 ---
 
