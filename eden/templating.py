@@ -432,13 +432,13 @@ class TemplateCompiler:
             field_expr = parts[0].replace('$', '')
             kwargs = parts[1] if len(parts) > 1 else ""
             return f'{{{{ {field_expr}.render_composite({kwargs}) }}}}'
-        if name == "url": return self.handle_url(expr)
+        if name in ("url", "route"): return self.handle_url(expr)
         if name == "active_link":
             parts = [p.strip() for p in (expr or "").split(',', 1)]
             url_v = parts[0]
             css_v = parts[1].strip('"\'')
             if url_v.startswith("'") or url_v.startswith('"'):
-                url_v = f'"{url_v[1:-1].replace(":", "_")}"'
+                url_v = f'"{url_v[1:-1]}"'
             return f'{{{{ "{css_v}" if is_active(request, {url_v}) else "" }}}}'
         if name == "class": return self.handle_class(expr)
 
@@ -584,7 +584,7 @@ class TemplateCompiler:
         parts = [p.strip() for p in name_part.strip().split(',', 1)]
         raw_name = parts[0].strip('"\'')
         kwargs = parts[1] if len(parts) > 1 else ""
-        normalized_name = raw_name.replace(':', '_')
+        normalized_name = raw_name
         args = f'"component:dispatch", action_slug="{raw_name.split(":")[1]}"' + (f", {kwargs}" if kwargs else "") if raw_name.startswith("component:") else f'"{normalized_name}"' + (f", {kwargs}" if kwargs else "")
         return f'{{% set {alias.strip()} = url_for({args}) %}}' if alias else f'{{{{ url_for({args}) }}}}'
 
@@ -967,7 +967,7 @@ class EdenTemplates(StarletteJinja2Templates):
 
             Supports:
             - Exact route matching: 'dashboard'
-            - Namespace routes: 'auth:login' (converted to 'auth_login')
+            - Namespace routes: 'auth:login'
             - Wildcard routes: 'students:*' (matches matches prefix of any resolved route starting with the namespace)
             - Prefix matching: If the current path starts with the resolved route path.
 
@@ -984,7 +984,7 @@ class EdenTemplates(StarletteJinja2Templates):
                 # 1. Handle wildcard routes (e.g., 'students:*' or 'admin:*')
                 if route_name.endswith('*'):
                     # Convert 'students:*' -> 'students'
-                    prefix = route_name[:-1].rstrip(':_').replace(':', '_')
+                    prefix = route_name[:-1].rstrip(':_')
                     
                     # Instead of guessing suffixes, we look for ANY route that starts with this prefix
                     # We'll use the first one we find to determine the base URL path.
@@ -1031,7 +1031,6 @@ class EdenTemplates(StarletteJinja2Templates):
         self.env.globals.update({
             "now": datetime.datetime.now,
             "is_active": is_active,
-            "url_for": self._url_for_helper,
             "eden_head": _eden_head,
             "eden_scripts": _eden_scripts,
             "alpine_version": ALPINE_VERSION,
