@@ -25,6 +25,8 @@ from sqlalchemy import (
 from sqlalchemy.orm import mapped_column
 from sqlalchemy.orm import relationship as sa_relationship
 
+from eden.db.lookups import EdenComparator
+
 _UNSET = object()
 
 
@@ -52,6 +54,9 @@ def _process_field_args(
     kwargs.pop("required", None)
     
     res = {**kwargs}
+    if "comparator_factory" not in res:
+        res["comparator_factory"] = EdenComparator
+
     if resolved_nullable is not _UNSET:
         res["nullable"] = resolved_nullable
         
@@ -388,6 +393,8 @@ def Relationship(
     if back_populates is not None:
         kw["back_populates"] = back_populates
     
+    from .lookups import EdenRelationshipComparator
+    kw.setdefault("comparator_factory", EdenRelationshipComparator)
     return sa_relationship(target_model, **kw)
 
 

@@ -98,6 +98,26 @@ class ValidatorMixin:
             rule_value=length,
             message=message or f"{field_name} must be at most {length} characters"
         ))
+
+    @classmethod
+    def choices(cls, field_name: str, options: list, message: Optional[str] = None) -> None:
+        """Validate field value is one of the choices."""
+        cls.add_validation_rule(field_name, ValidationRule(
+            field_name=field_name,
+            rule_type='choices',
+            rule_value=options,
+            message=message or f"{field_name} must be one of {options}"
+        ))
+
+    @classmethod
+    def pattern(cls, field_name: str, regex: str, message: Optional[str] = None) -> None:
+        """Validate field value against a regex pattern."""
+        cls.add_validation_rule(field_name, ValidationRule(
+            field_name=field_name,
+            rule_type='pattern',
+            rule_value=regex,
+            message=message or f"{field_name} has invalid format"
+        ))
     
     @classmethod
     def custom(cls, field_name: str, validator: Callable, message: str) -> None:
@@ -166,6 +186,14 @@ class ValidatorMixin:
         
         elif rule.rule_type == 'max_length':
             if value and len(str(value)) > rule.rule_value:
+                raise ValidationError(rule.message, field_name)
+
+        elif rule.rule_type == 'choices':
+            if value is not None and value not in rule.rule_value:
+                raise ValidationError(rule.message, field_name)
+
+        elif rule.rule_type == 'pattern':
+            if value and not re.match(rule.rule_value, str(value)):
                 raise ValidationError(rule.message, field_name)
         
         elif rule.rule_type == 'custom' and rule.validator_func:

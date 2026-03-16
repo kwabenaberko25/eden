@@ -4,10 +4,22 @@ import asyncio
 import pydantic
 import weakref
 import contextlib
-from typing import Any, ClassVar, Dict, List, Optional, Type, TypeVar, Union, get_type_hints
+from typing import (
+    Any,
+    ClassVar,
+    Dict,
+    List,
+    Optional,
+    Type,
+    TypeVar,
+    Union,
+    get_type_hints,
+    Annotated,
+)
 from datetime import datetime
 from .access import AccessControl
 from .validation import ValidatorMixin
+from .metadata import MetadataToken
 
 T = TypeVar("T", bound="Model")
 from sqlalchemy import (
@@ -36,6 +48,7 @@ from sqlalchemy.orm import (
     relationship,
     selectinload,
     joinedload,
+    declared_attr,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 Session = AsyncSession
@@ -48,6 +61,18 @@ def _camel_to_snake(name: str) -> str:
     """Helper to convert CamelCase to snake_case."""
     name = re.sub("(.)([A-Z][a-z]+)", r"\1_\2", name)
     return re.sub("([a-z0-9])([A-Z])", r"\1_\2", name).lower()
+
+
+# Helper to map Python types to SQLAlchemy types for Annotated inference
+_PYTHON_TO_SA = {
+    str: String,
+    int: Integer,
+    float: Float,
+    bool: Boolean,
+    datetime: DateTime,
+    uuid.UUID: Uuid,
+    dict: JSON,
+}
 
 
 def slugify(text: str) -> str:
@@ -128,32 +153,12 @@ class Model(Base, AccessControl, ValidatorMixin):
     # Bound database instance
     _db: ClassVar[Optional[Any]] = None
 
-    def __init_subclass__(cls, **kwargs: Any) -> None:
-        """
-        Called when a subclass of Model is created.
-        Automatically infers relationships from type hints to enable fluent ORM API.
-        
-        This ensures that relationships defined in a subclass are discovered and registered
-        immediately when the class is defined, before any instances are created or queries run.
-        """
-        super().__init_subclass__(**kwargs)
-        
-        # Immediately infer relationships when subclass is defined
-        # unless it's abstract (which shouldn't have concrete relationships)
-        if not getattr(cls, "__abstract__", False):
-            try:
-                cls._infer_relationships_immediate()
-            except Exception:
-                # Log but don't fail class definition if inference has issues
-                import logging
-                logger = logging.getLogger("eden.db.base")
-                logger.debug(f"Relationship inference skipped for {cls.__name__}", exc_info=True)
 
     # Standard primary key for all models
     id: Mapped[uuid.UUID] = mapped_column(
-        Uuid,
+        Uuid(native_uuid=False),
         primary_key=True,
-        server_default=func.uuid_generate_v4() if False else None,
+        server_default=None,
         default=uuid.uuid4,
     )
 
@@ -196,206 +201,193 @@ class Model(Base, AccessControl, ValidatorMixin):
         Supported patterns:
         - Mapped[List["OtherModel"]] -> one-to-many
         - Mapped["OtherModel"] -> many-to-one
-        - Mapped[List["OtherModel"]] with ManyToManyField -> many-to-many
         """
         from sqlalchemy.orm import RelationshipProperty, relationship as sa_rel
-        import re
+        from .metadata import parse_metadata, MetadataToken
+        import typing
 
         inferred_names = []
-        annotations = getattr(cls, "__annotations__", {})
+        try:
+            # We use globalns=None to delay resolution of string forward refs if possible,
+            # but get_type_hints usually helps resolve them if the modules are imported.
+            hints = get_type_hints(cls, include_extras=True)
+        except Exception:
+            # Fallback to manual annotation inspection if get_type_hints fails (e.g. circular)
+            hints = getattr(cls, "__annotations__", {})
 
-        for name, hint in list(annotations.items()):
-            hint_str = str(hint)
-            is_list = False
+        for name, hint in hints.items():
+            # Skip if name starts with _ or is a known internal attribute
+            if name.startswith("_") or name in ("registry", "metadata", "type_annotation_map"):
+                continue
+            
+            # Skip if defined in a parent class (mixins, abstract bases, etc.)
+            # We allow processing if defined in the current cls.__dict__ to handle relationship helpers.
+            already_defined_in_parent = False
+            for base in cls.mro()[1:]:
+                if base in (Model, Base, object):
+                    continue
+                if name in base.__dict__:
+                    already_defined_in_parent = True
+                    break
+            
+            if already_defined_in_parent:
+                continue
+
+            metadata = []
+            final_type = hint
+            
+            # Extract from Annotated
+            if typing.get_origin(hint) is typing.Annotated:
+                metadata = getattr(hint, "__metadata__", ())
+                final_type = typing.get_args(hint)[0]
+
+            # Unwrap Mapped
+            if typing.get_origin(final_type) is Mapped:
+                final_type = typing.get_args(final_type)[0]
 
             # Detect List/Collection
-            if "List[" in hint_str or "list[" in hint_str:
+            is_list = False
+            origin = typing.get_origin(final_type)
+            if origin in (list, List, typing.Sequence, typing.Collection):
                 is_list = True
+                final_type = typing.get_args(final_type)[0]
 
-            content = hint_str
-            if "Mapped[" in content:
-                # Be robust: find the innermost type in Mapped[...]
-                try:
-                    content = content.split("Mapped[", 1)[1].rsplit("]", 1)[0]
-                except (IndexError, AttributeError):
-                    pass
+            # Unwrap Optional/Union
+            origin = typing.get_origin(final_type)
+            is_union = origin in (typing.Union, getattr(typing, "UnionType", None))
+            if is_union:
+                args = typing.get_args(final_type)
+                # Filter out NoneType (None)
+                args = [a for a in args if a is not type(None)]
+                if args:
+                    final_type = args[0]
 
-            # Handle potential Annotated or other wrappers that might still be in the string
-            if "Annotated[" in content:
-                try:
-                    content = content.split("Annotated[", 1)[1].split(",", 1)[0].strip()
-                except (IndexError, AttributeError):
-                    pass
-
-            # Extract name and check for basic types properly
-            # Handle <class '...'> representations
-            if "<class '" in content:
-                content = content.split("<class '", 1)[1].split("'", 1)[0]
-
-            match = re.search(r"['\"](\w+)['\"]", content)
-            if match:
-                target_name = match.group(1)
-            else:
-                # Robust extraction: "typing.Optional[Project]" -> "Project"
-                # "typing.List['Task']" -> "Task"
-                target_name = content
+            # Handle string forward refs
+            target_name = None
+            if isinstance(final_type, str):
+                target_name = final_type
+                # Clean up complex string hints like "Optional['User']" or "List[User]"
                 if "[" in target_name:
                     target_name = target_name.split("[")[-1].split("]")[0]
-                if "." in target_name:
-                    target_name = target_name.split(".")[-1]
-                target_name = target_name.strip("'\" >")
+                target_name = target_name.strip("'\" ")
+            elif hasattr(final_type, "__name__"):
+                target_name = final_type.__name__
+            elif hasattr(final_type, "__forward_arg__"):
+                target_name = final_type.__forward_arg__
 
-            # Skip basic types and lowercase names
-            basic_types = (
-                "str",
-                "int",
-                "float",
-                "bool",
-                "uuid.UUID",
-                "UUID",
-                "datetime",
-                "dict",
-                "list",
-                "Any",
-                "None",
-                "uuid",
-                "Decimal",
-                "decimal",
-            )
-            if (
-                not target_name
-                or any(bt.lower() == target_name.lower() for bt in basic_types)
-                or target_name[0].islower()
-            ):
+            if not target_name:
                 continue
 
-            if not target_name or not target_name[0].isupper() or "." in target_name:
+            # Skip basic types
+            basic_types = ("str", "int", "float", "bool", "uuid.UUID", "UUID", "datetime", "dict", "list", "Any", "None", "Decimal")
+            if any(bt.lower() == target_name.lower() for bt in basic_types) or (target_name and target_name[0].islower()):
                 continue
 
-            # Verify it's likely a model (starts with uppercase)
-            # and is not in basic types
-            if any(bt.lower() == target_name.lower() for bt in basic_types):
-                continue
-
-            inferred_names.append(name)
+            # Process metadata
+            sa_kwargs, sa_args, info = parse_metadata(metadata)
 
             # Detect Reference or M2M helper
             existing = cls.__dict__.get(name)
-            is_ref = False
             is_m2m_explicit = False
-            ref_info = {}
+            is_reference = False
+            
             if existing is not None:
-                from sqlalchemy.orm import RelationshipProperty
+                is_reference = hasattr(existing, "info") and existing.info.get("is_reference")
+                is_m2m_explicit = hasattr(existing, "info") and existing.info.get("is_m2m")
+                
+                # Check if it's already a relationship or a property that should be skipped
+                # We skip if it's already fully defined (e.g. has 'direction' or 'argument' or 'column')
+                # UNLESS it's a skeletal Reference or similar helper that needs FK inference.
+                if not is_reference and not is_m2m_explicit:
+                    if hasattr(existing, "column") or isinstance(existing, (property, declared_attr)) or hasattr(existing, "direction"):
+                        continue
+                
+                # Also check for already defined relationships
+                if not is_reference and not is_m2m_explicit:
+                    if hasattr(existing, "argument") or hasattr(existing, "mapper") or hasattr(existing, "direction"):
+                        continue
 
-                if isinstance(existing, RelationshipProperty) and hasattr(existing, "info"):
-                    if existing.info.get("is_reference"):
-                        is_ref = True
-                        ref_info = existing.info
-                    elif existing.info.get("is_m2m"):
-                        is_m2m_explicit = True
+            if existing is not None:
+                # Merge existing info into this field's info
+                existing_info = getattr(existing, "info", {})
+                for k, v in existing_info.items():
+                    if k not in info:
+                        info[k] = v
+                
+                # Extract relationship parameters if it's a skeletal relationship
+                if is_reference:
+                    if not info.get("back_populates") and hasattr(existing, "back_populates"):
+                        info["back_populates"] = existing.back_populates
+                    if not info.get("lazy") and hasattr(existing, "lazy"):
+                        info["lazy"] = existing.lazy
 
-            # Skip if already defined explicitly AND it's not a Reference helper AND not a M2M helper needing secondary
-            if existing is not None and not is_ref and not is_m2m_explicit:
-                if isinstance(existing, RelationshipProperty):
-                    if getattr(existing, "argument", None) is None:
-                        new_rel = sa_rel(
-                            target_name,
-                            back_populates=getattr(existing, "back_populates", None),
-                            lazy=getattr(existing, "lazy", "selectin"),
-                            overlaps="*",
-                            uselist=False if not is_list else None,
-                            foreign_keys=f"{cls.__name__}.{name}_id" if not is_list else None,
-                        )
-                        setattr(cls, name, new_rel)
-                continue
+                if not is_m2m_explicit:
+                    # check for common relationship indicators again for safety if not a reference
+                    if not is_reference and (hasattr(existing, "argument") or hasattr(existing, "mapper") or hasattr(existing, "direction")):
+                        continue
+                    if not is_reference:
+                        # Some other member (column, property, etc.) - skip unless it's an annotated relationship
+                        if name not in getattr(cls, "__annotations__", {}):
+                            continue
 
-            # Auto-infer relationship OR process Reference
+            inferred_names.append(name)
+
             if is_list and is_m2m_explicit:
                 cls._setup_m2m(name, target_name)
             elif is_list:
-                # One-to-Many (One side)
-                backref_name = _camel_to_snake(cls.__name__)
-                _back_populates_val = ref_info.get("back_populates")
-
+                # One-to-Many
+                backref_name = _camel_to_snake(cls.__name__) + "s"
                 kwargs = {
-                    "back_populates": _back_populates_val,
-                    "lazy": ref_info.get("lazy", "selectin"),
+                    "lazy": info.get("lazy", "selectin"),
                     "overlaps": "*",
+                    "back_populates": info.get("back_populates"),
                 }
-                if not _back_populates_val:
-                    kwargs["backref"] = backref_name + "s"
-
+                if not kwargs["back_populates"]:
+                    kwargs["backref"] = backref_name
+                
                 setattr(cls, name, sa_rel(target_name, **kwargs))
             else:
-                # Single relationship (Many side)
+                # Many-to-One
                 fk_col = f"{name}_id"
-
-                # Check for Reference metadata override
-                on_delete = ref_info.get("on_delete", "CASCADE")
-                is_required = (
-                    ref_info.get("required", True) if is_ref else False
-                )  # Default inferred rels are nullable
-                fk_index = ref_info.get("index", True)
-                fk_type_override = ref_info.get("fk_type")
-
                 if not hasattr(cls, fk_col):
-                    # Find the target class to correctly infer FK type and table name
-                    target_cls = None
-                    for sub in Model.__subclasses__():
-                        if sub.__name__ == target_name:
-                            target_cls = sub
-                            break
+                    # Guess target table if not found
+                    target_table = _resolve_table_name(target_name)
+                    
+                    # Heuristic for FK Type: Default to Uuid for modern models. 
+                    # Only use Integer for known legacy models (User, Role, etc.)
+                    is_legacy = target_name in ("User", "Role", "Permission", "Tenant", "SocialAccount")
+                    fk_type = Uuid(native_uuid=False) if not is_legacy else Integer
+                    
+                    # Ensure FK info doesn't keep relationship-specific flags
+                    fk_info = info.copy()
+                    fk_info.pop("is_reference", None)
+                    fk_info.pop("is_m2m", None)
 
-                    target_table = (
-                        target_cls.__tablename__
-                        if target_cls and hasattr(target_cls, "__tablename__")
-                        else _resolve_table_name(target_name)
-                    )
-
-                    if fk_type_override:
-                        fk_type = fk_type_override
-                    elif (
-                        target_cls
-                        and hasattr(target_cls, "id")
-                        and hasattr(target_cls, "__table__")
-                        and hasattr(target_cls.__table__.c.id, "type")
-                    ):
-                        # If table is already reflected/defined
-                        fk_type = target_cls.__table__.c.id.type
-                    elif (
-                        target_cls and hasattr(target_cls, "id") and hasattr(target_cls.id, "type")
-                    ):
-                        fk_type = target_cls.id.type
-                    else:
-                        # Fallback heuristic
-                        fk_type = Uuid if "user" not in target_table else Integer
-
-                    # print(f"DEBUG: Setting {cls.__name__}.{fk_col} as FK to {target_table}.id (type={fk_type})")
                     col = mapped_column(
                         fk_type,
-                        ForeignKey(f"{target_table}.id", ondelete=on_delete),
-                        nullable=not is_required,
-                        index=fk_index,
+                        ForeignKey(f"{target_table}.id", ondelete=info.get("on_delete", "CASCADE")),
+                        nullable=sa_kwargs.get("nullable", True),
+                        index=sa_kwargs.get("index", True),
+                        info=fk_info
                     )
                     setattr(cls, fk_col, col)
 
-                # In Eden, we default to singular backref for singular hints
-                # and plural backref for list hints.
                 backref_name = _camel_to_snake(cls.__name__)
-                if is_list:
-                    backref_name += "s"
-
-                _back_populates_val = ref_info.get("back_populates")
                 kwargs = {
-                    "back_populates": _back_populates_val,
                     "overlaps": "*",
-                    "uselist": False if not is_list else None,
+                    "uselist": False,
                     "foreign_keys": f"{cls.__name__}.{fk_col}",
+                    "back_populates": info.get("back_populates"),
                 }
-                if not _back_populates_val:
+                if not kwargs["back_populates"]:
                     kwargs["backref"] = backref_name
 
-                setattr(cls, name, sa_rel(target_name, **kwargs))
+                if not is_reference:
+                    setattr(cls, name, sa_rel(target_name, **kwargs))
+                else:
+                    # If it's an existing Reference relationship, we don't overwrite it
+                    # but we've ensured the FK column exists. Common in legacy code.
+                    pass
 
         return inferred_names
 
@@ -424,11 +416,97 @@ class Model(Base, AccessControl, ValidatorMixin):
             # Run inference and get names of relationships to hide from SA mapping
             rel_names = cls._infer_relationships_immediate()
 
-            # Stealth: Remove relationship annotations so SA doesn't try to resolve them
-            # but keep column annotations so they are mapped correctly.
-            for name in rel_names:
-                if name in cls.__annotations__:
-                    del cls.__annotations__[name]
+            # Process Annotated Column Metadata (Modern Schema)
+            from .metadata import parse_metadata
+            import typing
+            try:
+                # include_extras=True is needed to see Annotated[...]
+                hints = get_type_hints(cls, include_extras=True)
+            except Exception:
+                # Manual decomposition for circular/unresolvable hints
+                hints = {
+                    k: v for k, v in getattr(cls, "__annotations__", {}).items()
+                }
+
+            for name, hint in hints.items():
+                if name.startswith("_") or name in rel_names:
+                    continue
+                
+                # Check for Annotated in the hint (raw hint might be needed if hints resolution failed)
+                raw_hint = getattr(cls, "__annotations__", {}).get(name, hint)
+                
+                # Support both resolved and raw Annotated
+                is_annotated = typing.get_origin(hint) is typing.Annotated or typing.get_origin(raw_hint) is typing.Annotated
+                if is_annotated:
+                    effective_hint = hint if typing.get_origin(hint) is typing.Annotated else raw_hint
+                    metadata = getattr(effective_hint, "__metadata__", ())
+                    sa_kwargs, sa_args, info = parse_metadata(metadata)
+                    
+                    if sa_kwargs or sa_args or info:
+                        # Capture default value if it exists on class
+                        # We use __dict__ directly to avoid triggering descriptors or inheritance if not intended
+                        default_val = cls.__dict__.get(name, _MISSING)
+                        if default_val is not _MISSING and not hasattr(default_val, "__visit_name__"):
+                            sa_kwargs.setdefault("default", default_val)
+
+                        # We only handle it if it's NOT already a mapped property/column in a base
+                        already_mapped = False
+                        # Check if it's explicitly defined in the current class's __dict__
+                        if name in cls.__dict__:
+                            val = cls.__dict__[name]
+                            # If it's a property, method, or already a SA mapped object, skip auto-mapping but keep for default
+                            if hasattr(val, "column") or hasattr(val, "__visit_name__") or isinstance(val, (property, declared_attr)):
+                                already_mapped = True
+                        
+                        # If not explicitly defined in current class, check parents
+                        if not already_mapped:
+                            for base in cls.mro()[1:]: # Check parents
+                                if base in (Model, Base, object):
+                                    continue
+                                if name in base.__dict__:
+                                    val = base.__dict__[name]
+                                    if hasattr(val, "column") or hasattr(val, "__visit_name__") or isinstance(val, (property, declared_attr)):
+                                        already_mapped = True
+                                        break
+                        
+                        if already_mapped:
+                            continue
+
+                        # Auto-create mapped_column
+                        args = typing.get_args(effective_hint)
+                        if not args:
+                            continue
+                        
+                        base_type = args[0]
+                        if typing.get_origin(base_type) is Mapped:
+                            base_type = typing.get_args(base_type)[0]
+                        
+                        # Unwrap Optional/Union
+                        while typing.get_origin(base_type) in (typing.Union, getattr(typing, "UnionType", None)):
+                            u_args = typing.get_args(base_type)
+                            u_args = [a for a in u_args if a is not type(None)]
+                            if u_args:
+                                base_type = u_args[0]
+                            else:
+                                break
+
+                        # Map Python primitive to SQLAlchemy type
+                        sa_type = _PYTHON_TO_SA.get(base_type, base_type)
+
+                        if not isinstance(sa_type, type) and not hasattr(sa_type, "__visit_name__"):
+                            continue
+
+                        # A1: Apply MaxLength constraints to String columns
+                        if sa_type is String and "max" in info and not sa_args:
+                            sa_type = String(info["max"])
+                        elif isinstance(sa_type, type) and issubclass(sa_type, String) and "max" in info and not sa_args:
+                            sa_type = sa_type(info["max"])
+
+                        # A2: Handle Uuid instantiation with native_uuid=False for SQLite compatibility
+                        if sa_type is Uuid:
+                            sa_type = Uuid(native_uuid=False)
+
+                        setattr(cls, name, mapped_column(sa_type, *sa_args, info=info, **sa_kwargs))
 
             # Discover validation rules BEFORE SQLAlchemy consumes the mapped_column objects
             discovered_rules = []
@@ -445,7 +523,14 @@ class Model(Base, AccessControl, ValidatorMixin):
                     if "min" in info:
                         discovered_rules.append((cls.min_length, name, info["min"]))
                     if "required" in info and info["required"]:
-                        discovered_rules.append((cls.required, name, None))
+                        # Skip 'required' validation on relationships themselves (is_reference or is_m2m)
+                        # as they are usually satisfied by providing the FK or being empty lists.
+                        if not info.get("is_reference") and not info.get("is_m2m"):
+                            discovered_rules.append((cls.required, name, None))
+                    if "choices" in info:
+                        discovered_rules.append((cls.choices, name, info["choices"]))
+                    if "pattern" in info:
+                        discovered_rules.append((cls.pattern, name, info["pattern"]))
 
             try:
                 super().__init_subclass__(**kwargs)
@@ -573,13 +658,13 @@ class Model(Base, AccessControl, ValidatorMixin):
                     cls.registry.metadata,
                     Column(
                         f"{cls_snake}_id",
-                        Uuid,
+                        Uuid(native_uuid=False),
                         ForeignKey(f"{source_table_name}.id", ondelete="CASCADE"),
                         primary_key=True,
                     ),
                     Column(
                         f"{_camel_to_snake(target_name)}_id",
-                        Uuid,
+                        Uuid(native_uuid=False),
                         ForeignKey(f"{_camel_to_snake(target_name)}s.id", ondelete="CASCADE"),
                         primary_key=True,
                     ),
@@ -600,7 +685,7 @@ class Model(Base, AccessControl, ValidatorMixin):
         float: Float,
         bool: Boolean,
         datetime: DateTime(timezone=True),
-        uuid.UUID: Uuid,
+        uuid.UUID: Uuid(native_uuid=False),
         dict: JSON,
         list: JSON,
     }
@@ -660,26 +745,24 @@ class Model(Base, AccessControl, ValidatorMixin):
     # ── CRUD Operations ───────────────────────────────────────────────────
 
     @classmethod
-    def _base_select(cls) -> Any:
-        """Standard base select for this model."""
+    def _base_select(cls, **kwargs) -> Any:
+        """
+        Cooperative base select for this model.
+        Iterates through the MRO and applies all default filter hooks found.
+        """
         from sqlalchemy import select
-
         stmt = select(cls)
 
-        # Check for tenant isolation mixin (robust against MRO issues)
-        if getattr(cls, "__eden_tenant_isolated__", False):
-            # Call the mixin's hook if it exists, otherwise apply basic filter
-            if hasattr(cls, "_apply_tenant_filter"):
-                stmt = cls._apply_tenant_filter(stmt)
-            else:
-                # Fallback: Manual implementation to ensure it works even if mixin method isn't called
-                from eden.tenancy.context import get_current_tenant_id
-
-                tenant_id = get_current_tenant_id()
-                if tenant_id is not None:
-                    stmt = stmt.where(cls.tenant_id == tenant_id)
-                # If tenant_id is None and isolation is enabled, we intentionally return nothing
-                # (Fail-Secure) - unless it's a background task context, which should explicitly opt-out.
+        # Collect and apply filters from all classes in the MRO
+        # This solves the shadowing issue between SoftDelete, Tenancy, etc.
+        for base in cls.mro():
+            if hasattr(base, "_apply_default_filters") and base is not Model:
+                # We use __dict__ to avoid calling the same method multiple times 
+                # if it's inherited but not overridden, but MRO already handles hierarchy.
+                # However, to ensure we only call it ONCE even if multiple mixins share a base,
+                # we just check if the method is defined on THIS specific base class.
+                if "_apply_default_filters" in base.__dict__:
+                    stmt = base._apply_default_filters(cls, stmt, **kwargs)
 
         return stmt
 
@@ -818,11 +901,12 @@ class Model(Base, AccessControl, ValidatorMixin):
         if fields:
             search_fields = fields
         else:
-            from sqlalchemy import String as SAString, Text as SAText
+            from sqlalchemy import String as SA_String, Text as SA_Text
+            from sqlalchemy import ForeignKey as SA_ForeignKey, DateTime as SA_DateTime, func as SA_func, JSON as SA_JSON
 
             search_fields = []
             for col in cls.__table__.columns:
-                if isinstance(col.type, (SAString, SAText)):
+                if isinstance(col.type, (SA_String, SA_Text)):
                     search_fields.append(col.name)
 
         if not search_fields:
@@ -1432,13 +1516,22 @@ class Model(Base, AccessControl, ValidatorMixin):
             raise ValidationError(detail="ORM validation failed", errors=errors)
 
     @classmethod
+    @classmethod
     def to_schema(
         cls,
         include: Optional[List[str]] = None,
         exclude: Optional[set] = None,
         only_columns: bool = False,
     ) -> Type[pydantic.BaseModel]:
-        """Automatically generate a Pydantic schema from the model definition (B2)."""
+        """Automatically generate a Pydantic schema from the model definition."""
+        # Check cache for efficiency (Maximum Capacity)
+        if not hasattr(cls, "_schema_cache"):
+            cls._schema_cache = {}
+        
+        cache_key = f"{include}:{exclude}:{only_columns}"
+        if cache_key in cls._schema_cache:
+            return cls._schema_cache[cache_key]
+
         from pydantic import create_model, ConfigDict, Field
 
         exclude = exclude or set()
@@ -1540,6 +1633,7 @@ class Model(Base, AccessControl, ValidatorMixin):
         dynamic_model = create_model(
             f"{cls.__name__}Schema", __config__=config, __base__=EdenSchema, **fields
         )
+        cls._schema_cache[cache_key] = dynamic_model
         return dynamic_model
 
     @classmethod

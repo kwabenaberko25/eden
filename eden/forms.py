@@ -183,7 +183,9 @@ class FormField:
         self.attributes = kwargs
         # Keys that should not be rendered as HTML attributes on the input tag
         self._metadata_keys = {
-            "widget", "label", "help_text", "choices", "org_id", "is_reference"
+            "widget", "label", "help_text", "choices", "org_id", 
+            "is_reference", "is_m2m", "searchable", "immutable", 
+            "encrypted", "on_delete", "back_populates", "target_model"
         }
         
         # If widget is set but type isn't, use widget as type
@@ -718,11 +720,14 @@ class BaseForm:
                             if hasattr(m, "le"):
                                 kwargs["max"] = m.le
 
+                # Pop 'required' from kwargs if it came from info to avoid double-passing
+                is_req = kwargs.pop("required", field_def.is_required() if field_def else False)
+
                 self._fields[name] = FormField(
                     name=name,
                     value=self.data.get(name),
                     error=self.errors.get(name),
-                    required=field_def.is_required() if field_def else False,
+                    required=is_req,
                     **kwargs,
                 )
         return self._fields[name]
@@ -787,9 +792,13 @@ class Schema(BaseModel):
                         # Merge metadata
                         if isinstance(field.json_schema_extra, dict):
                             field.json_schema_extra.update(col.info)
+                        else:
+                            field.json_schema_extra = dict(col.info)
 
-                        # Clear the DB-specific default value
-                        field.default = None
+                        # Clear the DB-specific default value to avoid Pydantic errors 
+                        # if the default is not serializable or valid for the type
+                        if field.default is default:
+                            field.default = None
 
         # Declarative Model Integration
         meta = getattr(cls, "Meta", None)
@@ -807,6 +816,13 @@ class Schema(BaseModel):
                 if name not in cls.__annotations__:
                     cls.__annotations__[name] = field.annotation
                     setattr(cls, name, field)
+            
+            # Patch Pydantic 2.x internals to make validation work on this class (Maximum Capacity)
+            if hasattr(dynamic_schema, "__pydantic_core_schema__"):
+                cls.__pydantic_core_schema__ = dynamic_schema.__pydantic_core_schema__
+                cls.__pydantic_validator__ = dynamic_schema.__pydantic_validator__
+                cls.__pydantic_serializer__ = dynamic_schema.__pydantic_serializer__
+                cls.model_fields.update(dynamic_schema.model_fields)
 
             # Rebuild model if needed - pydantic usually handles this automatically
             # if we modify annotations before Pydantic finishes its logic.
