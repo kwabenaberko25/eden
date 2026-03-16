@@ -23,15 +23,14 @@ class SoftDeleteMixin:
     deleted_at: datetime.datetime | None = f(nullable=True, default=None)
 
     @classmethod
-    def _base_select(cls, include_deleted: bool = False):
+    def _apply_default_filters(cls, target_cls: type, stmt: Any, **kwargs: Any) -> Any:
         """
-        Overrides the internal base select to automatically filter out soft-deleted rows.
+        Cooperative filter hook for soft-delete.
+        Automatically filters out records where deleted_at is set.
         """
-        from sqlalchemy import select
-
-        stmt = select(cls)
-        if hasattr(cls, "deleted_at") and not include_deleted:
-            stmt = stmt.where(cls.deleted_at.is_(None))
+        if not kwargs.get("include_deleted", False):
+            # We use target_cls.deleted_at directly for the clause
+            return stmt.where(getattr(target_cls, "deleted_at").is_(None))
         return stmt
 
     async def delete(self, session, *, commit: bool = True, hard: bool = False) -> None:

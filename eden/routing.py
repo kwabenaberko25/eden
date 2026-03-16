@@ -16,7 +16,7 @@ from eden.dependencies import DependencyResolver
 from eden.requests import Request
 from eden.responses import JsonResponse
 
-__all__ = ["Router", "Route", "WebSocketRoute"]
+__all__ = ["Router", "Route", "WebSocketRoute", "View"]
 
 
 @dataclass
@@ -58,13 +58,80 @@ class Route:
                 result = await result
 
             # Auto-wrap return values
+            from eden.responses import Response
             if isinstance(result, (dict, list)):
                 return JsonResponse(content=result)
+            if isinstance(result, Response):
+                return result
             return result
 
         finally:
             # Always clean up generator deps
             await resolver.cleanup()
+
+
+class View:
+    """
+    Base class for Class-Based Views (CBV).
+    
+    Handlers are defined as methods (get, post, put, patch, delete).
+    Dependency injection is supported on each method.
+    
+    Usage:
+        class MyView(View):
+            async def get(self, request: Request, user_id: int):
+                return {"user_id": user_id}
+                
+        router.add_view("/users/{user_id:int}", MyView)
+    """
+
+    async def dispatch(self, request: Request, **path_params: Any) -> Any:
+        """
+        Main entry point for the view. Dispatches to the appropriate method handler.
+        """
+        method = request.method.lower()
+        handler = getattr(self, method, None)
+        
+        if handler is None:
+            # Check for generic 'any' handler before failing
+            handler = getattr(self, "any", None)
+            
+        if handler is None:
+            from eden.exceptions import MethodNotAllowed
+            allowed = [m.upper() for m in ["get", "post", "put", "patch", "delete"] if hasattr(self, m)]
+            raise MethodNotAllowed(detail=f"Method {request.method} not allowed.", extra={"allowed": allowed})
+
+        # Dependency injection for the specific method handler
+        resolver = DependencyResolver()
+        try:
+            kwargs = await resolver.resolve(
+                handler,
+                path_params=path_params,
+                request=request,
+            )
+
+            result = handler(**kwargs)
+            if inspect.isawaitable(result):
+                result = await result
+            
+            # Auto-wrap return values for consistency with Route.handle
+            from eden.responses import Response
+            if isinstance(result, (dict, list)):
+                return JsonResponse(content=result)
+            if isinstance(result, Response):
+                return result
+            return result
+        finally:
+            await resolver.cleanup()
+
+    def render(self, template_name: str, context: dict[str, Any] | None = None, **kwargs: Any) -> Any:
+        """
+        Helper to render a template from within a view.
+        """
+        from eden.templating import render_template
+        ctx = context or {}
+        ctx.update(kwargs)
+        return render_template(template_name, **ctx)
 
 
 @dataclass
@@ -115,34 +182,60 @@ class Router:
         """
         Auto-generates standard CRUD routes for a given ORM Model.
         """
+        from eden.responses import redirect
+        from eden.exceptions import NotFound
+
+        # Use explicitly provided prefix or tablename
+        prefix = getattr(model, "template_prefix", model.__tablename__.replace("_", "-"))
         
         @self.get("", name="list")
-        async def list_items(request):
-            return request.render(f"{model.template_prefix}/list.html", {"items": []})
+        async def list_items(request: Request):
+            items = await model.all()
+            return request.render(f"{prefix}/list.html", {"items": items})
 
         @self.get("/new", name="create")
-        async def new_item(request):
-            return request.render(f"{model.template_prefix}/form.html")
+        async def new_item(request: Request):
+            return request.render(f"{prefix}/form.html", {"item": None})
 
         @self.post("", name="create")
-        async def create_item(request):
-            pass
+        async def create_item(request: Request):
+            data = await request.form_data()
+            item = model(**data)
+            if await item.save():
+                return redirect(f"{self.prefix}/{item.id}")
+            return request.render(f"{prefix}/form.html", {"item": item, "errors": item.errors})
 
         @self.get("/{id}", name="show")
-        async def show_item(request, id: str):
-            return request.render(f"{model.template_prefix}/show.html", {"item": {"id": id}})
+        async def show_item(request: Request, id: str):
+            item = await model.get(id)
+            if not item:
+                raise NotFound(detail=f"{model.__name__} not found.")
+            return request.render(f"{prefix}/show.html", {"item": item})
 
         @self.get("/{id}/edit", name="update")
-        async def edit_item(request, id: str):
-            return request.render(f"{model.template_prefix}/form.html", {"item": {"id": id}})
+        async def edit_item(request: Request, id: str):
+            item = await model.get(id)
+            if not item:
+                raise NotFound(detail=f"{model.__name__} not found.")
+            return request.render(f"{prefix}/form.html", {"item": item})
 
         @self.post("/{id}", name="update")
-        async def update_item(request, id: str):
-            pass
+        async def update_item(request: Request, id: str):
+            item = await model.get(id)
+            if not item:
+                raise NotFound(detail=f"{model.__name__} not found.")
+            data = await request.form_data()
+            if await item.update(**data):
+                return redirect(f"{self.prefix}/{item.id}")
+            return request.render(f"{prefix}/form.html", {"item": item, "errors": item.errors})
 
         @self.delete("/{id}", name="destroy")
-        async def delete_item(request, id: str):
-            pass
+        async def delete_item(request: Request, id: str):
+            item = await model.get(id)
+            if not item:
+                raise NotFound(detail=f"{model.__name__} not found.")
+            await item.delete()
+            return redirect(self.prefix)
 
     def add_middleware(self, middleware: Any) -> None:
         """
@@ -171,13 +264,20 @@ class Router:
     ) -> None:
         """Register a route."""
         full_path = self.prefix + path
+        summary = summary
+        if not summary:
+            doc = inspect.getdoc(endpoint)
+            summary = doc.split("\n")[0] if doc else None
+            
+        description = description or inspect.getdoc(endpoint)
+
         route = Route(
             path=full_path,
             endpoint=endpoint,
             methods=methods,
             name=name or endpoint.__name__,
-            summary=summary or (endpoint.__doc__.strip().split("\n")[0] if endpoint.__doc__ else None),
-            description=description or endpoint.__doc__,
+            summary=summary,
+            description=description,
             tags=(self.tags + (tags or [])),
             middleware=(self.middleware + (middleware or [])),
             include_in_schema=include_in_schema,
@@ -288,6 +388,55 @@ class Router:
 
         return decorator
 
+    def add_view(
+        self,
+        path: str,
+        view_class: type[View],
+        name: str | None = None,
+        middleware: list[Any] | None = None,
+        summary: str | None = None,
+        description: str | None = None,
+        tags: list[str] | None = None,
+        include_in_schema: bool = True,
+    ) -> None:
+        """
+        Register a Class-Based View (CBV).
+        
+        The view class should inherit from `eden.routing.View`.
+        Methods like `get`, `post`, etc., will be automatically mapped to HTTP methods.
+        """
+        view_instance = view_class()
+        
+        # Determine supported methods
+        methods = [
+            m.upper() for m in ["get", "post", "put", "patch", "delete", "options", "head", "any"]
+            if hasattr(view_instance, m)
+        ]
+        
+        if not methods:
+            # If no methods defined explicitly, assume dispatch handles it (special cases)
+            methods = ["GET", "POST", "PUT", "PATCH", "DELETE"]
+
+        if "ANY" in methods:
+            methods = ["GET", "POST", "PUT", "PATCH", "DELETE"]
+            
+        summary = summary
+        if not summary:
+            doc = inspect.getdoc(view_class)
+            summary = doc.split("\n")[0] if doc else None
+            
+        self._add_route(
+            path=path,
+            endpoint=view_instance.dispatch,
+            methods=methods,
+            name=name or view_class.__name__.replace("View", "").lower(),
+            summary=summary,
+            description=description or inspect.getdoc(view_class),
+            tags=tags,
+            middleware=middleware,
+            include_in_schema=include_in_schema,
+        )
+
     def websocket(
         self,
         path: str,
@@ -395,5 +544,37 @@ class Router:
         return starlette_routes
 
 
+
+    def url_for(self, name: str, **path_params: Any) -> str:
+        """
+        Generate a URL for a given route name.
+        """
+        import re
+        for route in self.routes:
+            if route.name == name:
+                path = route.path
+                # Handle path parameters like {name} or {name:type}
+                for param, value in path_params.items():
+                    # Simple {param}
+                    path = path.replace(f"{{{param}}}", str(value))
+                    # {param:type}
+                    path = re.sub(rf"{{{param}:.*?}}", str(value), path)
+                
+                # Check if any parameters are left un-interpolated
+                if "{" in path:
+                    remaining = re.findall(r"{(.*?)}", path)
+                    # Filter out ones that were actually passed (re.sub might have missed if type was different)
+                    # but usually it's better to just error if missing params
+                    # raise ValueError(f"Missing path parameters for route '{name}': {remaining}")
+                    pass
+                return path
+        
+        # Search in sub-router naming convention (router:name)
+        if ":" not in name:
+            for route in self.routes:
+                if route.name and route.name.split(":")[-1] == name:
+                    return self.url_for(route.name, **path_params)
+
+        raise ValueError(f"Route with name '{name}' not found")
 
 # RouteResolver removed in favor of native Starlette routing.

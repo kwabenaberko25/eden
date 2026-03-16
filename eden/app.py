@@ -371,6 +371,14 @@ class Eden:
         """Mount a sub-router's routes into this app."""
         self._router.include_router(router, prefix=prefix)
 
+    def add_view(self, path: str, view_class: type[View], **kwargs: Any) -> None:
+        """Register a Class-Based View (CBV) at the application level."""
+        self._router.add_view(path, view_class, **kwargs)
+
+    def url_for(self, name: str, **path_params: Any) -> str:
+        """Generate a URL for a given route name."""
+        return self._router.url_for(name, **path_params)
+
     def get_routes(self) -> list[dict[str, Any]]:
         """
         Returns a list of all registered routes and their metadata.

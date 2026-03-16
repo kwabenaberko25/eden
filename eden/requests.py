@@ -49,6 +49,20 @@ class Request(StarletteRequest):
         """
         return self.app.eden.render(template_name, context, **kwargs)
 
+    def url_for(self, name: str, **path_params: Any) -> Any:
+        """
+        Generate a URL for a given route name.
+        Returns an absolute URL when possible.
+        """
+        try:
+            # Try Starlette's native url_for first (handles absolute URLs)
+            return super().url_for(name, **path_params)
+        except Exception:
+            # Fallback to Eden's reverse router for custom logical names/namespaces
+            path = self.app.eden._router.url_for(name, **path_params)
+            # Reconstruct absolute URL
+            return str(self.base_url).rstrip("/") + path
+
     async def json_body(self) -> Any:
         """
         Parse and return the JSON request body.

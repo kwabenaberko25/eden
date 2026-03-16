@@ -165,3 +165,24 @@ def redirect(
     if safe:
         return SafeRedirectResponse(url=url, status_code=status_code, headers=headers, allowed_hosts=allowed_hosts)
     return RedirectResponse(url=url, status_code=status_code, headers=headers)
+
+
+def redirect_to(
+    name: str,
+    status_code: int = 307,
+    headers: dict[str, str] | None = None,
+    **path_params: Any
+) -> RedirectResponse:
+    """
+    Redirect to a named route.
+    
+    Usage:
+        return redirect_to("user_profile", user_id=123)
+    """
+    from eden.context import get_app
+    app = get_app()
+    if not app:
+        raise RuntimeError("redirect_to() must be called within a request context or with an active app.")
+    
+    url = app.eden._router.url_for(name, **path_params)
+    return RedirectResponse(url=url, status_code=status_code, headers=headers)

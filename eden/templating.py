@@ -1031,6 +1031,7 @@ class EdenTemplates(StarletteJinja2Templates):
         self.env.globals.update({
             "now": datetime.datetime.now,
             "is_active": is_active,
+            "url_for": self._url_for_helper,
             "eden_head": _eden_head,
             "eden_scripts": _eden_scripts,
             "alpine_version": ALPINE_VERSION,
