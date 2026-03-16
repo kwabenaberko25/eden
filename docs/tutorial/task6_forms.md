@@ -38,7 +38,7 @@ class UserCreateSchema(Schema):
 ```
 
 > [!TIP]
-> Use `field()` (or the shorter `v()`) for form schemas, and `f()` for database models. This prevents naming collisions and keeps your code clean.
+> The `field()` (or shorter `v()`) helper shares metadata patterns with the ORM's `f()`. When you use `Model.to_schema()`, Eden automatically maps `f()` metadata (labels, placeholders) to your schema's `field()` metadata.
 
 ---
 
@@ -142,9 +142,33 @@ For fine-grained field customization (CSS classes, HTML attributes, widget types
 ### ✨ Premium Features Demonstrated
 
 1. **`@csrf`**: Automatically injects a hidden CSRF token to secure your form.
-2. **`@render_field`**: Renders the complete group (label, input, errors) cleanly, attaching the CSS classes you define.
-3. **`@error("field_name") { ... }`**: Contextually checks if a field has an error, and injects the error text into `@span(message)` inside the block.
+2. **`@render_field`**: Renders the complete group (label, input, errors) cleanly.
+3. **`@error("field_name") { ... }`**: Contextually checks if a field has an error.
 4. **`Model.create_from()`**: A secure method on Eden Models to automatically extract and create an instance using ONLY the fields explicitly defined on your Schema, preventing mass-assignment vulnerabilities.
+
+---
+
+## 🚀 Step 6.8: Rapid CRUD with ModelForm
+
+If your form directly maps to a database model, you can skip the manual schema definition and use `ModelForm`. This generates the schema and handles the DB logic automatically.
+
+```python
+from eden.forms import ModelForm
+
+class UserForm(ModelForm):
+    class Meta:
+        model = User
+        fields = ["name", "email", "age"]
+        # Override field metadata if needed
+        help_texts = {"email": "We will never share your email."}
+
+# In your route:
+@app.post("/users/quick-add")
+@app.validate(UserForm)
+async def quick_add(request, form: UserForm):
+    await form.save()  # Automatically creates/updates the User model
+    return redirect("/users")
+```
 
 ---
 
@@ -203,6 +227,7 @@ class PaymentSchema(Schema):
 ```
 
 In your template:
+
 ```html
 <div class="form-group">
     @render_field(form['payment_method'])

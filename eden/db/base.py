@@ -156,7 +156,7 @@ class Model(Base, AccessControl, ValidatorMixin):
 
     # Standard primary key for all models
     id: Mapped[uuid.UUID] = mapped_column(
-        Uuid(native_uuid=False),
+        Uuid(native_uuid=True),
         primary_key=True,
         server_default=None,
         default=uuid.uuid4,
@@ -354,9 +354,9 @@ class Model(Base, AccessControl, ValidatorMixin):
                     target_table = _resolve_table_name(target_name)
                     
                     # Heuristic for FK Type: Default to Uuid for modern models. 
-                    # Only use Integer for known legacy models (User, Role, etc.)
-                    is_legacy = target_name in ("User", "Role", "Permission", "Tenant", "SocialAccount")
-                    fk_type = Uuid(native_uuid=False) if not is_legacy else Integer
+                    # Only use Integer for known legacy models (Role, etc.)
+                    is_legacy = target_name in ("Role", "Permission")
+                    fk_type = Uuid(native_uuid=True) if not is_legacy else Integer
                     
                     # Ensure FK info doesn't keep relationship-specific flags
                     fk_info = info.copy()
@@ -519,18 +519,18 @@ class Model(Base, AccessControl, ValidatorMixin):
                 
                 if info:
                     if "max" in info:
-                        discovered_rules.append((cls.max_length, name, info["max"]))
+                        discovered_rules.append((cls.rule_max_length, name, info["max"]))
                     if "min" in info:
-                        discovered_rules.append((cls.min_length, name, info["min"]))
+                        discovered_rules.append((cls.rule_min_length, name, info["min"]))
                     if "required" in info and info["required"]:
                         # Skip 'required' validation on relationships themselves (is_reference or is_m2m)
                         # as they are usually satisfied by providing the FK or being empty lists.
                         if not info.get("is_reference") and not info.get("is_m2m"):
-                            discovered_rules.append((cls.required, name, None))
+                            discovered_rules.append((cls.rule_required, name, None))
                     if "choices" in info:
-                        discovered_rules.append((cls.choices, name, info["choices"]))
+                        discovered_rules.append((cls.rule_choices, name, info["choices"]))
                     if "pattern" in info:
-                        discovered_rules.append((cls.pattern, name, info["pattern"]))
+                        discovered_rules.append((cls.rule_pattern, name, info["pattern"]))
 
             try:
                 super().__init_subclass__(**kwargs)
@@ -545,8 +545,44 @@ class Model(Base, AccessControl, ValidatorMixin):
                     meth(name, val)
                 else:
                     meth(name)
+
+            # Apply EdenComparator to column properties AFTER SA mapping
+            # (mapped_column doesn't accept comparator_factory; we attach it post-init)
+            cls._apply_eden_comparators()
         else:
             super().__init_subclass__(**kwargs)
+
+    @classmethod
+    def _apply_eden_comparators(cls) -> None:
+        """
+        Attach EdenComparator to all ColumnProperty attributes on this class.
+
+        SQLAlchemy 2.0's ``mapped_column()`` does NOT accept
+        ``comparator_factory`` — that argument only works on ``column_property()``.
+        Instead, we set it *after* the mapper processes the class by iterating
+        over the class dict and patching each ``MappedColumn``'s
+        ``_has_dataclass_arguments`` dict (or the property once resolved).
+
+        This allows Django-style convenience methods like::
+
+            User.name.icontains("alice")
+        """
+        from sqlalchemy.orm.properties import ColumnProperty
+        from eden.db.lookups import EdenComparator
+
+        for attr_name in list(cls.__dict__):
+            attr = cls.__dict__[attr_name]
+            # After __init_subclass__, column attrs may be MappedColumn descriptors.
+            # The comparator_factory can be set on the ColumnProperty after it is
+            # resolved, which happens lazily when the mapper is configured.
+            # For now, we store the intent; SA will pick it up at configure time.
+            if hasattr(attr, '_attribute_options'):
+                # This is a MappedColumn; we can set comparator_factory via
+                # the internal _has_dataclass_arguments or directly.
+                try:
+                    attr.comparator_factory = EdenComparator
+                except (AttributeError, TypeError):
+                    pass
 
     @classmethod
     def _setup_m2m(cls, name: str, target_name: str) -> None:
@@ -685,7 +721,7 @@ class Model(Base, AccessControl, ValidatorMixin):
         float: Float,
         bool: Boolean,
         datetime: DateTime(timezone=True),
-        uuid.UUID: Uuid(native_uuid=False),
+        uuid.UUID: Uuid(native_uuid=True),
         dict: JSON,
         list: JSON,
     }

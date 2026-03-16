@@ -57,8 +57,8 @@ Use Eden's clean inheritance syntax to build rich, data-driven pages.
     <div class="grid gap-4">
         @for (user in members) {
             <div class="p-6 bg-slate-800 rounded-2xl border border-white/5 shadow-xl">
-                <h3 class="font-bold text-xl">@span(user.name)</h3>
-                <p class="text-slate-400 text-sm">@span(user.email)</p>
+                <h3 class="font-bold text-xl">{{ user.name }}</h3>
+                <p class="text-slate-400 text-sm">{{ user.email }}</p>
             </div>
         } @empty {
             <p class="text-slate-500 italic">Nobody has joined the community yet.</p>
@@ -278,6 +278,34 @@ Use Tailwind CSS (included via CDN in base.html) for rapid styling:
         <a href="/about" class="ml-4">About</a>
         <a href="/contact" class="ml-4">Contact</a>
     </nav>
+}
+```
+
+---
+
+## 🏗️ Step 5.8: Reusable Components & Slots
+
+For complex UI elements like modals, cards, or alerts, use Eden's **Component System**. This allows you to define a template once and reuse it with custom content passed via "slots".
+
+**Example: A "Card" Component**
+`templates/components/card.html`:
+```html
+<div class="p-6 bg-slate-800 rounded-2xl border border-white/5 shadow-xl">
+    @yield("header")
+    <div class="mt-4">
+        @slot("default")
+    </div>
+</div>
+```
+
+**Using the Component**:
+```html
+@component("card") {
+    @section("header") {
+        <h3 class="text-xl font-bold">Welcome Back!</h3>
+    }
+    
+    <p>This content is injected into the default slot.</p>
 }
 ```
 

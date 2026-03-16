@@ -368,7 +368,15 @@ class Eden:
     # ── Sub-Router ───────────────────────────────────────────────────────
 
     def include_router(self, router: Router, prefix: str = "") -> None:
-        """Mount a sub-router's routes into this app."""
+        """Mount a sub-router's routes into this app.
+        
+        Supports both Eden Router and WebSocketRouter instances.
+        """
+        from eden.websocket.router import WebSocketRouter
+        if isinstance(router, WebSocketRouter):
+            # WebSocketRouter uses mount() for registration
+            router.mount(self)
+            return
         self._router.include_router(router, prefix=prefix)
 
     def add_view(self, path: str, view_class: type[View], **kwargs: Any) -> None:
@@ -523,6 +531,7 @@ class Eden:
         self.add_middleware("security")        # Security headers first
         self.add_middleware("session", secret_key=self.secret_key)
         self.add_middleware("csrf")            # CSRF requires session
+        self.add_middleware("auth")            # Authentication depends on session
         self.add_middleware("gzip")            # Response compression
         self.add_middleware("cors", allow_origins=["*"])  # Allow all origins (configure as needed)
 
@@ -924,16 +933,71 @@ class Eden:
         # Try to read the original template
         code_frame = ""
 
-        # Find the template file
-        search_dirs = [self.template_dir] if isinstance(self.template_dir, str) else (self.template_dir or [])
+        # Find the template file using all search paths
+        search_dirs = []
+        if self._templates:
+            try:
+                # Access Jinja2 search paths if available
+                from jinja2 import FileSystemLoader
+                if isinstance(self._templates.env.loader, FileSystemLoader):
+                    search_dirs.extend(self._templates.env.loader.searchpath)
+            except (ImportError, AttributeError):
+                pass
+        
+        # Fallback to defaults if loader paths unavailable
+        if not search_dirs:
+            search_dirs = [self.template_dir] if isinstance(self.template_dir, str) else (self.template_dir or [])
+
         template_path = None
         if name and name != "Unknown Template":
+            # Normalize name if it's relative
             for d in search_dirs:
                 if not d: continue
                 p = os.path.join(d, name)
                 if os.path.exists(p):
                     template_path = p
                     break
+
+        # Recover lineno and context from traceback
+        found_context = {}
+        # Recover lineno and context from traceback
+        found_context = {}
+        if self.debug:
+            import inspect
+            try:
+                for frame_info in inspect.trace():
+                    # Recover name if missing
+                    if (not name or name == "Unknown Template"):
+                        for d in search_dirs:
+                            if d and d in frame_info.filename:
+                                name = os.path.relpath(frame_info.filename, d)
+                                # Update template_path since we found it
+                                template_path = frame_info.filename
+                                break
+
+                    # Recover lineno if missing
+                    if (not lineno or lineno <= 0) and template_path:
+                        if frame_info.filename == template_path:
+                            lineno = frame_info.lineno
+                    
+                    # Extract context vars
+                    if not found_context:
+                        # Strategy 1: Look for explicit context object
+                        for ctx_key in ("context", "ctx"):
+                            if ctx_key in frame_info.frame.f_locals:
+                                ctx_obj = frame_info.frame.f_locals[ctx_key]
+                                if hasattr(ctx_obj, "get_all"):
+                                    found_context = ctx_obj.get_all()
+                                    break
+                                elif isinstance(ctx_obj, dict):
+                                    found_context = ctx_obj
+                                    break
+                        
+                        # Strategy 2: If in template frame, use locals directly
+                        if not found_context and template_path and frame_info.filename == template_path:
+                            found_context = frame_info.frame.f_locals
+            except Exception:
+                pass
 
         if template_path:
             try:
@@ -943,55 +1007,51 @@ class Eden:
                     if lineno > 0 and lineno <= len(source_lines):
                         start = max(0, lineno - 6)
                         end = min(len(source_lines), lineno + 5)
+                        mark_line = lineno
+                    else:
+                        # Fallback: show first 10 lines if unknown
+                        start = 0
+                        end = min(len(source_lines), 10)
+                        mark_line = -1
 
-                        # Generate code frame with line numbers
-                        frame_lines = []
+                    # Generate code frame
+                    frame_lines = []
+                    for i in range(start, end):
+                        curr_lineno = i + 1
+                        is_error = curr_lineno == mark_line
+                        line_content = source_lines[i].rstrip()
+                        prefix = " > " if is_error else "   "
+                        frame_lines.append(f"{curr_lineno:4}{prefix}{line_content}")
+
+                    code_frame_text = "\n".join(frame_lines)
+
+                    # Apply Pygments if available
+                    try:
+                        from pygments import highlight
+                        from pygments.formatters import HtmlFormatter
+                        from pygments.lexers import get_lexer_for_filename
+
+                        lexer = get_lexer_for_filename(template_path)
+                        formatter = HtmlFormatter(style="monokai", nowrap=True)
+
+                        highlighted_lines = []
                         for i in range(start, end):
                             curr_lineno = i + 1
-                            is_error = curr_lineno == lineno
-                            line_content = source_lines[i].rstrip()
-                            prefix = " > " if is_error else "   "
-                            frame_lines.append(f"{curr_lineno:4}{prefix}{line_content}")
-
-                        code_frame = "\n".join(frame_lines)
-
-                        # Apply Pygments if available
-                        try:
-                            from pygments import highlight
-                            from pygments.formatters import HtmlFormatter
-                            from pygments.lexers import get_lexer_for_filename
-
-                            lexer = get_lexer_for_filename(template_path)
-                            formatter = HtmlFormatter(style="monokai", nowrap=True)
-
-                            highlighted_lines = []
-                            for i in range(start, end):
-                                curr_lineno = i + 1
-                                is_error = curr_lineno == lineno
-                                raw_line = source_lines[i]
-                                html_line = highlight(raw_line, lexer, formatter)
-                                klass = "error-line" if is_error else "normal-line"
-                                highlighted_lines.append(
-                                    f'<div class="{klass}"><span class="line-no">{curr_lineno:4}</span>{html_line}</div>'
-                                )
-                            code_frame = "".join(highlighted_lines)
-                        except Exception:
-                            # Fallback to escaped text if Pygments fails
-                            code_frame = f"<pre><code>{html_mod.escape(code_frame)}</code></pre>"
+                            is_error = curr_lineno == mark_line
+                            raw_line = source_lines[i]
+                            html_line = highlight(raw_line, lexer, formatter)
+                            klass = "error-line" if is_error else "normal-line"
+                            highlighted_lines.append(
+                                f'<div class="{klass}"><span class="line-no">{curr_lineno:4}</span>{html_line}</div>'
+                            )
+                        code_frame = f'<pre class="p-0 border-0 bg-transparent"><code>{"".join(highlighted_lines)}</code></pre>'
+                    except Exception:
+                        # Fallback to escaped text
+                        code_frame = f"<pre class='p-6 text-sm font-mono leading-relaxed overflow-x-auto bg-slate-900/50 rounded-xl'><code>{html_mod.escape(code_frame_text)}</code></pre>"
             except Exception as read_exc:
-                code_frame = f"<p class='text-red-500'>Could not read template source: {read_exc}</p>"
-
-        # Extract context if available (Jinja2 internal context)
-        import inspect
-        try:
-            for frame_info in inspect.trace():
-                if "context" in frame_info.frame.f_locals:
-                    ctx = frame_info.frame.f_locals["context"]
-                    if hasattr(ctx, "get_all"):
-                        found_context = ctx.get_all()
-                        break
-        except Exception:
-            pass
+                code_frame = f"<div class='p-8 border border-red-500/20 bg-red-500/5 rounded-2xl'><p class='text-red-400 font-medium'>Could not read template source</p><p class='text-red-400/60 text-xs mt-1'>{read_exc}</p></div>"
+        else:
+            code_frame = f"<div class='p-12 text-center space-y-3 bg-slate-800/20 rounded-2xl border border-white/5'><div class='text-slate-400 font-medium'>Source template not found</div><div class='text-slate-500 text-xs font-mono'>{name or 'Unknown'}</div><div class='text-slate-600 text-[10px] uppercase tracking-widest'>Search paths scanned: {len(search_dirs)}</div></div>"
 
         # Filter out noisy internal globals
         context_vars = {k: v for k, v in found_context.items()
@@ -1193,8 +1253,8 @@ class Eden:
                     </h3>
                 </div>
                 
-                <div class="rounded-2xl overflow-hidden bg-slate-900/50 border border-white/5 shadow-inner">
-                    {code_frame if not is_raw else f'<div class="p-4">{code_frame}</div>'}
+                <div class="rounded-2xl overflow-hidden bg-slate-900/40 border border-white/5 shadow-inner backdrop-blur-sm">
+                    {code_frame if not is_raw else f'<div class="p-0">{code_frame}</div>'}
                 </div>
             </div>
 
@@ -1542,7 +1602,9 @@ class Eden:
             self,
             host=host,
             port=resolved_port,
-            reload=reload,
-            workers=workers,
+            # uvicorn requires an import string (not an app object) for reload
+            # and multi-worker mode. Use `eden run` for auto-reload support.
+            reload=False,
+            workers=1,
             log_level=log_level,
         )

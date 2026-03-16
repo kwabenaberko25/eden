@@ -921,40 +921,29 @@ Mark fields as read-only once data is submitted:
 }
 ```
 
-### Role and Permission Checks
+### Role and Permission Checks (RBAC)
+
+Eden provides native authorization directives that integrate with your User model's `has_permission` logic.
 
 ```html
-<!-- Check user role -->
-
-@if (request.user.role == 'admin') {
-    <a href="@url('admin:dashboard')">Admin Panel</a>
-}
-
-<!-- Check permission -->
-
-@if (request.user.can('delete_posts')) {
+<!-- Check permission using @can -->
+@can('delete_posts') {
     <button class="btn-danger" onclick="deletePost()">Delete</button>
 }
 
-<!-- Check multiple permissions -->
-
-@if (request.user.can_all(['edit_post', 'delete_comments'])) {
-    <!-- Full moderation controls -->
-
+<!-- Inverse check with @cannot -->
+@cannot('edit_settings') {
+    <p class="text-xs text-slate-500">Settings are locked for your account.</p>
 }
 
-<!-- Check user ownership -->
-
+<!-- Check user ownership (Complex Expression) -->
 @if (post.author_id == request.user.id || request.user.is_admin) {
     <a href="@url('posts:edit', id=post.id)">Edit Post</a>
 }
-
-<!-- Complex auth logic -->
-
-@if (request.user && request.user.subscription_active && !request.user.subscription_paused) {
-    <button class="premium-action">Download Report</button>
-}
 ```
+
+> [!TIP]
+> `@can('perm')` is a shortcut for `@if(request.user and request.user.has_permission('perm'))`. It is tenant-aware and handles guest users safely.
 
 ---
 
@@ -1747,14 +1736,15 @@ For convenience, here's a complete lookup table of all supported Eden directives
 | **Stacks** | `@push`, `@stack`, `@prepend` | ✅ Fully Supported |
 | **Logic** | `@if`, `@else`, `@else_if`, `@switch`, `@case` | ✅ Fully Supported |
 | **Loops** | `@for`, `@empty`, `@while`, `@break`, `@continue`| ✅ Fully Supported |
-| **Auth** | `@auth`, `@guest` | ✅ Fully Supported |
-| **Security** | `@csrf`, `@method` | ✅ Fully Supported |
+| **Auth** | `@auth`, `@guest`, `@can`, `@cannot` | ✅ Fully Supported |
+| **Security** | `@csrf`, `@csrf_token`, `@method` | ✅ Fully Supported |
 | **Interactivity**| `@htmx`, `@non_htmx`, `@fragment` | ✅ Fully Supported |
 | **Forms** | `@checked`, `@selected`, `@disabled`, `@old` | ✅ Fully Supported |
 | **Errors** | `@error`, `@messages`, `@flash` | ✅ Fully Supported |
 | **Routes** | `@url`, `@active_link`, `@route`, `@status` | ✅ Fully Supported |
+| **Includes** | `@include`, `@includeWhen`, `@includeUnless`| ✅ Fully Supported |
 | **Assets** | `@vite`, `@json`, `@dump`, `@css`, `@js` | ✅ Fully Supported |
-| **Legacy** | `@can`, `@cannot`, `@inject`, `@php` | 🚧 Planned (Post-v1) |
+| **Legacy** | `@inject`, `@php` | 🚧 Planned (Post-v1) |
 
 ---
 
@@ -2158,6 +2148,8 @@ Filters are used to transform data before it's rendered. Eden includes standard 
 | **mask** | `\| mask` | Masks sensitive strings. | `{{ 'cobby@eden.dev' \| mask }}` |
 | **file_size** | `\| file_size` | Human-readable bytes. | `{{ 1MB \| file_size }}` |
 | **time_ago** | `\| time_ago` | Relative time representation. | `{{ post.created \| time_ago }}` |
+| **markdown** | `\| markdown` | Renders strings as GitHub Flavored Markdown. | `{{ desc \| markdown }}` |
+| **nl2br** | `\| nl2br` | Converts newlines to `<br>` tags. | `{{ body \| nl2br }}` |
 
 > [!TIP]
 > The `currency` filter automatically uses the currency code defined in your `EDEN_LOCALE_SETTINGS`. Use `{{ price \| currency(symbol='EUR') }}` to override at the template level.
@@ -2356,6 +2348,17 @@ Eden's template engine supports recursion, which is ideal for rendering tree-lik
     @include("partials/comment", {"comment": top_comment, "level": 0})
 }
 ```
+
+---
+
+## Debugging & Diagnostics
+
+Eden provides an elite developer experience when things go wrong. In `debug` mode, template errors trigger a **High-Fidelity Diagnostic Page**:
+
+- **Code Explorer**: Displays the source template with syntax highlighting. It uses advanced traceback recovery to find the exact line of code even when Jinja2 doesn't provide it (e.g., in `UndefinedError`).
+- **Predictive Typos**: If you reference a variable that doesn't exist, Eden will suggest similar variables from your context (e.g., *"Did you mean 'user'?"*).
+- **Live Variable State**: Inspect the values of all variables currently in the template scope at the time of the error.
+- **Glassmorphic UI**: The diagnostic interface uses Eden's premium design system, making debugging a visually pleasing part of your workflow.
 
 ---
 

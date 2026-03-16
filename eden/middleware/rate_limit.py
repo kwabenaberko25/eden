@@ -317,7 +317,7 @@ class RateLimitMiddleware:
         
         if key_func:
             from eden.requests import Request
-            req = Request(scope, receive, send)
+            req = Request.from_scope(scope, receive, send)
             import inspect
             try:
                 res = key_func(req)

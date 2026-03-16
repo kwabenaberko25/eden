@@ -23,11 +23,12 @@ def createsuperuser(email, full_name, password):
     """Create a superuser with administrative privileges."""
 
     async def _create():
-        # Setup DB (assuming sqlite for now, but should use config)
-        # Real implementation would load from eden.conf or similar
-        db = Database("sqlite+aiosqlite:///db.sqlite3")
+        from eden.config import get_config
+        config = get_config()
+        db = Database(config.get_database_url())
+        await db.connect()
 
-        async with db.get_session() as session:
+        async with db.transaction() as session:
             try:
                 # Check if user exists
                 existing = await User.query(session).filter(email=email).first()
@@ -45,9 +46,7 @@ def createsuperuser(email, full_name, password):
                     permissions=["*"]
                 )
                 user.set_password(password)
-
-                session.add(user)
-                await session.commit()
+                await user.save(session)
                 click.echo(f"Successfully created superuser: {email}")
 
             except Exception as e:

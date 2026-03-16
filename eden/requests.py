@@ -19,6 +19,21 @@ class Request(StarletteRequest):
     Wraps Starlette's Request to provide a cleaner API for common
     operations like reading JSON, form data, and uploaded files.
     """
+    def __init__(self, scope: Any, receive: Any = None, send: Any = None) -> None:
+        super().__init__(scope, receive, send)
+        # Store in scope to allow reuse across middleware
+        if "eden_request" not in scope:
+            scope["eden_request"] = self
+
+    @classmethod
+    def from_scope(cls, scope: Any, receive: Any = None, send: Any = None) -> Request:
+        """
+        Get existing Eden Request from scope or create new one.
+        Prevents duplicate body reading issues in middleware.
+        """
+        if "eden_request" in scope:
+            return scope["eden_request"]
+        return cls(scope, receive, send)
     @property
     def user(self) -> Any:
         """

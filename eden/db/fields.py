@@ -25,7 +25,6 @@ from sqlalchemy import (
 from sqlalchemy.orm import mapped_column
 from sqlalchemy.orm import relationship as sa_relationship
 
-from eden.db.lookups import EdenComparator
 
 _UNSET = object()
 
@@ -54,8 +53,6 @@ def _process_field_args(
     kwargs.pop("required", None)
     
     res = {**kwargs}
-    if "comparator_factory" not in res:
-        res["comparator_factory"] = EdenComparator
 
     if resolved_nullable is not _UNSET:
         res["nullable"] = resolved_nullable
@@ -278,7 +275,8 @@ def DateTimeField(
     kw, fk = _process_field_args(nullable, required, kwargs, default_nullable=False)
 
     # Helper to get current UTC time
-    utc_now = lambda: datetime.now(timezone.utc)
+    # We use naive UTC for standard DateTime columns to avoid asyncpg mismatch
+    utc_now = lambda: datetime.now(timezone.utc).replace(tzinfo=None)
 
     if auto_now_add:
         kw["server_default"] = func.now()

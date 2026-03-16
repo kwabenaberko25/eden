@@ -13,9 +13,17 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# 3. Import Eden models to populate metadata
+# 3. Load Eden config and set database URL
+from eden.config import get_config
+eden_config = get_config()
+config.set_main_option("sqlalchemy.url", eden_config.get_database_url())
+
+# 4. Import Eden models to populate metadata
 from eden.db import Model
 # Ensure all models are imported here or via a central registry
+import eden.auth.models
+import eden.tenancy.models
+import eden.admin.models
 target_metadata = Model.metadata
 
 def run_migrations_offline() -> None:

@@ -4,7 +4,7 @@ Eden DB - Validation System
 Provides declarative validation rules and lifecycle hooks for models.
 """
 
-from typing import Any, Dict, List, Optional, Callable, Union
+from typing import Any, Dict, List, Optional, Callable, Union, ClassVar
 from dataclasses import dataclass, field as dc_field
 import re
 import logging
@@ -36,12 +36,12 @@ class ValidationRule:
 class ValidatorMixin:
     """Mixin to add validation hooks to models."""
     
-    # Class-level state per model (initialized in __init_subclass__)
-    _validation_rules: Dict[str, List[ValidationRule]]
-    _pre_save_hooks: List[Callable]
-    _post_save_hooks: List[Callable]
-    _pre_delete_hooks: List[Callable]
-    _post_delete_hooks: List[Callable]
+    # Class-level state per model (isolated in __init_subclass__)
+    _validation_rules: ClassVar[Dict[str, List[ValidationRule]]] = {}
+    _pre_save_hooks: ClassVar[List[Callable]] = []
+    _post_save_hooks: ClassVar[List[Callable]] = []
+    _pre_delete_hooks: ClassVar[List[Callable]] = []
+    _post_delete_hooks: ClassVar[List[Callable]] = []
     
     def __init_subclass__(cls, **kwargs):
         """Isolate validation state per model to prevent rule leakage."""
@@ -62,7 +62,7 @@ class ValidatorMixin:
         cls._validation_rules[field_name].append(rule)
     
     @classmethod
-    def required(cls, field_name: str, message: Optional[str] = None) -> None:
+    def rule_required(cls, field_name: str, message: Optional[str] = None) -> None:
         """Mark field as required."""
         cls.add_validation_rule(field_name, ValidationRule(
             field_name=field_name,
@@ -71,7 +71,7 @@ class ValidatorMixin:
         ))
     
     @classmethod
-    def email(cls, field_name: str, message: Optional[str] = None) -> None:
+    def rule_email(cls, field_name: str, message: Optional[str] = None) -> None:
         """Validate field as email."""
         cls.add_validation_rule(field_name, ValidationRule(
             field_name=field_name,
@@ -80,7 +80,7 @@ class ValidatorMixin:
         ))
     
     @classmethod
-    def min_length(cls, field_name: str, length: int, message: Optional[str] = None) -> None:
+    def rule_min_length(cls, field_name: str, length: int, message: Optional[str] = None) -> None:
         """Validate minimum length."""
         cls.add_validation_rule(field_name, ValidationRule(
             field_name=field_name,
@@ -90,7 +90,7 @@ class ValidatorMixin:
         ))
     
     @classmethod
-    def max_length(cls, field_name: str, length: int, message: Optional[str] = None) -> None:
+    def rule_max_length(cls, field_name: str, length: int, message: Optional[str] = None) -> None:
         """Validate maximum length."""
         cls.add_validation_rule(field_name, ValidationRule(
             field_name=field_name,
@@ -100,7 +100,7 @@ class ValidatorMixin:
         ))
 
     @classmethod
-    def choices(cls, field_name: str, options: list, message: Optional[str] = None) -> None:
+    def rule_choices(cls, field_name: str, options: list, message: Optional[str] = None) -> None:
         """Validate field value is one of the choices."""
         cls.add_validation_rule(field_name, ValidationRule(
             field_name=field_name,
@@ -110,7 +110,7 @@ class ValidatorMixin:
         ))
 
     @classmethod
-    def pattern(cls, field_name: str, regex: str, message: Optional[str] = None) -> None:
+    def rule_pattern(cls, field_name: str, regex: str, message: Optional[str] = None) -> None:
         """Validate field value against a regex pattern."""
         cls.add_validation_rule(field_name, ValidationRule(
             field_name=field_name,
@@ -120,7 +120,7 @@ class ValidatorMixin:
         ))
     
     @classmethod
-    def custom(cls, field_name: str, validator: Callable, message: str) -> None:
+    def rule_custom(cls, field_name: str, validator: Callable, message: str) -> None:
         """Add custom validation function."""
         cls.add_validation_rule(field_name, ValidationRule(
             field_name=field_name,

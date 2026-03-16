@@ -253,23 +253,28 @@ def extract_involved_models(expression: Any) -> set[type[Any]]:
     models = set()
     
     # Iterate over all elements in the expression tree
-    for element in iterate(expression):
-        # InstrumentedAttribute is what Model.column_name returns
-        if isinstance(element, InstrumentedAttribute):
-            if hasattr(element, "class_"):
-                models.add(element.class_)
-        # Sometimes it's a Column bound to a table
-        elif hasattr(element, "table") and hasattr(element.table, "name"):
-            # We need to find the Model class for this table
-            # This is harder, but Eden models are in the registry
-            from .base import Model
-            for sub in Model.__subclasses__():
-                if getattr(sub, "__tablename__", None) == element.table.name:
-                    models.add(sub)
-                    break
-        # Or it might have a .entity
-        elif hasattr(element, "entity") and hasattr(element.entity, "class_"):
-            models.add(element.entity.class_)
+    # Safety check: if it's a primitive or non-SQLAlchemy object, don't iterate
+    if hasattr(expression, "get_children"):
+        for element in iterate(expression):
+            # InstrumentedAttribute is what Model.column_name returns
+            if isinstance(element, InstrumentedAttribute):
+                if hasattr(element, "class_"):
+                    models.add(element.class_)
+            # Sometimes it's a Column bound to a table
+            elif hasattr(element, "table") and hasattr(element.table, "name"):
+                # We need to find the Model class for this table
+                # This is harder, but Eden models are in the registry
+                from .base import Model
+                for sub in Model.__subclasses__():
+                    if getattr(sub, "__tablename__", None) == element.table.name:
+                        models.add(sub)
+                        break
+            # Or it might have a .entity
+            elif hasattr(element, "entity") and hasattr(element.entity, "class_"):
+                models.add(element.entity.class_)
+    elif isinstance(expression, InstrumentedAttribute):
+        if hasattr(expression, "class_"):
+            models.add(expression.class_)
             
     return models
 

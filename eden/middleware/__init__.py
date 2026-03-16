@@ -207,7 +207,7 @@ class CSRFMiddleware:
             await self.app(scope, receive, send)
             return
 
-        request = Request(scope, receive, send)
+        request = Request.from_scope(scope, receive, send)
         method = request.method.upper()
 
         # Skip safe methods and exempt paths

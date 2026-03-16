@@ -126,10 +126,10 @@ await new_user.update(name="Eden Framework")
 
 Say goodbye to cryptic error messages. Eden's debug page is a full-featured diagnostic tool designed to look as good as your application.
 
-- **Fuzzy Suggestions:** "Did you mean `user`?" for undefined variables.
-- **Line Consistency:** Error line numbers always match your `.html` file, not the preprocessed output.
-- **Variable Snapshots:** Inspect the state of your application at the moment of failure.
-- **Environment Health:** Instant visibility into Python, Platform, and Eden versions.
+- **High-Fidelity Code Explorer:** A gorgeous, syntax-highlighted code viewer that uses advanced traceback recovery to find the exact line in your original source, even for complex template errors.
+- **Fuzzy Suggestions:** Intelligent diagnostics that suggest fixes for undefined variables (e.g., "Did you mean `user`?").
+- **Variable Snapshots:** Inspect the live state of your template variables and request context at the moment of failure.
+- **Environment Health:** Instant visibility into system, Python, and framework metadata.
 
 ![Eden Debug UI](file:///c:/ideas/eden/eden_error_page_demo_1772608981343.webp)
 

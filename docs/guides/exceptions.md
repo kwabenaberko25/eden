@@ -7,10 +7,15 @@ Eden provides a robust system for capturing and responding to errors, from autom
 Eden automatically catches common errors and converts them into safe, aesthetic HTTP responses.
 
 ### The Debug Error Page
-In development mode (`debug=True`), Eden displays a "Premium" error page. It includes:
-- **Glassmorphic Design**: A clean, modern aesthetic.
-- **Traceback**: The exact line of code where the error occurred.
-- **Request Context**: Inspect headers, cookies, and query parameters.
+In development mode (`debug=True`), Eden displays a "Premium" high-fidelity error page. It includes:
+- **Glassmorphic Design**: A clean, modern aesthetic with obsidian themes and backdrop blurs.
+- **Code Explorer**: 
+    - **Syntax Highlighting**: Powered by Pygments for clear code reading.
+    - **Line-Level Accuracy**: Even for complex template errors, Eden performs traceback recovery to find the exact line.
+    - **Predictive Diagnostics**: Automatically suggests fixes for common typos (e.g., "Did you mean: user?").
+- **Intelligent Context Analysis**: 
+    - **Variable State**: Inspect the exact state of your template variables at the moment of failure.
+    - **Request Context**: Inspect headers, cookies, and query parameters.
 - **Environment Details**: See the current state of your system.
 
 ---

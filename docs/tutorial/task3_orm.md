@@ -14,17 +14,14 @@ Eden's ORM is built on **SQLAlchemy 2.0** but provides a much cleaner, more intu
 from eden.db import Model, f
 from sqlalchemy.orm import Mapped
 
-class User(Model):
-    """
-    Core User entity for the application.
-    """
-    # Use f() for simple fields. Type hints are auto-mapped.
-    name: Mapped[str] = f(max_length=255)
-    email: Mapped[str] = f(max_length=255, unique=True, index=True)
-    is_active: Mapped[bool] = f(default=True)
+    # Use f() for simple fields with rich metadata.
+    # This metadata powers your database, UI labels, and form placeholders.
+    name: Mapped[str] = f(max_length=255, label="Full Name", placeholder="Jane Doe")
+    email: Mapped[str] = f(max_length=255, unique=True, index=True, label="Email Address")
+    is_active: Mapped[bool] = f(default=True, label="Status")
     
-    # Complex metadata fields
-    profile_data: Mapped[dict] = f(json=True, default={})
+    # JSON support for flexible profile data
+    profile_data: Mapped[dict] = f(json=True, default={}, widget="textarea")
 ```
 
 ### Registering the Model
@@ -32,6 +29,7 @@ class User(Model):
 Ensure your model is exposed in the package:
 
 **File**: `app/models/__init__.py`
+
 ```python
 from .user import User
 ```
@@ -44,11 +42,12 @@ In development (when using SQLite), Eden automatically synchronizes your schema 
 
 1. Stop your server (`Ctrl+C`).
 2. Verify `db.sqlite3` exists in your project root.
-3. Restart with `eden run`. 
+3. Restart with `eden run`.
 4. The `users` table is now live.
 
 > [!IMPORTANT]
 > For production (PostgreSQL/MySQL), use **Alembic** for controlled migrations:
+>
 > ```bash
 > eden db migrate
 > ```
@@ -89,7 +88,9 @@ asyncio.run(demo_orm())
 ```
 
 ### Advanced Querying Preview
+
 Eden supports chainable, readable filters:
+
 ```python
 active_admins = await User.filter(is_active=True).order_by("-id").limit(10)
 ```
@@ -134,6 +135,7 @@ class User(Model):
 ```
 
 **Update** `app/models/__init__.py`:
+
 ```python
 from .user import User
 from .post import Post
@@ -153,11 +155,11 @@ async def get_user_with_posts(user_id: int):
     
     # ✅ GOOD: Eager loading - single query with JOIN
     user = await User.select_related("posts").get(id=user_id)
-    # user.posts is already loaded, no extra query
     
+    # Selective model dumping for secure API responses
     return {
-        "user": user.to_dict(),
-        "posts": [p.to_dict() for p in user.posts]
+        "user": user.to_dict(include=["id", "name", "email"]),
+        "posts": [p.to_dict(exclude=["user_id"]) for p in user.posts]
     }
 ```
 

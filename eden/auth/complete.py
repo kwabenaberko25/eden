@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import logging
 from typing import Optional, List, Set, Any, AsyncGenerator
-from abc import ABC, abstractmethod
 from passlib.context import CryptContext
 import argon2
 
@@ -105,9 +104,9 @@ def verify_password(password: str, hashed: str) -> bool:
 # USER MODEL
 # ============================================================================
 
-class BaseUser(ABC):
+class BaseUser:
     """
-    Abstract base class for user models.
+    Base class for user models.
     
     Extend this class in your application model:
     
@@ -130,20 +129,17 @@ class BaseUser(ABC):
     is_staff: bool = False
     is_superuser: bool = False
     
-    @abstractmethod
     async def get_roles(self) -> List:
         """Get all roles assigned to this user."""
-        pass
+        raise NotImplementedError
     
-    @abstractmethod
     async def has_permission(self, permission: str) -> bool:
         """Check if user has a specific permission."""
-        pass
+        raise NotImplementedError
     
-    @abstractmethod
     async def has_role(self, role: str) -> bool:
         """Check if user belongs to a specific role."""
-        pass
+        raise NotImplementedError
     
     def set_password(self, raw_password: str) -> None:
         """
@@ -210,14 +206,29 @@ async def authenticate(
     # Auto-detect user model if not provided
     if user_model is None:
         from eden.db import get_models
+        try:
+            from eden.auth.models import User as DefaultUser
+        except ImportError:
+            DefaultUser = None
+            
         models = get_models()
-        # Find first model that extends BaseUser
+        
+        # 1. Find the first model that extends BaseUser
+        # We prefer a custom User model defined by the developer
         user_model = next(
-            (m for m in models if issubclass(m, BaseUser)),
+            (m for m in models if issubclass(m, BaseUser) and m is not DefaultUser),
             None
         )
+        
+        # 2. Fall back to frameworks default User model
         if not user_model:
-            raise ValueError("No User model found")
+            user_model = DefaultUser
+            
+        if not user_model:
+            raise ValueError(
+                "No User model found. Ensure your User model inherits from "
+                "eden.auth.BaseUser and is imported."
+            )
     
     # Find user by email
     user = await user_model.filter(email=email.lower()).first()
@@ -233,6 +244,67 @@ async def authenticate(
     
     logger.info(f"User {email} authenticated successfully")
     return user
+
+
+async def login(request: Request, user: BaseUser) -> None:
+    """
+    Log in a user by setting them on the request and in the session.
+    
+    Args:
+        request: The current request object
+        user: The user to log in
+        
+    Example:
+        user = await authenticate(email, password)
+        if user:
+            await login(request, user)
+    """
+    # 1. Set on request state for current cycle
+    request.state.user = user
+    if hasattr(request, "user"):
+        request.user = user
+
+    # 2. Set in context for current task
+    from eden.context import set_user
+    set_user(user)
+
+    # 3. Persist in session if context supports it
+    if hasattr(request, "session"):
+        # We use the standard session key from SessionBackend
+        from eden.auth.backends.session import SessionBackend
+        request.session[SessionBackend.SESSION_KEY] = str(user.id)
+    
+    logger.info(f"User {user.email} logged in")
+
+
+async def logout(request: Request) -> None:
+    """
+    Log out the current user by clearing request state and session.
+    
+    Args:
+        request: The current request object
+        
+    Example:
+        await logout(request)
+    """
+    # 1. Clear request state
+    if hasattr(request.state, "user"):
+        request.state.user = None
+    if hasattr(request, "user"):
+        request.user = None
+
+    # 2. Clear from context
+    from eden.context import reset_user
+    # We don't have the token here, but we can set to None
+    from eden.context import set_user
+    set_user(None)
+
+    # 3. Clear session
+    if hasattr(request, "session"):
+        from eden.auth.backends.session import SessionBackend
+        request.session.pop(SessionBackend.SESSION_KEY, None)
+    
+    logger.info("User logged out")
 
 
 async def create_user(
@@ -561,6 +633,8 @@ __all__ = [
     "BaseUser",
     # Auth
     "authenticate",
+    "login",
+    "logout",
     "create_user",
     # RBAC
     "RoleManager",

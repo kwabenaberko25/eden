@@ -442,6 +442,45 @@ Instead of hardcoding URLs, use the `@url` template directive to dynamically gen
 <a href="@url('users:profile', id=user.id)">View Profile</a>
 ```
 
+### URL Reversal with `url_for`
+
+Eden provides `url_for()` at three levels — on the **Router**, the **Request**, and the **Eden app** — to generate URLs from route names instead of hardcoding paths.
+
+```python
+# In a route handler — generates a relative path
+@app.get("/dashboard")
+async def dashboard(request):
+    profile_url = request.url_for("users:profile", id=request.user.id)
+    return request.render("dashboard.html", {"profile_url": profile_url})
+
+# On the app instance
+login_path = app.url_for("auth:login")
+
+# On the router directly (returns relative path)
+router.url_for("list")  # → "/users"
+```
+
+> [!TIP]
+> `request.url_for()` returns an **absolute URL** (including scheme and host), while `router.url_for()` returns a **relative path**. Use the one that fits your context.
+
+### Redirect by Route Name
+
+Use `redirect_to()` to redirect to a named route without hardcoding the URL path:
+
+```python
+from eden import redirect_to
+
+@app.post("/login")
+async def handle_login(request):
+    # ... authenticate user ...
+    return redirect_to("dashboard")
+
+@app.post("/users/{id:int}/delete")
+async def delete_user(request, id: int):
+    await User.get(id=id).delete()
+    return redirect_to("users:list")
+```
+
 ---
 
 ## Recursive Middleware
@@ -496,6 +535,7 @@ The `Request` object encapsulates the incoming HTTP message. It is passed as the
 | `request.state` | A mutable object for storing request-local data (common in middleware). |
 | `request.session` | The encrypted session dictionary (if SessionMiddleware is active). |
 | `request.user` | The authenticated user object (if AuthMiddleware is active). |
+| **`request.url_for(name, **params)`** | Generate an absolute URL for a named route. |
 | **`await request.json()`** | Parses the body as JSON. |
 | **`await request.form()`** | Parses the body as multi-part or form data. |
 | **`await request.body()`** | Returns the raw binary content of the body. |

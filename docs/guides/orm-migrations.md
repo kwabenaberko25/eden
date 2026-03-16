@@ -4,11 +4,14 @@ Eden uses **Alembic** under the hood to provide a robust, version-controlled mig
 
 ## The Workflow
 
-The standard cycle for database changes in Eden:
-1. **Change Models**: Update your inheriting `Model` classes in Python.
-2. **Generate Script**: Create a new migration file with `eden migrate create`.
-3. **Review**: Check the generated Python file in your `migrations/` folder.
-4. **Apply**: Execute `eden migrate upgrade head`.
+The standard cycle for database changes in Eden consists of three mandatory steps:
+
+1.  **Initialize**: Set up the migration environment (first time only).
+2.  **Generate**: Detect model changes and create a migration file.
+3.  **Apply**: Execute the migration to update the physical database.
+
+> [!IMPORTANT]
+> You **must** generate and apply a migration before you can perform administrative tasks (like creating a superuser). Creating the migration environment with `init` does not create the database tables.
 
 ---
 
@@ -16,12 +19,44 @@ The standard cycle for database changes in Eden:
 
 | Command | Description |
 | :--- | :--- |
-| `eden migrate create "Added bio to user"` | Auto-detect model changes and create a script. |
-| `eden migrate upgrade head` | Apply all pending migrations to the database. |
-| `eden migrate upgrade +1` | Apply only the next migration. |
-| `eden migrate downgrade base` | Revert all migrations (Wipes Schema!). |
-| `eden migrate downgrade -1` | Revert the last applied migration. |
-| `eden migrate history` | List all available and applied migrations. |
+| `eden db init` | Create the `migrations/` directory and `alembic.ini`. |
+| `eden db generate -m "description"` | Auto-detect model changes and create a revision script. |
+| `eden db migrate` | Apply all pending migrations (shorthand for `upgrade head`). |
+| `eden db upgrade head` | Apply all pending migrations to the database. |
+| `eden db upgrade +1` | Apply only the next migration. |
+| `eden db downgrade -1` | Revert the last applied migration. |
+| `eden db history` | List all available and applied migrations. |
+| `eden db check` | Scan for schema drift across all tenants. |
+
+---
+
+## Detailed Example: Initial Setup
+
+When starting a new Eden project, follow this exact sequence to prepare your database:
+
+### 1. Initialize
+```bash
+eden db init
+```
+This creates your `migrations/` structure. By default, Eden auto-imports core models (Auth, Tenancy) in `migrations/env.py`.
+
+### 2. Generate Initial Migration
+```bash
+eden db generate -m "initial setup"
+```
+Eden will scan `eden.auth.models` and your local models to create `/migrations/versions/xxxx_initial_setup.py`.
+
+### 3. Apply the Migration
+```bash
+eden db migrate
+```
+Your database tables (including `eden_users`) are now physically created.
+
+### 4. Create Superuser (Next Step)
+Now that the tables exist, you can safely create your administrator:
+```bash
+eden auth createsuperuser
+```
 
 ---
 
@@ -36,49 +71,13 @@ class User(Model):
 
 ### 2. Generate Migration
 ```bash
-eden migrate create "Add phone to user"
-```
-Eden will output: `Generating /migrations/versions/a1b2c3d4e5f6_add_phone_to_user.py`
-
-### 3. Review the Script
-The generated file looks like this:
-```python
-def upgrade():
-    op.add_column('users', sa.Column('phone_number', sa.String(), nullable=True))
-
-def downgrade():
-    op.drop_column('users', 'phone_number')
+eden db generate -m "Add phone to user"
 ```
 
-### 4. Apply
+### 3. Apply
 ```bash
-eden migrate upgrade head
+eden db migrate
 ```
-
----
-
-## Advanced Scenarios
-
-### Data Migrations
-Sometimes you need to migrate the data itself (e.g., converting a single 'name' field to 'first_name' and 'last_name'). You can use the `op.execute()` method in your migration script.
-
-```python
-def upgrade():
-    # 1. Add new columns
-    op.add_column('users', sa.Column('first_name', sa.String()))
-    
-    # 2. Migrate data with raw SQL
-    op.execute("UPDATE users SET first_name = split_part(name, ' ', 1)")
-    
-    # 3. Handle old column
-    op.drop_column('users', 'name')
-```
-
-### Drift Detection
-Eden can detect when your production database schema doesn't match your models. Run `eden migrate status` to see if your database is "dirty" compared to your codebase.
-
-### Squashing Migrations
-As your project grows, you might end up with hundreds of small migrations. You can "squash" them into a single initial file by clearing your `migrations/versions` folder and running `eden migrate create "initial" --squash`.
 
 ---
 
@@ -86,8 +85,8 @@ As your project grows, you might end up with hundreds of small migrations. You c
 
 - **Never Delete Migrations**: If you made a mistake, create a new "fix" migration rather than editing an old one.
 - **Check-in Scripts**: Always commit the `migrations/` directory to your version control system.
-- **production-safe**: Always run `downgrade` tests locally before deploying to production.
-- **Constraints**: Be careful when adding `NOT NULL` constraints to existing tables with data; either provide a default or do it in two steps (add nullable -> fill data -> set not null).
+- **Schema Drift**: Periodically run `eden db check` to ensure your physical database matches your model definitions.
+- **Constraints**: Be careful when adding `NOT NULL` constraints to existing tables with data; either provide a default or do it in two steps.
 
 ---
 

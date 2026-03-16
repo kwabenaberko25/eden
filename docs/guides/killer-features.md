@@ -9,6 +9,7 @@ Eden isn't just a library; it's a **curated developer experience**. We've elimin
 One of the most significant changes in the latest Eden versions is the **Consolidated Import Pattern**. No more jumping between `sqlalchemy`, `starlette`, and `pydantic`.
 
 ### The "Eden Way"
+
 We've exported the most common tools directly from the `eden` package.
 
 ```python
@@ -30,6 +31,7 @@ from eden import Model, f, Mapped, select, func, Request, json, Schema, v
 Eden features a "Zero-Configuration" real-time layer. Any change in your database can be instantly reflected on every connected user's screen without a single line of JavaScript.
 
 ### Deep Dive: Reactive Models
+
 To make a model reactive, simply set `__reactive__ = True`. Eden will automatically broadcast events to a WebSocket channel derived from your table name.
 
 ```python
@@ -70,11 +72,44 @@ Eden's templating engine is uniquely aware of HTMX. You can mark specific region
 
 ---
 
+## 🏗️ 5. Server-Side Components (Python-Only)
+
+Eden introduces a revolutionary component system that allows you to build interactive UI widgets entirely in Python. These components manage their own state and handle interactivity via HTMX without requiring you to manage complex frontend state machines.
+
+### The "WOW" Factor: No-JS Interactivity
+A component encapsulates its logic, markup, and **reactive state**. When an action is triggered, Eden re-instantiates the component, restores its state, and renders the update.
+
+```python
+@register("newsletter")
+class NewsletterComponent(Component):
+    template_name = "newsletter.html"
+    
+    def __init__(self, email="", is_subscribed=False, **kwargs):
+        self.email = email
+        self.is_subscribed = is_subscribed
+        super().__init__(**kwargs)
+    
+    @action
+    async def subscribe(self, request, email: str):
+        # Business logic in pure Python
+        await db.save_subscriber(email)
+        self.is_subscribed = True
+        return await self.render()
+```
+
+### Usage in Templates
+```html
+@component("newsletter", email="hello@eden.io")
+```
+
+---
+
 ## 🎪 The "Killer" Synergy: The AI Video Processor Loop
 
 The true power of Eden is how these features work together. Let's look at a "Killer" scenario: An AI-powered video processing pipeline.
 
 ### 1. The Route (HTTP)
+
 The user submits a video. We save it to the DB and kick off a background task.
 
 ```python
@@ -103,6 +138,7 @@ async def ai_process_video(video_id: int, user_id: int):
 ```
 
 ### 3. The UI (WebSocket + HTMX)
+
 The frontend listens for the model update and refreshes the status surgically using `@fragment`.
 
 ```html
@@ -123,6 +159,7 @@ The frontend listens for the model update and refreshes the status surgically us
 ```
 
 ### Why this is a "Killer" Scenario:
+
 1.  **Reactive ORM**: `video.save()` automatically sent the `videos:updated` event.
 2.  **WebSockets**: The `ws-connect` bridge carried that event to the browser.
 3.  **HTMX**: The `hx-trigger` matched the event and requested a refresh.

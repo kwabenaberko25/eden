@@ -135,19 +135,33 @@ class RawQuery:
         # Validate tenant isolation
         RawQuery._validate_tenant_isolation(sql, skip_check=_skip_tenant_check)
         
-        # Get session for execution
-        session = await Model.get_session()
-        
-        try:
-            if fetch_one:
-                row = await session.fetchrow(sql, *(params or []))
-                return dict(row) if row else None
-            else:
-                rows = await session.fetch(sql, *(params or []))
-                return [dict(row) for row in rows]
-        except Exception as e:
-            logger.error(f"Raw SQL failed: {e}\nSQL: {sql}\nParams: {params}")
-            raise
+        # Use Eden's standard session context
+        from sqlalchemy import text
+        async with Model._get_session() as session:
+            try:
+                # Convert $1, $2 placeholders to :p1, :p2 for SQLAlchemy compatibility
+                # if the user is using the legacy $ syntax
+                converted_sql = sql
+                sql_params = {}
+                if params:
+                    for i, val in enumerate(params):
+                        placeholder = f"${i+1}"
+                        param_name = f"p{i+1}"
+                        if placeholder in sql:
+                            converted_sql = converted_sql.replace(placeholder, f":{param_name}")
+                            sql_params[param_name] = val
+                
+                result = await session.execute(text(converted_sql), sql_params or params)
+                
+                if fetch_one:
+                    row = result.mappings().first()
+                    return dict(row) if row else None
+                else:
+                    rows = result.mappings().all()
+                    return [dict(row) for row in rows]
+            except Exception as e:
+                logger.error(f"Raw SQL failed: {e}\nSQL: {sql}\nParams: {params}")
+                raise
 
     @staticmethod
     async def execute_scalar(
@@ -167,12 +181,25 @@ class RawQuery:
             Scalar value from the query result
         """
         from .base import Model
+        from sqlalchemy import text
         
         # Validate tenant isolation
         RawQuery._validate_tenant_isolation(sql, skip_check=_skip_tenant_check)
         
-        session = await Model.get_session()
-        return await session.fetchval(sql, *(params or []))
+        async with Model._get_session() as session:
+            # Placeholder conversion
+            converted_sql = sql
+            sql_params = {}
+            if params:
+                for i, val in enumerate(params):
+                    placeholder = f"${i+1}"
+                    param_name = f"p{i+1}"
+                    if placeholder in sql:
+                        converted_sql = converted_sql.replace(placeholder, f":{param_name}")
+                        sql_params[param_name] = val
+
+            result = await session.execute(text(converted_sql), sql_params or params)
+            return result.scalar()
 
 
 async def raw_update(
@@ -216,8 +243,22 @@ async def raw_update(
     all_params = val_list + where_params
     
     from .base import Model
-    session = await Model.get_session()
-    result = await session.execute(sql, *all_params)
+    from sqlalchemy import text
+    async with Model._get_session() as session:
+        # Placeholder conversion
+        converted_sql = sql
+        sql_params = {}
+        if all_params:
+            for i, val in enumerate(all_params):
+                placeholder = f"${i+1}"
+                param_name = f"p{i+1}"
+                if placeholder in sql:
+                    converted_sql = converted_sql.replace(placeholder, f":{param_name}")
+                    sql_params[param_name] = val
+
+        result = await session.execute(text(converted_sql), sql_params or all_params)
+        await session.commit()
+        return result.rowcount
     
     # Parse "UPDATE 5" -> 5
     if isinstance(result, str) and " " in result:

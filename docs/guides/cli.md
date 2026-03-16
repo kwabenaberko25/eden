@@ -1,80 +1,96 @@
-# CLI Suite: Mastering the `eden` Command 💻
+# CLI Suite: Elite Forge & Scaffolding 🛠️
 
-Eden's command-line interface is designed to automate repetitive tasks and manage your application's lifecycle from development to production.
-
-## Core Commands
-
-### `eden start`
-Starts the development server.
-- **Auto-reload**: Restarts whenever code changes.
-- **Debug Port**: Default is `8000`.
-- **Options**:
-  - `--host`: Host to bind to (default: `127.0.0.1`).
-  - `--port`: Port to listen on (default: `5000`).
-
-### `eden init [name]`
-Scaffolds a new Eden project with the "Premium" structure.
-- Creates folders: `app/`, `eden/`, `static/`, `templates/`.
-- Generates: `app.py`, `models.py`, `eden.json`, `.env`.
+Eden provides a high-performance command-line interface designed to accelerate your development workflow from initial scaffolding to production deployment.
 
 ---
 
-## Database Migrations (`eden migrate`)
+## 🌿 Project Scaffolding: `eden new`
 
-Manage your schema evolution.
+Start every project with the interactive project wizard.
 
-- **`create [message]`**: Generates a new migration script based on model changes.
-- **`upgrade head`**: Applies all pending migrations.
-- **`downgrade -1`**: Reverts the last migration.
-- **`history`**: View the list of migrations.
-
----
-
-## Static Assets (`eden assets`)
-
-Optimize your frontend for production.
-
-- **`build`**: Minifies and hashes assets in your `static/` folder.
-- **`clean`**: Removes old hashed assets.
-
----
-
-## Task Management (`eden tasks`)
-
-Manage your background workers (requires `[tasks]` extra).
-
-- **`worker`**: Starts the taskiq-based background worker.
-- **`scheduler`**: Starts the periodic task scheduler (cron jobs).
-
----
-
-## User & Auth Management
-
-### `eden createsuperuser`
-Creates an administrative user with full permissions. It will prompt for email and password.
-
-### `eden changepassword [email]`
-Resets the password for a specific user.
-
----
-
-## Custom CLI Commands
-
-You can extend the Eden CLI with your own commands by using the `@app.command` decorator.
-
-```python
-# app.py
-@app.command(name="sync-stripe", help="Sync customers from Stripe")
-async def sync_stripe():
-    # your logic here
-    print("Done! 🎉")
-```
-
-Now you can run it via:
 ```bash
-eden sync-stripe
+eden new my-awesome-project
+```
+
+The wizard will guide you through:
+
+1. **Scale**: Choose between **Minimal (one file)** for small services or **Complete (modular)** for enterprise applications.
+2. **Database**: Automatic configuration for **SQLite** or **Postgres**.
+3. **Extras**: Instant integration for **Admin UI**, **Stripe Payments**, **WebSockets**, and **Email**.
+
+---
+
+## 🔨 Elite Forge: `eden generate`
+
+Eden Forge is the framework's code generation engine. It doesn't just create files; it understands your project layout and **auto-registers** code into your application.
+
+### `eden generate model`
+
+Scaffolds a new database model with rich metadata support.
+
+```bash
+eden generate model Task
+```
+
+### `eden generate route`
+
+Creates a modular router and connects it to your main application.
+
+```bash
+eden generate route billing
 ```
 
 ---
+
+## 🗄️ Database Management: `eden db`
+
+Manage your schema evolution with integrated migrations.
+
+| Command | Description |
+| :--- | :--- |
+| `eden db init` | Initialize the migration environment. |
+| `eden db generate -m "..."` | Create a new migration script from model changes. |
+| `eden db migrate` | Apply all pending migrations. |
+| `eden db rollback` | Revert the last applied migration. |
+| `eden db check` | Scan for schema drift. |
+
+---
+
+## 🛡️ Authentication: `eden auth`
+
+Manage users and security from the terminal.
+
+### `eden auth createsuperuser`
+
+Create an administrative account with full permissions.
+
+```bash
+eden auth createsuperuser --email "admin@example.com" --full-name "Admin"
+```
+
+---
+
+## 🚀 Execution & Management
+
+### `eden run`
+
+Launch your development server with auto-reload.
+
+```bash
+eden run --port 8080
+```
+
+### `eden tasks`
+
+Manage and monitor background task queues.
+
+```bash
+eden tasks worker
+```
+
+---
+
+> [!TIP]
+> Use `eden --help` to see a full list of commands and options. Most groups support `--help` for subcommand details, such as `eden db --help`.
 
 **Next Steps**: [Deployment Guide](deployment.md)

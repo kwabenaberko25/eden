@@ -57,6 +57,7 @@ dependencies = [
     "bcrypt>=5.0.0",
     "rich>=13.7.0",
     "questionary>=2.0.1",
+    "python-dotenv>=1.0.1",
     "redis>=7.2.1",
     "taskiq-redis>=1.2.2",
     "pytest-asyncio>=1.3.0",

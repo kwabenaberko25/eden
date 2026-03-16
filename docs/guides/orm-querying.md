@@ -74,11 +74,15 @@ users = await User.filter(query)
 ```python
 from eden.db import F
 
-# Increment values in bulk
+# 1. Atomic Field-Level Updates
 await Product.all().update(stock=F("stock") + 10)
 
-# Compare two fields: find products where stock is less than minimum
-low_stock = await Product.filter(stock__lt=F("min_stock"))
+# 2. Cross-Field Comparisons
+# Find products where current stock is below safety threshold
+danger_zone = await Product.filter(stock__lt=F("min_stock")).all()
+
+# 3. Dynamic Field Math
+expensive_items = await Product.filter(price__gt=F("cost") * 2).all()
 ```
 
 ---
@@ -107,9 +111,13 @@ Add virtual fields to each record in the resulting list.
 from eden.db import Count
 
 # Fetch authors and count their posts
-authors = await Author.all().annotate(post_count=Count("posts"))
+authors = await Author.all().annotate(
+    post_count=Count("posts"),
+    premium_post_count=Count("posts", filter=Q(posts__is_premium=True))
+).all()
 
-print(authors[0].post_count) # Access the calculated field directly
+print(authors[0].post_count) 
+print(authors[0].premium_post_count)
 ```
 
 ---
@@ -174,6 +182,20 @@ high_value_categories = await Order.all() \
     .annotate(revenue=Sum("total_price")) \
     .group_by("category") \
     .having(revenue__gt=1000) \
+    .all()
+```
+
+### Advanced: Filtering Aggregates with Q
+
+You can even use Q objects inside your `having` clauses for complex logic.
+
+```python
+# Categories with either huge revenue OR huge volume
+trending = await Order.all() \
+    .values("category") \
+    .annotate(revenue=Sum("total_price"), volume=Count("id")) \
+    .group_by("category") \
+    .having(Q(revenue__gt=5000) | Q(volume__gt=100)) \
     .all()
 ```
 

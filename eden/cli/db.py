@@ -25,8 +25,8 @@ def db() -> None:
 @db.command("init")
 @click.option(
     "--db-url",
-    default="sqlite+aiosqlite:///db.sqlite3",
-    help="Database URL.",
+    default=None,
+    help="Database URL (defaults to config).",
 )
 def db_init(db_url: str) -> None:
     """Initialize the migrations directory."""
@@ -35,8 +35,10 @@ def db_init(db_url: str) -> None:
         click.echo("  ✅ Migrations directory created.")
         click.echo("  📁 migrations/")
         click.echo("  📄 alembic.ini")
-        click.echo()
-        click.echo("  💡 Import your models in migrations/env.py to enable auto-detection.")
+        click.echo("  💡 Next Steps:")
+        click.echo("     1. Import your models in migrations/env.py (if not using core models).")
+        click.echo("     2. Run 'eden db generate -m \"initial\"' to create your first migration.")
+        click.echo("     3. Run 'eden db migrate' to apply it.")
     except FileExistsError:
         click.echo("  ❌ Migrations directory already exists.", err=True)
         sys.exit(1)
@@ -45,8 +47,8 @@ def db_init(db_url: str) -> None:
 @db.command("migrate")
 @click.option(
     "--db-url",
-    default="sqlite+aiosqlite:///db.sqlite3",
-    help="Database URL.",
+    default=None,
+    help="Database URL (defaults to config).",
 )
 def db_migrate(db_url: str) -> None:
     """Apply pending migrations (alias for upgrade)."""
@@ -58,8 +60,8 @@ def db_migrate(db_url: str) -> None:
 @db.command("apply")
 @click.option(
     "--db-url",
-    default="sqlite+aiosqlite:///db.sqlite3",
-    help="Database URL.",
+    default=None,
+    help="Database URL (defaults to config).",
 )
 def db_apply(db_url: str) -> None:
     """Apply pending migrations (alias for migrate)."""
@@ -70,8 +72,8 @@ def db_apply(db_url: str) -> None:
 @click.option("--revision", default="head", help="Target revision.")
 @click.option(
     "--db-url",
-    default="sqlite+aiosqlite:///db.sqlite3",
-    help="Database URL.",
+    default=None,
+    help="Database URL (defaults to config).",
 )
 def db_upgrade(revision: str, db_url: str) -> None:
     """Apply pending migrations."""
@@ -84,8 +86,8 @@ def db_upgrade(revision: str, db_url: str) -> None:
 @click.option("--revision", default="-1", help="Target revision (default: -1).")
 @click.option(
     "--db-url",
-    default="sqlite+aiosqlite:///db.sqlite3",
-    help="Database URL.",
+    default=None,
+    help="Database URL (defaults to config).",
 )
 def db_downgrade(revision: str, db_url: str) -> None:
     """Revert to a previous migration."""
@@ -97,8 +99,8 @@ def db_downgrade(revision: str, db_url: str) -> None:
 @db.command("history")
 @click.option(
     "--db-url",
-    default="sqlite+aiosqlite:///db.sqlite3",
-    help="Database URL.",
+    default=None,
+    help="Database URL (defaults to config).",
 )
 def db_history(db_url: str) -> None:
     """Show migration history."""
@@ -109,8 +111,8 @@ def db_history(db_url: str) -> None:
 @click.option("-m", "--message", required=True, help="Migration message.")
 @click.option(
     "--db-url",
-    default="sqlite+aiosqlite:///db.sqlite3",
-    help="Database URL.",
+    default=None,
+    help="Database URL (defaults to config).",
 )
 def db_generate(message: str, db_url: str) -> None:
     """Generate a new database migration."""
@@ -132,8 +134,8 @@ def db_generate(message: str, db_url: str) -> None:
 @db.command("check")
 @click.option(
     "--db-url",
-    default="sqlite+aiosqlite:///db.sqlite3",
-    help="Database URL.",
+    default=None,
+    help="Database URL (defaults to config).",
 )
 def db_check(db_url: str) -> None:
     """Check for schema drift across all tenants."""
