@@ -412,18 +412,22 @@ class BrowserReloadMiddleware:
             };
 
             socket.onclose = () => {
+                if (isReloading) return;
                 console.log('🌿 Eden: Server disconnected. Polling for restart...');
                 const timer = setInterval(() => {
-                    fetch(window.location.href, { mode: 'no-cors', cache: 'no-cache' })
+                    fetch(window.location.href, { cache: 'no-cache' })
                         .then(res => {
-                            if (res.ok && !isReloading) {
+                            // If we get ANY response (even a 500 error), the server is back up
+                            if (!isReloading) {
                                 isReloading = true;
                                 clearInterval(timer);
                                 // Small delay to ensure server is fully ready
                                 setTimeout(() => location.reload(), 200);
                             }
                         })
-                        .catch(() => {});
+                        .catch(() => {
+                            // Fetch failed, server is still down
+                        });
                 }, 500);
             };
         }

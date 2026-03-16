@@ -251,12 +251,6 @@ wheels = [
 ]
 
 [[package]]
-name = "argon2"
-version = "0.1.10"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/5c/55/94605d5bfa140601fde256f548ed1733a5327f2d7d159b60a727e8613170/argon2-0.1.10.tar.gz", hash = "sha256:523a3d3b88f3a46244b4976a6ca81994705848538bbe9e41426ea54ccb75eb90", size = 28270, upload-time = "2015-12-20T22:40:47.144Z" }
-
-[[package]]
 name = "argon2-cffi"
 version = "25.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -676,7 +670,6 @@ dependencies = [
     { name = "aiofiles" },
     { name = "aiosqlite" },
     { name = "alembic" },
-    { name = "argon2" },
     { name = "argon2-cffi" },
     { name = "bcrypt" },
     { name = "click" },
@@ -684,6 +677,7 @@ dependencies = [
     { name = "httpx" },
     { name = "itsdangerous" },
     { name = "jinja2" },
+    { name = "markdown" },
     { name = "passlib" },
     { name = "pydantic" },
     { name = "pyjwt" },
@@ -757,7 +751,6 @@ requires-dist = [
     { name = "aiosmtplib", marker = "extra == 'mail'", specifier = ">=5.1.0" },
     { name = "aiosqlite", specifier = ">=0.20.0" },
     { name = "alembic", specifier = ">=1.13.0" },
-    { name = "argon2", specifier = ">=0.1.10" },
     { name = "argon2-cffi", specifier = ">=23.1.0" },
     { name = "asyncpg", marker = "extra == 'all'", specifier = ">=0.31.0" },
     { name = "asyncpg", marker = "extra == 'databases'", specifier = ">=0.31.0" },
@@ -768,6 +761,7 @@ requires-dist = [
     { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.27.0" },
     { name = "itsdangerous", specifier = ">=2.1.0" },
     { name = "jinja2", specifier = ">=3.1.0" },
+    { name = "markdown", specifier = ">=3.10.2" },
     { name = "passlib", specifier = ">=1.7.4" },
     { name = "pgvector", marker = "extra == 'ai'", specifier = ">=0.2.0" },
     { name = "pgvector", marker = "extra == 'all'", specifier = ">=0.2.0" },
