@@ -150,7 +150,7 @@ class TemplateLexer:
                             expr_line, expr_col = self.line, self.column
                             expr = self.read_balanced('(', ')')
                             self.tokens.append(Token(TokenType.EXPRESSION, expr, expr_line, expr_col))
-                        elif name in ("let", "php", "json", "dump", "css", "js", "vite", "method", "csrf"):
+                        elif name in ("let", "php", "json", "dump", "css", "js", "vite", "method", "csrf", "csrf_token"):
                             # Directives that might take the rest of the line as expression
                             # Consumed above ws_expr, but if not ( it might be a raw expr
                             # Backtrack to after name
@@ -512,6 +512,22 @@ class TemplateCompiler:
                 cond = f'request.user.role == "{roles_list[0]}"' if len(roles_list) == 1 else f'request.user.role in {roles_list}'
                 return f'{{% if request.user and request.user.is_authenticated and {cond} %}}{body_compiled}{{% endif %}}'
             return f'{{% if request.user and request.user.is_authenticated %}}{body_compiled}{{% endif %}}'
+        if name == "csrf_token": return f'{{{{ csrf_token() }}}}'
+        if name == "can":
+            return f'{{% if request.user and request.user.has_permission({expr}) %}}{body_compiled}{{% endif %}}'
+        if name == "cannot":
+            return f'{{% if not (request.user and request.user.has_permission({expr})) %}}{body_compiled}{{% endif %}}'
+        if name == "includeWhen":
+            parts = [p.strip() for p in (expr or "").split(',', 1)]
+            cond_v = parts[0]
+            tmpl_v = parts[1] if len(parts) > 1 else '""'
+            return f'{{% if {cond_v} %}}{{% include {tmpl_v} %}}{{% endif %}}'
+        if name == "includeUnless":
+            parts = [p.strip() for p in (expr or "").split(',', 1)]
+            cond_v = parts[0]
+            tmpl_v = parts[1] if len(parts) > 1 else '""'
+            return f'{{% if not ({cond_v}) %}}{{% include {tmpl_v} %}}{{% endif %}}'
+        if name == "empty": return f"{{% else %}}{body_compiled}"
         if name == "guest": return f'{{% if not (request.user and request.user.is_authenticated) %}}{body_compiled}{{% endif %}}'
         if name == "htmx": return f'{{% if request.headers.get("HX-Request") == "true" %}}{body_compiled}{{% endif %}}'
         if name == "non_htmx": return f'{{% if request.headers.get("HX-Request") != "true" %}}{body_compiled}{{% endif %}}'
@@ -837,6 +853,22 @@ def unique_filter(value: Any) -> list:
     return [x for x in value if not (x in seen or seen.add(x))]
 
 
+
+def markdown_filter(value: Any) -> Markup:
+    """Safely render Markdown to HTML."""
+    try:
+        import markdown
+        return Markup(markdown.markdown(str(value)))
+    except ImportError:
+        return Markup(str(value))
+
+def nl2br_filter(value: Any) -> Markup:
+    """Replace newlines with <br> tags."""
+    if not value: return Markup("")
+    from markupsafe import escape
+    return Markup(str(escape(value)).replace('\n', '<br>\n'))
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Fragment extraction helper
 # ─────────────────────────────────────────────────────────────────────────────
@@ -927,6 +959,8 @@ class EdenTemplates(StarletteJinja2Templates):
             "money": format_money,
             "repeat": repeat_filter,
             "phone": phone_filter,
+            "markdown": markdown_filter,
+            "nl2br": nl2br_filter,
             "unique": unique_filter,
             # Widget tweaks
             "add_class": add_class,
@@ -1039,6 +1073,7 @@ class EdenTemplates(StarletteJinja2Templates):
             "old": self._old_helper,
             "vite": self._vite_helper,
             "csrf_field": self._csrf_helper,
+            "csrf_token": self._csrf_token_helper,
             "eden_dump": self._dump_helper,
         })
 
@@ -1199,6 +1234,15 @@ class EdenTemplates(StarletteJinja2Templates):
             # Try to get from state or session
             token = getattr(request.state, "csrf_token", "")
         return Markup(f'<input type="hidden" name="_token" value="{token}">')
+
+
+    def _csrf_token_helper(self) -> str:
+        """Render the raw CSRF token."""
+        from eden.context import get_request
+        request = get_request()
+        if request and hasattr(request, "state"):
+            return getattr(request.state, "csrf_token", "")
+        return ""
 
     def _dump_helper(self, value: Any, label: str = "") -> Markup:
         """Premium @dump directive implementation with syntax highlighting feel."""
