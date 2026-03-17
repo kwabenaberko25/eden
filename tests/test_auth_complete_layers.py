@@ -228,7 +228,7 @@ async def test_jwt_backend_creates_tokens():
     from eden.auth.backends.jwt import JWTBackend
     import jwt
     
-    backend = JWTBackend(secret_key="test-secret")
+    backend = JWTBackend(secret_key="test-secret-must-be-at-least-32-characters-long")
     data = {"sub": "user-123", "name": "Alice"}
     
     access_token = backend.create_access_token(data)
@@ -237,11 +237,11 @@ async def test_jwt_backend_creates_tokens():
     assert access_token != refresh_token
     
     # Decode and verify
-    decoded_access = jwt.decode(access_token, "test-secret", algorithms=["HS256"])
+    decoded_access = jwt.decode(access_token, "test-secret-must-be-at-least-32-characters-long", algorithms=["HS256"])
     assert decoded_access["sub"] == "user-123"
     assert decoded_access["type"] == "access"
     
-    decoded_refresh = jwt.decode(refresh_token, "test-secret", algorithms=["HS256"])
+    decoded_refresh = jwt.decode(refresh_token, "test-secret-must-be-at-least-32-characters-long", algorithms=["HS256"])
     assert decoded_refresh["type"] == "refresh"
 
 

@@ -17,7 +17,8 @@ from typing import Any, Optional, Sequence
 from starlette.middleware.cors import CORSMiddleware as StarletteCORS
 from starlette.middleware.gzip import GZipMiddleware as StarletteGZip
 from starlette.middleware.sessions import SessionMiddleware as StarletteSession
-from starlette.requests import Request
+from starlette.requests import Request as StarletteRequest
+from eden.requests import Request
 from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
@@ -56,13 +57,15 @@ class CORSMiddleware(StarletteCORS):
     def __init__(
         self,
         app: ASGIApp,
-        allow_origins: Sequence[str] = (),
+        allow_origins: Sequence[str] | None = None,
         allow_methods: Sequence[str] = ("GET", "POST", "OPTIONS"),
         allow_headers: Sequence[str] = (),
         allow_credentials: bool = False,
         expose_headers: Sequence[str] = (),
         max_age: int = 600,
     ) -> None:
+        # Default to empty list (block all) if None, forcing explicit configuration
+        allow_origins = list(allow_origins) if allow_origins else []
         super().__init__(
             app,
             allow_origins=list(allow_origins),
@@ -102,7 +105,7 @@ class SessionMiddleware(StarletteSession):
         max_age: int = 14 * 24 * 60 * 60,  # 14 days
         path: str = "/",
         same_site: str = "lax",
-        https_only: bool = False,
+        https_only: bool = True,  # Default to True for production safety
     ) -> None:
         if not secret_key:
             secret_key = secrets.token_hex(32)
@@ -207,7 +210,7 @@ class CSRFMiddleware:
             await self.app(scope, receive, send)
             return
 
-        request = Request(scope, receive, send)
+        request = Request.from_scope(scope, receive, send)
         method = request.method.upper()
 
         # Skip safe methods and exempt paths
@@ -275,7 +278,8 @@ class SecurityHeadersMiddleware:
         "X-Frame-Options": "DENY",
         "X-XSS-Protection": "1; mode=block",
         "Referrer-Policy": "strict-origin-when-cross-origin",
-        "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+        "Permissions-Policy": "camera=(), microphone=(), geolocation=(), interest-cohort=()",
+        "X-Permitted-Cross-Domain-Policies": "none",
     }
 
     def __init__(
@@ -347,7 +351,7 @@ class RequestContextMiddleware:
         from eden.context import reset_request, set_request
         from eden.requests import Request as EdenRequest
 
-        request = EdenRequest(scope, receive, send)
+        request = EdenRequest.from_scope(scope, receive, send)
         token = set_request(request)
         try:
             await self.app(scope, receive, send)
@@ -412,18 +416,22 @@ class BrowserReloadMiddleware:
             };
 
             socket.onclose = () => {
+                if (isReloading) return;
                 console.log('🌿 Eden: Server disconnected. Polling for restart...');
                 const timer = setInterval(() => {
-                    fetch(window.location.href, { mode: 'no-cors', cache: 'no-cache' })
+                    fetch(window.location.href, { cache: 'no-cache' })
                         .then(res => {
-                            if (res.ok && !isReloading) {
+                            // If we get ANY response (even a 500 error), the server is back up
+                            if (!isReloading) {
                                 isReloading = true;
                                 clearInterval(timer);
                                 // Small delay to ensure server is fully ready
                                 setTimeout(() => location.reload(), 200);
                             }
                         })
-                        .catch(() => {});
+                        .catch(() => {
+                            // Fetch failed, server is still down
+                        });
                 }, 500);
             };
         }
@@ -470,12 +478,20 @@ class PerformanceTelemetryMiddleware:
                     if data:
                         total_ms = data.total_duration_ms
                         db_ms = data.db_time_ms
+                        tpl_ms = data.template_time_ms
                         db_queries = data.db_queries
-                        app_ms = max(0, total_ms - db_ms)
+                        mem_delta = data.memory_delta_mb
+                        app_ms = max(0, total_ms - db_ms - tpl_ms)
 
                         # Construct Server-Timing header
                         # https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Server-Timing
-                        timing = f"db;dur={db_ms:.2f};desc=\"{db_queries} queries\", app;dur={app_ms:.2f}, total;dur={total_ms:.2f}"
+                        timing = (
+                            f"db;dur={db_ms:.2f};desc=\"{db_queries} queries\", "
+                            f"tpl;dur={tpl_ms:.2f}, "
+                            f"app;dur={app_ms:.2f}, "
+                            f"mem;dur={mem_delta:.2f};desc=\"MB delta\", "
+                            f"total;dur={total_ms:.2f}"
+                        )
                         
                         headers = list(message.get("headers", []))
                         headers.append((b"server-timing", timing.encode()))
@@ -483,8 +499,8 @@ class PerformanceTelemetryMiddleware:
 
                         # Log metrics
                         self.logger.info(
-                            "Performance: Total %.2fms | DB %.2fms (%d queries) | App %.2fms",
-                            total_ms, db_ms, db_queries, app_ms
+                            "Performance: Total %.2fms | DB %.2fms (%d queries) | Tpl %.2fms | Mem %+.2fMB | App %.2fms",
+                            total_ms, db_ms, db_queries, tpl_ms, mem_delta, app_ms
                         )
 
                 await send(message)
@@ -520,7 +536,12 @@ class CacheMiddleware:
 
         # Attempt to find cache instance
         app_instance = scope.get("app")
-        cache = self._cache or getattr(app_instance, "cache", None)
+        cache = self._cache
+        if not cache and app_instance:
+            cache = getattr(app_instance, "cache", None)
+            if not cache and hasattr(app_instance, "eden"):
+                cache = getattr(app_instance.eden, "cache", None)
+
         if not cache:
             await self.app(scope, receive, send)
             return
@@ -535,7 +556,7 @@ class CacheMiddleware:
             cached = await cache.get(cache_key)
             if cached and isinstance(cached, dict):
                 headers = list(cached.get("headers", []))
-                # Add HIT header
+                # Add HIT header (ensure it's bytes)
                 headers.append((b"x-eden-cache", b"HIT"))
                 
                 await send({
@@ -563,11 +584,11 @@ class CacheMiddleware:
         async def send_wrapper(message: Message) -> None:
             if message["type"] == "http.response.start":
                 response_data["status"] = message["status"]
-                response_data["headers"] = list(message.get("headers", []))
+                orig_headers = list(message.get("headers", []))
                 
                 # Check Cache-Control headers if enabled
                 if self.use_cache_control:
-                    for name, value in response_data["headers"]:
+                    for name, value in orig_headers:
                         if name.lower() == b"cache-control":
                             val_str = value.decode().lower()
                             if any(word in val_str for word in ("no-store", "no-cache", "private")):
@@ -576,26 +597,32 @@ class CacheMiddleware:
                                 try:
                                     idx = val_str.find("max-age=")
                                     if idx != -1:
-                                        rem = val_str[idx+8:].split(",")[0].strip()
+                                        rem = val_str[idx+8:].split(",")[0].split(";")[0].strip()
                                         response_data["ttl"] = int(rem)
                                 except Exception:
                                     pass
 
-            if message["type"] == "http.response.body":
+                # Store headers for caching (without our HIT/MISS header)
+                response_data["headers"] = orig_headers
+                
+                # Add MISS header to the ACTUAL message being sent
+                new_headers = list(orig_headers)
+                new_headers.append((b"x-eden-cache", b"MISS"))
+                message["headers"] = new_headers
+
+            elif message["type"] == "http.response.body":
                 if response_data["status"] < 300 and response_data["cacheable"]:
                     response_data["body"] += message.get("body", b"")
                     
                     if not message.get("more_body", False):
-                        await cache.set(cache_key, {
-                            "status": response_data["status"],
-                            "headers": response_data["headers"],
-                            "body": response_data["body"]
-                        }, ttl=response_data["ttl"])
-
-            if message["type"] == "http.response.start":
-                headers = list(message.get("headers", []))
-                headers.append((b"x-eden-cache", b"MISS"))
-                message["headers"] = headers
+                        try:
+                            await cache.set(cache_key, {
+                                "status": response_data["status"],
+                                "headers": response_data["headers"],
+                                "body": response_data["body"]
+                            }, ttl=response_data["ttl"])
+                        except Exception:
+                            pass
 
             await send(message)
 
@@ -745,12 +772,15 @@ See: app.setup_defaults() for the correct sequence
 """
 
 
+@functools.lru_cache(maxsize=128)
 def get_middleware_class(name: str | type) -> type:
     """Look up a middleware class by its short name or a dot-notation string."""
     if not isinstance(name, str):
         return name
 
-    cls = MIDDLEWARE_REGISTRY.get(name.lower())
+    name_lower = name.lower()
+    cls = MIDDLEWARE_REGISTRY.get(name_lower)
+    
     if cls is not None:
         if isinstance(cls, str):
             # Dynamic import

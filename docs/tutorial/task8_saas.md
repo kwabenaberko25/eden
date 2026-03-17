@@ -150,39 +150,24 @@ async def handle_stripe_event(event):
 
 ---
 
-## 🎯 Step 8.5: Multi-Tenancy (Lightweight)
+## 🎯 Step 8.5: Native Multi-Tenancy
 
-Support multiple customers with isolated data:
+Eden features "Zero-Leak" multi-tenancy. By setting `__tenant_aware__ = True`, Eden automatically injects `tenant_id` filters into every query, ensuring users *only* see data belonging to their organization.
 
 ```python
-from eden.tenancy import Tenant
-
-class Tenant(Model):
-    """Represent a SaaS customer."""
-    name: Mapped[str] = f(max_length=255)
-    slug: Mapped[str] = f(unique=True, index=True)  # subdomain identifier
-    owner_id: Mapped[int] = f(foreign_key="user.id")
-    plan: Mapped[str] = f(default="free")  # free, pro, enterprise
-    created_at: Mapped[datetime] = f(default=datetime.utcnow)
-
 class Document(Model):
-    """Documents belong to a tenant, not globally."""
-    tenant_id: Mapped[int] = f(foreign_key="tenant.id", index=True)
-    title: Mapped[str] = f()
+    # Enable automatic multi-tenant isolation
+    __tenant_aware__ = True
     
-    # Ensure queries are always scoped to the current tenant
-    @classmethod
-    async def for_tenant(cls, tenant_id: int):
-        return cls.filter(tenant_id=tenant_id)
+    tenant_id: Mapped[int] = f(foreign_key="tenant.id", index=True)
+    title: Mapped[str] = f(label="Document Title")
+    content: Mapped[str] = f(widget="textarea")
 
-# In your routes - always scope to current tenant
+# In your routes - isolation is now IMPLICIT
 @doc_router.get("/")
 async def list_documents(request):
-    # Get the current tenant from the request context
-    tenant = request.tenant
-    
-    # Only return documents for this tenant
-    docs = await Document.for_tenant(tenant.id).all()
+    # No filter needed! Eden uses request.tenant_id automatically
+    docs = await Document.all()
     return {"documents": [d.to_dict() for d in docs]}
 ```
 
@@ -217,7 +202,6 @@ async def track_actions(request, call_next):
                 "status": response.status_code
             }
         )
-        
         # Record a metric for monitoring
         record_metric("user_action", 1, tags={"action": request.method})
     
@@ -225,33 +209,13 @@ async def track_actions(request, call_next):
 
 # Simple analytics endpoint
 @analytics_router.get("/summary")
-@roles_required("admin")
+@can_read("analytics")
 async def analytics_summary(request):
     """Get dashboard analytics."""
-    total_users = await User.count()
-    active_today = await UserAction.filter(
-        created_at__gte=datetime.utcnow().replace(hour=0, minute=0, second=0)
-    ).distinct().count('user_id')
-    
-    return {
-        "total_users": total_users,
-        "active_today": active_today,
-        "revenue": 44000
-    }
-```
-
----
-
-# Initialize the payments engine
-stripe = StripeProvider(api_key="sk_test_...")
-app.configure_payments(stripe)
-
-# Create a Checkout Session
-checkout_url = await stripe.create_checkout_session(
-    customer_email="user@dev.com",
-    price_id="price_H5ggHdqxyz",
-    success_url="https://myapp.com/success"
-)
+    return await Order.aggregate(
+        total_revenue=Sum("total_price"),
+        order_count=Count("id")
+    )
 ```
 
 ---

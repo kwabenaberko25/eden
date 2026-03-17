@@ -43,7 +43,7 @@ async def new_note():
 
 
 @app.post("/notes")
-async def create_note(request: Request):
+async def create_note(request: Request) -> dict:
     """Handle form submission to create note."""
     form = await request.form()
     note = await Note.create(

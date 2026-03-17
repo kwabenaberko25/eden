@@ -43,28 +43,28 @@ class MigrationManager:
         manager = DbMigrationManager(self.db_url)
         
         if command_name == "init":
-            return await manager.init()
+            return await asyncio.to_thread(manager.init)
         elif command_name == "revision":
-            return await manager.generate(kwargs.get("message", "Auto migration"))
+            return await asyncio.to_thread(manager.generate, kwargs.get("message", "Auto migration"))
         elif command_name == "upgrade":
             revision = args[0] if args else "head"
-            return await manager.migrate(revision)
+            return await asyncio.to_thread(manager.migrate, revision)
         elif command_name == "downgrade":
             revision = args[0] if args else "-1"
-            return await manager.downgrade(revision)
+            return await asyncio.to_thread(manager.downgrade, revision)
         elif command_name == "current":
             if hasattr(manager, "current"):
-                return await manager.current()
+                return await asyncio.to_thread(manager.current)
             # Fallback to subprocess for current as it might not be in DbMigrationManager yet
             import subprocess
             cmd = ["alembic", "current"]
             result = subprocess.run(cmd, capture_output=True, text=True)
             return result.stdout.strip()
         elif command_name == "history":
-            return manager.history()
+            return await asyncio.to_thread(manager.history)
         elif command_name == "stamp":
             if hasattr(manager, "stamp"):
-                return await manager.stamp(args[0] if args else "head")
+                return await asyncio.to_thread(manager.stamp, args[0] if args else "head")
             # Fallback
             import subprocess
             cmd = ["alembic", "stamp", args[0] if args else "head"]

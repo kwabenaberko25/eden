@@ -3,9 +3,10 @@ Eden — Authentication Middleware
 """
 
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, Optional
 
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+from starlette.requests import Request as StarletteRequest
 from starlette.responses import Response as StarletteResponse
 
 from eden.auth.base import AuthBackend
@@ -18,15 +19,18 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
     Middleware that tries to authenticate the request using one or more backends.
     """
 
-    def __init__(self, app: Any, backends: Sequence[AuthBackend], **kwargs) -> None:
+    def __init__(self, app: Any, backends: Optional[Sequence[AuthBackend]] = None, **kwargs) -> None:
         super().__init__(app, **kwargs)
+        if backends is None:
+            from eden.auth.backends.session import SessionBackend
+            backends = [SessionBackend()]
         self.backends = backends
 
     async def dispatch(
-        self, request: Request, call_next: RequestResponseEndpoint
+        self, request: StarletteRequest, call_next: RequestResponseEndpoint
     ) -> StarletteResponse:
-        # Wrap starlette request into Eden request for backends
-        eden_request = Request(request.scope, request.receive, request._send)
+        # Get or create Eden request for backends
+        eden_request = Request.from_scope(request.scope, request.receive, request._send)
 
         # 1. Set request in context
         req_token = set_request(eden_request)

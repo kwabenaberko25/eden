@@ -760,3 +760,75 @@ def _render_form(model_name, table_name, fields, record_id=None, csrf_token="", 
     }});
 </script>
 </body></html>"""
+
+
+async def admin_login(request: Request, admin_site: Any) -> Response:
+    """Handle admin login."""
+    error = None
+    next_url = request.query_params.get("next", "/admin/")
+    csrf_token = get_csrf_token(request)
+
+    if request.method == "POST":
+        form_data = await request.form()
+        email = form_data.get("email")
+        password = form_data.get("password")
+
+        from eden.auth import authenticate
+        user = await authenticate(email, password)
+
+        if user:
+            if getattr(user, "is_staff", False) or getattr(user, "is_superuser", False):
+                from eden.auth import login
+                await login(request, user)
+                return RedirectResponse(url=next_url, status_code=303)
+            else:
+                error = "Access denied: Staff status required."
+        else:
+            error = "Invalid email or password."
+
+    return HtmlResponse(_render_login(csrf_token, error, next_url))
+
+
+def _render_login(csrf_token, error=None, next_url="/admin/") -> str:
+    error_banner = f'<div style="background:#EF444420; color:#EF4444; padding:12px; border-radius:8px; border:1px solid #EF444440; margin-bottom:20px; font-size:14px;">{error}</div>' if error else ""
+
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Login | Eden Admin</title>
+    {_ADMIN_CSS}
+    <style>
+        body {{ display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #0F172A; }}
+        .login-card {{ width: 100%; max-width: 400px; padding: 40px; background: #1E293B; border-radius: 16px; border: 1px solid #334155; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); }}
+        .login-card h1 {{ font-family: 'Outfit', sans-serif; font-size: 24px; color: #F8FAFC; text-align: center; margin-bottom: 8px; }}
+        .login-card p {{ color: #94A3B8; text-align: center; font-size: 14px; margin-bottom: 32px; }}
+        .form-group {{ margin-bottom: 20px; }}
+        .form-group label {{ display: block; font-size: 12px; font-weight: 600; color: #64748B; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }}
+        .form-input {{ width: 100%; background: #0F172A; border: 1px solid #334155; border-radius: 8px; padding: 12px 16px; color: #E2E8F0; font-size: 14px; transition: border-color 0.2s; }}
+        .form-input:focus {{ outline: none; border-color: #2563EB; }}
+        .login-btn {{ width: 100%; background: #2563EB; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: background 0.2s; margin-top: 8px; }}
+        .login-btn:hover {{ background: #1D4ED8; }}
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <h1>🌿 Eden Admin</h1>
+        <p>Sign in to your administrative account</p>
+        
+        {error_banner}
+
+        <form method="post">
+            <input type="hidden" name="csrf_token" value="{csrf_token}">
+            <div class="form-group">
+                <label>Email Address</label>
+                <input type="email" name="email" class="form-input" required placeholder="name@example.com" autofocus>
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" name="password" class="form-input" required placeholder="••••••••">
+            </div>
+            <button type="submit" class="login-btn">Sign In</button>
+        </form>
+    </div>
+</body>
+</html>"""

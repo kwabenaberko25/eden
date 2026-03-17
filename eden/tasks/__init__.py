@@ -26,10 +26,13 @@ from typing import Any, TypeVar, Optional, List, Union
 try:
     from taskiq import AsyncBroker, InMemoryBroker
 except ImportError:
-    class AsyncBroker: 
+
+    class AsyncBroker:
         pass
-    class InMemoryBroker: 
+
+    class InMemoryBroker:
         pass
+
     _HAS_TASKIQ = False
 else:
     _HAS_TASKIQ = True
@@ -64,9 +67,11 @@ DEFAULT_RETRY_DELAYS = [1, 2, 4, 8, 16]  # seconds
 
 # ── Task Result Storage ───────────────────────────────────────────────────────
 
+
 @dataclass
 class TaskResult:
     """Represents the result of a task execution."""
+
     task_id: str
     task_name: str
     status: str
@@ -128,7 +133,7 @@ class TaskResultBackend:
             if result.completed_at:
                 if (now - result.completed_at).total_seconds() > result.ttl_seconds:
                     expired_ids.append(task_id)
-        
+
         for task_id in expired_ids:
             del self._results[task_id]
         logger.debug("Cleaned up %d expired task results", len(expired_ids))
@@ -146,6 +151,7 @@ class TaskResultBackend:
 
 
 # ── Periodic Task Descriptor ──────────────────────────────────────────────────
+
 
 class PeriodicTask:
     """Holds the schedule config for a periodic task registered via .every()."""
@@ -206,30 +212,85 @@ class PeriodicTask:
                     logger.error("Periodic task '%s' has no valid schedule.", self.func.__name__)
                     break
 
-                logger.debug("Executing periodic task: %s", self.func.__name__)
-                
-                # Execute via kiq to use the broker's execution logic (including DI)
-                if hasattr(self.func, "kiq"):
-                    await self.func.kiq()
-                else:
-                    # Fallback for non-taskiq decorated functions
-                    result = self.func()
-                    if asyncio.iscoroutine(result):
-                        await result
-                
-                self._execution_count += 1
-                self._last_error = None
+                # Distributed locking for periodic tasks
+                lock = None
+                lock_acquired = False
+                if self.broker._redis_lock_client:
+                    lock_key = f"eden:periodic_task_lock:{self.func.__name__}"
+                    try:
+                        lock = self.broker._redis_lock_client.lock(lock_key, timeout=300.0)
+                        # Try to acquire lock with timeout
+                        try:
+                            await asyncio.wait_for(lock.acquire(), timeout=10.0)
+                            lock_acquired = True
+                        except asyncio.TimeoutError:
+                            lock_acquired = False
+                            logger.warning(
+                                "Timeout acquiring lock for periodic task '%s'", self.func.__name__
+                            )
+                    except Exception as e:
+                        logger.error(
+                            "Error with lock for periodic task '%s': %s",
+                            self.func.__name__,
+                            e,
+                        )
+
+                if self.broker._redis_lock_client and not lock_acquired:
+                    logger.warning(
+                        "Could not acquire lock for periodic task '%s', skipping this run",
+                        self.func.__name__,
+                    )
+                    continue
+
+                try:
+                    logger.debug("Executing periodic task: %s", self.func.__name__)
+
+                    # Execute via kiq to use the broker's execution logic (including DI)
+                    if hasattr(self.func, "kiq"):
+                        await self.func.kiq()
+                    else:
+                        # Fallback for non-taskiq decorated functions
+                        result = self.func()
+                        if asyncio.iscoroutine(result):
+                            await result
+
+                    self._execution_count += 1
+                    self._last_error = None
+                except Exception as exc:
+                    self._last_error = exc
+                    logger.error(
+                        "Periodic task '%s' failed (run #%d): %s",
+                        self.func.__name__,
+                        self._execution_count + 1,
+                        exc,
+                        exc_info=True,
+                    )
+                finally:
+                    # Release the lock if we acquired it
+                    if lock and lock_acquired:
+                        try:
+                            # For redis.asyncio Lock, locked() is a method that returns bool
+                            if hasattr(lock, "locked") and callable(lock.locked):
+                                if lock.locked():
+                                    await lock.release()
+                        except Exception as e:
+                            logger.error(
+                                "Error releasing lock for periodic task '%s': %s",
+                                self.func.__name__,
+                                e,
+                            )
+
             except asyncio.CancelledError:
                 break
             except Exception as exc:
-                self._last_error = exc
+                # This catches any exception in the wait or lock acquisition that we didn't handle above?
                 logger.error(
-                    "Periodic task '%s' failed (run #%d): %s",
+                    "Unexpected error in periodic task '%s' loop: %s",
                     self.func.__name__,
-                    self._execution_count + 1,
                     exc,
                     exc_info=True,
                 )
+                # We don't break the loop on unexpected errors? We continue to the next iteration.
 
     def start(self) -> None:
         """Schedule the task loop in the current event loop."""
@@ -237,7 +298,9 @@ class PeriodicTask:
             return
 
         if self.cron and not croniter:
-            logger.error("croniter not installed. Cron task '%s' will not start.", self.func.__name__)
+            logger.error(
+                "croniter not installed. Cron task '%s' will not start.", self.func.__name__
+            )
             return
 
         self._task_handle = asyncio.create_task(self._run_loop())
@@ -249,6 +312,7 @@ class PeriodicTask:
 
 
 # ── EdenBroker ────────────────────────────────────────────────────────────────
+
 
 class EdenBroker:
     """Production-ready task broker wrapping Taskiq for background jobs."""
@@ -270,6 +334,19 @@ class EdenBroker:
         self.max_retries = max_retries
         self.retry_delays = retry_delays or DEFAULT_RETRY_DELAYS
 
+        # Extract redis_url from broker if available (set by create_broker)
+        self._redis_lock_client = None
+        redis_url = getattr(broker, "_redis_url", None)
+        if redis_url:
+            try:
+                import redis.asyncio as redis
+
+                self._redis_lock_client = redis.from_url(redis_url)
+            except ImportError:
+                logger.warning(
+                    "redis package not installed, distributed lock for periodic tasks will not be available"
+                )
+
     @property
     def periodic_tasks(self) -> list[PeriodicTask]:
         """Backwards compatibility for tests."""
@@ -285,11 +362,11 @@ class EdenBroker:
         return self.task(*args, **kwargs)
 
     def task(
-        self, 
-        *args: Any, 
+        self,
+        *args: Any,
         max_retries: int | None = None,
         retry_delays: list[int] | None = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> Any:
         # Support both @app.task and @app.task()
         if len(args) == 1 and callable(args[0]):
@@ -302,7 +379,7 @@ class EdenBroker:
             # Wrap the function to inject Eden dependencies and handle retries
             handler = self._wrap_task_function(func, retries, delays)
             # Register with the underlying taskiq broker
-            # Taskiq's task() decorator also supports both styles, but we 
+            # Taskiq's task() decorator also supports both styles, but we
             # pass kwargs here to be safe.
             return self.broker.task(*args, **kwargs)(handler)
 
@@ -322,7 +399,7 @@ class EdenBroker:
             # Ensure it's registered as a task first
             # We call self.task() to get the wrapped handler registered
             task_func = self.task()(func)
-            
+
             periodic = PeriodicTask(
                 task_func,
                 self,
@@ -337,28 +414,27 @@ class EdenBroker:
         return decorator
 
     def _wrap_task_function(
-        self, 
-        func: Callable[..., Any], 
-        max_retries: int, 
-        retry_delays: list[int]
+        self, func: Callable[..., Any], max_retries: int, retry_delays: list[int]
     ) -> Callable[..., Any]:
         """Wrap a task function to add DI and retry support."""
-        
+
         @functools.wraps(func)
         async def task_handler(*args: Any, **kwargs: Any) -> Any:
             from eden.dependencies import DependencyResolver
-            
+
             # Use DependencyResolver with current app instance
             async with DependencyResolver() as resolver:
                 # Merge explicitly passed kwargs with injected ones
                 try:
                     dep_kwargs = await resolver.resolve(func, app=self.app)
                 except Exception as e:
-                    logger.error("Failed to resolve dependencies for task '%s': %s", func.__name__, e)
+                    logger.error(
+                        "Failed to resolve dependencies for task '%s': %s", func.__name__, e
+                    )
                     raise TaskExecutionError(f"DI failure in task {func.__name__}") from e
 
                 final_kwargs = {**dep_kwargs, **kwargs}
-                
+
                 # Execution loop with retries
                 attempt = 0
                 while attempt <= max_retries:
@@ -370,8 +446,10 @@ class EdenBroker:
                     except Exception as e:
                         attempt += 1
                         if attempt > max_retries:
-                            logger.error("Task '%s' failed after %d retries.", func.__name__, max_retries)
-                            
+                            logger.error(
+                                "Task '%s' failed after %d retries.", func.__name__, max_retries
+                            )
+
                             # Record result as failure (simplified for now)
                             error_info = TaskResult(
                                 task_id=str(getattr(task_handler, "task_id", "unknown")),
@@ -380,15 +458,22 @@ class EdenBroker:
                                 error=str(e),
                                 error_traceback=traceback.format_exc(),
                                 retries=attempt - 1,
-                                completed_at=datetime.now()
+                                completed_at=datetime.now(),
                             )
                             await self._result_backend.store_result(error_info.task_id, error_info)
-                            raise MaxRetriesExceeded(f"Task {func.__name__} failed after {max_retries} retries") from e
-                        
+                            raise MaxRetriesExceeded(
+                                f"Task {func.__name__} failed after {max_retries} retries"
+                            ) from e
+
                         delay = retry_delays[min(attempt - 1, len(retry_delays) - 1)]
-                        logger.warning("Task '%s' failed (attempt %d). Retrying in %ds...", func.__name__, attempt, delay)
+                        logger.warning(
+                            "Task '%s' failed (attempt %d). Retrying in %ds...",
+                            func.__name__,
+                            attempt,
+                            delay,
+                        )
                         await asyncio.sleep(delay)
-            
+
         return task_handler
 
     async def defer(self, task: Any, *args: Any, **kwargs: Any) -> Any:
@@ -397,9 +482,7 @@ class EdenBroker:
             raise BrokerNotInitialized("Broker not started.")
         return await task.kiq(*args, **kwargs)
 
-    async def schedule(
-        self, task: Any, delay: int | float, *args: Any, **kwargs: Any
-    ) -> Any:
+    async def schedule(self, task: Any, delay: int | float, *args: Any, **kwargs: Any) -> Any:
         """Send a task to the queue with a delay."""
         if not self._startup_complete:
             raise BrokerNotInitialized("Broker not started.")
@@ -412,13 +495,13 @@ class EdenBroker:
         """Start the broker and all registered periodic tasks."""
         if self._running:
             return
-            
+
         logger.info("Starting Eden Task Broker...")
         await self.broker.startup()
-        
+
         for periodic in self._periodic:
             periodic.start()
-            
+
         self._running = True
         self._startup_complete = True
 
@@ -426,11 +509,11 @@ class EdenBroker:
         """Stop all periodic tasks and shut down the broker."""
         if not self._running:
             return
-            
+
         logger.info("Shutting down Eden Task Broker...")
         for periodic in self._periodic:
             periodic.stop()
-            
+
         await self.broker.shutdown()
         self._running = False
         self._startup_complete = False
@@ -438,12 +521,16 @@ class EdenBroker:
 
 # ── Factory ───────────────────────────────────────────────────────────────────
 
+
 def create_broker(redis_url: str | None = None) -> AsyncBroker:
     """Create a Taskiq broker based on configuration."""
     if redis_url:
         if RedisBroker is None:
             raise ImportError("taskiq-redis required for Redis support.")
-        return RedisBroker(redis_url)
+        broker = RedisBroker(redis_url)
+        # Attach redis_url for distributed lock detection
+        broker._redis_url = redis_url  # type: ignore[attr-defined]
+        return broker
     return InMemoryBroker()
 
 

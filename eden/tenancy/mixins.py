@@ -34,43 +34,28 @@ class TenantMixin:
     )
 
     @classmethod
-    def _base_select(cls, **kwargs):
-        """Override to auto-filter by the current tenant from context."""
-        from sqlalchemy import select
-
-        from eden.tenancy.context import get_current_tenant_id
-
-        stmt = select(cls)
-
-        # Apply soft-delete filter if SoftDeleteMixin is present
-        if hasattr(cls, "deleted_at") and not kwargs.get("include_deleted", False):
-            stmt = stmt.where(cls.deleted_at.is_(None))
-
-        # Apply tenant filter using the robust hook
-        stmt = cls._apply_tenant_filter(stmt)
-
-        return stmt
+    def _apply_default_filters(cls, target_cls: type, stmt: Any, **kwargs: Any) -> Any:
+        """Cooperative filter hook for tenant isolation."""
+        return cls._apply_tenant_filter(target_cls, stmt, **kwargs)
 
     @classmethod
-    def _apply_tenant_filter(cls, stmt):
+    def _apply_tenant_filter(cls, target_cls, stmt, **kwargs):
         """
-        Applies tenant isolation to the query.
-        This method is robust against MRO issues and ensures Fail-Secure behavior.
+        Applies tenant isolation to the query using Fail-Secure logic.
         """
+        from sqlalchemy import false
         from eden.tenancy.context import get_current_tenant_id
 
+        # Skip if explicitly requested (e.g. for cross-tenant admin tasks)
+        if kwargs.get("include_tenantless", False):
+            return stmt
+
         tenant_id = get_current_tenant_id()
-
         if tenant_id is None:
-            # FAIL-SECURE: If tenant context is missing, deny access explicitly.
-            # This prevents data leakage in background tasks or misconfigured middleware.
-            # To bypass for background tasks, use Project.all(session, include_tenantless=True)
-            # or query directly with a session that has no context.
-            from sqlalchemy import false
-
+            # FAIL-SECURE: Return empty result if no tenant in context
             return stmt.where(false())
 
-        return stmt.where(getattr(cls, "tenant_id") == tenant_id)
+        return stmt.where(getattr(target_cls, "tenant_id") == tenant_id)
 
     async def before_create(self, session):
         """Auto-set tenant_id from context if not already set."""

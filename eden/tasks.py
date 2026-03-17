@@ -16,13 +16,13 @@ Usage::
 
     # One-shot background task
     @app.task()
-    async def send_email(to: str, subject: str):
+    async def send_email(to: str, subject: str) -> None:
         '''Send an email (retries up to 5 times on failure).'''
         pass
 
     # Periodic task — every 5 minutes
     @app.task.every(minutes=5)
-    async def refresh_cache():
+    async def refresh_cache() -> None:
         '''Refresh cache every 5 minutes during uptime.'''
         pass
 
@@ -42,7 +42,7 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass, asdict
 from datetime import datetime, timedelta
-from typing import Any, TypeVar
+from typing import Any, TypeVar, TYPE_CHECKING
 
 try:
     from taskiq import AsyncBroker, InMemoryBroker

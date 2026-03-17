@@ -48,12 +48,12 @@ Use Eden's high-fidelity decorators to restrict access to specific views based o
 **File**: `app/routes/admin.py`
 
 ```python
-from eden.auth import roles_required, login_required
+from eden.auth import login_required, can_read, can_write
 
 @admin_router.get("/metrics")
-@roles_required(["admin", "superadmin"])
+@can_read("system_stats")  # Checks if user has 'read' permission for resource
 async def dashboard_metrics():
-    """Only admins can see system analytics."""
+    """Only admins with specific permissions can see system analytics."""
     return {"active_users": 450, "revenue": 12000}
 
 @admin_router.get("/profile")
@@ -70,12 +70,12 @@ async def user_profile(request):
 Sometimes you need to check permissions inside your function logic rather than with a decorator.
 
 ```python
-from eden.exceptions import Forbidden
+from eden.auth import check_permission
 
 @user_router.delete("/{user_id}")
 async def remove_user(request, user_id: int):
-    # Check if the current user owns the resource or is an admin
-    if not request.user.is_admin and request.user.id != user_id:
+    # Programmatic check using the auth engine
+    if not await check_permission(request.user, "delete", "user", resource_id=user_id):
         raise Forbidden("You do not have permission to delete this user.")
         
     user = await User.get(id=user_id)

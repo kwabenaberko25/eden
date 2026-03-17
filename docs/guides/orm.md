@@ -14,23 +14,23 @@ The Eden ORM lives by three pillars:
 
 ## Defining Models
 
-Models are Python classes that inherit from `Model`. They use the `f()` helper for a "Zen" definition experience with automatic type inference.
+Model properties like `is_in_stock` are automatically handled during serialization.
+
+### The Zen of Fields: `f()`
+
+The `f()` helper is more than just a `mapped_column` alias; it's a metadata engine that flows through your entire app.
 
 ```python
-from eden import Model, f, Mapped
-
-class Product(Model):
-    __tablename__ = "products"
-    
-    name: Mapped[str] = f(max_length=100, index=True)
-    description: Mapped[str] = f(nullable=True)
-    price: Mapped[float] = f(default=0.0)
-    stock: Mapped[int] = f(default=0)
-    
-    @property
-    def is_in_stock(self) -> bool:
-        return self.stock > 0
+name: Mapped[str] = f(
+    max_length=100, 
+    index=True, 
+    label="Product Name", 
+    placeholder="Enter name..."
+)
 ```
+- **DB Layer**: Sets length, index, and nullability.
+- **UI Layer**: Sets labels, placeholders, and widget types for auto-forms.
+- **Validation**: Enforces `max_length` in derived schemas.
 
 ---
 
@@ -43,10 +43,9 @@ from eden.db import Sum, Count, Q
 from datetime import datetime, timedelta
 
 async def get_sales_dashboard():
-    # 1. Define time window
     month_ago = datetime.now() - timedelta(days=30)
     
-    # 2. Complex query with aggregates
+    # Complex query with aggregates returning a typed dictionary
     stats = await Order.filter(
         Q(created_at__gte=month_ago) & ~Q(status="cancelled")
     ).aggregate(
@@ -55,6 +54,7 @@ async def get_sales_dashboard():
         avg_value=Sum("total_price") / Count("id")
     )
     
+    # Returns: {'revenue': 12500.50, 'order_count': 42, 'avg_value': 297.63}
     return stats
 ```
 
@@ -64,15 +64,17 @@ async def get_sales_dashboard():
 
 Eden bridges the gap between your **Validation Layer** (Schemas/Forms) and your **Data Layer** (Models).
 
-### Smart Conversion
-
-You can easily convert models to Pydantic schemas or HTMX forms.
+You can bridge your **SQLAlchemy Models** and **Pydantic Schemas** with zero boilerplate.
 
 ```python
-# Generate a schema on the fly
+# 1. Export as Dictionary (with relationship control)
+data = product.to_dict(include=["name", "category"], exclude=["internal_notes"])
+
+# 2. Generate an Interactive Pydantic Schema
+# This inherits all labels/validators from the f() fields
 PublicProduct = Product.to_schema(exclude=["stock_threshold"])
 
-# Create model from validated input
+# 3. Create model instance from validated Input (Pydantic/Form)
 new_product = await Product.create_from(validated_data)
 ```
 

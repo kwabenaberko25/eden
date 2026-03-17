@@ -8,10 +8,11 @@ from sqlalchemy import JSON, Integer
 from sqlalchemy.orm import mapped_column, Mapped, declared_attr
 
 from eden.auth.hashers import check_password, hash_password
+from eden.auth.complete import BaseUser as AuthBaseUser
 from eden.db import Model, f, Relationship, Reference
 
 
-class BaseUser:
+class BaseUser(AuthBaseUser):
     """
     Mixin for User models.
     Provides common fields and methods for authentication.
@@ -45,6 +46,22 @@ class BaseUser:
         """Verify a password against the stored hash."""
         return check_password(password, self.password_hash)
 
+    async def get_roles(self) -> list[str]:
+        """Get all roles assigned to this user."""
+        return self.roles or []
+
+    async def has_permission(self, permission: str) -> bool:
+        """Check if user has a specific permission."""
+        if getattr(self, "is_superuser", False):
+            return True
+        return permission in (self.permissions or [])
+
+    async def has_role(self, role: str) -> bool:
+        """Check if user belongs to a specific role."""
+        if getattr(self, "is_superuser", False):
+            return True
+        return role in (self.roles or [])
+
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__}(email='{self.email}')>"
 
@@ -57,7 +74,6 @@ class User(Model, BaseUser, CustomerMixin):
     """
     __allow_unmapped__ = True
     __tablename__ = "eden_users"
-    id: Mapped[int] = f(primary_key=True)
 
 class SocialAccount(Model):
     """
@@ -66,14 +82,13 @@ class SocialAccount(Model):
     """
     __tablename__ = "eden_social_accounts"
 
-    id: Mapped[int] = f(primary_key=True)
     provider: Mapped[str] = f(max_length=50)  # e.g., "google", "github"
     provider_user_id: Mapped[str] = f(max_length=255, index=True) # ID from the provider
     provider_metadata: Mapped[dict] = f(json=True, nullable=True)
 
 
     # Relationships (One-liner)
-    user: Mapped["User"] = Reference(back_populates="social_accounts", fk_type=Integer, overlaps="social_accounts")
+    user: Mapped["User"] = Reference(back_populates="social_accounts", overlaps="social_accounts")
 
     def __repr__(self) -> str:
         return f"<SocialAccount(provider='{self.provider}', user_id={self.user_id})>"

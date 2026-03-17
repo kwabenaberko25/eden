@@ -44,7 +44,7 @@ class APIKey(Model):
     key_hash: str = f(unique=True, index=True)
 
     # Owner
-    user_id: int = f(foreign_key="eden_users.id")
+    user_id: uuid.UUID = f(foreign_key="eden_users.id")
 
     # Optional permission scopes (e.g., ["read", "write", "admin"])
     scopes: list[str] = mapped_column(JSON, default=list)
@@ -156,7 +156,7 @@ class APIKey(Model):
         return api_key
 
     @classmethod
-    async def list_for_user(cls, session, user_id: str) -> list["APIKey"]:
+    async def list_for_user(cls, session, user_id: uuid.UUID) -> list["APIKey"]:
         """List all active API keys for a user."""
         from sqlalchemy import select
 

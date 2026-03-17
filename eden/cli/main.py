@@ -35,7 +35,7 @@ def cli() -> None:
 @click.option("--no-browser-reload", is_flag=True, help="Disable browser auto-reload.")
 @click.option("--workers", default=1, type=int, help="Number of workers.")
 @click.option("--app", "--app-path", "app_path", default=None, help="App import path (module:variable).")
-def run(host: str, port: int, reload: bool, no_browser_reload: bool, workers: int, app_path: str | None) -> None:
+def run(host: str, port: int, reload: bool, no_browser_reload: bool, workers: int, app_path: str | None = None) -> None:
     """Start the Eden development server."""
     import json
     import subprocess
@@ -115,11 +115,29 @@ def run(host: str, port: int, reload: bool, no_browser_reload: bool, workers: in
         cmd.extend(["--reload-include", "*.j2"])
         cmd.extend(["--reload-include", "*.css"])
         cmd.extend(["--reload-include", "*.js"])
-        # Exclude noisy files that cause reload loops (like the DB or venv)
-        cmd.extend(["--reload-exclude", "*.sqlite3"])
+        cmd.extend(["--reload-include", "*.env"])
+        cmd.extend(["--reload-include", "*.yaml"])
+        cmd.extend(["--reload-include", "*.yml"])
+        cmd.extend(["--reload-include", "*.json"])
+        cmd.extend(["--reload-include", "*.ini"])
+        # Exclude noisy files that cause reload loops
+        cmd.extend(["--reload-exclude", "eden.json"])
+        cmd.extend(["--reload-exclude", "*.sqlite*"])
+        cmd.extend(["--reload-exclude", "*.db"])
+        cmd.extend(["--reload-exclude", "*.log"])
+        cmd.extend(["--reload-exclude", "*.tmp"])
+        cmd.extend(["--reload-exclude", "*.bak"])
         cmd.extend(["--reload-exclude", ".venv"])
         cmd.extend(["--reload-exclude", ".git"])
+        cmd.extend(["--reload-exclude", ".pytest_cache"])
+        cmd.extend(["--reload-exclude", ".ruff_cache"])
+        cmd.extend(["--reload-exclude", ".mypy_cache"])
+        cmd.extend(["--reload-exclude", ".idea"])
+        cmd.extend(["--reload-exclude", ".vscode"])
         cmd.extend(["--reload-exclude", "__pycache__"])
+        cmd.extend(["--reload-exclude", "node_modules"])
+        cmd.extend(["--reload-exclude", "site-packages"])
+        cmd.extend(["--reload-exclude", "logs"])
 
     if workers > 1:
         cmd.extend(["--workers", str(workers)])

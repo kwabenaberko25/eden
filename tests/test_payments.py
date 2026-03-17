@@ -94,11 +94,12 @@ class TestWebhookRouter:
 class TestCustomerMixin:
     """Tests for the CustomerMixin methods."""
 
-    def test_is_subscribed_default(self):
+    @pytest.mark.asyncio
+    async def test_is_subscribed_default(self):
         """Default is_subscribed should return False."""
 
         class MockUser(CustomerMixin):
             id = "user-123"
 
         user = MockUser()
-        assert user.is_subscribed is False
+        assert await user.is_subscribed() is False

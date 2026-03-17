@@ -38,6 +38,7 @@ nav:
     - Quick Start: getting-started/quickstart.md
     - Example Snippets: getting-started/example-snippets.md
     - Killer Features: guides/killer-features.md
+    - Development Cycle: guides/development-cycle.md
     - Project Structure: getting-started/structure.md
     - Learning Path: getting-started/learning-path.md
   - II. Core Application Framework:

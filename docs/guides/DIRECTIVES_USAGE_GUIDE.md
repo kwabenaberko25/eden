@@ -10,10 +10,11 @@ A practical, real-world guide to every Eden templating directive with examples.
 | :--- | :--- |
 | **Control Flow** | `@if`, `@unless`, `@switch`/`@case`, `@for`/`@foreach`, `@empty` |
 | **Authentication** | `@auth`, `@guest` |
+| **Authorization** | `@can`, `@cannot` |
 | **HTMX** | `@htmx`, `@non_htmx`, `@fragment` |
-| **Templating** | `@extends`, `@include`, `@section`/`@block`, `@yield`, `@push`, `@stack` |
-| **Forms** | `@csrf`, `@checked`, `@selected`, `@disabled`, `@readonly`, `@old` |
-| **Routing** | `@url`, `@active_link` |
+| **Templating** | `@extends`, `@include`, `@includeWhen`, `@includeUnless`, `@section`/`@block`, `@yield`, `@push`, `@stack` |
+| **Forms** | `@csrf`, `@csrf_token`, `@checked`, `@selected`, `@disabled`, `@readonly`, `@old` |
+| **Routing** | `@url`, `@route`, `@active_link` |
 | **Assets** | `@css`, `@js`, `@vite` |
 | **Data** | `@let`, `@json`, `@dump`, `@span` |
 | **Components** | `@component`, `@slot` |
@@ -91,7 +92,8 @@ A practical, real-world guide to every Eden templating directive with examples.
 }
 ```
 
-**Available $loop Properties:**
+#### Available $loop Properties
+
 - `$loop.index` - Current iteration (1-based)
 - `$loop.index0` - Current iteration (0-based)
 - `$loop.first` - Is this first iteration?
@@ -231,6 +233,38 @@ A practical, real-world guide to every Eden templating directive with examples.
 
 ---
 
+## Authorization Directives
+
+### @can / @cannot - Permission-Based Rendering
+
+Check `request.user.has_permission()` to conditionally show or hide content based on fine-grained permissions.
+
+```html
+<!-- Show only if user has permission -->
+@can("delete_posts") {
+    <button class="btn-danger">Delete Post</button>
+}
+
+<!-- Show only if user does NOT have permission -->
+@cannot("view_admin") {
+    <div class="alert alert-warning">
+        You do not have access to the admin panel.
+    </div>
+}
+
+<!-- Combine with @auth for role-based + permission-based UI -->
+@auth("admin") {
+    @can("manage_users") {
+        <a href="@url('admin:users')" class="nav-link">User Management</a>
+    }
+}
+```
+
+> [!TIP]
+> Use `@auth` for role-based checks and `@can`/`@cannot` for fine-grained permission checks. They can be nested for compound authorization logic.
+
+---
+
 ## HTMX Integration
 
 ### @htmx - HTMX Request Only
@@ -337,7 +371,8 @@ A practical, real-world guide to every Eden templating directive with examples.
 </a>
 ```
 
-**Wildcard Matching Examples:**
+#### Wildcard Matching Examples
+
 ```html
 <!-- Current URL: /admin/users/list -->
 
@@ -366,9 +401,30 @@ A practical, real-world guide to every Eden templating directive with examples.
     <input type="text" name="title">
     <button type="submit">Create</button>
 </form>
+```
 
 <!-- Renders as: -->
-<!-- <input type="hidden" name="csrf_token" value="..."> -->
+
+```html
+<!-- <input type="hidden" name="_token" value="..."> -->
+```
+
+### @csrf_token - Raw CSRF Token
+
+Outputs the raw CSRF token string — useful for JavaScript `fetch()` calls or AJAX headers.
+
+```html
+<!-- In a <meta> tag for JS access -->
+<meta name="csrf-token" content="@csrf_token">
+
+<!-- In JavaScript -->
+<script>
+    const token = document.querySelector('meta[name="csrf-token"]').content;
+    fetch('/api/data', {
+        method: 'POST',
+        headers: { 'X-CSRF-Token': token }
+    });
+</script>
 ```
 
 ### @checked - Conditional Checked
@@ -511,6 +567,30 @@ Subscribe to newsletter
 @for (post in posts) {
     @include("components/post-card", post=post)
 }
+```
+
+### @includeWhen - Conditional Include
+
+Include a partial template only when a condition is true.
+
+```html
+<!-- Only include sidebar if user has permission -->
+@includeWhen(user.is_premium, "partials/premium-badge")
+
+<!-- Include admin tools only for admins -->
+@includeWhen(request.user.is_superuser, "partials/admin-toolbar")
+```
+
+### @includeUnless - Inverted Conditional Include
+
+Include a partial template only when a condition is false.
+
+```html
+<!-- Include maintenance banner unless system is healthy -->
+@includeUnless(system.is_healthy, "partials/maintenance-banner")
+
+<!-- Show onboarding unless user has completed setup -->
+@includeUnless(user.onboarding_complete, "partials/onboarding-wizard")
 ```
 
 ---
@@ -946,18 +1026,15 @@ Eden templates are designed to work seamlessly with our core design system token
 
 ---
 
-## Unimplemented & Experimental
+### Unimplemented & Experimental
 
 > [!WARNING]
 > The following directives are present in Eden's roadmap but are **not yet implemented** in the current engine. Using them will currently result in a parsing error or no output.
 
 | Directive | Description | Planned Use Case |
 | :--- | :--- | :--- |
-| **@can** | Permission check | `@can('edit-post', post) { ... }` |
-| **@cannot** | Inverse permission | `@cannot('delete-user') { ... }` |
-| **@inject**| Service injection | `@inject('metrics', 'App\Services\Metrics')` |
+| **@inject** | Service injection | `@inject('metrics', 'App\Services\Metrics')` |
 | **@php** | Raw PHP block | (Legacy support, use `@let` for logic) |
-| **@stack** | Stack rendering | (Use standard blocks for now) |
 
 ---
 
@@ -966,16 +1043,19 @@ Eden templates are designed to work seamlessly with our core design system token
 > [!NOTE]
 > Most template issues stem from incorrect indentation or unclosed brace blocks.
 
-**Issue: `@active_link` not highlighting**
+### Issue: `@active_link` not highlighting
+
 - [ ] Check route name matches exactly in the controller.
 - [ ] Verify the route is registered with a `name` parameter in `routes.py`.
 - [ ] Ensure the Request object is passed correctly (happens automatically with `render`).
 
-**Issue: `@checked` or `@selected` not appearing**
+### Issue: `@checked` or `@selected` not appearing
+
 - [ ] Ensure the expression inside parentheses returns a strictly `True` or `False` value.
 - [ ] Check if another directive is conflicting with the attribute output.
 
-**Issue: `$loop` variable is undefined**
+### Issue: `$loop` variable is undefined
+
 - [ ] Verify you are referencing `$loop` strictly inside a `@for` or `@foreach` block.
 - [ ] Check for typos (it must be `$loop`, not `loop`).
 
@@ -984,4 +1064,4 @@ Eden templates are designed to work seamlessly with our core design system token
 > [!TIP]
 > Use `@dump(variable)` to inspect data shapes directly in your browser during development.
 
-**Happy templating with Eden! 🚀**
+### Happy templating with Eden! 🚀

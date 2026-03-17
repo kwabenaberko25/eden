@@ -25,6 +25,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import mapped_column
 from sqlalchemy.orm import relationship as sa_relationship
 
+
 _UNSET = object()
 
 
@@ -52,6 +53,7 @@ def _process_field_args(
     kwargs.pop("required", None)
     
     res = {**kwargs}
+
     if resolved_nullable is not _UNSET:
         res["nullable"] = resolved_nullable
         
@@ -273,7 +275,8 @@ def DateTimeField(
     kw, fk = _process_field_args(nullable, required, kwargs, default_nullable=False)
 
     # Helper to get current UTC time
-    utc_now = lambda: datetime.now(timezone.utc)
+    # We use naive UTC for standard DateTime columns to avoid asyncpg mismatch
+    utc_now = lambda: datetime.now(timezone.utc).replace(tzinfo=None)
 
     if auto_now_add:
         kw["server_default"] = func.now()
@@ -388,6 +391,8 @@ def Relationship(
     if back_populates is not None:
         kw["back_populates"] = back_populates
     
+    from .lookups import EdenRelationshipComparator
+    kw.setdefault("comparator_factory", EdenRelationshipComparator)
     return sa_relationship(target_model, **kw)
 
 
@@ -579,7 +584,11 @@ def f(
         final_type = String(max_length)
     
     if json:
-        final_type = JSON
+        from sqlalchemy.ext.mutable import MutableDict, MutableList
+        if default is not None and isinstance(default, list):
+            final_type = MutableList.as_mutable(JSON)
+        else:
+            final_type = MutableDict.as_mutable(JSON)
 
     args = []
     if final_type is not None:

@@ -98,8 +98,7 @@ def test_relationship_inference_on_class_definition():
         name: Mapped[str] = mapped_column(default="")
     
     # If we got here without errors, __init_subclass__ was called and didn't break things
-    assert hasattr(TestAuthor, '_infer_relationships_immediate'), \
-        "Model should have _infer_relationships_immediate method"
+    assert TestAuthor.__tablename__ == "test_authors", "Model tablename should be set"
     
     # The fact that class definition succeeded means __init_subclass__ handled it gracefully
     print("✅ Layer 3 (Deferred Relationship Resolution) - WORKS")

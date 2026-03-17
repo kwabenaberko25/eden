@@ -338,55 +338,12 @@ async def my_tasks(request: Request):
 
 ## What's Next?
 
-1. **Run this code**: `python app.py`
-2. **Test the API**: Use curl or Postman
-3. **Explore examples**: Check [Learning Path](learning-path.md)
-4. **Read full guides**: See [Routing](../guides/routing.md) and [ORM](../guides/orm.md)
-5. **Follow tutorials**: Step through [Task 1](../tutorial/task1_setup.md)
-
-**Congratulations! You've built a fully functional task management app. 🎉**
-
-```python
-@app.get("/hello/{name}")
-async def hello(request, name: str):
-    return request.render("hello.html", {"name": name})
-
----
-
-## 5. Your First Model
-
-Eden makes data management effortless. Let's add a `Task` model to our `app.py`.
-
-```python
-from sqlalchemy.orm import Mapped
-from eden.db import EdenModel, StringField, BoolField
-
-class Task(EdenModel):
-    title: Mapped[str] = StringField(max_length=200)
-    completed: Mapped[bool] = BoolField(default=False)
-
-# Add a route to create and list tasks
-@app.route("/tasks", methods=["GET", "POST"])
-async def tasks(request):
-    if request.method == "POST":
-        form_data = await request.form()
-        await Task.create(title=form_data["title"])
-    
-    all_tasks = await Task.all()
-    return request.render("tasks.html", {"tasks": all_tasks})
-```
-
----
-
-## What's Next?
-
 You've just built a secure, async-powered application with a custom template and database model.
 
+- Master the **[Development Cycle](../guides/development-cycle.md)** to see the big picture.
 - Explore the **[Project Structure](structure.md)** to see how to scale this app.
 - Dive into the **[ORM Guide](../guides/orm.md)** to master data relationships.
 - Learn about **[Authentication](../guides/auth.md)** to protect your routes.
-
-```markdown
 
 ---
 

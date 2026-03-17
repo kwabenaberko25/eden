@@ -23,7 +23,6 @@ class AuditLog(Model):
 
     @classmethod
     async def log(cls, user_id: str | None, action: str, model: Any, record_id: str, changes: dict | None = None):
-        print(f"DEBUG: AuditLog.log() called for {model.__name__ if hasattr(model, '__name__') else str(model)} {record_id}")
         await cls.create(
             user_id=user_id,
             action=action,
@@ -31,4 +30,3 @@ class AuditLog(Model):
             record_id=str(record_id),
             changes=changes
         )
-        print(f"DEBUG: AuditLog.log() finished for {model.__name__ if hasattr(model, '__name__') else str(model)} {record_id}")

@@ -10,16 +10,16 @@ from datetime import UTC
 import contextlib
 import asyncio
 import random
-from typing import TYPE_CHECKING, Any, Generic, TypeVar, List, Dict, Optional
+from typing import TYPE_CHECKING, Any, Generic, TypeVar, List, Dict, Optional, Callable, Iterable, AsyncGenerator, AsyncIterator
 
-from sqlalchemy import delete, select, update, func
-from sqlalchemy.orm import selectinload
+from sqlalchemy import delete, select, update, func, select as sa_select
+from sqlalchemy.orm import selectinload, joinedload
 
-from eden.db.base import _MISSING
+from .utils import _MISSING
 from eden.db.pagination import Page
 
 if TYPE_CHECKING:
-    from sqlalchemy.ext.asyncio import AsyncSession
+    pass
 
 T = TypeVar("T", bound=Any)
 
@@ -45,8 +45,10 @@ class QuerySet(Generic[T]):
         # Start with the model's base select (respects SoftDeleteMixin if present)
         self._stmt = model_cls._base_select()
         self._prefetch_paths: list[str] = []
+        self._select_related_paths: list[str] = []
         self._joined_models: set[type[Any]] = set()
         self._return_dicts: bool = False
+        self._return_flat: bool = False
         self._annotations: dict[str, Any] = {}
         self._rbac_applied: bool = session is not _MISSING and session is not None # If session passed, assume context handled RBAC or it's internal
         self._cache_ttl: int | None = None
@@ -60,7 +62,7 @@ class QuerySet(Generic[T]):
         """Checks if a session is currently available without triggering acquisition."""
         return self._session is not None
 
-    async def _resolve_session(self) -> AsyncSession:
+    async def _resolve_session(self) -> "AsyncSession":
         """
         Resolve the session for query execution with fallback chain:
         1. Explicitly passed session to QuerySet
@@ -107,8 +109,10 @@ class QuerySet(Generic[T]):
         clone = QuerySet(self._model_cls, self._session)
         clone._stmt = self._stmt
         clone._prefetch_paths = self._prefetch_paths.copy()
+        clone._select_related_paths = self._select_related_paths.copy()
         clone._joined_models = self._joined_models.copy()
         clone._return_dicts = self._return_dicts
+        clone._return_flat = self._return_flat
         clone._annotations = self._annotations.copy()
         clone._rbac_applied = self._rbac_applied
         clone._cache_ttl = self._cache_ttl
@@ -126,27 +130,39 @@ class QuerySet(Generic[T]):
 
     def filter(self, *args: Any, **kwargs: Any) -> QuerySet[T]:
         """Add filter conditions and return a new QuerySet with automatic joining."""
-        from eden.db.lookups import Q, parse_lookups, extract_involved_models, find_relationship_path
+        from eden.db.lookups import Q, parse_lookups, extract_involved_models, find_relationship_path, LookupProxy
         from sqlalchemy.sql import ColumnElement
 
         clone = self._clone()
         expressions = []
         involved_models = set()
 
-        # Collect models from positional args (expressions or Q objects)
-        for q in args:
-            if isinstance(q, Q):
-                expr = q.resolve(self._model_cls)
+        # Handle positional arguments (Q objects, lambdas, Proxy lookups)
+        for q_arg in args:
+            if isinstance(q_arg, Q):
+                expr = q_arg.resolve(self._model_cls)
                 expressions.append(expr)
                 involved_models.update(extract_involved_models(expr))
-            elif isinstance(q, ColumnElement):
-                expressions.append(q)
-                involved_models.update(extract_involved_models(q))
+            elif isinstance(q_arg, LookupProxy):
+                expr = q_arg.resolve(self._model_cls)
+                expressions.append(expr)
+                involved_models.update(extract_involved_models(expr))
+            elif callable(q_arg) and not isinstance(q_arg, type):
+                # Lambda support: .filter(lambda u: u.name == '...')
+                # We pass a proxy or the model class?
+                # Best is to pass the 'q' proxy but bound to this model's attributes conceptually,
+                # or just pass the model class if developers use User.name.
+                # If they use lambda u: u.name, 'u' will be the model class.
+                expr = q_arg(self._model_cls)
+                expressions.append(expr)
+                involved_models.update(extract_involved_models(expr))
+            elif isinstance(q_arg, ColumnElement):
+                expressions.append(q_arg)
+                involved_models.update(extract_involved_models(q_arg))
             else:
-                # Allow bools (True/False)
-                expressions.append(q)
+                expressions.append(q_arg)
 
-        # Collect models from keyword lookups
+        # Handle keyword lookups (Legacy system)
         if kwargs:
             kw_exprs = parse_lookups(self._model_cls, **kwargs)
             expressions.extend(kw_exprs)
@@ -158,14 +174,10 @@ class QuerySet(Generic[T]):
             if target_model != self._model_cls and target_model not in clone._joined_models:
                 path = find_relationship_path(self._model_cls, target_model)
                 if path:
-                    # Apply joins for each segment of the path
                     current_stmt = clone._stmt
                     current_model = self._model_cls
                     for segment in path:
                         rel_attr = getattr(current_model, segment)
-                        # Only join if this specific link isn't already tracked or part of a previous join
-                        # For simplicity, we track the final target_model, but in deep paths 
-                        # we should technically track each step.
                         current_stmt = current_stmt.join(rel_attr)
                         current_model = rel_attr.property.mapper.class_
                     
@@ -189,9 +201,15 @@ class QuerySet(Generic[T]):
         return clone
 
     def prefetch(self, *rels: str) -> QuerySet[T]:
-        """Specify relationships to eager load."""
+        """Specify relationships to eager load (via separate SELECT)."""
         clone = self._clone()
         clone._prefetch_paths.extend(rels)
+        return clone
+
+    def select_related(self, *rels: str) -> QuerySet[T]:
+        """Specify relationships to eager load (via SQL JOIN)."""
+        clone = self._clone()
+        clone._select_related_paths.extend(rels)
         return clone
 
     def order_by(self, *fields: str) -> QuerySet[T]:
@@ -254,7 +272,16 @@ class QuerySet(Generic[T]):
     def values(self, *fields: str) -> "QuerySet[T]":
         """
         Return dictionaries containing only the specified fields.
+        Note: Eager loading (prefetch/select_related) is not supported when using .values().
         """
+        if self._prefetch_paths or self._select_related_paths:
+            import logging
+            logger = logging.getLogger("eden.db.query")
+            logger.warning(
+                f"QuerySet.values() called on {self._model_cls.__name__} after .prefetch() or .select_related(). "
+                "SQLAlchemy does not support eager loading on scalar queries; related objects will not be included."
+            )
+
         clone = self._clone()
         cols = []
         for field in fields:
@@ -271,6 +298,16 @@ class QuerySet(Generic[T]):
         # with_only_columns ensures only these columns are selected
         clone._stmt = clone._stmt.with_only_columns(*cols)
         clone._return_dicts = True
+        return clone
+
+    def values_list(self, *fields: str, flat: bool = False) -> QuerySet[Any]:
+        """
+        Similar to values(), but returns rows as tuples (or flat values if flat=True).
+        """
+        clone = self.values(*fields)
+        # return_flat is handled in __aiter__ / all
+        clone._return_flat = flat
+        clone._return_dicts = False
         return clone
 
     def limit(self, n: int) -> QuerySet[T]:
@@ -297,7 +334,7 @@ class QuerySet(Generic[T]):
         return clone
 
     @contextlib.asynccontextmanager
-    async def _provide_session(self):
+    async def _provide_session(self) -> "AsyncGenerator[AsyncSession, None]":
         """
         Asynchronous context manager to resolve and provide a database session.
         Ensures that auto-acquired sessions are properly closed.
@@ -546,6 +583,28 @@ class QuerySet(Generic[T]):
                 stmt = stmt.options(loader)
         return stmt
 
+    def _apply_select_related(self, stmt):
+        if not self._select_related_paths:
+            return stmt
+
+        for rel_path in self._select_related_paths:
+            parts = rel_path.split(".")
+            current_model = self._model_cls
+            loader = None
+            
+            for part in parts:
+                attr = getattr(current_model, part)
+                if loader is None:
+                    loader = joinedload(attr)
+                else:
+                    loader = loader.joinedload(attr)
+                
+                current_model = attr.property.mapper.class_
+            
+            if loader:
+                stmt = stmt.options(loader)
+        return stmt
+
     def _get_cache_key(self) -> str:
         """Generate a unique cache key for the current statement."""
         import hashlib
@@ -555,7 +614,7 @@ class QuerySet(Generic[T]):
         key_raw = f"{self._model_cls.__name__}:{stmt_str}:{self._prefetch_paths}:{self._return_dicts}"
         return f"qs:{hashlib.md5(key_raw.encode()).hexdigest()}"
 
-    async def _execute(self, stmt: Any, session: AsyncSession) -> Any:
+    async def _execute(self, stmt: Any, session: "AsyncSession") -> Any:
         """
         Executes a statement with exponential backoff retries for reliability.
         """
@@ -567,13 +626,18 @@ class QuerySet(Generic[T]):
                 return await session.execute(stmt)
             except Exception as e:
                 # Only retry on potentially transient errors (connection, lock timeout)
-                # For simplicity, we'll retry on most errors but log internally
                 if attempt == max_retries:
                     raise e
                 
                 # Exponential backoff: base * 2^attempt + jitter
                 delay = (base_delay * (2 ** attempt)) + (random.random() * 0.1)
                 await asyncio.sleep(delay)
+
+    async def __aiter__(self) -> "AsyncIterator[T]":
+        """Allows async iteration over the QuerySet results."""
+        results = await self.all()
+        for res in results:
+            yield res
 
     async def all(self) -> list[T]:
         """Execute query and return all results. Checks cache if enabled."""
@@ -592,6 +656,7 @@ class QuerySet(Generic[T]):
 
         async with qs._provide_session() as session:
             stmt = qs._apply_prefetch(qs._stmt)
+            stmt = qs._apply_select_related(stmt)
             result = await self._execute(stmt, session)
             result = result.unique()
             
@@ -606,6 +671,8 @@ class QuerySet(Generic[T]):
                             records.append(obj)
                     else:
                         records.append(dict(row._mapping))
+            elif getattr(self, "_return_flat", False):
+                records = [row[0] for row in result]
             else:
                  records = list(result.scalars().all())
             
@@ -620,6 +687,7 @@ class QuerySet(Generic[T]):
         qs = self._apply_rbac("read")
         async with qs._provide_session() as session:
             stmt = qs._apply_prefetch(qs._stmt)
+            stmt = qs._apply_select_related(stmt)
             result = await self._execute(stmt, session)
             result = result.unique()
             

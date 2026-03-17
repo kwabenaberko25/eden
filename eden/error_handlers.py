@@ -122,6 +122,7 @@ class DatabaseErrorHandler(ErrorHandler):
                 "context": context,
                 "path": request.url.path,
                 "method": request.method,
+                "request_id": getattr(request, "scope", {}).get("eden_request_id", ""),
             }
         )
         
@@ -254,8 +255,7 @@ class StorageErrorHandler(ErrorHandler):
                 "exc_info": exc,
                 "context": context,
                 "path": request.url.path,
-                "method": request.method,
-            }
+                "method": request.method,                "request_id": getattr(request, "scope", {}).get("eden_request_id", ""),            }
         )
         
         # Return response

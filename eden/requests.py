@@ -19,6 +19,21 @@ class Request(StarletteRequest):
     Wraps Starlette's Request to provide a cleaner API for common
     operations like reading JSON, form data, and uploaded files.
     """
+    def __init__(self, scope: Any, receive: Any = None, send: Any = None) -> None:
+        super().__init__(scope, receive, send)
+        # Store in scope to allow reuse across middleware
+        if "eden_request" not in scope:
+            scope["eden_request"] = self
+
+    @classmethod
+    def from_scope(cls, scope: Any, receive: Any = None, send: Any = None) -> Request:
+        """
+        Get existing Eden Request from scope or create new one.
+        Prevents duplicate body reading issues in middleware.
+        """
+        if "eden_request" in scope:
+            return scope["eden_request"]
+        return cls(scope, receive, send)
     @property
     def user(self) -> Any:
         """
@@ -48,6 +63,20 @@ class Request(StarletteRequest):
             return request.render("index.html", user=user)
         """
         return self.app.eden.render(template_name, context, **kwargs)
+
+    def url_for(self, name: str, **path_params: Any) -> Any:
+        """
+        Generate a URL for a given route name.
+        Returns an absolute URL when possible.
+        """
+        try:
+            # Try Starlette's native url_for first (handles absolute URLs)
+            return super().url_for(name, **path_params)
+        except Exception:
+            # Fallback to Eden's reverse router for custom logical names/namespaces
+            path = self.app.eden._router.url_for(name, **path_params)
+            # Reconstruct absolute URL
+            return str(self.base_url).rstrip("/") + path
 
     async def json_body(self) -> Any:
         """

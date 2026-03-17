@@ -31,7 +31,7 @@ __version__ = "0.1.0"
 
 # ── Core Application ──────────────────────────────────────────────────────
 from eden.app import Eden, Eden as App
-from eden.routing import Route, Router, WebSocketRoute
+from eden.routing import Route, Router, WebSocketRoute, View
 from eden.requests import Request
 from eden.responses import (
     Response,
@@ -202,6 +202,7 @@ __all__ = [
     "Router",
     "Route",
     "WebSocketRoute",
+    "View",
     "WebSocket",
     "WebSocketDisconnect",
     "Request",

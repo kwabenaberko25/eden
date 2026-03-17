@@ -437,10 +437,10 @@ def get_config() -> Config:
     
     **Example:**
     
+        from eden.config import get_config
         config = get_config()
-        print(config.database_url)
-        if config.is_prod():
-            print("Running in production")
+        db = Database(config.get_database_url())
+        await db.connect()
     """
     return ConfigManager.instance().get()
 

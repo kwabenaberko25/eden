@@ -278,3 +278,18 @@ class TestRequestLoggingMiddleware:
         resp = client.get("/", headers={"X-Request-ID": "custom-id-123"})
 
         assert resp.headers["x-request-id"] == "custom-id-123"
+
+    def test_sets_request_id_in_context(self):
+        from eden.context import get_request_id
+        from eden.logging import RequestLoggingMiddleware
+
+        async def handler(request):
+            return PlainTextResponse(get_request_id())
+
+        app = Starlette(routes=[Route("/", handler)])
+        app.add_middleware(RequestLoggingMiddleware)
+        client = TestClient(app)
+
+        resp = client.get("/")
+        assert resp.status_code == 200
+        assert resp.text == resp.headers["x-request-id"]

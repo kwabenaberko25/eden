@@ -102,10 +102,21 @@ async def send_mail(
     # Render template if provided
     if template:
         try:
-            from eden.templating import EdenTemplates
-
-            templates = EdenTemplates(directory="templates")
-            rendered = templates.env.get_template(template).render(context or {})
+            from eden.app import Eden
+            app = Eden.get_current()
+            
+            if app:
+                rendered = app.templates.get_template(template).render(context or {})
+            else:
+                # Fallback if no app context (e.g. background task without Eden instance)
+                from eden.templating import EdenTemplates
+                # We should really cache this globally at the module level
+                _global_templates = getattr(send_mail, "_templates", None)
+                if not _global_templates:
+                    _global_templates = EdenTemplates(directory="templates")
+                    send_mail._templates = _global_templates
+                rendered = _global_templates.get_template(template).render(context or {})
+                
             html = rendered
         except Exception as e:
             import logging

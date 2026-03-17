@@ -13,7 +13,8 @@ import sys
 import time
 import uuid
 
-from starlette.requests import Request
+from starlette.requests import Request as StarletteRequest
+from eden.requests import Request
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 # ── Logger Setup ─────────────────────────────────────────────────────────
@@ -115,24 +116,26 @@ def setup_logging(
     root_logger = logging.getLogger("eden")
     root_logger.setLevel(default_level)
 
-    # Remove existing handlers
+    # Remove existing handlers and ensure consistent formatting
     root_logger.handlers.clear()
 
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(EdenFormatter(json_format=json_format))
+    handler.setLevel(logging.NOTSET)
     root_logger.addHandler(handler)
 
-    # Prevent propagation to root logger to avoid duplicates
+    # Prevent propagation to the global root logger to avoid duplicate logs
     root_logger.propagate = False
 
-    # Configure specific loggers
+    # Configure specific loggers (module-level overrides)
     if loggers:
         for name, specific_level in loggers.items():
             lgr = logging.getLogger(name)
             lgr.setLevel(getattr(logging, specific_level.upper(), default_level))
-            # If it's an eden logger, it shouldn't propagate to root, 
-            # but it should have same handler as root if it's not a child of 'eden'
-            # (though usually they are children of 'eden')
+            lgr.propagate = False
+            # Ensure each configured logger has at least one handler so it prints
+            if not lgr.handlers:
+                lgr.addHandler(handler)
 
 
 def get_logger(name: str = "eden") -> logging.Logger:
@@ -179,7 +182,7 @@ class RequestLoggingMiddleware:
             await self.app(scope, receive, send)
             return
 
-        request = Request(scope, receive, send)
+        request = Request.from_scope(scope, receive, send)
         path = request.url.path
 
         # Skip excluded paths
@@ -190,6 +193,12 @@ class RequestLoggingMiddleware:
         # Generate or extract correlation ID
         request_id = request.headers.get("X-Request-ID", uuid.uuid4().hex[:16])
         scope["eden_request_id"] = request_id
+
+        # Also store in Eden's async context so it can be picked up by structured logging
+        # (e.g., EdenFormatter) when ContextMiddleware is not used.
+        from eden.context import set_request_id
+
+        set_request_id(request_id)
 
         start_time = time.perf_counter()
         status_code = 500  # default in case of error

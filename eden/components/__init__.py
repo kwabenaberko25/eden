@@ -8,6 +8,9 @@ Built-in components are auto-discovered on first import.
 """
 
 import contextvars
+import hmac
+import hashlib
+import json
 import os
 from typing import Any, Dict, List, Optional, Type
 
@@ -220,27 +223,41 @@ class Component:
         Returns the HTMX attributes required for state persistence.
 
         Generates a JSON-encoded hx-vals attribute that embeds the component's 
-        current state. When the user triggers an action, HTMX includes these 
-        values in the request, allowing the component to be re-instantiated 
-        with all state restored.
-
-        Returns:
-            Markup: Safe HTML-escaped string containing hx-vals attribute.
-
-        Template Usage:
-            <button hx-post="{{ action_url('save') }}" {{ component_attrs }}>
-                Save Changes
-            </button>
-
-        Generated HTML:
-            <button hx-post="/_eden/component/form/save" 
-                    hx-vals='{"title": "Hello", "draft": true}'>
-                Save Changes
-            </button>
+        current state, plus a cryptographic signature to prevent tampering.
         """
-        import json
         state = self.get_state()
-        return Markup(f'hx-vals=\'{json.dumps(state)}\'')
+        signature = self._get_state_signature(state)
+        
+        attrs = [
+            f'hx-vals=\'{json.dumps(state)}\'',
+            f'hx-headers=\'{{"X-Eden-State-Signature": "{signature}"}}\''
+        ]
+        return Markup(" ".join(attrs))
+
+    def _get_state_signature(self, state: dict[str, Any]) -> str:
+        """Generate an HMAC signature for the component state."""
+        from eden.app import Eden
+        app = Eden.get_current()
+        secret = app.secret_key if app else "dev-secret-key"
+        
+        # Canonicalize state for signature consistency:
+        # Convert all values to strings to handle variations between original 
+        # Python types (int, bool) and incoming request data (always strings).
+        canonical = {str(k): str(v) for k, v in state.items() if v is not None}
+        state_json = json.dumps(canonical, sort_keys=True)
+        
+        return hmac.new(
+            secret.encode(),
+            state_json.encode(),
+            hashlib.sha256
+        ).hexdigest()
+
+    def _verify_state_signature(self, state: dict[str, Any], signature: str) -> bool:
+        """Verify the HMAC signature for the component state."""
+        if not signature:
+            return False
+        expected = self._get_state_signature(state)
+        return hmac.compare_digest(signature, expected)
 
     async def render(self, **kwargs: Any) -> Markup:
         """
@@ -585,35 +602,58 @@ async def component_action_handler(
         return HtmlResponse(f"Component '{component_name}' not found", status_code=404)
 
     # Instantiate component with request data (state persistence)
-    # Priority: POST form data > Query params
     state = {}
     if request.method == "POST":
         try:
             form_data = await request.form()
-            state.update(form_data)
+            state.update(dict(form_data))
         except Exception:
             pass
-    state.update(request.query_params)
+    state.update(dict(request.query_params))
     
     # Filter out common request params that aren't component state
     for internal in ["hx-request", "hx-target", "hx-current-url", "hx-trigger", "hx-trigger-name"]:
         state.pop(internal, None)
         state.pop(internal.upper().replace("-", "_"), None)
 
-    inst = comp_cls(**state)
+    try:
+        inst = comp_cls(**state)
+        
+        # Verify state signature to prevent tampering
+        signature = request.headers.get("X-Eden-State-Signature")
+        if not inst._verify_state_signature(state, signature):
+            return HtmlResponse("Invalid component state signature", status_code=403)
+    except Exception as e:
+        return HtmlResponse(f"Component Error: {e}", status_code=500)
     
     # Find and verify action
     action_method = getattr(inst, action_name, None)
     if not action_method or not getattr(action_method, "_is_eden_action", False):
         return HtmlResponse(f"Action '{action_name}' not found on component '{component_name}'", status_code=404)
 
-    # Execute action
-    # Actions can return a full response, a Markup string, or another component inst.
+    # Execute action with intelligent parameter injection
     import inspect
+    sig = inspect.signature(action_method)
+    params = {}
+    if "request" in sig.parameters:
+        params["request"] = request
+    
+    # Also pass values from state if they match parameter names (like in dispatcher)
+    for name, param in sig.parameters.items():
+        if name in state and name != "request":
+            val = state[name]
+            # Simple type casting
+            if param.annotation is int:
+                try: val = int(val)
+                except (ValueError, TypeError): pass
+            elif param.annotation is bool:
+                val = str(val).lower() in ("true", "1", "yes", "on")
+            params[name] = val
+
     if inspect.iscoroutinefunction(action_method):
-        result = await action_method(request)
+        result = await action_method(**params)
     else:
-        result = action_method(request)
+        result = action_method(**params)
 
     if isinstance(result, (str, Markup)):
         return HtmlResponse(str(result))
@@ -647,6 +687,12 @@ async def component_dispatcher(request: Any) -> Any:
     # Instantiate and call
     # We first instantiate to get the method and inspect its signature
     inst = comp_cls(**raw_state)
+    
+    # Verify state signature to prevent tampering
+    signature = request.headers.get("X-Eden-State-Signature")
+    if not inst._verify_state_signature(raw_state, signature):
+        return HtmlResponse("Invalid component state signature", status_code=403)
+    
     method = getattr(inst, method_name)
     
     # Cast types based on signature hints

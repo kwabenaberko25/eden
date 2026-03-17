@@ -25,8 +25,8 @@ def db() -> None:
 @db.command("init")
 @click.option(
     "--db-url",
-    default="sqlite+aiosqlite:///db.sqlite3",
-    help="Database URL.",
+    default=None,
+    help="Database URL (defaults to config).",
 )
 def db_init(db_url: str) -> None:
     """Initialize the migrations directory."""
@@ -35,8 +35,10 @@ def db_init(db_url: str) -> None:
         click.echo("  ✅ Migrations directory created.")
         click.echo("  📁 migrations/")
         click.echo("  📄 alembic.ini")
-        click.echo()
-        click.echo("  💡 Import your models in migrations/env.py to enable auto-detection.")
+        click.echo("  💡 Next Steps:")
+        click.echo("     1. Import your models in migrations/env.py (if not using core models).")
+        click.echo("     2. Run 'eden db generate -m \"initial\"' to create your first migration.")
+        click.echo("     3. Run 'eden db migrate' to apply it.")
     except FileExistsError:
         click.echo("  ❌ Migrations directory already exists.", err=True)
         sys.exit(1)
@@ -45,8 +47,8 @@ def db_init(db_url: str) -> None:
 @db.command("migrate")
 @click.option(
     "--db-url",
-    default="sqlite+aiosqlite:///db.sqlite3",
-    help="Database URL.",
+    default=None,
+    help="Database URL (defaults to config).",
 )
 def db_migrate(db_url: str) -> None:
     """Apply pending migrations (alias for upgrade)."""
@@ -58,8 +60,8 @@ def db_migrate(db_url: str) -> None:
 @db.command("apply")
 @click.option(
     "--db-url",
-    default="sqlite+aiosqlite:///db.sqlite3",
-    help="Database URL.",
+    default=None,
+    help="Database URL (defaults to config).",
 )
 def db_apply(db_url: str) -> None:
     """Apply pending migrations (alias for migrate)."""
@@ -70,8 +72,8 @@ def db_apply(db_url: str) -> None:
 @click.option("--revision", default="head", help="Target revision.")
 @click.option(
     "--db-url",
-    default="sqlite+aiosqlite:///db.sqlite3",
-    help="Database URL.",
+    default=None,
+    help="Database URL (defaults to config).",
 )
 def db_upgrade(revision: str, db_url: str) -> None:
     """Apply pending migrations."""
@@ -84,8 +86,8 @@ def db_upgrade(revision: str, db_url: str) -> None:
 @click.option("--revision", default="-1", help="Target revision (default: -1).")
 @click.option(
     "--db-url",
-    default="sqlite+aiosqlite:///db.sqlite3",
-    help="Database URL.",
+    default=None,
+    help="Database URL (defaults to config).",
 )
 def db_downgrade(revision: str, db_url: str) -> None:
     """Revert to a previous migration."""
@@ -97,8 +99,8 @@ def db_downgrade(revision: str, db_url: str) -> None:
 @db.command("history")
 @click.option(
     "--db-url",
-    default="sqlite+aiosqlite:///db.sqlite3",
-    help="Database URL.",
+    default=None,
+    help="Database URL (defaults to config).",
 )
 def db_history(db_url: str) -> None:
     """Show migration history."""
@@ -109,8 +111,8 @@ def db_history(db_url: str) -> None:
 @click.option("-m", "--message", required=True, help="Migration message.")
 @click.option(
     "--db-url",
-    default="sqlite+aiosqlite:///db.sqlite3",
-    help="Database URL.",
+    default=None,
+    help="Database URL (defaults to config).",
 )
 def db_generate(message: str, db_url: str) -> None:
     """Generate a new database migration."""
@@ -132,8 +134,8 @@ def db_generate(message: str, db_url: str) -> None:
 @db.command("check")
 @click.option(
     "--db-url",
-    default="sqlite+aiosqlite:///db.sqlite3",
-    help="Database URL.",
+    default=None,
+    help="Database URL (defaults to config).",
 )
 def db_check(db_url: str) -> None:
     """Check for schema drift across all tenants."""
@@ -148,10 +150,45 @@ def db_check(db_url: str) -> None:
             any_drift = True
             click.echo(f"  ❌ {schema}: {status}")
 
-    if any_drift:
-        click.echo()
-        click.echo("  ⚠️  Drift detected. Run 'eden db migrate' to sync.")
-        sys.exit(1)
-    else:
-        click.echo()
-        click.echo("  ✨ All schemas are in sync.")
+@db.command("provision-tenants")
+@click.option(
+    "--db-url",
+    default=None,
+    help="Database URL (defaults to config).",
+)
+def db_provision_tenants(db_url: str) -> None:
+    """Provision schemas for all tenants that need them."""
+    from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+    from sqlalchemy import select
+    from eden.tenancy.models import Tenant
+    from eden.config import get_db_url
+    import asyncio
+
+    async def provision():
+        url = db_url or get_db_url()
+        engine = create_async_engine(url)
+        
+        async with AsyncSession(engine) as session:
+            # Get all tenants with schema_name set
+            stmt = select(Tenant).where(Tenant.schema_name.isnot(None), Tenant.is_active)
+            result = await session.execute(stmt)
+            tenants = result.scalars().all()
+            
+            if not tenants:
+                click.echo("  ℹ️  No tenants found with schema_name set.")
+                return
+            
+            click.echo(f"  🔍 Found {len(tenants)} tenant(s) to provision.")
+            
+            for tenant in tenants:
+                click.echo(f"  🏗️  Provisioning schema for tenant '{tenant.name}' ({tenant.schema_name})...")
+                try:
+                    await tenant.provision_schema(session)
+                    click.echo(f"  ✅ Schema '{tenant.schema_name}' provisioned.")
+                except Exception as e:
+                    click.echo(f"  ❌ Failed to provision schema for '{tenant.name}': {e}", err=True)
+                    continue
+            
+            click.echo("  ✨ Tenant provisioning complete.")
+
+    asyncio.run(provision())

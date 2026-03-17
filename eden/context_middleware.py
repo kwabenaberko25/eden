@@ -91,6 +91,7 @@ class ContextMiddleware(BaseHTTPMiddleware):
             - Does NOT catch exceptions (lets error handlers deal with them)
             - Each concurrent request has isolated context via ContextVars
         """
+        print(f"DEBUG: ContextMiddleware for {request.method} {request.url.path}")
         try:
             # Initialize context at request start
             # app is accessible via request.app

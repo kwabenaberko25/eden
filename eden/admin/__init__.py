@@ -4,7 +4,7 @@ Eden — Admin Panel
 Auto-generated admin interface for managing Model data.
 """
 
-from typing import Any, Optional
+from typing import Any, Optional, Callable
 
 from eden.admin.options import ModelAdmin, TabularInline, StackedInline
 from eden.routing import Router
@@ -111,17 +111,49 @@ class AdminSite:
             admin_detail_view,
             admin_edit_view,
             admin_list_view,
+            admin_login,
         )
-        from eden.auth.decorators import roles_required
+        import functools
+        from eden.responses import RedirectResponse
 
         router = Router(prefix=prefix)
-        auth_guard = roles_required(["admin"])
+        
+        def admin_required(func: Callable) -> Callable:
+            @functools.wraps(func)
+            async def wrapper(request, *args, **kwargs):
+                user = getattr(request.state, "user", None)
+                if not user:
+                    from eden.auth.base import get_current_user
+                    user = await get_current_user(request)
+                
+                # Fallback: manually check session if auth middleware didn't run or hasn't populated state
+                if not user and hasattr(request, "session"):
+                    from eden.auth.backends.session import SessionBackend
+                    backend = SessionBackend()
+                    user = await backend.authenticate(request)
+                    if user:
+                        request.state.user = user
+                
+                if not user:
+                    return RedirectResponse(url=f"{prefix}/login?next={request.url.path}")
+                
+                if not getattr(user, "is_staff", False) and not getattr(user, "is_superuser", False):
+                    from eden.exceptions import Forbidden
+                    raise Forbidden(detail="Staff access required.")
+                
+                return await func(request, *args, **kwargs)
+            return wrapper
+
+        # Login
+        site = self
+        @router.route("/login", methods=["GET", "POST"], name="admin_login")
+        async def login_view(request):
+            return await admin_login(request, site)
 
         # Dashboard
-        site = self
 
         @router.get("/", name="admin_dashboard")
-        @auth_guard
+        @admin_required
         async def dashboard(request):
             return await admin_dashboard(request, site)
 
@@ -132,29 +164,29 @@ class AdminSite:
                 t = m.__tablename__
                 
                 @router.get(f"/{t}/", name=f"admin_{t}_list")
-                @auth_guard
+                @admin_required
                 async def list_view(request):
                     return await admin_list_view(request, m, ma)
 
                 @router.get(f"/{t}/{{record_id}}", name=f"admin_{t}_detail")
-                @auth_guard
+                @admin_required
                 async def detail_view(request, record_id: str):
                     return await admin_detail_view(request, m, ma, record_id)
 
                 @router.get(f"/{t}/add", name=f"admin_{t}_add")
                 @router.post(f"/{t}/add")
-                @auth_guard
+                @admin_required
                 async def add_view(request):
                     return await admin_add_view(request, m, ma)
 
                 @router.get(f"/{t}/{{record_id}}/edit", name=f"admin_{t}_edit")
                 @router.post(f"/{t}/{{record_id}}/edit")
-                @auth_guard
+                @admin_required
                 async def edit_view(request, record_id: str):
                     return await admin_edit_view(request, m, ma, record_id)
 
                 @router.post(f"/{t}/action", name=f"admin_{t}_action")
-                @auth_guard
+                @admin_required
                 async def action_view(request):
                     # For bulk actions
                     data = await request.json()
@@ -171,7 +203,7 @@ class AdminSite:
                     return JsonResponse({"message": f"Action {action_name} not found"}, status_code=404)
 
                 @router.post(f"/{t}/{{record_id}}/delete", name=f"admin_{t}_delete")
-                @auth_guard
+                @admin_required
                 async def delete_view(request, record_id: str):
                     return await admin_delete_view(request, m, ma, record_id)
 

@@ -116,6 +116,8 @@ from eden.auth.query_filtering import (
 
 from eden.auth.complete import (
     authenticate,
+    login,
+    logout,
     create_user,
     check_permission,
     staff_required,
@@ -175,6 +177,8 @@ __all__ = [
     
     # High-level convenience functions (from complete module)
     "authenticate",
+    "login",
+    "logout",
     "create_user",
     "check_permission",
     "staff_required",

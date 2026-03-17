@@ -36,10 +36,10 @@ def test_tenantmixin_has_apply_tenant_filter():
     assert callable(getattr(TenantMixin, "_apply_tenant_filter"))
 
 
-def test_tenantmixin_has_base_select():
-    """Layer 1: TenantMixin has _base_select method."""
-    assert hasattr(TenantMixin, "_base_select")
-    assert callable(getattr(TenantMixin, "_base_select"))
+def test_tenantmixin_has_apply_default_filters():
+    """Layer 1: TenantMixin has _apply_default_filters method."""
+    assert hasattr(TenantMixin, "_apply_default_filters")
+    assert callable(getattr(TenantMixin, "_apply_default_filters"))
 
 
 def test_tenantmixin_has_before_create():

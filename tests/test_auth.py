@@ -29,9 +29,13 @@ def test_user_model_password():
     assert user.check_password("eden-rocks") is True
     assert user.check_password("wrong") is False
 
+@pytest.fixture
+def jwt_backend():
+    return JWTBackend(secret_key="test-secret-must-be-at-least-32-characters-long")
+
 @pytest.mark.asyncio
-async def test_jwt_backend_tokens():
-    backend = JWTBackend(secret_key="test-secret")
+async def test_jwt_backend_tokens(jwt_backend):
+    backend = jwt_backend
     data = {"sub": "user-123", "name": "Alice"}
     
     access_token = backend.create_access_token(data)

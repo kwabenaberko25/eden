@@ -17,7 +17,9 @@ from typing import Any, Optional, Sequence
 from starlette.middleware.cors import CORSMiddleware as StarletteCORS
 from starlette.middleware.gzip import GZipMiddleware as StarletteGZip
 from starlette.middleware.sessions import SessionMiddleware as StarletteSession
-from starlette.requests import Request
+from starlette.requests import Request as StarletteRequest
+from eden.requests import Request
+
 from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
@@ -184,7 +186,8 @@ class CSRFMiddleware:
             await self.app(scope, receive, send)
             return
 
-        request = Request(scope, receive, send)
+        request = Request.from_scope(scope, receive, send)
+
         method = request.method.upper()
 
         # Skip safe methods and exempt paths
@@ -324,7 +327,8 @@ class RequestContextMiddleware:
         from eden.context import reset_request, set_request
         from eden.requests import Request as EdenRequest
 
-        request = EdenRequest(scope, receive, send)
+        request = EdenRequest.from_scope(scope, receive, send)
+
         token = set_request(request)
         try:
             await self.app(scope, receive, send)
@@ -378,7 +382,8 @@ class RateLimitMiddleware:
             await self.app(scope, receive, send)
             return
 
-        request = Request(scope, receive, send)
+        request = Request.from_scope(scope, receive, send)
+
 
         # Skip exempt paths
         if self._is_exempt(request.url.path):
@@ -467,7 +472,8 @@ class RedisRateLimitMiddleware:
             await self.app(scope, receive, send)
             return
 
-        request = Request(scope, receive, send)
+        request = Request.from_scope(scope, receive, send)
+
         if self._is_exempt(request.url.path):
             await self.app(scope, receive, send)
             return
