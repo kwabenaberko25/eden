@@ -131,7 +131,7 @@ Say goodbye to cryptic error messages. Eden's debug page is a full-featured diag
 - **Variable Snapshots:** Inspect the live state of your template variables and request context at the moment of failure.
 - **Environment Health:** Instant visibility into system, Python, and framework metadata.
 
-![Eden Debug UI](file:///c:/ideas/eden/eden_error_page_demo_1772608981343.webp)
+![Eden Debug UI](assets/eden_debug_ui.png)
 
 ---
 

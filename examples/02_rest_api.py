@@ -35,14 +35,14 @@ class Task(Model):
 # ────────────────────────────────────────────────────────────────────────
 
 @app.get("/tasks")
-async def list_tasks():
+async def list_tasks() -> dict:
     """List all tasks."""
     tasks = await Task.all()
     return {"tasks": [{"id": t.id, "title": t.title, "completed": t.completed} for t in tasks]}
 
 
 @app.post("/tasks")
-async def create_task(request: Request):
+async def create_task(request: Request) -> dict:
     """Create a new task from JSON body."""
     data = await request.json()
     task = await Task.create(title=data.get("title", "Untitled"))
@@ -50,14 +50,14 @@ async def create_task(request: Request):
 
 
 @app.get("/tasks/{task_id:int}")
-async def get_task(task_id: int):
+async def get_task(task_id: int) -> dict:
     """Get a single task by ID."""
     task = await Task.get(task_id)
     return {"id": task.id, "title": task.title, "completed": task.completed}
 
 
 @app.put("/tasks/{task_id:int}")
-async def update_task(task_id: int, request: Request):
+async def update_task(task_id: int, request: Request) -> dict:
     """Update a task."""
     task = await Task.get(task_id)
     data = await request.json()
@@ -72,7 +72,7 @@ async def update_task(task_id: int, request: Request):
 
 
 @app.delete("/tasks/{task_id:int}")
-async def delete_task(task_id: int):
+async def delete_task(task_id: int) -> dict:
     """Delete a task."""
     await Task.delete(task_id)
     return {"deleted": True}

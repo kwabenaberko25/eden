@@ -35,7 +35,7 @@ def cli() -> None:
 @click.option("--no-browser-reload", is_flag=True, help="Disable browser auto-reload.")
 @click.option("--workers", default=1, type=int, help="Number of workers.")
 @click.option("--app", "--app-path", "app_path", default=None, help="App import path (module:variable).")
-def run(host: str, port: int, reload: bool, no_browser_reload: bool, workers: int, app_path: str | None) -> None:
+def run(host: str, port: int, reload: bool, no_browser_reload: bool, workers: int, app_path: str | None = None) -> None:
     """Start the Eden development server."""
     import json
     import subprocess

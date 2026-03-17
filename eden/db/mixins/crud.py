@@ -4,8 +4,9 @@ import uuid
 import contextlib
 from typing import Any, Dict, List, Optional, Type, TypeVar, Union, TYPE_CHECKING
 
+from ..query import QuerySet
+
 if TYPE_CHECKING:
-    from ..query import QuerySet
     T = TypeVar("T", bound="CrudMixin")
 
 class CrudMixin:

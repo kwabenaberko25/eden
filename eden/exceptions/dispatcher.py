@@ -60,7 +60,13 @@ class ExceptionDispatcher:
             # Or better, move the extraction logic to a helper.
             return self.app._render_enhanced_template_error(request, exc)
 
-        detail = str(exc) if self.app.debug else "Internal server error."
+        status_code = getattr(exc, "status_code", 500)
+        detail = getattr(exc, "detail", str(exc)) if self.app.debug else "Internal server error."
+        if not self.app.debug and status_code == 404:
+            detail = "Page not found."
+        elif not self.app.debug and status_code == 405:
+            detail = "Method not allowed."
+
         traceback_text = None
         if self.app.debug:
             import traceback
@@ -68,10 +74,10 @@ class ExceptionDispatcher:
             
         return StarletteResponse(
             content=render_error_response(
-                status_code=500,
+                status_code=status_code,
                 detail=detail,
                 traceback_text=traceback_text
             ),
-            status_code=500,
+            status_code=status_code,
             media_type="text/html"
         )

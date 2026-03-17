@@ -14,13 +14,26 @@ from typing import Dict, List, Optional
 class TelemetryData:
     """Container for performance metrics in a single request."""
     start_time: float = field(default_factory=time.perf_counter)
+    start_memory: float = 0.0
     db_queries: int = 0
     db_time_ms: float = 0.0
+    template_time_ms: float = 0.0
     custom_metrics: Dict[str, float] = field(default_factory=dict)
     
     @property
     def total_duration_ms(self) -> float:
         return (time.perf_counter() - self.start_time) * 1000
+    
+    @property
+    def memory_delta_mb(self) -> float:
+        """Memory usage change since start of request."""
+        try:
+            import psutil
+            process = psutil.Process()
+            current_mem = process.memory_info().rss / 1024 / 1024
+            return current_mem - self.start_memory
+        except ImportError:
+            return 0.0
 
 # Context variable to store telemetry data per request/task
 _telemetry_ctx: contextvars.ContextVar[Optional[TelemetryData]] = contextvars.ContextVar(
@@ -29,7 +42,14 @@ _telemetry_ctx: contextvars.ContextVar[Optional[TelemetryData]] = contextvars.Co
 
 def start_telemetry() -> contextvars.Token:
     """Initialize telemetry context for the current request."""
-    return _telemetry_ctx.set(TelemetryData())
+    initial_mem = 0.0
+    try:
+        import psutil
+        process = psutil.Process()
+        initial_mem = process.memory_info().rss / 1024 / 1024
+    except ImportError:
+        pass
+    return _telemetry_ctx.set(TelemetryData(start_memory=initial_mem))
 
 def get_telemetry() -> Optional[TelemetryData]:
     """Retrieve the current telemetry data."""
@@ -41,6 +61,12 @@ def record_query(duration_ms: float) -> None:
     if data:
         data.db_queries += 1
         data.db_time_ms += duration_ms
+
+def record_template_render(duration_ms: float) -> None:
+    """Record a template rendering operation."""
+    data = _telemetry_ctx.get()
+    if data:
+        data.template_time_ms += duration_ms
 
 def record_metric(name: str, value: float) -> None:
     """Record a custom performance metric."""

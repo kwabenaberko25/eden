@@ -82,7 +82,7 @@ class Base(DeclarativeBase):
     }
 
 
-class Model(Base, AccessControl, ValidatorMixin, CrudMixin, SerializationMixin, LifecycleMixin):
+class Model(Base, AccessControl, ValidatorMixin, LifecycleMixin, SerializationMixin, CrudMixin):
     """
     Base model for all Eden database models.
     Combines SQLAlchemy Declarative with Pydantic-like serialization, RLS, and ActiveRecord CRUD.

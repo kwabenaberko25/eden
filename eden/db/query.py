@@ -10,7 +10,7 @@ from datetime import UTC
 import contextlib
 import asyncio
 import random
-from typing import TYPE_CHECKING, Any, Generic, TypeVar, List, Dict, Optional, Callable, Iterable
+from typing import TYPE_CHECKING, Any, Generic, TypeVar, List, Dict, Optional, Callable, Iterable, AsyncGenerator, AsyncIterator
 
 from sqlalchemy import delete, select, update, func, select as sa_select
 from sqlalchemy.orm import selectinload, joinedload
@@ -19,7 +19,7 @@ from .utils import _MISSING
 from eden.db.pagination import Page
 
 if TYPE_CHECKING:
-    from sqlalchemy.ext.asyncio import AsyncSession
+    pass
 
 T = TypeVar("T", bound=Any)
 
@@ -62,7 +62,7 @@ class QuerySet(Generic[T]):
         """Checks if a session is currently available without triggering acquisition."""
         return self._session is not None
 
-    async def _resolve_session(self) -> AsyncSession:
+    async def _resolve_session(self) -> "AsyncSession":
         """
         Resolve the session for query execution with fallback chain:
         1. Explicitly passed session to QuerySet
@@ -334,7 +334,7 @@ class QuerySet(Generic[T]):
         return clone
 
     @contextlib.asynccontextmanager
-    async def _provide_session(self):
+    async def _provide_session(self) -> "AsyncGenerator[AsyncSession, None]":
         """
         Asynchronous context manager to resolve and provide a database session.
         Ensures that auto-acquired sessions are properly closed.
@@ -614,7 +614,7 @@ class QuerySet(Generic[T]):
         key_raw = f"{self._model_cls.__name__}:{stmt_str}:{self._prefetch_paths}:{self._return_dicts}"
         return f"qs:{hashlib.md5(key_raw.encode()).hexdigest()}"
 
-    async def _execute(self, stmt: Any, session: AsyncSession) -> Any:
+    async def _execute(self, stmt: Any, session: "AsyncSession") -> Any:
         """
         Executes a statement with exponential backoff retries for reliability.
         """
@@ -633,7 +633,7 @@ class QuerySet(Generic[T]):
                 delay = (base_delay * (2 ** attempt)) + (random.random() * 0.1)
                 await asyncio.sleep(delay)
 
-    async def __aiter__(self):
+    async def __aiter__(self) -> "AsyncIterator[T]":
         """Allows async iteration over the QuerySet results."""
         results = await self.all()
         for res in results:

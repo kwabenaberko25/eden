@@ -95,9 +95,9 @@ class Tenant(Model):
             
             # 3. Create all framework tables in the new schema
             # Using run_sync to execute the synchronous metadata.create_all()
-            def _create_tables():
+            def _create_tables(sync_session):
                 """Create all tables synchronously in the current schema."""
-                Model.metadata.create_all(bind=session.connection())
+                Model.metadata.create_all(bind=sync_session.connection())
             
             await session.run_sync(_create_tables)
             

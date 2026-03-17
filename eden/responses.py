@@ -107,7 +107,7 @@ class SafeRedirectResponse(RedirectResponse):
             url = "/"
         super().__init__(url=url, status_code=status_code, headers=headers, **kwargs)
 
-    def _is_safe_url(self, url: str, allowed_hosts: set[str] | None) -> bool:
+    def _is_safe_url(self, url: str, allowed_hosts: set[str] | None = None) -> bool:
         """Validate if a URL is safe for redirection."""
         if not url:
             return False

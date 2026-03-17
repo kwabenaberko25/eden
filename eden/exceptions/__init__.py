@@ -294,16 +294,55 @@ class DefaultErrorHandler(ErrorHandler):
         if isinstance(exc, EdenException):
             exc.log_context()
             return JsonResponse(exc.to_dict(), status_code=exc.status_code)
+
+        # Fallback for Starlette HTTPException or any object with status_code
+        status_code = getattr(exc, "status_code", None)
+        detail = getattr(exc, "detail", None) or str(exc)
+        if status_code is not None:
+             return JsonResponse(
+                {
+                    "error": True,
+                    "status_code": status_code,
+                    "detail": detail
+                },
+                status_code=status_code
+            )
         
         # For non-Eden exceptions, return generic error
-        logger.error(f"Unhandled exception: {type(exc).__name__}: {exc}")
+        logger.error(f"Unhandled non-Eden exception: {type(exc).__name__}: {exc}", exc_info=True)
         return JsonResponse(
             {
                 "error": True,
-                "status_code": 500,
+                "status_code": HTTP_500_INTERNAL_SERVER_ERROR,
                 "detail": "Internal server error."
             },
-            status_code=500
+            status_code=HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+class StarletteHTTPErrorHandler(ErrorHandler):
+    """
+    Handler for Starlette's built-in HTTPException (404, 405, etc).
+    """
+
+    def matches(self, exc: Exception) -> bool:
+        from starlette.exceptions import HTTPException as StarletteHTTPException
+        if isinstance(exc, StarletteHTTPException):
+            return True
+        return hasattr(exc, "status_code") and hasattr(exc, "detail") and not isinstance(exc, EdenException)
+
+    async def handle(self, exc: Exception, request, app):
+        from eden.responses import JsonResponse
+        # exc is known to be StarletteHTTPException here (or have equivalent attributes)
+        status_code = getattr(exc, "status_code", 500)
+        detail = getattr(exc, "detail", None) or str(exc)
+        return JsonResponse(
+            {
+                "error": True,
+                "status_code": status_code,
+                "detail": detail
+            },
+            status_code=status_code
         )
 
 
@@ -325,8 +364,11 @@ class ErrorHandlerRegistry:
     """
 
     def __init__(self):
-        """Initialize with default handler."""
-        self._handlers: list[ErrorHandler] = [DefaultErrorHandler()]
+        """Initialize with default handlers."""
+        self._handlers: list[ErrorHandler] = [
+            StarletteHTTPErrorHandler(),
+            DefaultErrorHandler()
+        ]
 
     def register(self, handler: ErrorHandler, priority: int = 100) -> None:
         """

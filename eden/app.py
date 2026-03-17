@@ -57,14 +57,26 @@ class Eden:
         app.run()
     """
 
+    # Default priorities for middleware ordering
+    # Lower values run FIRST (outermost) in the request cycle,
+    # then inner logic runs, then LAST in the response cycle.
+    PRIORITY_LOW = 1000
+    PRIORITY_STANDARD = 500
+    PRIORITY_HIGH = 100
+    PRIORITY_CORE = 0
+
     def __init__(
         self,
-        title: str = "Eden",
-        version: str = "0.1.0",
+        title: str | None = None,
+        version: str | None = None,
         debug: bool = False,
-        description: str = "",
-        secret_key: str = "",
-        config: Optional[Any] = None,
+        description: str | None = None,
+        secret_key: str | None = None,
+        config: dict[str, Any] | None = None,
+        static_dir: str = "static",
+        static_url: str = "/static",
+        templates_dir: str = "templates",
+        browser_reload: bool = True,
     ) -> None:
         from eden.context import set_app
         set_app(self)
@@ -89,9 +101,8 @@ class Eden:
         self.static_dir = "static"
         self.static_url = "/static"
 
-        # Internal routing
         self._router = Router()
-        self._middleware_stack: list[tuple[type, dict[str, Any]]] = []
+        self._middleware_stack: list[tuple[type, dict[str, Any], int]] = []
         self._exception_handlers: dict[type[Exception] | int, Callable] = {}
         
         from eden.exceptions.dispatcher import ExceptionDispatcher
@@ -137,6 +148,9 @@ class Eden:
 
         # Caching
         self.cache: Optional["CacheBackend"] = None
+        
+        # Register default middleware
+        self.setup_defaults()
 
     def setup_tasks(self) -> None:
         """Hook for initializing/configuring task lifecycle and dependencies."""
@@ -146,7 +160,11 @@ class Eden:
     def get_current(cls) -> Eden:
         """Get the current active Eden application instance."""
         from eden.context import get_app
-        return get_app()
+        app = get_app()
+        # If the app in context is the Starlette instance, unwrap it to get Eden
+        if app and hasattr(app, "eden"):
+            return app.eden
+        return app
 
     # ── Health Checks ─────────────────────────────────────────────────────
 
@@ -211,7 +229,7 @@ class Eden:
 
         def decorator(func: Callable) -> Callable:
             @functools.wraps(func)
-            async def wrapper(*args, **kwargs):
+            async def wrapper(*args, **kwargs) -> Any:
                 # Find request in args or kwargs
                 request = None
                 for arg in args:
@@ -359,7 +377,7 @@ class Eden:
 
     # ── Middleware ───────────────────────────────────────────────────────
 
-    def add_middleware(self, middleware: str | type, **kwargs: Any) -> None:
+    def add_middleware(self, middleware: str | type, priority: int = PRIORITY_STANDARD, **kwargs: Any) -> None:
         if isinstance(middleware, str):
             cls = get_middleware_class(middleware)
             middleware_name = middleware
@@ -372,15 +390,19 @@ class Eden:
             cls = middleware
             middleware_name = getattr(cls, "__name__", str(cls))
         
-        self._middleware_stack.append((cls, kwargs))
+        self._middleware_stack.append((cls, kwargs, priority))
 
     def setup_defaults(self) -> None:
-        self.add_middleware("security")
-        self.add_middleware("session", secret_key=self.secret_key)
-        self.add_middleware("csrf")
-        self.add_middleware("auth")
-        self.add_middleware("gzip")
-        self.add_middleware("cors", allow_origins=["*"])
+        self.add_middleware("security", priority=self.PRIORITY_CORE + 10)
+        
+        # Only add session if secret_key is set, or if CSRF is needed (which requires session)
+        if self.secret_key:
+            self.add_middleware("session", priority=self.PRIORITY_CORE + 20, secret_key=self.secret_key)
+            self.add_middleware("csrf", priority=self.PRIORITY_CORE + 30)
+        
+        self.add_middleware("auth", priority=self.PRIORITY_HIGH)
+        self.add_middleware("gzip", priority=self.PRIORITY_LOW)
+        self.add_middleware("cors", priority=self.PRIORITY_STANDARD, allow_origins=None)
 
     # ── Lifespan Hooks ───────────────────────────────────────────────────
 
@@ -457,17 +479,34 @@ class Eden:
         ServiceBootstrapper.bootstrap_all(self)
 
     def _build_middleware(self) -> list[Middleware]:
-        middleware = [
-            Middleware(cls, **kwargs) for cls, kwargs in self._middleware_stack
-        ]
+        # Start with core internal middleware that MUST be outermost
         from eden.context_middleware import ContextMiddleware
-        middleware.insert(0, Middleware(ContextMiddleware))
-        middleware.insert(1, Middleware(get_middleware_class("request")))
         from eden.error_middleware import ErrorHandlerMiddleware
-        middleware.insert(2, Middleware(ErrorHandlerMiddleware))
+        
+        # Build the final stack including user-added middleware
+        # Lower priority = OUTERMOST in the onion (runs first on request, last on response)
+        
+        # Prepare explicit list with priorities for internal ones
+        final_stack = [
+            (ContextMiddleware, {}, self.PRIORITY_CORE),
+            (get_middleware_class("request"), {}, self.PRIORITY_CORE + 1),
+            (ErrorHandlerMiddleware, {}, self.PRIORITY_CORE + 2),
+        ]
+        
+        # Add user stack
+        final_stack.extend(self._middleware_stack)
+        
+        # Add browser reload if enabled (inner-most, highest priority value)
         if self.debug and self.browser_reload:
-            middleware.append(Middleware(get_middleware_class("browser_reload")))
-        return middleware
+            final_stack.append((get_middleware_class("browser_reload"), {}, self.PRIORITY_LOW + 100))
+            
+        # Sort by priority
+        final_stack.sort(key=lambda x: x[2])
+        
+        # Build Starlette Middleware objects
+        return [
+            Middleware(cls, **kwargs) for cls, kwargs, _ in final_stack
+        ]
 
     def _build_exception_handlers(self) -> dict:
         exception_handlers = {
@@ -537,10 +576,8 @@ class Eden:
             routes.append(Mount(self.static_url, app=StaticFiles(directory=self.static_dir), name="static"))
 
     async def _handle_exception(self, request: Request, exc: Exception) -> StarletteResponse:
-        from eden.exceptions import EdenException
-        if isinstance(exc, EdenException):
-            return await self._exception_dispatcher.handle_eden_exception(request, exc)
-        return await self._exception_dispatcher.handle_unhandled_exception(request, exc)
+        from eden.exceptions import error_handler_registry
+        return await error_handler_registry.handle_exception(exc, request, self)
 
     def _render_enhanced_template_error(self, request: Request, exc: Exception) -> StarletteResponse:
         from eden.exceptions.debug import render_enhanced_template_error

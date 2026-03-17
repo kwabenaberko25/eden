@@ -15,7 +15,7 @@ class LifecycleMixin:
     Mixin that provides lifecycle management (save, delete) and hook execution.
     """
 
-    async def save(self: Model, session: Optional[AsyncSession] = None, validate: bool = True) -> None:
+    async def save(self: Model, session: Optional[AsyncSession] = None, validate: bool = True, commit: bool = True) -> Model:
         """
         Save the current instance state to the database.
         """
@@ -84,7 +84,7 @@ class LifecycleMixin:
 
             await session.refresh(self)
             await self._log_audit(is_new, self._make_json_safe(changes) if not is_new else None)
-            return
+            return self
 
         async with self._provide_session() as sess:
             if is_new:
@@ -103,10 +103,15 @@ class LifecycleMixin:
             await self._call_hook("after_save", sess)
             await self._trigger_hooks(self._post_save_hooks)
 
-            await sess.commit()
-            await sess.refresh(self)
+            if commit:
+                await sess.commit()
+                await sess.refresh(self)
+            else:
+                await sess.flush()
+                await sess.refresh(self)
 
         await self._log_audit(is_new, self._make_json_safe(changes) if not is_new else None)
+        return self
 
     async def _auto_slugify(self) -> None:
         """Automatically generate slugs for fields marked as SlugField."""
@@ -134,8 +139,8 @@ class LifecycleMixin:
             formatted_errors = [{"loc": [err.field or "__all__"], "msg": err.message, "type": "validation"} for err in errors]
             raise ValidationError(detail="Model validation failed", errors=formatted_errors)
 
-    async def delete(self, session: Optional[AsyncSession] = None, hard: bool = False) -> None:
-        """Delete the current record."""
+    async def delete(self, session: Optional[AsyncSession] = None, hard: bool = False, commit: bool = True) -> None:
+        """Delete the current record."""""
         try:
             from eden.db.file_reference import FileReference
             await FileReference.cleanup_by_model(self.__class__, self.id)
@@ -145,28 +150,31 @@ class LifecycleMixin:
         if hasattr(self, "deleted_at") and not hard:
             from datetime import datetime
             self.deleted_at = datetime.utcnow()
-            await self.save(session)
+            await self.save(session, commit=commit)
             return
 
         if not hard:
-            await self.hard_delete(session=session)
+            await self.hard_delete(session=session, commit=commit)
             return
 
         if session:
             await self._call_hook("before_delete", session)
             await session.delete(self)
             await session.flush()
+            if commit:
+                await session.commit()
             return
 
         async with self._provide_session() as sess:
             await self._call_hook("before_delete", sess)
             await sess.delete(self)
             await sess.flush()
-            await sess.commit()
+            if commit:
+                await sess.commit()
 
-    async def hard_delete(self, session: Optional[AsyncSession] = None) -> None:
+    async def hard_delete(self, session: Optional[AsyncSession] = None, commit: bool = True) -> None:
         """Permanently delete the record."""
-        await self.delete(session=session, hard=True)
+        await self.delete(session=session, hard=True, commit=commit)
 
     async def _call_hook(self, hook_name: str, session: AsyncSession) -> None:
         """Call a lifecycle hook."""

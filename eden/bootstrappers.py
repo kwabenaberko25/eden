@@ -10,7 +10,7 @@ class ServiceBootstrapper:
     """Handles auto-configuration of core services."""
     
     @staticmethod
-    def bootstrap_database(app: Eden) -> None:
+    def bootstrap_database(app: "Eden") -> None:
         """Configure database if database_url is present in state."""
         db_url = getattr(app.state, "database_url", None)
         if db_url:

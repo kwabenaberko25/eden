@@ -31,6 +31,7 @@ class Database:
             self.engine, class_=AsyncSession, expire_on_commit=False
         )
         self._connected = False
+        self._engine_cache: Dict[str, Any] = {}
 
     async def connect(self, create_tables: bool = False) -> None:
         """Initialize the database connection and optionally create tables."""
@@ -98,9 +99,15 @@ class Database:
                             (e.g., 'SERIALIZABLE', 'READ COMMITTED').
         """
         if isolation_level:
-            # We must create a session with a bind that has the isolation level set
-            engine = self.engine.execution_options(isolation_level=isolation_level)
-            session = AsyncSession(engine)
+            # We must create a session with a bind that has the isolation level set.
+            # Cache the branched engine to avoid redundant creation.
+            if isolation_level not in self._engine_cache:
+                self._engine_cache[isolation_level] = self.engine.execution_options(
+                    isolation_level=isolation_level
+                )
+            
+            engine = self._engine_cache[isolation_level]
+            session = AsyncSession(engine, expire_on_commit=False)
         else:
             # Use standard session context manager logic but manually enter
             async with self.session() as session:

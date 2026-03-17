@@ -57,13 +57,15 @@ class CORSMiddleware(StarletteCORS):
     def __init__(
         self,
         app: ASGIApp,
-        allow_origins: Sequence[str] = (),
+        allow_origins: Sequence[str] | None = None,
         allow_methods: Sequence[str] = ("GET", "POST", "OPTIONS"),
         allow_headers: Sequence[str] = (),
         allow_credentials: bool = False,
         expose_headers: Sequence[str] = (),
         max_age: int = 600,
     ) -> None:
+        # Default to empty list (block all) if None, forcing explicit configuration
+        allow_origins = list(allow_origins) if allow_origins else []
         super().__init__(
             app,
             allow_origins=list(allow_origins),
@@ -103,7 +105,7 @@ class SessionMiddleware(StarletteSession):
         max_age: int = 14 * 24 * 60 * 60,  # 14 days
         path: str = "/",
         same_site: str = "lax",
-        https_only: bool = False,
+        https_only: bool = True,  # Default to True for production safety
     ) -> None:
         if not secret_key:
             secret_key = secrets.token_hex(32)
@@ -276,7 +278,8 @@ class SecurityHeadersMiddleware:
         "X-Frame-Options": "DENY",
         "X-XSS-Protection": "1; mode=block",
         "Referrer-Policy": "strict-origin-when-cross-origin",
-        "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+        "Permissions-Policy": "camera=(), microphone=(), geolocation=(), interest-cohort=()",
+        "X-Permitted-Cross-Domain-Policies": "none",
     }
 
     def __init__(
@@ -475,12 +478,20 @@ class PerformanceTelemetryMiddleware:
                     if data:
                         total_ms = data.total_duration_ms
                         db_ms = data.db_time_ms
+                        tpl_ms = data.template_time_ms
                         db_queries = data.db_queries
-                        app_ms = max(0, total_ms - db_ms)
+                        mem_delta = data.memory_delta_mb
+                        app_ms = max(0, total_ms - db_ms - tpl_ms)
 
                         # Construct Server-Timing header
                         # https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Server-Timing
-                        timing = f"db;dur={db_ms:.2f};desc=\"{db_queries} queries\", app;dur={app_ms:.2f}, total;dur={total_ms:.2f}"
+                        timing = (
+                            f"db;dur={db_ms:.2f};desc=\"{db_queries} queries\", "
+                            f"tpl;dur={tpl_ms:.2f}, "
+                            f"app;dur={app_ms:.2f}, "
+                            f"mem;dur={mem_delta:.2f};desc=\"MB delta\", "
+                            f"total;dur={total_ms:.2f}"
+                        )
                         
                         headers = list(message.get("headers", []))
                         headers.append((b"server-timing", timing.encode()))
@@ -488,8 +499,8 @@ class PerformanceTelemetryMiddleware:
 
                         # Log metrics
                         self.logger.info(
-                            "Performance: Total %.2fms | DB %.2fms (%d queries) | App %.2fms",
-                            total_ms, db_ms, db_queries, app_ms
+                            "Performance: Total %.2fms | DB %.2fms (%d queries) | Tpl %.2fms | Mem %+.2fMB | App %.2fms",
+                            total_ms, db_ms, db_queries, tpl_ms, mem_delta, app_ms
                         )
 
                 await send(message)
@@ -761,12 +772,15 @@ See: app.setup_defaults() for the correct sequence
 """
 
 
+@functools.lru_cache(maxsize=128)
 def get_middleware_class(name: str | type) -> type:
     """Look up a middleware class by its short name or a dot-notation string."""
     if not isinstance(name, str):
         return name
 
-    cls = MIDDLEWARE_REGISTRY.get(name.lower())
+    name_lower = name.lower()
+    cls = MIDDLEWARE_REGISTRY.get(name_lower)
+    
     if cls is not None:
         if isinstance(cls, str):
             # Dynamic import

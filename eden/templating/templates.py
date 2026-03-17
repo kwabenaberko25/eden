@@ -183,8 +183,17 @@ class EdenTemplates(StarletteJinja2Templates):
 
     def render(self, request: Any, template_name: str, context: dict[str, Any], **kwargs: Any) -> Any:
         """Convenience wrapper — preferred over ``TemplateResponse`` directly."""
+        import time
+        from eden.telemetry import record_template_render
+        
+        start = time.perf_counter()
         ctx = {"request": request, **context, **kwargs}
-        return self.TemplateResponse(template_name, ctx)
+        response = self.TemplateResponse(template_name, ctx)
+        
+        duration = (time.perf_counter() - start) * 1000
+        record_template_render(duration)
+        
+        return response
 
 def render_template(template_name: str, **context: Any) -> Any:
     """Render an HTML template using the current request context."""

@@ -10,7 +10,7 @@ Implements Django-style query capabilities:
 from __future__ import annotations
 
 import operator
-from typing import Any, Callable, List, Dict, Type, Union, TYPE_CHECKING
+from typing import Any, Callable, List, Dict, Type, Union, TYPE_CHECKING, TypeVar
 
 from sqlalchemy import ColumnElement, and_, not_, or_, inspect as sa_inspect, func
 from sqlalchemy.orm.attributes import InstrumentedAttribute
@@ -20,6 +20,8 @@ from sqlalchemy.sql.operators import custom_op
 from sqlalchemy.orm.relationships import RelationshipProperty
 
 _MISSING = object()
+
+T = TypeVar('T')
 
 # ── F Expressions ────────────────────────────────────────────────────────
 
@@ -35,7 +37,7 @@ class F:
     def __init__(self, name: str) -> None:
         self.name = name
 
-    def resolve(self, model: type[Any]) -> Any:
+    def resolve(self, model: type[T]) -> Any:
         column = getattr(model, self.name, None)
         if column is None:
             raise ValueError(f"'{model.__name__}' has no column '{self.name}'")
@@ -63,7 +65,7 @@ class _FExpr:
         self.op = op
         self.other = other
 
-    def resolve(self, model: type[Any]) -> Any:
+    def resolve(self, model: type[T]) -> Any:
         return self.op(self.f_obj.resolve(model), self.other)
 
 
@@ -107,7 +109,7 @@ class Q:
         new_q._negated = self._negated
         return new_q
 
-    def resolve(self, model: type[Any]) -> ColumnElement[bool]:
+    def resolve(self, model: type[T]) -> ColumnElement[bool]:
         """Convert this Q object into a SQLAlchemy boolean expression."""
         expressions: list[ColumnElement[bool]] = []
 
@@ -171,7 +173,7 @@ class LookupProxy:
     def __lt__(self, value: Any) -> LookupProxy: return self._with_op("lt", value)
     def __le__(self, value: Any) -> LookupProxy: return self._with_op("lte", value)
 
-    def resolve(self, model: type[Any]) -> Any:
+    def resolve(self, model: type[T]) -> Any:
         # Resolve path to SQLAlchemy attribute
         attr = model
         for part in self._path:
@@ -241,7 +243,7 @@ class EdenRelationshipComparator(RelationshipProperty.Comparator):
         return getattr(target_model, name)
 
 
-def extract_involved_models(expression: Any) -> set[type[Any]]:
+def extract_involved_models(expression: Any) -> set[type[T]]:
     """
     Inspects a SQLAlchemy/Eden expression to identify all involved Model classes.
     Used for automatic joining in QuerySet.filter().
@@ -280,8 +282,8 @@ def extract_involved_models(expression: Any) -> set[type[Any]]:
 
 
 def find_relationship_path(
-    source_model: type[Any], 
-    target_model: type[Any],
+    source_model: type[T], 
+    target_model: type[T],
     max_depth: int = 3,
 ) -> list[str]:
     """
@@ -380,7 +382,7 @@ SUPPORTED_LOOKUPS = {
 }
 
 
-def parse_lookups(model: type[Any], **kwargs: Any) -> list[ColumnElement[bool]]:
+def parse_lookups(model: type[T], **kwargs: Any) -> list[ColumnElement[bool]]:
     """
     Parse Django-style lookup strings into SQLAlchemy binary expressions.
     Supports recursive relationship traversal (e.g., `author__profile__name__icontains`).
