@@ -1,6 +1,10 @@
 import re
 from typing import Dict, Any
 
+# Internal sentinel for missing values
+_MISSING = object()
+
+
 def renumber_sql_params(sql: str, offset: int = 0) -> str:
     """
     Renumbers $N placeholders in a PostgreSQL SQL string.

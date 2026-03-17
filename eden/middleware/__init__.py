@@ -525,7 +525,12 @@ class CacheMiddleware:
 
         # Attempt to find cache instance
         app_instance = scope.get("app")
-        cache = self._cache or getattr(app_instance, "cache", None)
+        cache = self._cache
+        if not cache and app_instance:
+            cache = getattr(app_instance, "cache", None)
+            if not cache and hasattr(app_instance, "eden"):
+                cache = getattr(app_instance.eden, "cache", None)
+
         if not cache:
             await self.app(scope, receive, send)
             return
@@ -540,7 +545,7 @@ class CacheMiddleware:
             cached = await cache.get(cache_key)
             if cached and isinstance(cached, dict):
                 headers = list(cached.get("headers", []))
-                # Add HIT header
+                # Add HIT header (ensure it's bytes)
                 headers.append((b"x-eden-cache", b"HIT"))
                 
                 await send({
@@ -568,11 +573,11 @@ class CacheMiddleware:
         async def send_wrapper(message: Message) -> None:
             if message["type"] == "http.response.start":
                 response_data["status"] = message["status"]
-                response_data["headers"] = list(message.get("headers", []))
+                orig_headers = list(message.get("headers", []))
                 
                 # Check Cache-Control headers if enabled
                 if self.use_cache_control:
-                    for name, value in response_data["headers"]:
+                    for name, value in orig_headers:
                         if name.lower() == b"cache-control":
                             val_str = value.decode().lower()
                             if any(word in val_str for word in ("no-store", "no-cache", "private")):
@@ -581,26 +586,32 @@ class CacheMiddleware:
                                 try:
                                     idx = val_str.find("max-age=")
                                     if idx != -1:
-                                        rem = val_str[idx+8:].split(",")[0].strip()
+                                        rem = val_str[idx+8:].split(",")[0].split(";")[0].strip()
                                         response_data["ttl"] = int(rem)
                                 except Exception:
                                     pass
 
-            if message["type"] == "http.response.body":
+                # Store headers for caching (without our HIT/MISS header)
+                response_data["headers"] = orig_headers
+                
+                # Add MISS header to the ACTUAL message being sent
+                new_headers = list(orig_headers)
+                new_headers.append((b"x-eden-cache", b"MISS"))
+                message["headers"] = new_headers
+
+            elif message["type"] == "http.response.body":
                 if response_data["status"] < 300 and response_data["cacheable"]:
                     response_data["body"] += message.get("body", b"")
                     
                     if not message.get("more_body", False):
-                        await cache.set(cache_key, {
-                            "status": response_data["status"],
-                            "headers": response_data["headers"],
-                            "body": response_data["body"]
-                        }, ttl=response_data["ttl"])
-
-            if message["type"] == "http.response.start":
-                headers = list(message.get("headers", []))
-                headers.append((b"x-eden-cache", b"MISS"))
-                message["headers"] = headers
+                        try:
+                            await cache.set(cache_key, {
+                                "status": response_data["status"],
+                                "headers": response_data["headers"],
+                                "body": response_data["body"]
+                            }, ttl=response_data["ttl"])
+                        except Exception:
+                            pass
 
             await send(message)
 

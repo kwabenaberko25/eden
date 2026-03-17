@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, Any, Generic, TypeVar, List, Dict, Optional, C
 from sqlalchemy import delete, select, update, func, select as sa_select
 from sqlalchemy.orm import selectinload, joinedload
 
-from eden.db.base import _MISSING
+from .utils import _MISSING
 from eden.db.pagination import Page
 
 if TYPE_CHECKING:

@@ -82,6 +82,16 @@ class ErrorHandlerMiddleware(BaseHTTPMiddleware):
                 exc_info=True
             )
             
+            # Special handling for Jinja2 template errors in debug mode
+            # These need the premium debug page, not the JSON fallback
+            try:
+                from jinja2.exceptions import TemplateError as JinjaTemplateError
+                eden_app = getattr(app, "eden", app)
+                if isinstance(exc, JinjaTemplateError) and getattr(eden_app, "debug", False):
+                    return eden_app._render_enhanced_template_error(request, exc)
+            except (ImportError, AttributeError):
+                pass
+            
             # Dispatch to error handler registry
             try:
                 response = await error_handler_registry.handle_exception(

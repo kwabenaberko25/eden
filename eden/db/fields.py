@@ -584,7 +584,11 @@ def f(
         final_type = String(max_length)
     
     if json:
-        final_type = JSON
+        from sqlalchemy.ext.mutable import MutableDict, MutableList
+        if default is not None and isinstance(default, list):
+            final_type = MutableList.as_mutable(JSON)
+        else:
+            final_type = MutableDict.as_mutable(JSON)
 
     args = []
     if final_type is not None:

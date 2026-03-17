@@ -79,7 +79,6 @@ class CustomerMixin:
         """Access high-level billing operations."""
         return BillingManager(self)
 
-    @property
     async def is_subscribed(self) -> bool:
         """
         Check if this customer has an active subscription in the database.
