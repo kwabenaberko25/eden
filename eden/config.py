@@ -119,6 +119,9 @@ class Config(BaseModel):
         
         # Pagination
         page_size: Default pagination size (default: 20)
+        
+        # Messaging
+        messages_session_key: Session key for flash messages (default: _eden_messages)
     """
     
     class Config:
@@ -228,6 +231,12 @@ class Config(BaseModel):
     page_size: int = Field(
         default=20,
         description="Default pagination size"
+    )
+    
+    # Messaging
+    messages_session_key: str = Field(
+        default="_eden_messages",
+        description="Session key for flash messages"
     )
     
     @field_validator("env", mode="before")
@@ -400,6 +409,7 @@ class ConfigManager:
             title=os.getenv("EDEN_TITLE", "Eden"),
             version=os.getenv("EDEN_VERSION", "0.1.0"),
             log_level=os.getenv("LOG_LEVEL", "INFO"),
+            messages_session_key=os.getenv("EDEN_MESSAGES_SESSION_KEY", "_eden_messages"),
         )
         
         return self._config

@@ -83,9 +83,11 @@ class TemplateParser:
                         continue
                     break
                 new_nodes.append(chain)
+                i += 1
+                continue
             else:
                 new_nodes.append(node)
-            i += 1
+                i += 1
         return new_nodes
 
     def parse_node(self) -> Node | None:

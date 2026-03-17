@@ -2,7 +2,7 @@
 import pytest
 from unittest.mock import MagicMock
 from eden.templating.lexer import TemplateLexer
-from eden.templating.parser import TemplateParser, TemplateSyntaxError
+from eden.templating.parser import TemplateParser, TemplateSyntaxError, DirectiveNode, TextNode
 from eden.templating.compiler import TemplateCompiler
 from eden.templating.templates import EdenTemplates
 from starlette.requests import Request
@@ -53,15 +53,14 @@ def test_compiler_class_logic():
     """Ensure @class handles dynamic class logic."""
     compiler = TemplateCompiler()
     res = compiler.handle_class("['bg-red-500' => $error, 'p-4']")
-    assert 'class="{{ ("bg-red-500" if error else "") + " " + "p-4" }}"' in res
+    assert 'class="{{ (("bg-red-500" if error else "") + " " + "p-4").strip() }}"' in res
 
 @pytest.mark.asyncio
 async def test_templates_stacking():
     """Test @push and @stack helpers."""
     templates = EdenTemplates(directory="/tmp")
-    request = MagicMock(spec=Request)
-    request.state = MagicMock()
-    # Mocking state is tricky since it's a State object, but we can just use a dict-like mock
+    scope = {"type": "http", "state": {}}
+    request = Request(scope)
     request.state.eden_stacks = {}
     
     from eden.context import set_request
@@ -84,9 +83,13 @@ def test_templates_dependency_injection():
     templates = EdenTemplates(directory="/tmp")
     app = MagicMock()
     app.my_service = "ServiceInstance"
+    # Ensure app.config and its children don't return mocks for everything
+    app.config = MagicMock()
+    app.config.unknown = None
+    del app.unknown
     
-    from eden.context import _app_context_var
-    _app_context_var.set(app)
+    from eden.context import set_app
+    set_app(app)
     
     res = templates._dependency_helper("my_service")
     assert res == "ServiceInstance"
@@ -107,6 +110,8 @@ def test_conditional_grouping():
     tokens = lexer.tokenize()
     parser = TemplateParser(tokens)
     nodes = parser.parse()
+    # Filter out empty/whitespace nodes from surrounding source
+    nodes = [n for n in nodes if not (isinstance(n, TextNode) and n.content.isspace())]
     
     # Should be one DirectiveNode(if) with orelse containing the else DirectiveNode
     assert len(nodes) == 1

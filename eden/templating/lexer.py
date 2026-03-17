@@ -221,8 +221,19 @@ class TemplateLexer:
                 self.tokens.append(Token(TokenType.BLOCK_OPEN, self.advance(), self.line, self.column))
                 continue
 
-            # 6. Fallback (Text)
-            self.tokens.append(Token(TokenType.TEXT, self.advance(), self.line, self.column))
+            # 6. Fallback (Text) - Collect until something interesting happens
+            start_pos = self.pos
+            start_line, start_col = self.line, self.column
+            content = self.advance() # Always advance at least once
+            
+            while self.pos < len(self.source):
+                c = self.peek()
+                # Stop at everything we handle above
+                if c in ('@', '{', '}', '<'):
+                    break
+                content += self.advance()
+            
+            self.tokens.append(Token(TokenType.TEXT, content, start_line, start_col))
 
         self.tokens.append(Token(TokenType.EOF, "", self.line, self.column))
         return self.tokens

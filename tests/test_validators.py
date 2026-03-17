@@ -371,51 +371,51 @@ class TestNationalID:
 
 class TestPydanticTypes:
     def test_eden_email_in_model(self):
-        class M(BaseModel):
+        class EmailModel(BaseModel):
             email: EdenEmail
 
-        m = M(email="test@example.com")
+        m = EmailModel(email="test@example.com")
         assert m.email == "test@example.com"
 
         with pytest.raises(ValidationError):
-            M(email="not-an-email")
+            EmailModel(email="not-an-email")
 
     def test_eden_phone_in_model(self):
-        class M(BaseModel):
+        class PhoneModel(BaseModel):
             phone: EdenPhone
 
-        m = M(phone="+233501234567")
+        m = PhoneModel(phone="+233501234567")
         assert m.phone  # E.164 digits stored
 
         with pytest.raises(ValidationError):
-            M(phone="abc")
+            PhoneModel(phone="abc")
 
     def test_eden_slug_in_model(self):
-        class M(BaseModel):
+        class SlugModel(BaseModel):
             slug: EdenSlug
 
-        m = M(slug="my-post")
+        m = SlugModel(slug="my-post")
         assert m.slug == "my-post"
 
         with pytest.raises(ValidationError):
-            M(slug="My Post!")
+            SlugModel(slug="My Post!")
 
     def test_eden_url_in_model(self):
-        class M(BaseModel):
+        class URLModel(BaseModel):
             website: EdenURL
 
-        m = M(website="https://eden.dev")
+        m = URLModel(website="https://eden.dev")
         assert m.website
 
         with pytest.raises(ValidationError):
-            M(website="not-a-url")
+            URLModel(website="not-a-url")
 
     def test_eden_color_in_model(self):
-        class M(BaseModel):
+        class ColorModel(BaseModel):
             brand_color: EdenColor
 
-        m = M(brand_color="#ff5733")
+        m = ColorModel(brand_color="#ff5733")
         assert m.brand_color == "#FF5733"
 
         with pytest.raises(ValidationError):
-            M(brand_color="red")
+            ColorModel(brand_color="red")

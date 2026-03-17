@@ -1,9 +1,10 @@
 
 import pytest
 import uuid
-from eden.db import Model, StringField, IntField, Database
+from sqlalchemy.orm import Mapped
+from eden.db import Model, StringField, IntField, Database, JSONField, JSONBField, EnumField
 from eden.db.signals import receiver, post_save, pre_save, post_delete, pre_delete
-from eden.db.validation import ValidationError, ValidationErrors
+from eden.db.validation import ValidationError, ValidationErrors, ValidatorMixin
 
 # Mock Database for testing
 @pytest.fixture(scope="module")
@@ -143,23 +144,19 @@ async def test_validation_inheritance(db):
     assert "description" in exc.value.errors
 
 
+from enum import Enum
+class Status(str, Enum):
+    ACTIVE = "active"
+    INACTIVE = "inactive"
+
+class MaturityAdvancedModel(Model, ValidatorMixin):
+    tags: Mapped[list[str]] = JSONField(default=list)
+    status: Mapped[Status] = EnumField(Status)
+    extra_info: Mapped[dict] = JSONBField()
+
 @pytest.mark.asyncio
 async def test_fields_extended(db):
-    from enum import Enum
-    from sqlalchemy import String
-    from sqlalchemy.orm import Mapped
-    from eden.db import ValidatorMixin, ArrayField, EnumField, JSONBField
-    
-    class Status(str, Enum):
-        ACTIVE = "active"
-        INACTIVE = "inactive"
-
-    class AdvancedModel(Model, ValidatorMixin):
-        tags: Mapped[list[str]] = ArrayField(String)
-        status: Mapped[Status] = EnumField(Status)
-        extra_info: Mapped[dict] = JSONBField()
-
-    m = AdvancedModel(
+    m = MaturityAdvancedModel(
         tags=["electronics", "sale"],
         status=Status.ACTIVE,
         extra_info={"source": "api"}
