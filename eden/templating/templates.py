@@ -46,10 +46,18 @@ class EdenTemplates(StarletteJinja2Templates):
     def __init__(self, directory: str | list[str], **kwargs: Any):
         if "extensions" not in kwargs:
             kwargs["extensions"] = []
-        if EdenDirectivesExtension not in kwargs["extensions"] and "eden.templating.EdenDirectivesExtension" not in kwargs["extensions"]:
-            kwargs["extensions"].append(EdenDirectivesExtension)
-        if "eden.components.ComponentExtension" not in kwargs["extensions"]:
-            kwargs["extensions"].append("eden.components.ComponentExtension")
+        
+        # Core Eden Extensions
+        required_exts = [
+            EdenDirectivesExtension,
+            "eden.components.ComponentExtension",
+            "jinja2.ext.loopcontrols",
+            "jinja2.ext.do",
+        ]
+        
+        for ext in required_exts:
+            if ext not in kwargs["extensions"] and str(ext) not in [str(e) for e in kwargs["extensions"]]:
+                kwargs["extensions"].append(ext)
 
         super().__init__(directory=directory, **kwargs)
 
@@ -129,6 +137,25 @@ class EdenTemplates(StarletteJinja2Templates):
         self.env.globals["eden_head"] = eden_head
         self.env.globals["eden_scripts"] = eden_scripts
 
+        # Register helpers as globals for directive availability
+        self.env.globals["csrf_token"] = self._csrf_token_helper
+        self.env.globals["old"] = self._old_helper
+        self.env.globals["vite"] = self._vite_helper
+        self.env.globals["eden_dump"] = self._dump_helper
+        
+        from eden.context import is_active
+        self.env.globals["is_active"] = is_active
+        
+        # Ensure eden_messages is available as a global function
+        from eden.messages import get_messages
+        self.env.globals["eden_messages"] = get_messages
+        
+        # Core Stacking & DI Helpers
+        self.env.globals["eden_push"] = self._push_helper
+        self.env.globals["eden_stack"] = self._stack_helper
+        self.env.globals["eden_dependency"] = self._dependency_helper
+        self.env.globals["set_response_status"] = self._status_helper
+
     def _old_helper(self, name: str, default: Any = "") -> Any:
         """Helper for @old directive logic."""
         from eden.context import get_request
@@ -180,6 +207,60 @@ class EdenTemplates(StarletteJinja2Templates):
             f'</div>'
         )
         return Markup(html)
+
+    def _push_helper(self, name: str, content: str, once: bool = False, prepend: bool = False) -> str:
+        """Helper for @push, @pushOnce, and @prepend directives."""
+        from eden.context import get_request
+        request = get_request()
+        if request:
+            if not hasattr(request.state, "eden_stacks"):
+                request.state.eden_stacks = {}
+            if not hasattr(request.state, "eden_seen_pushes"):
+                request.state.eden_seen_pushes = set()
+            
+            if once and name in request.state.eden_seen_pushes:
+                return ""
+            
+            if name not in request.state.eden_stacks:
+                request.state.eden_stacks[name] = []
+            
+            if prepend:
+                request.state.eden_stacks[name].insert(0, content)
+            else:
+                request.state.eden_stacks[name].append(content)
+            
+            if once:
+                request.state.eden_seen_pushes.add(name)
+        return ""
+
+    def _stack_helper(self, name: str) -> Markup:
+        """Helper for @stack directive."""
+        from eden.context import get_request
+        request = get_request()
+        if request and hasattr(request.state, "eden_stacks"):
+            stack = request.state.eden_stacks.get(name, [])
+            return Markup("\n".join(stack))
+        return Markup("")
+
+    def _dependency_helper(self, alias: str) -> Any:
+        """Helper for @inject directive."""
+        from eden.context import get_app
+        app = get_app()
+        # In the future, this should use a proper DI container
+        # For now, we check app and app.config
+        if hasattr(app, alias):
+            return getattr(app, alias)
+        if hasattr(app, "config") and hasattr(app.config, alias):
+            return getattr(app.config, alias)
+        return None
+
+    def _status_helper(self, code: int) -> str:
+        """Helper for @status directive."""
+        from eden.context import get_request
+        request = get_request()
+        if request:
+            request.state._status_code = code
+        return ""
 
     def render(self, request: Any, template_name: str, context: dict[str, Any], **kwargs: Any) -> Any:
         """Convenience wrapper — preferred over ``TemplateResponse`` directly."""

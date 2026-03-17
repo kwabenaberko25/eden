@@ -682,6 +682,9 @@ class MessageMiddleware:
         await self.app(scope, receive, send)
 
 
+# Note: RequestTracking logic was moved to eden.middleware.correlation.CorrelationIdMiddleware
+
+
 # ── Middleware Registry and Lookup ──────────────────────────────────────────
 
 
@@ -702,6 +705,8 @@ MIDDLEWARE_REGISTRY: dict[str, type | str] = {
     "telemetry": PerformanceTelemetryMiddleware,
     "cache": CacheMiddleware,
     "request": RequestContextMiddleware,
+    "request_id": "eden.middleware.correlation:CorrelationIdMiddleware",
+    "correlation": "eden.middleware.correlation:CorrelationIdMiddleware",
 }
 
 
@@ -817,6 +822,7 @@ __all__ = [
     "CacheMiddleware",
     "EdenFunctionMiddleware",
     "MessageMiddleware",
+    "RequestIDMiddleware",
     "MIDDLEWARE_EXECUTION_ORDER",
     "get_middleware_class",
     # New feature middleware (from submodules)

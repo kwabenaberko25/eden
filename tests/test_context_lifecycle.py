@@ -221,7 +221,7 @@ class TestContextMiddleware:
         
         # Check the middleware stack includes RequestContextMiddleware
         # The middleware stack is a list of (cls, kwargs) tuples
-        middleware_names = [cls.__name__ for cls, _ in app._middleware_stack]
+        middleware_names = [cls.__name__ for cls, _, _ in app._middleware_stack]
         has_context = any("RequestContext" in name for name in middleware_names)
         
         # If not already added, it may be added during __call__

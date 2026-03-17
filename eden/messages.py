@@ -8,7 +8,7 @@ and real-time WebSocket broadcasting.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Iterator, List
+from typing import Any, Iterator, List, Optional
 
 # Message Levels (matching Django for familiarity)
 DEBUG = 10
@@ -155,3 +155,26 @@ class MessageContainer:
 
     def __bool__(self) -> bool:
         return len(self) > 0
+
+
+def get_messages(request: Optional[Any] = None) -> Iterator[Message]:
+    """
+    Retrieve messages for the current request.
+    
+    Args:
+        request: The current request object. If None, retrieves from context.
+        
+    Returns:
+        An iterator over the messages.
+    """
+    if request is None:
+        from eden.context import get_request
+        request = get_request()
+    
+    if not request:
+        return iter([])
+        
+    if not hasattr(request, "_messages"):
+        request._messages = MessageContainer(request)
+        
+    return iter(request._messages)

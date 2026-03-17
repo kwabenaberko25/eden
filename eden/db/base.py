@@ -237,8 +237,12 @@ class Model(Base, AccessControl, ValidatorMixin, LifecycleMixin, SerializationMi
         session_or_instances: Any = None,
         instances_or_session: Any = None,
         validate: bool = True,
+        batch_size: Optional[int] = None,
     ) -> List[T]:
-        """Create multiple records."""
+        """
+        Create multiple records efficiently.
+        Triggers signals and hooks for each instance.
+        """
         session = None
         instances = None
 
@@ -258,10 +262,13 @@ class Model(Base, AccessControl, ValidatorMixin, LifecycleMixin, SerializationMi
         if not instances:
             return []
 
+        from .signals import pre_save, post_save
         actual_instances = [cls(**inst) if isinstance(inst, dict) else inst for inst in instances]
 
         async def _internal_save(inst, sess):
-            if is_new := (inst.id is None):
+            is_new = inst.id is None
+            await pre_save.send(sender=cls, instance=inst, is_new=is_new, session=sess)
+            if is_new:
                 await inst._call_hook("before_create", sess)
             await inst._call_hook("before_save", sess)
             if validate:
@@ -269,21 +276,27 @@ class Model(Base, AccessControl, ValidatorMixin, LifecycleMixin, SerializationMi
             sess.add(inst)
 
         async def _internal_after(inst, sess):
+            is_new = True # Bulk create is always new conceptually, but let's be safe
             if inst.id is not None:
                 await inst._call_hook("after_create", sess)
             await inst._call_hook("after_save", sess)
+            await post_save.send(sender=cls, instance=inst, is_new=True, session=sess)
 
         if session:
-            for inst in actual_instances:
+            for i, inst in enumerate(actual_instances):
                 await _internal_save(inst, session)
+                if batch_size and (i + 1) % batch_size == 0:
+                    await session.flush()
             await session.flush()
             for inst in actual_instances:
                 await _internal_after(inst, session)
             return actual_instances
 
         async with cls._provide_session() as sess:
-            for inst in actual_instances:
+            for i, inst in enumerate(actual_instances):
                 await _internal_save(inst, sess)
+                if batch_size and (i + 1) % batch_size == 0:
+                    await sess.flush()
             await sess.flush()
             for inst in actual_instances:
                 await _internal_after(inst, sess)

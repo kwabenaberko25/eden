@@ -58,50 +58,66 @@ class LifecycleMixin:
         # Handle Auto-Slugging
         await self._auto_slugify()
 
+        from ..signals import pre_save, post_save
+
         if session:
-            # Lifecycle hooks - Phase 1: Before
+            # 1. Trigger Signals & Hooks (Phase 1: Before)
+            await pre_save.send(sender=self.__class__, instance=self, is_new=is_new, session=session)
             if is_new:
                 await self._call_hook("before_create", session)
             await self._call_hook("before_save", session)
             
-            # Eden Validation Hooks & Rules
-            await self._trigger_hooks(self._pre_save_hooks)
+            # Eden Validation Hooks & Rules (Legacy)
+            if hasattr(self, "_trigger_hooks"):
+                await self._trigger_hooks(self._pre_save_hooks)
 
+            # 2. Validation
             if validate:
                 await self.full_clean()
             
             # Re-check is_new if ID was assigned in hooks
-            is_new = self.id is None or not await session.get(self.__class__, self.id)
+            # is_new = self.id is None or not await session.get(self.__class__, self.id)
 
+            # 3. Add to session
             session.add(self)
             await session.flush()
 
-            # Lifecycle hooks - Phase 2: After
+            # 4. Success Hooks & Signals (Phase 2: After)
             if is_new:
                 await self._call_hook("after_create", session)
             await self._call_hook("after_save", session)
-            await self._trigger_hooks(self._post_save_hooks)
+            if hasattr(self, "_trigger_hooks"):
+                await self._trigger_hooks(self._post_save_hooks)
+            await post_save.send(sender=self.__class__, instance=self, is_new=is_new, session=session)
 
             await session.refresh(self)
             await self._log_audit(is_new, self._make_json_safe(changes) if not is_new else None)
             return self
 
         async with self._provide_session() as sess:
+            # 1. Trigger Signals & Hooks (Before)
+            await pre_save.send(sender=self.__class__, instance=self, is_new=is_new, session=sess)
             if is_new:
                 await self._call_hook("before_create", sess)
             await self._call_hook("before_save", sess)
-            await self._trigger_hooks(self._pre_save_hooks)
+            if hasattr(self, "_trigger_hooks"):
+                await self._trigger_hooks(self._pre_save_hooks)
 
+            # 2. Validation
             if validate:
                 await self.full_clean()
 
+            # 3. Add to session
             sess.add(self)
             await sess.flush()
 
+            # 4. Success Hooks & Signals (After)
             if is_new:
                 await self._call_hook("after_create", sess)
             await self._call_hook("after_save", sess)
-            await self._trigger_hooks(self._post_save_hooks)
+            if hasattr(self, "_trigger_hooks"):
+                await self._trigger_hooks(self._post_save_hooks)
+            await post_save.send(sender=self.__class__, instance=self, is_new=is_new, session=sess)
 
             if commit:
                 await sess.commit()
@@ -140,13 +156,18 @@ class LifecycleMixin:
             raise ValidationError(detail="Model validation failed", errors=formatted_errors)
 
     async def delete(self, session: Optional[AsyncSession] = None, hard: bool = False, commit: bool = True) -> None:
-        """Delete the current record."""""
-        try:
-            from eden.db.file_reference import FileReference
-            await FileReference.cleanup_by_model(self.__class__, self.id)
-        except Exception as exc:
-            logger.warning(f"File cleanup failed for {self.__class__.__name__}({self.id}): {exc}")
+        """
+        Delete the current record. 
+        Triggers pre_delete and post_delete signals and lifecycle hooks.
+        Supports soft and hard deletion.
+        """
+        from ..signals import pre_delete, post_delete
         
+        # 1. Trigger Signals & Hooks (Before)
+        # Note: session might be None here if not passed, we'll use a local session if needed inside hooks
+        # but signals should ideally have a session context.
+        
+        # Soft-delete handling
         if hasattr(self, "deleted_at") and not hard:
             from datetime import datetime
             self.deleted_at = datetime.utcnow()
@@ -158,17 +179,43 @@ class LifecycleMixin:
             return
 
         if session:
+            await pre_delete.send(sender=self.__class__, instance=self, session=session)
             await self._call_hook("before_delete", session)
+            
+            # File cleanup
+            try:
+                from eden.db.file_reference import FileReference
+                await FileReference.cleanup_by_model(self.__class__, self.id)
+            except Exception as exc:
+                logger.warning(f"File cleanup failed: {exc}")
+                
             await session.delete(self)
             await session.flush()
+            
+            await self._call_hook("after_delete", session)
+            await post_delete.send(sender=self.__class__, instance=self, session=session)
+            
             if commit:
                 await session.commit()
             return
 
         async with self._provide_session() as sess:
+            await pre_delete.send(sender=self.__class__, instance=self, session=sess)
             await self._call_hook("before_delete", sess)
+            
+            # File cleanup
+            try:
+                from eden.db.file_reference import FileReference
+                await FileReference.cleanup_by_model(self.__class__, self.id)
+            except Exception as exc:
+                logger.warning(f"File cleanup failed: {exc}")
+
             await sess.delete(self)
             await sess.flush()
+
+            await self._call_hook("after_delete", sess)
+            await post_delete.send(sender=self.__class__, instance=self, session=sess)
+            
             if commit:
                 await sess.commit()
 

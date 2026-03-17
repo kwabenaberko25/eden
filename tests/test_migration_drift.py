@@ -22,14 +22,15 @@ async def test_migration_check_drift_detection():
     mock_t2_res = MagicMock()
     mock_t2_res.scalar.return_value = "v1" # Tenant 2 is DRIFTED
     
-    # 2. Mock Database and Session through Model._get_db()
-    with patch("eden.db.Model._get_db") as mock_get_db:
-        mock_db = mock_get_db.return_value
-        mock_session = AsyncMock()
-        mock_db.session.return_value.__aenter__.return_value = mock_session
+    # 2. Mock create_async_engine
+    with patch("sqlalchemy.ext.asyncio.create_async_engine") as mock_create_engine:
+        mock_engine = mock_create_engine.return_value
+        mock_conn = AsyncMock()
+        mock_engine.connect.return_value.__aenter__.return_value = mock_conn
+        mock_engine.dispose = AsyncMock()
         
         # Setup session.execute side effects
-        mock_session.execute.side_effect = [
+        mock_conn.execute.side_effect = [
             mock_shared_res,  # Shared version check
             mock_tenants_res, # Tenant list fetch
             mock_t1_res,      # Tenant 1 version check
@@ -44,6 +45,7 @@ async def test_migration_check_drift_detection():
             manager = MigrationManager(db_url)
             # Bypass config loading
             manager.config = MagicMock()
+            manager.config.get_main_option.return_value = db_url
             
             # 4. Run check
             results = await manager.check()

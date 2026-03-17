@@ -56,8 +56,19 @@ from eden.db.fields import (
     TextField,
     UUIDField,
     JSONField,
+    JSONBField,
+    ArrayField,
+    EnumField,
+    DecimalField,
     FileField,
     f,
+)
+from eden.db.validation import (
+    ValidatorMixin,
+    ValidationError,
+    ValidationErrors,
+    ValidationRule,
+    ValidationResult,
 )
 from eden.db.metadata import (
     MaxLength,
@@ -167,6 +178,7 @@ from eden.db.slugs import SlugMixin, slugify, auto_slugify_field
 from eden.db.migrations import MigrationManager
 from eden.context import request, user
 from eden.db.ai import VectorModel, VectorField
+from eden.db.discovery import discover_models
 from eden.db.access import (
     AccessControl,
     PermissionRule,
@@ -204,6 +216,7 @@ __all__ = [
     "Database",
     "get_db",
     "init_db",
+    "discover_models",
     # Session context & transactions
     "get_session",
     "set_session",

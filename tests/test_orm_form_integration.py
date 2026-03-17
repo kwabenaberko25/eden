@@ -10,10 +10,12 @@ from eden.db.lookups import q
 # 1. Define modern models
 class Category(Model):
     __tablename__ = "categorys"
+    __table_args__ = {"extend_existing": True}
     name: Annotated[str, MaxLength(50), Label("Category Name")]
 
 class Product(Model):
     __tablename__ = "products"
+    __table_args__ = {"extend_existing": True}
     title: Annotated[str, MaxLength(100), Label("Product Title"), Required]
     price: int = IntField(default=0)
     status: Annotated[str, Choices(["draft", "published", "archived"]), Label("Current Status")]

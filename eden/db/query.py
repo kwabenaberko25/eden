@@ -771,6 +771,10 @@ class QuerySet(Generic[T]):
             if hasattr(self._model_cls, "before_bulk_update"):
                 await self._model_cls.before_bulk_update(session, self, values)
 
+            # Trigger signals
+            from eden.db.signals import pre_bulk_update, post_bulk_update
+            await pre_bulk_update.send(sender=self._model_cls, instance=self, values=values)
+
             # Build update statement
             upd_stmt = update(self._model_cls)
             if self._stmt._where_criteria:
@@ -781,6 +785,8 @@ class QuerySet(Generic[T]):
 
             if hasattr(self._model_cls, "after_bulk_update"):
                 await self._model_cls.after_bulk_update(session, self, values, result.rowcount)
+            
+            await post_bulk_update.send(sender=self._model_cls, instance=self, values=values, count=result.rowcount)
             
             await session.commit()
             return result.rowcount
@@ -800,6 +806,10 @@ class QuerySet(Generic[T]):
             if hasattr(self._model_cls, "before_bulk_delete"):
                 await self._model_cls.before_bulk_delete(session, self)
 
+            # Trigger signals
+            from eden.db.signals import pre_bulk_delete, post_bulk_delete
+            await pre_bulk_delete.send(sender=self._model_cls, instance=self)
+
             # Build delete statement
             del_stmt = delete(self._model_cls)
             if self._stmt._where_criteria:
@@ -809,6 +819,8 @@ class QuerySet(Generic[T]):
 
             if hasattr(self._model_cls, "after_bulk_delete"):
                 await self._model_cls.after_bulk_delete(session, self, result.rowcount)
+            
+            await post_bulk_delete.send(sender=self._model_cls, instance=self, count=result.rowcount)
             
             await session.commit()
             return result.rowcount

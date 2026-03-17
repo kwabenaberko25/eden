@@ -126,11 +126,15 @@ class TemplateLexer:
 
             # 4. Directives
             if char == '@':
-                # Avoid matching emails: must be at start or preceded by non-alphanumeric
+                # Avoid matching emails: must be at start or preceded by non-alphanumeric/underscore
+                # Note: whitespace, punctuation like { ( } [ , ; are fine
                 can_be_directive = True
                 if self.pos > 0:
                     prev_char = self.source[self.pos - 1]
                     if prev_char.isalnum() or prev_char == '_':
+                        can_be_directive = False
+                    # Extra check for common email characters before @
+                    if prev_char in ('.', '-', '+'):
                         can_be_directive = False
                 
                 if can_be_directive:
@@ -140,58 +144,73 @@ class TemplateLexer:
                         name = m.group(1)
                         full_match = m.group(0)
                         
-                        # Support "@else if" syntax by normalizing to "elif"
-                        if name == "else":
-                            remaining = self.source[self.pos + len(full_match):]
-                            m_elif = re.match(r'\s+if\b', remaining)
-                            if m_elif:
-                                name = "elif"
-                                full_match += m_elif.group(0)
+                        # Avoid emails: if followed by .something and no space/paren/brace
+                        # e.g. @name.com should not match if it looks like an email domain
+                        after_pos = self.pos + len(full_match)
+                        if after_pos < len(self.source) and self.source[after_pos] == '.':
+                             # Check if it looks like a domain suffix
+                             m_domain = re.match(r'\.[a-zA-Z]{2,}', self.source[after_pos:])
+                             if m_domain:
+                                 can_be_directive = False
+                
+                if can_be_directive and m:
+                    # Re-confirm m after potentially setting can_be_directive to False
+                    name = m.group(1)
+                    full_match = m.group(0)
+                    
+                    # Support "@else if" syntax by normalizing to "elif"
+                    if name == "else":
+                        remaining = self.source[self.pos + len(full_match):]
+                        m_elif = re.match(r'\s+if\b', remaining)
+                        if m_elif:
+                            name = "elif"
+                            full_match += m_elif.group(0)
 
-                        token_line, token_col = self.line, self.column
-                        self.advance(len(full_match))
-                        self.tokens.append(Token(TokenType.DIRECTIVE, name, token_line, token_col))
+                    token_line, token_col = self.line, self.column
+                    self.advance(len(full_match))
+                    self.tokens.append(Token(TokenType.DIRECTIVE, name, token_line, token_col))
+                    
+                    # Optional arguments: @name(...)
+                    saved_pos_expr = self.pos
+                    saved_line_expr, saved_col_expr = self.line, self.column
+                    ws_expr = ""
+                    while self.pos < len(self.source) and self.source[self.pos].isspace():
+                        ws_expr += self.advance()
+                    
+                    if self.peek() == '(':
+                        expr_line, expr_col = self.line, self.column
+                        expr = self.read_balanced('(', ')')
+                        self.tokens.append(Token(TokenType.EXPRESSION, expr, expr_line, expr_col))
+                    elif name in ("let", "php", "json", "dump", "css", "js", "vite", "method", "csrf", "csrf_token", "break", "continue"):
+                        self.pos = saved_pos_expr
+                        self.line = saved_line_expr
+                        self.column = saved_col_expr
                         
-                        # Optional arguments: @name(...)
-                        saved_pos_expr = self.pos
-                        saved_line_expr, saved_col_expr = self.line, self.column
-                        ws_expr = ""
-                        while self.pos < len(self.source) and self.source[self.pos].isspace():
-                            ws_expr += self.advance()
-                        
-                        if self.peek() == '(':
-                            expr_line, expr_col = self.line, self.column
-                            expr = self.read_balanced('(', ')')
-                            self.tokens.append(Token(TokenType.EXPRESSION, expr, expr_line, expr_col))
-                        elif name in ("let", "php", "json", "dump", "css", "js", "vite", "method", "csrf", "csrf_token"):
-                            self.pos = saved_pos_expr
-                            self.line = saved_line_expr
-                            self.column = saved_col_expr
-                            
-                            raw_expr = self.read_until(lambda c: c == '\n' or c == '{').strip()
-                            if raw_expr:
-                                self.tokens.append(Token(TokenType.EXPRESSION, raw_expr, self.line, self.column))
-                        else:
-                            # Backtrack
-                            self.pos = saved_pos_expr
-                            self.line = saved_line_expr
-                            self.column = saved_col_expr
+                        # Read until newline, block open {, or block close }
+                        raw_expr = self.read_until(lambda c: c == '\n' or c == '{' or c == '}').strip()
+                        if raw_expr:
+                            self.tokens.append(Token(TokenType.EXPRESSION, raw_expr, self.line, self.column))
+                    else:
+                        # Backtrack
+                        self.pos = saved_pos_expr
+                        self.line = saved_line_expr
+                        self.column = saved_col_expr
 
-                        # Optional block open: {
-                        saved_pos = self.pos
-                        saved_line, saved_col = self.line, self.column
-                        ws = ""
-                        while self.pos < len(self.source) and self.source[self.pos].isspace():
-                            ws += self.advance()
-                        
-                        if self.peek() == '{':
-                            if ws: self.tokens.append(Token(TokenType.TEXT, ws, saved_line, saved_col))
-                            self.tokens.append(Token(TokenType.BLOCK_OPEN, self.advance(), self.line, self.column))
-                        else:
-                            self.pos = saved_pos
-                            self.line = saved_line
-                            self.column = saved_col
-                        continue
+                    # Optional block open: {
+                    saved_pos = self.pos
+                    saved_line, saved_col = self.line, self.column
+                    ws = ""
+                    while self.pos < len(self.source) and self.source[self.pos].isspace():
+                        ws += self.advance()
+                    
+                    if self.peek() == '{':
+                        if ws: self.tokens.append(Token(TokenType.TEXT, ws, saved_line, saved_col))
+                        self.tokens.append(Token(TokenType.BLOCK_OPEN, self.advance(), self.line, self.column))
+                    else:
+                        self.pos = saved_pos
+                        self.line = saved_line
+                        self.column = saved_col
+                    continue
 
             # 5. Braces (for blocks)
             if char == '}':

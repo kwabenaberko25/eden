@@ -544,16 +544,33 @@ class ValidationScanner:
     
     @classmethod
     def discover_rules(cls, model_cls: Type[Model]) -> List[tuple]:
-        """Scans model dictionary for attributes with 'info' containing validation metadata."""
+        """Scans model and its base classes for validation metadata."""
         discovered_rules = []
-        for name, attr in model_cls.__dict__.items():
-            info = None
-            if hasattr(attr, "info"):
-                info = attr.info
-            elif hasattr(attr, "column") and hasattr(attr.column, "info"):
-                info = attr.column.info
-            
-            if info:
+        seen_names = set()
+
+        # Iterate through MRO to collect rules from base classes
+        for base in model_cls.__mro__:
+            if base.__name__ in ("Base", "object"):
+                continue
+
+            for name, attr in base.__dict__.items():
+                # Avoid duplicate rules for the same field from different levels
+                # (though usually we want to keep them if they are different rules)
+                # But for 'max_length' or 'required', we might only want the most specific one.
+                # However, SQLAlchemy Column 'info' doesn't usually change in subclasses unless redefined.
+                
+                info = None
+                if hasattr(attr, "info"):
+                    info = attr.info
+                elif hasattr(attr, "column") and hasattr(attr.column, "info"):
+                    info = attr.column.info
+                
+                if not info:
+                    continue
+
+                # To prevent duplicate rules for the same field name from multiple base classes
+                # (since columns are usually shared or inherited), we can track (name, rule_type).
+                
                 if "max" in info:
                     discovered_rules.append((model_cls.rule_max_length, name, info["max"]))
                 if "min" in info:
@@ -565,4 +582,5 @@ class ValidationScanner:
                     discovered_rules.append((model_cls.rule_choices, name, info["choices"]))
                 if "pattern" in info:
                     discovered_rules.append((model_cls.rule_pattern, name, info["pattern"]))
+                    
         return discovered_rules

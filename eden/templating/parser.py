@@ -3,6 +3,12 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from .lexer import Token, TokenType
 
+class TemplateSyntaxError(Exception):
+    def __init__(self, message: str, line: int = 0, column: int = 0):
+        super().__init__(f"{message} (line {line}, col {column})")
+        self.line = line
+        self.column = column
+
 class Node:
     pass
 
@@ -46,24 +52,34 @@ class TemplateParser:
         i = 0
         while i < len(nodes):
             node = nodes[i]
-            if isinstance(node, DirectiveNode) and node.name in ("if", "unless"):
+            if isinstance(node, DirectiveNode) and node.name in ("if", "unless", "for", "foreach"):
                 chain = node
                 curr = chain
+                # if/unless chain can have multiple elif/elseif/else_if and one else
+                # for/foreach chain can have one empty or else
+                valid_followers = ("else", "elif", "elseif", "else_if") if node.name in ("if", "unless") else ("empty", "else")
+                
                 while i + 1 < len(nodes):
                     next_idx = i + 1
                     maybe_ws = nodes[next_idx]
                     if isinstance(maybe_ws, TextNode) and maybe_ws.content.isspace():
                         if next_idx + 1 < len(nodes):
                             next_node = nodes[next_idx + 1]
-                            if isinstance(next_node, DirectiveNode) and next_node.name in ("else", "elif", "elseif"):
+                            if isinstance(next_node, DirectiveNode) and next_node.name in valid_followers:
                                 curr.orelse.extend([maybe_ws, next_node])
                                 curr = next_node
                                 i = next_idx + 1
+                                # For loops, we usually only have one else/empty, but let's allow it to continue
+                                if node.name in ("for", "foreach"):
+                                    i = next_idx + 1
+                                    break
                                 continue
-                    elif isinstance(maybe_ws, DirectiveNode) and maybe_ws.name in ("else", "elif", "elseif"):
+                    elif isinstance(maybe_ws, DirectiveNode) and maybe_ws.name in valid_followers:
                         curr.orelse.append(maybe_ws)
                         curr = maybe_ws
                         i = next_idx
+                        if node.name in ("for", "foreach"):
+                            break
                         continue
                     break
                 new_nodes.append(chain)
@@ -82,12 +98,16 @@ class TemplateParser:
                 expression = self.advance().value
             
             block_directives = (
-                "if", "unless", "else", "elif", "elseif", "for", "foreach", "switch", "case", "default",
+                "if", "unless", "else", "elif", "elseif", "else_if", "while", "for", "foreach", "switch", "case", "default",
                 "auth", "guest", "htmx", "non_htmx", "fragment", "push", "verbatim",
                 "section", "block", "slot", "component", "error", "messages",
                 "even", "odd", "first", "last", "can", "cannot", "role", "permission",
-                "form", "field", "button", "input"
+                "form", "field", "button", "input", "php", "inject", "status"
             )
+            
+            standalone_directives = ("break", "continue")
+            if directive_token.value in standalone_directives:
+                return DirectiveNode(name=directive_token.value, expression=expression, line=directive_token.line)
             
             if directive_token.value in block_directives:
                 saved_pos = self.pos
@@ -98,10 +118,23 @@ class TemplateParser:
                 if self.peek().type == TokenType.BLOCK_OPEN:
                     self.advance() # consume {
                     body = []
+                    # Safety guard: prevent infinite loops on malformed blocks
+                    _last_pos = self.pos
                     while self.peek().type != TokenType.BLOCK_CLOSE and self.peek().type != TokenType.EOF:
                         n = self.parse_node()
                         if n: body.append(n)
+                        
+                        if self.pos == _last_pos: # Parser stalled
+                            self.advance()
+                        _last_pos = self.pos
                     
+                    if self.peek().type == TokenType.EOF:
+                        raise TemplateSyntaxError(
+                            f"Unclosed block for @{directive_token.value}",
+                            line=directive_token.line,
+                            column=directive_token.column
+                        )
+
                     if self.peek().type == TokenType.BLOCK_CLOSE:
                         self.advance() # consume }
                     

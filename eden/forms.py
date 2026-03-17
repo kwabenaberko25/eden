@@ -5,8 +5,10 @@ from dataclasses import dataclass
 from typing import Any, Dict, Optional, Type, List, Union, Iterator, Callable, Awaitable
 from uuid import uuid4
 
-from markupsafe import Markup
+from markupsafe import Markup, escape
 from pydantic import BaseModel, Field as PydanticField, ValidationError, EmailStr, AnyUrl
+
+from eden.context import get_request
 
 
 # ── Upload Progress Protocol ──────────────────────────────────────────────────────
@@ -84,7 +86,13 @@ def field(
 
     # Handle required/default logic
     if required is True:
-        default = ...
+        # If explicitly required, we use Pydantic's ... (Ellipsis)
+        # unless a default was provided, in which case it might be 
+        # a default for the FORM but technically optional for the MODEL
+        # though Pydantic usually treats default+required as contradiction.
+        # We'll follow Pydantic convention: default takes precedence over required=True
+        if default is ...:
+            default = ...
     elif required is False and default is ...:
         default = None
 
@@ -164,14 +172,22 @@ class FormField:
     Representation of a single form field with rendering helpers.
     """
 
+    # Global registry for widget renderers to allow extensibility
+    WIDGET_RENDERERS: Dict[str, Callable[[FormField, dict], Markup]] = {}
+
+    @classmethod
+    def register_widget(cls, name: str, renderer: Callable[[FormField, dict], Markup]):
+        """Register a custom widget renderer."""
+        cls.WIDGET_RENDERERS[name] = renderer
+
     def __init__(
         self,
-        name: Optional[str] = None,
+        name: str | None = None,
         value: Any = None,
-        error: str = None,
+        error: str | None = None,
         required: bool = False,
-        label: str = None,
-        widget: str = None,
+        label: str | None = None,
+        widget: str | None = None,
         **kwargs,
     ):
         self.name = name or ""
@@ -203,9 +219,21 @@ class FormField:
         if "id" not in attrs:
             attrs["id"] = f"id_{self.name}"
             
-        classes = list(self.css_classes)
+        classes = []
+        
+        # 1. Start with field's inherent classes
+        classes.extend(self.css_classes)
+        
+        # 2. Add error classes if applicable
         if self.error:
             classes.append("border-red-500")
+            
+        # 3. Add classes provided in kwargs (precedence: field < kwargs)
+        user_class = attrs.pop("class", attrs.pop("css_class", ""))
+        if user_class:
+            for c in str(user_class).split():
+                if c not in classes:
+                    classes.append(c)
             
         if classes:
             attrs["class"] = " ".join(classes)
@@ -293,8 +321,12 @@ class FormField:
     def render_label(self) -> str:
         return f'<label for="id_{self.name}">{self.label}</label>'
 
-    def render(self, **kwargs) -> str:
+    def render(self, **kwargs) -> Markup:
         """Render the field using its associated widget."""
+        # Check registry first for custom widgets
+        if self.widget in self.WIDGET_RENDERERS:
+            return self.WIDGET_RENDERERS[self.widget](self, kwargs)
+
         if self.widget == "textarea":
             return self.as_textarea(**kwargs)
         if self.widget == "select":
@@ -302,13 +334,28 @@ class FormField:
             return self.as_select(choices, **kwargs)
         if self.widget == "file":
             return self.as_file(**kwargs)
+        if self.widget == "checkbox":
+            return self.as_checkbox(**kwargs)
+        if self.widget == "radio":
+            choices = kwargs.pop("choices", self.attributes.get("choices", []))
+            return self.as_radio(choices, **kwargs)
+        if self.widget in ("date", "datetime-local", "time", "color", "range"):
+            return self.as_input(type=self.widget, **kwargs)
 
         # Default to input
+        return self.as_input(**kwargs)
+
+    def as_input(self, **kwargs) -> Markup:
+        """Render as a standard HTML input."""
         attrs = self._get_render_attrs(**kwargs)
         attr_str = self._render_attr_str(attrs)
         
-        # value is handled specially for inputs
-        val_str = f'value="{self.value}"' if self.value is not None and self.value != "" else ""
+        # value is handled specially for inputs and MUST be escaped
+        if self.value is not None and self.value != "":
+            # We use escape() here to prevent XSS. Markup() just tells jinja not to escape again.
+            val_str = f'value="{escape(str(self.value))}"'
+        else:
+            val_str = ""
 
         return Markup(f"<input {attr_str} {val_str} />")
 
@@ -337,7 +384,28 @@ class FormField:
         )
 
     def as_hidden(self, **kwargs) -> Markup:
-        return self.render(type="hidden", **kwargs)
+        return self.as_input(type="hidden", **kwargs)
+
+    def as_checkbox(self, **kwargs) -> Markup:
+        attrs = self._get_render_attrs(**kwargs)
+        attrs["type"] = "checkbox"
+        if self.value:
+            attrs["checked"] = "checked"
+        attr_str = self._render_attr_str(attrs)
+        return Markup(f"<input {attr_str} />")
+
+    def as_radio(self, choices: List[tuple[str, str]], **kwargs) -> Markup:
+        attrs = self._get_render_attrs(**kwargs)
+        base_id = attrs.pop("id", f"id_{self.name}")
+        
+        items = []
+        for i, (val, label) in enumerate(choices):
+            checked = ' checked="checked"' if str(val) == str(self.value) else ""
+            item_id = f"{base_id}_{i}"
+            items.append(
+                f'<label class="eden-radio-item"><input type="radio" name="{self.name}" id="{item_id}" value="{val}"{checked}> {label}</label>'
+            )
+        return Markup("\n".join(items))
 
     def as_file(
         self,
@@ -435,15 +503,15 @@ class FileField(FormField):
     
     def __init__(
         self,
-        name: Optional[str] = None,
+        name: str | None = None,
         value: Any = None,
-        error: str = None,
+        error: str | None = None,
         required: bool = False,
-        label: str = None,
+        label: str | None = None,
         accept: str = "",
         multiple: bool = False,
         show_progress: bool = False,
-        progress_element_id: Optional[str] = None,
+        progress_element_id: str | None = None,
         **kwargs,
     ):
         """
@@ -473,7 +541,8 @@ class FileField(FormField):
         self.accept = accept
         self.multiple = multiple
         self.show_progress = show_progress
-        self.progress_element_id = progress_element_id or f"progress_{uuid4().hex[:8]}"
+        # Use more entropy for progress bar IDs to avoid collisions (increased to 12 chars)
+        self.progress_element_id = progress_element_id or f"progress_{uuid4().hex[:12]}"
     
     def as_file(
         self,
@@ -565,24 +634,55 @@ class BaseForm:
         self.model_instance = None
         self._fields = {}
         self.files: dict[str, UploadedFile] = {}
+        
+        # Max upload size (100MB by default to prevent DoS)
+        self.MAX_UPLOAD_SIZE = 100 * 1024 * 1024 
 
-    def is_valid(self) -> bool:
-        """Validates the form data against the Pydantic schema."""
+    def is_valid(self, include: list[str] | None = None, exclude: list[str] | None = None) -> bool:
+        """
+        Validates the form data against the Pydantic schema.
+        
+        Args:
+            include: Optional list of field names to validate (Validation Groups support).
+            exclude: Optional list of field names to skip during validation.
+        """
         try:
+            data = self.data
+            
+            # Implementation of Validation Groups:
+            # If include/exclude is provided, we create a temporary schema or 
+            # partial data for validation.
+            if include or exclude:
+                # For now, we validate the whole thing but filter errors
+                # A more thorough implementation would use a partial schema
+                pass
+
             # Pydantic 2.0+ uses model_validate
             if hasattr(self.schema, "model_validate"):
-                self.model_instance = self.schema.model_validate(self.data)
+                self.model_instance = self.schema.model_validate(data)
             else:
-                self.model_instance = self.schema(**self.data)
+                self.model_instance = self.schema(**data)
             self.errors = {}
             return True
         except ValidationError as e:
+            self.errors = {}
+            include_set = set(include) if include else None
+            exclude_set = set(exclude) if exclude else set()
+            
             for err in e.errors():
                 # Handle nested locations or missing loc
                 loc = err.get("loc", ["__all__"])
                 field_name = str(loc[0]) if loc else "__all__"
+                
+                # Filter errors based on groups
+                if include_set and field_name not in include_set:
+                    continue
+                if field_name in exclude_set:
+                    continue
+                    
                 self.errors[field_name] = err.get("msg", "Validation error")
-            return False
+            
+            return len(self.errors) == 0
 
     @classmethod
     def from_model(cls, instance: Any) -> BaseForm:
@@ -606,6 +706,29 @@ class BaseForm:
 
         return cls(schema=schema, data=data)
 
+    def render_csrf(self) -> Markup:
+        """
+        Render the CSRF hidden input field for the current request context.
+        
+        Requires CSRFMiddleware to be active in the application stack.
+        
+        Usage:
+            {{ form.render_csrf() }}
+        """
+        request = get_request()
+        if not request:
+            import warnings
+            warnings.warn("render_csrf() called outside of request context. No token will be produced.")
+            return Markup("")
+            
+        try:
+            from eden.middleware import get_csrf_token
+            token = get_csrf_token(request)
+            return Markup(f'<input type="hidden" name="csrf_token" value="{token}">')
+        except (ImportError, AttributeError):
+            # Fallback if CSRF is not configured or middleware is missing
+            return Markup("")
+
     @classmethod
     async def from_multipart(cls, schema: Type[BaseModel], request: Any) -> BaseForm:
         """
@@ -624,10 +747,23 @@ class BaseForm:
         data: dict[str, Any] = {}
         files: dict[str, UploadedFile] = {}
 
+        # Use class attribute for size limit if available
+        max_size = getattr(cls, "MAX_UPLOAD_SIZE", 100 * 1024 * 1024)
+
         for key, value in multipart.items():
             # Starlette UploadFile has a .filename attribute
             if hasattr(value, "filename") and value.filename:
+                # Check file size if available before reading (Resource Protection)
+                size = getattr(value, "size", None)
+                if size and size > max_size:
+                    raise ValueError(f"File '{value.filename}' exceeds maximum upload size of {max_size} bytes.")
+                
                 raw = await value.read()
+                
+                # Double check size after read as well
+                if len(raw) > max_size:
+                    raise ValueError(f"File '{value.filename}' exceeds maximum upload size of {max_size} bytes.")
+
                 content_type = (
                     getattr(value, "content_type", "application/octet-stream")
                     or "application/octet-stream"
@@ -733,8 +869,9 @@ class BaseForm:
         return self._fields[name]
 
     def render_all(self) -> str:
-        """Renders all fields in the form."""
-        html = ""
+        """Renders all fields in the form, including CSRF token."""
+        html = self.render_csrf()
+        html += "\n"
         # Check if schema has model_fields (Pydantic 2.0)
         fields = getattr(self.schema, "model_fields", {})
         for name in fields:
@@ -801,35 +938,42 @@ class Schema(BaseModel):
                             field.default = None
 
         # Declarative Model Integration
+        # This handles 'class Meta: model = MyModel' patterns
         meta = getattr(cls, "Meta", None)
         if meta and hasattr(meta, "model"):
             model = meta.model
             include = getattr(meta, "include", None)
             exclude = set(getattr(meta, "exclude", []))
 
-            # Use model metadata to populate fields
-            # We bypass Pydantic's normal class creation and inject fields
-            dynamic_schema = model.to_schema(include=include, exclude=exclude)
+            # Generate dynamic pydantic model from ORM model
+            try:
+                dynamic_schema = model.to_schema(include=include, exclude=exclude)
+                
+                # Transfer fields that aren't manually overridden in the class
+                for name, field in dynamic_schema.model_fields.items():
+                    if name not in cls.__annotations__:
+                        cls.__annotations__[name] = field.annotation
+                        # Set as class attribute so Pydantic sees it during discovery
+                        if not hasattr(cls, name):
+                            setattr(cls, name, field)
+                
+                # Patch Pydantic 2.x internals to enable full validation on this subclass.
+                # Since Pydantic 2.0 generates its core schema/validator during type creation,
+                # we must carry over the generated engine components from the dynamic schema.
+                if hasattr(dynamic_schema, "__pydantic_core_schema__"):
+                    cls.__pydantic_core_schema__ = dynamic_schema.__pydantic_core_schema__
+                    cls.__pydantic_validator__ = dynamic_schema.__pydantic_validator__
+                    cls.__pydantic_serializer__ = dynamic_schema.__pydantic_serializer__
+                    cls.model_fields.update(dynamic_schema.model_fields)
 
-            # Pull fields from generated schema and inject them into this class
-            for name, field in dynamic_schema.model_fields.items():
-                if name not in cls.__annotations__:
-                    cls.__annotations__[name] = field.annotation
-                    setattr(cls, name, field)
-            
-            # Patch Pydantic 2.x internals to make validation work on this class (Maximum Capacity)
-            if hasattr(dynamic_schema, "__pydantic_core_schema__"):
-                cls.__pydantic_core_schema__ = dynamic_schema.__pydantic_core_schema__
-                cls.__pydantic_validator__ = dynamic_schema.__pydantic_validator__
-                cls.__pydantic_serializer__ = dynamic_schema.__pydantic_serializer__
-                cls.model_fields.update(dynamic_schema.model_fields)
-
-            # Rebuild model if needed - pydantic usually handles this automatically
-            # if we modify annotations before Pydantic finishes its logic.
-            # However, since __init_subclass__ runs after, we might need to
-            # trigger model rebuild.
-            if hasattr(cls, "model_rebuild"):
-                cls.model_rebuild(force=True)
+                # Force pydantic to rebuild the model to ensure all injected fields are accounted for
+                if hasattr(cls, "model_rebuild"):
+                    cls.model_rebuild(force=True)
+                    
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).error(f"Failed to generate dynamic schema for {cls.__name__}: {e}")
+                # We don't raise here to allow the class to load, but it might fail at runtime
 
     @classmethod
     def as_form(cls, data: Optional[Dict[str, Any]] = None) -> BaseForm:

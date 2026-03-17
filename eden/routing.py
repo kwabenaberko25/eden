@@ -8,6 +8,7 @@ prefix-based grouping, and sub-router composition.
 from __future__ import annotations
 
 import inspect
+import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
@@ -17,6 +18,11 @@ from eden.requests import Request
 from eden.responses import JsonResponse
 
 __all__ = ["Router", "Route", "WebSocketRoute", "View"]
+
+# Canonical HTTP methods supported by class-based views.
+# Used by both View.dispatch() and Router.add_view() for consistency.
+_VIEW_METHODS = ("get", "post", "put", "patch", "delete", "options", "head")
+_ALL_VIEW_METHODS = [m.upper() for m in _VIEW_METHODS]
 
 
 @dataclass
@@ -88,17 +94,23 @@ class View:
     async def dispatch(self, request: Request, **path_params: Any) -> Any:
         """
         Main entry point for the view. Dispatches to the appropriate method handler.
+
+        Looks up a handler method matching the HTTP method (e.g. ``get``, ``post``).
+        Falls back to the ``any`` catch-all handler if defined.  When no handler
+        matches, raises ``MethodNotAllowed`` with a list of every method this view
+        actually implements (consistent with ``Router.add_view``).
         """
         method = request.method.lower()
         handler = getattr(self, method, None)
-        
+
         if handler is None:
             # Check for generic 'any' handler before failing
             handler = getattr(self, "any", None)
-            
+
         if handler is None:
             from eden.exceptions import MethodNotAllowed
-            allowed = [m.upper() for m in ["get", "post", "put", "patch", "delete"] if hasattr(self, m)]
+            # Use _VIEW_METHODS so the reported allowed list matches add_view()
+            allowed = [m.upper() for m in _VIEW_METHODS if hasattr(self, m)]
             raise MethodNotAllowed(detail=f"Method {request.method} not allowed.", extra={"allowed": allowed})
 
         # Dependency injection for the specific method handler
@@ -193,7 +205,7 @@ class Router:
             items = await model.all()
             return request.render(f"{prefix}/list.html", {"items": items})
 
-        @self.get("/new", name="create")
+        @self.get("/new", name="new")
         async def new_item(request: Request):
             return request.render(f"{prefix}/form.html", {"item": None})
 
@@ -212,7 +224,7 @@ class Router:
                 raise NotFound(detail=f"{model.__name__} not found.")
             return request.render(f"{prefix}/show.html", {"item": item})
 
-        @self.get("/{id}/edit", name="update")
+        @self.get("/{id}/edit", name="edit")
         async def edit_item(request: Request, id: str):
             item = await model.get(id)
             if not item:
@@ -262,20 +274,36 @@ class Router:
         middleware: list[Any] | None = None,
         include_in_schema: bool = True,
     ) -> None:
-        """Register a route."""
+        """Register a route.
+
+        Raises:
+            ValueError: If a route with the same *name* already exists on
+                this router.  Duplicate names cause ambiguous ``url_for()``
+                look-ups and are almost certainly a bug.
+        """
         full_path = self.prefix + path
+        route_name = name or endpoint.__name__
+
+        # Guard against duplicate route names (C2 / B5)
+        for existing in self.routes:
+            if isinstance(existing, Route) and existing.name == route_name:
+                raise ValueError(
+                    f"Route name '{route_name}' already registered for path "
+                    f"'{existing.path}'. Cannot register again for '{full_path}'."
+                )
+
         summary = summary
         if not summary:
             doc = inspect.getdoc(endpoint)
             summary = doc.split("\n")[0] if doc else None
-            
+
         description = description or inspect.getdoc(endpoint)
 
         route = Route(
             path=full_path,
             endpoint=endpoint,
             methods=methods,
-            name=name or endpoint.__name__,
+            name=route_name,
             summary=summary,
             description=description,
             tags=(self.tags + (tags or [])),
@@ -388,6 +416,40 @@ class Router:
 
         return decorator
 
+    def options(
+        self,
+        path: str,
+        name: str | None = None,
+        middleware: list[Any] | None = None,
+        summary: str | None = None,
+        tags: list[str] | None = None,
+        include_in_schema: bool = True,
+    ) -> Callable:
+        """Register an OPTIONS route."""
+
+        def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+            self._add_route(path, func, ["OPTIONS"], name, summary, None, tags, middleware, include_in_schema)
+            return func
+
+        return decorator
+
+    def head(
+        self,
+        path: str,
+        name: str | None = None,
+        middleware: list[Any] | None = None,
+        summary: str | None = None,
+        tags: list[str] | None = None,
+        include_in_schema: bool = True,
+    ) -> Callable:
+        """Register a HEAD route."""
+
+        def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+            self._add_route(path, func, ["HEAD"], name, summary, None, tags, middleware, include_in_schema)
+            return func
+
+        return decorator
+
     def add_view(
         self,
         path: str,
@@ -401,30 +463,35 @@ class Router:
     ) -> None:
         """
         Register a Class-Based View (CBV).
-        
-        The view class should inherit from `eden.routing.View`.
-        Methods like `get`, `post`, etc., will be automatically mapped to HTTP methods.
+
+        The view class should inherit from ``eden.routing.View``.
+        Methods like ``get``, ``post``, etc., will be automatically mapped
+        to HTTP methods.  If the view defines an ``any`` catch-all method,
+        the route is registered for *all* standard HTTP methods.
         """
         view_instance = view_class()
-        
-        # Determine supported methods
+
+        # Determine supported methods using the shared constant
+        has_any = hasattr(view_instance, "any")
         methods = [
-            m.upper() for m in ["get", "post", "put", "patch", "delete", "options", "head", "any"]
+            m.upper() for m in _VIEW_METHODS
             if hasattr(view_instance, m)
         ]
-        
-        if not methods:
-            # If no methods defined explicitly, assume dispatch handles it (special cases)
-            methods = ["GET", "POST", "PUT", "PATCH", "DELETE"]
 
-        if "ANY" in methods:
-            methods = ["GET", "POST", "PUT", "PATCH", "DELETE"]
-            
+        if not methods and not has_any:
+            # No explicit handlers — fall back to full set so dispatch()
+            # can raise MethodNotAllowed itself.
+            methods = list(_ALL_VIEW_METHODS)
+
+        if has_any:
+            # "any" means the view accepts every standard method
+            methods = list(_ALL_VIEW_METHODS)
+
         summary = summary
         if not summary:
             doc = inspect.getdoc(view_class)
             summary = doc.split("\n")[0] if doc else None
-            
+
         self._add_route(
             path=path,
             endpoint=view_instance.dispatch,
@@ -495,8 +562,14 @@ class Router:
             middleware_list = []
             if eden_route.middleware:
                 for m in eden_route.middleware:
-                    if inspect.isclass(m):
+                    if isinstance(m, Middleware):
+                        # Already a Starlette Middleware descriptor — pass through
+                        middleware_list.append(m)
+                    elif inspect.isclass(m):
                         middleware_list.append(Middleware(m))
+                    elif hasattr(m, "__call__") and hasattr(m, "app"):
+                        # Callable instance of an ASGI middleware class
+                        middleware_list.append(Middleware(type(m)))
                     elif callable(m):
                         middleware_list.append(Middleware(EdenFunctionMiddleware, handler=m))
                     else:
@@ -514,16 +587,16 @@ class Router:
                 )
                 continue
 
-            # Wrap Eden handler into a Starlette-compatible endpoint
+            # Wrap Eden handler into a Starlette-compatible endpoint.
+            # Use Request.from_scope() instead of accessing request._send
+            # (a private Starlette attribute) to avoid breakage on upgrades.
             async def endpoint(request: Any, _eden_route=eden_route) -> Any:
-                from eden.requests import Request
-                eden_request = Request(request.scope, request.receive, request._send)
-                # Extract path params from Starlette request
+                from eden.requests import Request as EdenRequest
+                eden_request = EdenRequest.from_scope(
+                    request.scope, request.receive, request._send
+                )
                 path_params = request.path_params
-                # Do not intercept or handle exceptions here; let them bubble up to
-                # the application-level handlers registered in `Eden.build`. This
-                # keeps routing code simple and avoids accidentally calling
-                # methods on the Router instance that it doesn't have.
+                # Let exceptions bubble up to application-level handlers.
                 return await _eden_route.handle(eden_request, **path_params)
 
             # Copy rate limit metadata from original endpoint to the Starlette wrapper
@@ -548,8 +621,23 @@ class Router:
     def url_for(self, name: str, **path_params: Any) -> str:
         """
         Generate a URL for a given route name.
+
+        Args:
+            name: The registered route name, or a sub-router name using
+                  the ``router:name`` convention.
+            **path_params: Values to substitute into the path template.
+
+        Returns:
+            The fully-interpolated path string.
+
+        Raises:
+            ValueError: If a required path parameter was not provided,
+                or if no route matches *name*.
+
+        Example:
+            >>> router.url_for("show", id=42)
+            '/items/42'
         """
-        import re
         for route in self.routes:
             if route.name == name:
                 path = route.path
@@ -557,18 +645,20 @@ class Router:
                 for param, value in path_params.items():
                     # Simple {param}
                     path = path.replace(f"{{{param}}}", str(value))
-                    # {param:type}
-                    path = re.sub(rf"{{{param}:.*?}}", str(value), path)
-                
-                # Check if any parameters are left un-interpolated
+                    # {param:type} — escape the parameter name so regex
+                    # special characters don't cause silent mismatches.
+                    path = re.sub(rf"{{{re.escape(param)}:.*?}}", str(value), path)
+
+                # Raise on un-substituted parameters instead of silently
+                # returning a broken URL.
                 if "{" in path:
-                    remaining = re.findall(r"{(.*?)}", path)
-                    # Filter out ones that were actually passed (re.sub might have missed if type was different)
-                    # but usually it's better to just error if missing params
-                    # raise ValueError(f"Missing path parameters for route '{name}': {remaining}")
-                    pass
+                    remaining = re.findall(r"\{(.*?)\}", path)
+                    missing = [r.split(":")[0] for r in remaining]
+                    raise ValueError(
+                        f"Missing path parameters for route '{name}': {missing}"
+                    )
                 return path
-        
+
         # Search in sub-router naming convention (router:name)
         if ":" not in name:
             for route in self.routes:

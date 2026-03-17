@@ -18,10 +18,14 @@ import functools
 import json
 import logging
 import traceback
+import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, asdict
 from datetime import datetime, timedelta
-from typing import Any, TypeVar, Optional, List, Union
+from typing import Any, TypeVar, Optional, List, Union, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from eden.core.backends.base import DistributedBackend
 
 try:
     from taskiq import AsyncBroker, InMemoryBroker
@@ -74,12 +78,13 @@ class TaskResult:
 
     task_id: str
     task_name: str
-    status: str
+    status: str  # 'pending', 'running', 'success', 'failed', 'dead_letter'
     result: Any = None
     error: str | None = None
     error_traceback: str | None = None
     retries: int = 0
-    created_at: datetime | None = None
+    correlation_id: str | None = None
+    created_at: datetime = datetime.now()
     started_at: datetime | None = None
     completed_at: datetime | None = None
     ttl_seconds: int = 604800  # 7 days default
@@ -125,18 +130,33 @@ class TaskResultBackend:
         """Retrieve a stored task result."""
         return self._results.get(task_id)
 
+    async def get_all_results(self, limit: int = 100) -> list[TaskResult]:
+        """Get the most recent task results."""
+        return sorted(
+            self._results.values(), 
+            key=lambda x: x.created_at, 
+            reverse=True
+        )[:limit]
+
     async def cleanup_expired(self) -> int:
         """Remove expired results based on TTL."""
         now = datetime.now()
         expired_ids = []
         for task_id, result in self._results.items():
-            if result.completed_at:
-                if (now - result.completed_at).total_seconds() > result.ttl_seconds:
+            completed_at = result.completed_at
+            if completed_at is not None:
+                if (now - completed_at).total_seconds() > result.ttl_seconds:
                     expired_ids.append(task_id)
 
         for task_id in expired_ids:
+            # Check if it was in dead_letter
+            result = self._results.get(task_id)
+            if result and result in self._dead_letter:
+                self._dead_letter.remove(result)
             del self._results[task_id]
-        logger.debug("Cleaned up %d expired task results", len(expired_ids))
+            
+        if expired_ids:
+            logger.info("Cleaned up %d expired task results", len(expired_ids))
         return len(expired_ids)
 
     async def get_dead_letter_tasks(self) -> list[TaskResult]:
@@ -198,64 +218,89 @@ class PeriodicTask:
 
         while True:
             try:
-                # Calculate wait time
+                # Calculate next wait time
                 if self.cron and croniter:
                     now = datetime.now()
                     it = croniter(self.cron, now)
                     next_run = it.get_next(datetime)
                     wait_seconds = (next_run - now).total_seconds()
+                    # Add a tiny buffer to avoid precision issues
                     if wait_seconds > 0:
-                        await asyncio.sleep(wait_seconds)
+                        await asyncio.sleep(wait_seconds + 0.1)
                 elif self._interval_seconds > 0:
                     await asyncio.sleep(self._interval_seconds)
                 else:
                     logger.error("Periodic task '%s' has no valid schedule.", self.func.__name__)
                     break
 
-                # Distributed locking for periodic tasks
-                lock = None
+                # distributed coordination
                 lock_acquired = False
-                if self.broker._redis_lock_client:
-                    lock_key = f"eden:periodic_task_lock:{self.func.__name__}"
+                lock_key = f"eden:periodic_task:{self.func.__name__}"
+                identifier = str(uuid.uuid4())
+                
+                backend = getattr(self.broker, "_distributed_backend", None)
+                if backend:
                     try:
-                        lock = self.broker._redis_lock_client.lock(lock_key, timeout=300.0)
-                        # Try to acquire lock with timeout
-                        try:
-                            await asyncio.wait_for(lock.acquire(), timeout=10.0)
-                            lock_acquired = True
-                        except asyncio.TimeoutError:
-                            lock_acquired = False
-                            logger.warning(
-                                "Timeout acquiring lock for periodic task '%s'", self.func.__name__
-                            )
-                    except Exception as e:
-                        logger.error(
-                            "Error with lock for periodic task '%s': %s",
-                            self.func.__name__,
-                            e,
-                        )
+                        # 1. Check last run time to prevent double-execution in same interval
+                        last_run_key = f"eden:task_last_run:{self.func.__name__}"
+                        last_run = await backend.get(last_run_key)
+                        now_ts = datetime.now().timestamp()
+                        
+                        if last_run:
+                            try:
+                                if (now_ts - float(last_run)) < (self._interval_seconds * 0.8):
+                                    # print(f"DEBUG: periodic task {self.func.__name__} skipped (recently run)")
+                                    continue
+                            except (ValueError, TypeError):
+                                pass
 
-                if self.broker._redis_lock_client and not lock_acquired:
-                    logger.warning(
-                        "Could not acquire lock for periodic task '%s', skipping this run",
-                        self.func.__name__,
-                    )
-                    continue
+                        # 2. Acquire lock to prevent race condition
+                        lock_ttl = max(30, int(self._interval_seconds * 0.8)) if self._interval_seconds > 0 else 30
+                        lock_acquired = await backend.acquire_lock(
+                            lock_key, timeout=float(lock_ttl), identifier=identifier
+                        )
+                        
+                        if not lock_acquired:
+                            # print(f"DEBUG: periodic task {self.func.__name__} lock failed")
+                            continue
+
+                        # 3. Update last run time immediately
+                        await backend.set(last_run_key, str(now_ts), ttl=int(max(3600.0, float(self._interval_seconds * 2))))
+                        # print(f"DEBUG: periodic task {self.func.__name__} coordination success")
+                        
+                    except Exception as e:
+                        logger.error("Coordilation error for periodic task '%s': %s", self.func.__name__, e)
+                        if backend and not lock_acquired:
+                            continue
 
                 try:
                     logger.debug("Executing periodic task: %s", self.func.__name__)
-
+                    start_time = datetime.now()
+                    
+                    # Periodic tasks also get recorded in the result backend
+                    task_id = f"periodic-{self.func.__name__}-{int(start_time.timestamp())}"
+                    
                     # Execute via kiq to use the broker's execution logic (including DI)
                     if hasattr(self.func, "kiq"):
                         await self.func.kiq()
                     else:
-                        # Fallback for non-taskiq decorated functions
                         result = self.func()
                         if asyncio.iscoroutine(result):
                             await result
 
                     self._execution_count += 1
                     self._last_error = None
+                    
+                    # Record success
+                    success_info = TaskResult(
+                        task_id=task_id,
+                        task_name=self.func.__name__,
+                        status="success",
+                        started_at=start_time,
+                        completed_at=datetime.now(),
+                    )
+                    await self.broker._result_backend.store_result(task_id, success_info)
+
                 except Exception as exc:
                     self._last_error = exc
                     logger.error(
@@ -265,32 +310,31 @@ class PeriodicTask:
                         exc,
                         exc_info=True,
                     )
+                    
+                    # Record failure
+                    error_info = TaskResult(
+                        task_id=f"periodic-{self.func.__name__}-{int(datetime.now().timestamp())}",
+                        task_name=self.func.__name__,
+                        status="failed",
+                        error=str(exc),
+                        error_traceback=traceback.format_exc(),
+                        completed_at=datetime.now(),
+                    )
+                    await self.broker._result_backend.store_result(error_info.task_id, error_info)
+
                 finally:
-                    # Release the lock if we acquired it
-                    if lock and lock_acquired:
-                        try:
-                            # For redis.asyncio Lock, locked() is a method that returns bool
-                            if hasattr(lock, "locked") and callable(lock.locked):
-                                if lock.locked():
-                                    await lock.release()
-                        except Exception as e:
-                            logger.error(
-                                "Error releasing lock for periodic task '%s': %s",
-                                self.func.__name__,
-                                e,
-                            )
+                    if lock_acquired and backend:
+                        await backend.release_lock(lock_key, identifier)
 
             except asyncio.CancelledError:
                 break
             except Exception as exc:
-                # This catches any exception in the wait or lock acquisition that we didn't handle above?
                 logger.error(
                     "Unexpected error in periodic task '%s' loop: %s",
                     self.func.__name__,
                     exc,
-                    exc_info=True,
                 )
-                # We don't break the loop on unexpected errors? We continue to the next iteration.
+                await asyncio.sleep(1) # prevent tight loop on error
 
     def start(self) -> None:
         """Schedule the task loop in the current event loop."""
@@ -334,7 +378,11 @@ class EdenBroker:
         self.max_retries = max_retries
         self.retry_delays = retry_delays or DEFAULT_RETRY_DELAYS
 
+        # Distributed coordination
+        self._distributed_backend: DistributedBackend | None = None
+        
         # Extract redis_url from broker if available (set by create_broker)
+        # This fallback remains for direct redis usage if no backend set
         self._redis_lock_client = None
         redis_url = getattr(broker, "_redis_url", None)
         if redis_url:
@@ -344,7 +392,7 @@ class EdenBroker:
                 self._redis_lock_client = redis.from_url(redis_url)
             except ImportError:
                 logger.warning(
-                    "redis package not installed, distributed lock for periodic tasks will not be available"
+                    "redis package not installed, legacy distributed lock fallback will not be available"
                 )
 
     @property
@@ -357,6 +405,10 @@ class EdenBroker:
         """Whether the broker is currently running."""
         return self._running
 
+    def set_distributed_backend(self, backend: DistributedBackend) -> None:
+        """Set a distributed backend for task coordination."""
+        self._distributed_backend = backend
+
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
         """Alias so @app.task() works like @app.task.task()."""
         return self.task(*args, **kwargs)
@@ -364,23 +416,26 @@ class EdenBroker:
     def task(
         self,
         *args: Any,
-        max_retries: int | None = None,
-        retry_delays: list[int] | None = None,
+        retries: int | None = None,
+        delays: list[int] | None = None,
+        exponential_backoff: bool = True,
         **kwargs: Any,
     ) -> Any:
         # Support both @app.task and @app.task()
         if len(args) == 1 and callable(args[0]):
             return self.task()(args[0])
 
-        retries = max_retries if max_retries is not None else self.max_retries
-        delays = retry_delays if retry_delays is not None else self.retry_delays
+        target_retries = retries if retries is not None else self.max_retries
+        target_delays = delays if delays is not None else self.retry_delays
 
         def decorator(func: Callable[..., Any]) -> Any:
             # Wrap the function to inject Eden dependencies and handle retries
-            handler = self._wrap_task_function(func, retries, delays)
-            # Register with the underlying taskiq broker
-            # Taskiq's task() decorator also supports both styles, but we
-            # pass kwargs here to be safe.
+            handler = self._wrap_task_function(
+                func, 
+                target_retries, 
+                target_delays,
+                exponential_backoff=exponential_backoff
+            )
             return self.broker.task(*args, **kwargs)(handler)
 
         return decorator
@@ -414,65 +469,137 @@ class EdenBroker:
         return decorator
 
     def _wrap_task_function(
-        self, func: Callable[..., Any], max_retries: int, retry_delays: list[int]
+        self, 
+        func: Callable[..., Any], 
+        max_retries: int, 
+        retry_delays: list[int],
+        exponential_backoff: bool = True,
     ) -> Callable[..., Any]:
         """Wrap a task function to add DI and retry support."""
 
         @functools.wraps(func)
         async def task_handler(*args: Any, **kwargs: Any) -> Any:
             from eden.dependencies import DependencyResolver
+            from eden.context import context_manager, set_request_id, reset_request_id
+            import uuid
+
+            # 1. Propagation: Try to find task_id or request_id from Taskiq context
+            task_id = str(uuid.uuid4())
+            correlation_id = str(uuid.uuid4())
+            
+            tiq_ctx = kwargs.pop("context", None)
+            if tiq_ctx:
+                # Taskiq passes context if requested
+                task_id = getattr(tiq_ctx, "task_id", task_id)
+                # Labels can carry the original request_id
+                labels = getattr(tiq_ctx, "labels", {})
+                correlation_id = labels.get("correlation_id", correlation_id)
+
+            # Set correlation ID in context so all logs from this task share it
+            token = set_request_id(correlation_id)
 
             # Use DependencyResolver with current app instance
-            async with DependencyResolver() as resolver:
-                # Merge explicitly passed kwargs with injected ones
+            resolver = DependencyResolver()
+            # Merge explicitly passed kwargs with injected ones
+            try:
+                dep_kwargs = await resolver.resolve(func, app=self.app)
+            except Exception as e:
+                logger.error(
+                    "Failed to resolve dependencies for task '%s' (%s): %s", 
+                    func.__name__, task_id, e
+                )
+                reset_request_id(token)
+                raise TaskExecutionError(f"DI failure in task {func.__name__}") from e
+
+            final_kwargs = {**dep_kwargs, **kwargs}
+
+            # Execution loop with retries
+            attempt = 0
+            start_time = datetime.now()
+            
+            while True:
                 try:
-                    dep_kwargs = await resolver.resolve(func, app=self.app)
-                except Exception as e:
-                    logger.error(
-                        "Failed to resolve dependencies for task '%s': %s", func.__name__, e
+                    # Record start for this attempt if first attempt
+                    logger.debug("Executing task '%s' (attempt %d, ID %s)", func.__name__, attempt, task_id)
+
+                    if asyncio.iscoroutinefunction(func):
+                        res = await func(*args, **final_kwargs)
+                    else:
+                        res = func(*args, **final_kwargs)
+                        
+                    # Success recording
+                    success_info = TaskResult(
+                        task_id=task_id,
+                        task_name=func.__name__,
+                        status="success",
+                        result=res,
+                        retries=attempt,
+                        correlation_id=correlation_id,
+                        started_at=start_time,
+                        completed_at=datetime.now(),
                     )
-                    raise TaskExecutionError(f"DI failure in task {func.__name__}") from e
+                    if self._result_backend:
+                        await self._result_backend.store_result(task_id, success_info)
+                    reset_request_id(token)
+                    return res
 
-                final_kwargs = {**dep_kwargs, **kwargs}
-
-                # Execution loop with retries
-                attempt = 0
-                while attempt <= max_retries:
-                    try:
-                        if asyncio.iscoroutinefunction(func):
-                            return await func(*args, **final_kwargs)
-                        else:
-                            return func(*args, **final_kwargs)
-                    except Exception as e:
-                        attempt += 1
-                        if attempt > max_retries:
-                            logger.error(
-                                "Task '%s' failed after %d retries.", func.__name__, max_retries
-                            )
-
-                            # Record result as failure (simplified for now)
-                            error_info = TaskResult(
-                                task_id=str(getattr(task_handler, "task_id", "unknown")),
-                                task_name=func.__name__,
-                                status="dead_letter",
-                                error=str(e),
-                                error_traceback=traceback.format_exc(),
-                                retries=attempt - 1,
-                                completed_at=datetime.now(),
-                            )
-                            await self._result_backend.store_result(error_info.task_id, error_info)
-                            raise MaxRetriesExceeded(
-                                f"Task {func.__name__} failed after {max_retries} retries"
-                            ) from e
-
-                        delay = retry_delays[min(attempt - 1, len(retry_delays) - 1)]
-                        logger.warning(
-                            "Task '%s' failed (attempt %d). Retrying in %ds...",
-                            func.__name__,
-                            attempt,
-                            delay,
+                except Exception as e:
+                    attempt += 1
+                    if attempt > max_retries:
+                        logger.error(
+                            "Task '%s' (%s) failed after %d retries.", 
+                            func.__name__, task_id, max_retries
                         )
-                        await asyncio.sleep(delay)
+
+                        # Record result as dead_letter
+                        error_info = TaskResult(
+                            task_id=task_id,
+                            task_name=func.__name__,
+                            status="dead_letter",
+                            error=str(e),
+                            error_traceback=traceback.format_exc(),
+                            retries=attempt - 1,
+                            correlation_id=correlation_id,
+                            started_at=start_time,
+                            completed_at=datetime.now(),
+                        )
+                        if self._result_backend:
+                            await self._result_backend.store_result(task_id, error_info)
+                        reset_request_id(token)
+                        raise MaxRetriesExceeded(
+                            f"Task {func.__name__} failed after {max_retries} retries"
+                        ) from e
+
+                    # Record intermediate failure status
+                    retry_info = TaskResult(
+                        task_id=task_id,
+                        task_name=func.__name__,
+                        status="failed",
+                        error=str(e),
+                        retries=attempt - 1,
+                        correlation_id=correlation_id,
+                        started_at=start_time,
+                    )
+                    if self._result_backend:
+                        await self._result_backend.store_result(task_id, retry_info)
+
+                    # Exponential backoff logic
+                    idx = min(attempt - 1, len(retry_delays) - 1)
+                    base_delay = retry_delays[idx]
+                    if exponential_backoff:
+                        delay = base_delay * (2 ** (attempt - 1))
+                    else:
+                        delay = base_delay
+
+                    logger.warning(
+                        "Task '%s' (%s) failed (attempt %d). Retrying in %ds... (Correlation: %s)",
+                        func.__name__,
+                        task_id,
+                        attempt,
+                        delay,
+                        correlation_id
+                    )
+                    await asyncio.sleep(delay)
 
         return task_handler
 
@@ -498,6 +625,15 @@ class EdenBroker:
 
         logger.info("Starting Eden Task Broker...")
         await self.broker.startup()
+
+        # Register result cleanup as a periodic task if not already there
+        async def _cleanup_results_task():
+            await self._result_backend.cleanup_expired()
+        
+        # We don't use @self.every because we want to start it immediately 
+        # as part of the internal lifecycle
+        cleanup_pt = PeriodicTask(_cleanup_results_task, self, hours=1)
+        self._periodic.append(cleanup_pt)
 
         for periodic in self._periodic:
             periodic.start()

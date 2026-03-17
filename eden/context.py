@@ -337,9 +337,14 @@ def get_request_id() -> str:
     return context_manager.get_request_id()
 
 
-def set_request_id(request_id: str) -> None:
+def set_request_id(request_id: str) -> contextvars.Token:
     """Set current request correlation ID."""
-    _request_id_ctx.set(request_id)
+    return _request_id_ctx.set(request_id)
+
+
+def reset_request_id(token: contextvars.Token) -> None:
+    """Reset the request ID context (legacy API)."""
+    _request_id_ctx.reset(token)
 
 
 class ContextProxy:
@@ -380,3 +385,33 @@ class ContextProxy:
 # Global proxies (deprecated but kept for backward compatibility)
 request = ContextProxy(get_request, "request")
 user = ContextProxy(get_user, "user")
+
+
+def is_active(request: Optional[Any], url: str) -> bool:
+    """
+    Helper to check if a URL is currently active (matches current request path).
+    
+    Args:
+        request: Request object (optional, defaults to context)
+        url: URL string to check
+        
+    Returns:
+        bool: True if active, False otherwise
+    """
+    if request is None:
+        request = get_request()
+    
+    if not request:
+        return False
+        
+    try:
+        current_path = request.url.path.rstrip("/") or "/"
+        target_path = url.rstrip("/") or "/"
+        
+        if "://" in target_path:
+            from urllib.parse import urlparse
+            target_path = urlparse(target_path).path.rstrip("/") or "/"
+            
+        return current_path == target_path
+    except Exception:
+        return False

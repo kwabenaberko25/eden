@@ -30,27 +30,55 @@ class TemplateCompiler:
         return f"<!-- Unknown @{name} -->"
 
     def handle_props(self, props_val: str) -> str:
+        """
+        Processes @props directive to set default variable values.
+        Supports both list ['a', 'b'] and dict ['a' => 'default'] syntax.
+        """
         try:
-            import ast
             props_val = props_val.strip()
-            if '=>' in props_val:
-                items = []
-                content = props_val.strip(' []{}')
-                for part in content.split(','):
-                    if '=>' in part:
-                        k, v = part.split('=>')
-                        items.append(f"{k.strip()}: {v.strip()}")
-                    else:
-                        items.append(f"{part.strip()}: None")
-                props_val = "{" + ", ".join(items) + "}"
-            props_dict = ast.literal_eval(props_val)
-            if isinstance(props_dict, list): props_dict = {k: None for k in props_dict}
+            # Remove outer brackets if present
+            if (props_val.startswith('[') and props_val.endswith(']')) or \
+               (props_val.startswith('{') and props_val.endswith('}')):
+                props_val = props_val[1:-1].strip()
+            
+            if not props_val:
+                return ""
+
             res_lines = []
-            for k, v in props_dict.items():
-                jinja_val = _json.dumps(v)
-                res_lines.append(f'{{% set {k} = {k} if {k} is defined else {jinja_val} %}}')
+            # Split by comma but respect nested structures (simplified for now)
+            # A more robust regex might be needed for complex nested defaults
+            parts = []
+            current = []
+            depth = 0
+            for char in props_val:
+                if char == ',' and depth == 0:
+                    parts.append("".join(current).strip())
+                    current = []
+                else:
+                    if char in '[({': depth += 1
+                    elif char in '])}': depth -= 1
+                    current.append(char)
+            if current:
+                parts.append("".join(current).strip())
+
+            for part in parts:
+                if '=>' in part:
+                    k, v = part.split('=>', 1)
+                    k = k.strip().strip("'\"")
+                    v = v.strip().replace('$', '')
+                    res_lines.append(f'{{% set {k} = {k} if {k} is defined else {v} %}}')
+                elif ':' in part:
+                    k, v = part.split(':', 1)
+                    k = k.strip().strip("'\"")
+                    v = v.strip().replace('$', '')
+                    res_lines.append(f'{{% set {k} = {k} if {k} is defined else {v} %}}')
+                else:
+                    k = part.strip().strip("'\"")
+                    res_lines.append(f'{{% set {k} = {k} if {k} is defined else None %}}')
+            
             return "".join(res_lines)
-        except Exception as e: return f"<!-- @props error: {str(e)} -->"
+        except Exception as e:
+            return f"<!-- @props error: {str(e)} -->"
 
     def handle_class(self, val: str) -> str:
         try:

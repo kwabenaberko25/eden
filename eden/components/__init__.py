@@ -754,10 +754,10 @@ def get_component_router() -> Any:
     """Return a router configured with component action endpoints."""
     from eden.routing import Router
     router = Router()
-    router.get("/_eden/component/{component_name}/{action_name}")(component_action_handler)
-    router.post("/_eden/component/{component_name}/{action_name}")(component_action_handler)
+    router.get("/_eden/component/{component_name}/{action_name}", name="component_action_get")(component_action_handler)
+    router.post("/_eden/component/{component_name}/{action_name}", name="component_action_post")(component_action_handler)
     # Simplified dispatcher
-    router.get("/_components/{action_slug}")(component_dispatcher)
-    router.post("/_components/{action_slug}")(component_dispatcher)
+    router.get("/_components/{action_slug}", name="component_dispatch_get")(component_dispatcher)
+    router.post("/_components/{action_slug}", name="component_dispatch_post")(component_dispatcher)
     return router
 

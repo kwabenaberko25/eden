@@ -20,10 +20,15 @@ class Database:
 
     def __init__(self, url: str, **kwargs: Any) -> None:
         self.url = url
-        # SQLite memory optimization
-        if url.startswith("sqlite") and ":memory:" in url:
-            kwargs.setdefault("poolclass", StaticPool)
-            kwargs.setdefault("connect_args", {"check_same_thread": False})
+        # SQLite connection optimization
+        if url.startswith("sqlite"):
+            if ":memory:" in url:
+                kwargs.setdefault("poolclass", StaticPool)
+            
+            # File or memory SQLite via async needs check_same_thread=False
+            if "connect_args" not in kwargs:
+                kwargs["connect_args"] = {}
+            kwargs["connect_args"].setdefault("check_same_thread", False)
         
         kwargs.setdefault("echo", False)
         self.engine = create_async_engine(url, **kwargs)

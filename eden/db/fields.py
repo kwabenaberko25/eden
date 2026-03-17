@@ -12,14 +12,20 @@ from datetime import datetime, timezone
 from typing import Any, Optional
 
 from sqlalchemy import (
+    BigInteger,
     Boolean,
     DateTime,
+    Date,
+    Enum as SAEnum,
     Float,
     ForeignKey,
     Integer,
+    Numeric,
     String,
     Text,
     Uuid,
+    ARRAY,
+    JSON,
     func,
 )
 from sqlalchemy.orm import mapped_column
@@ -195,6 +201,30 @@ def FloatField(
     return mapped_column(*args, **kw)
 
 
+def DecimalField(
+    precision: int = 10,
+    scale: int = 2,
+    *,
+    nullable: Any = _UNSET,
+    required: bool | None = None,
+    default: Any = None,
+    **kwargs: Any,
+) -> Any:
+    """
+    Fixed-point decimal column.
+
+    Usage:
+        balance: Mapped[Decimal] = DecimalField(precision=12, scale=4)
+    """
+    kw, fk = _process_field_args(nullable, required, kwargs, default_nullable=False)
+    if default is not None:
+        kw["default"] = default
+    
+    args = [Numeric(precision, scale)]
+    if fk: args.append(fk)
+    return mapped_column(*args, **kw)
+
+
 def BoolField(
     *,
     default: bool = False,
@@ -320,6 +350,84 @@ def JSONField(
     
     args = [JSON]
     if fk: args.append(fk)
+    return mapped_column(*args, **kw)
+
+
+def JSONBField(
+    *,
+    nullable: Any = _UNSET,
+    required: bool | None = None,
+    default: Any = None,
+    **kwargs: Any,
+) -> Any:
+    """
+    PostgreSQL-optimized JSONB column. Falls back to standard JSON on other DBs.
+    """
+    kw, fk = _process_field_args(nullable, required, kwargs, default_nullable=True)
+    if default is not None:
+        kw["default"] = default
+    
+    # SQLAlchemy's JSON type has no 'none_as_null' by default, 
+    # but we can pass it through kwargs if needed.
+    # Note: JSON(none_as_null=True) is the default in some drivers.
+    
+    # We use JSON since it maps to JSONB on PostgreSQL automatically if supported.
+    args = [JSON]
+    if fk: args.append(fk)
+    return mapped_column(*args, **kw)
+
+
+def ArrayField(
+    item_type: Any = String,
+    *,
+    nullable: Any = _UNSET,
+    required: bool | None = None,
+    default: Any = None,
+    **kwargs: Any,
+) -> Any:
+    """
+    Array column (PostgreSQL specific but safe with ARRAY fallback).
+
+    Usage:
+        tags: Mapped[list[str]] = ArrayField(String)
+    """
+    kw, fk = _process_field_args(nullable, required, kwargs, default_nullable=True)
+    if default is not None:
+        kw["default"] = default
+    
+    args = [ARRAY(item_type)]
+    if fk: args.append(fk)
+    return mapped_column(*args, **kw)
+
+
+def EnumField(
+    enum_type: Any,
+    *,
+    nullable: Any = _UNSET,
+    required: bool | None = None,
+    default: Any = None,
+    native_enum: bool = True,
+    **kwargs: Any,
+) -> Any:
+    """
+    Enumerated type column.
+
+    Usage:
+        status: Mapped[Status] = EnumField(Status)
+    """
+    kw, fk = _process_field_args(nullable, required, kwargs, default_nullable=False)
+    if default is not None:
+        kw["default"] = default
+    
+    args = [SAEnum(enum_type, native_enum=native_enum)]
+    if fk: args.append(fk)
+    
+    # Add choices to meta for forms
+    meta = kw.get("info", {})
+    if hasattr(enum_type, "__members__"):
+        meta["choices"] = [(m.value, m.name) for m in enum_type]
+    kw["info"] = meta
+
     return mapped_column(*args, **kw)
 
 

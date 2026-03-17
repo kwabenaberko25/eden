@@ -125,6 +125,19 @@ def render_push(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) 
     body_compiled = get_body_compiled(compiler, node)
     return f'{{% set __push_content %}}{body_compiled}{{% endset %}}{{{{ eden_push("{val}", __push_content) }}}}'
 
+@directive("pushOnce")
+def render_push_once(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -> str:
+    val = expr.strip('"\'') if expr else ""
+    body_compiled = get_body_compiled(compiler, node)
+    # Check if we've already pushed this unique name in this request/context
+    return f'{{% set __push_content %}}{body_compiled}{{% endset %}}{{{{ eden_push("{val}", __push_content, once=True) }}}}'
+
+@directive("prepend")
+def render_prepend(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -> str:
+    val = expr.strip('"\'') if expr else ""
+    body_compiled = get_body_compiled(compiler, node)
+    return f'{{% set __push_content %}}{body_compiled}{{% endset %}}{{{{ eden_push("{val}", __push_content, prepend=True) }}}}'
+
 @directive(["section", "block"])
 def render_section(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -> str:
     val = expr.strip('"\'') if expr else ""
@@ -216,7 +229,7 @@ def render_unless(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str
     res.append("{% endif %}")
     return "".join(res)
 
-@directive(["elif", "elseif"])
+@directive(["elif", "elseif", "else_if"])
 def render_elif(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -> str:
     body_compiled = get_body_compiled(compiler, node)
     res = [f"{{% elif {expr} %}}{body_compiled}"]
@@ -234,6 +247,7 @@ def render_else(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) 
 
 @directive("empty")
 def render_empty(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -> str:
+    """Fallback for empty loops (alias for else)."""
     body_compiled = get_body_compiled(compiler, node)
     return f"{{% else %}}{body_compiled}"
 
@@ -244,7 +258,18 @@ def render_for(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -
         parts = inner.split(' as ')
         inner = f"{parts[1].strip()} in {parts[0].strip()}"
     body_compiled = get_body_compiled(compiler, node)
-    return f"{{% for {inner} %}}" + body_compiled + "{% endfor %}"
+    res = [f"{{% for {inner} %}}" + body_compiled]
+    for o in node.orelse:
+        res.append(compiler.visit(o))
+    res.append("{% endfor %}")
+    return "".join(res)
+
+@directive("while")
+def render_while(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -> str:
+    """Implement a while loop using a for-break construct."""
+    body_compiled = get_body_compiled(compiler, node)
+    # We use a large range as a practical infinite loop since Jinja2 doesn't have native while
+    return f"{{% for _ in range(2147483647) %}}{{% if not ({expr}) %}}{{% break %}}{{% endif %}}{body_compiled}{{% endfor %}}"
 
 @directive("switch")
 def render_switch(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -> str:
@@ -298,6 +323,18 @@ def render_can(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -
     body_compiled = get_body_compiled(compiler, node)
     return f'{{% if request.user and request.user.has_permission({expr}) %}}{body_compiled}{{% endif %}}'
 
+@directive("role")
+def render_role(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -> str:
+    body_compiled = get_body_compiled(compiler, node)
+    roles_list = [r.strip().strip("'\"").replace('$', '') for r in (expr or "").split(',')]
+    cond = f'request.user.role == "{roles_list[0]}"' if len(roles_list) == 1 else f'request.user.role in {roles_list}'
+    return f'{{% if request.user and request.user.is_authenticated and {cond} %}}{body_compiled}{{% endif %}}'
+
+@directive("permission")
+def render_permission(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -> str:
+    """Alias for @can."""
+    return render_can(compiler, node, expr)
+
 @directive("cannot")
 def render_cannot(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -> str:
     body_compiled = get_body_compiled(compiler, node)
@@ -348,3 +385,73 @@ def render_messages(compiler: "TemplateCompiler", node: "DirectiveNode", expr: s
 def render_loop_context(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -> str:
     body_compiled = get_body_compiled(compiler, node)
     return f'{{% if loop.{node.name} %}}{body_compiled}{{% endif %}}'
+
+@directive("break")
+def render_break(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -> str:
+    """Break out of a loop, optionally with a condition."""
+    if expr:
+        # Handle @break(condition) or @break if (condition)
+        cond = expr.strip()
+        if cond.startswith("if "): cond = cond[3:]
+        return f"{{% if {cond} %}}{{% break %}}{{% endif %}}"
+    return "{% break %}"
+
+@directive("continue")
+def render_continue(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -> str:
+    """Skip to next loop iteration, optionally with a condition."""
+    if expr:
+        cond = expr.strip()
+        if cond.startswith("if "): cond = cond[3:]
+        return f"{{% if {cond} %}}{{% continue %}}{{% endif %}}"
+    return "{% continue %}"
+
+
+# ── PHP / Arbitrary Logic ─────────────────────────────────────────────────────
+
+@directive("php")
+def render_php(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -> str:
+    """Execute arbitrary logic, converting statements to Jinja2 tags."""
+    def wrap_logic(code: str) -> str:
+        code = code.strip()
+        if not code: return ""
+        # If it contains an assignment, use {% set ... %}
+        if "=" in code and not code.startswith("{{"): 
+             return f'{{% set {code} %}}'
+        # Otherwise use {% do ... %}
+        return f'{{% do {code} %}}'
+
+    if node.body:
+        body_raw = compiler.compile(node.body) # Get raw body text
+        lines = body_raw.strip().split('\n')
+        return "".join(wrap_logic(line) for line in lines if line.strip())
+    
+    return wrap_logic(expr)
+
+@directive("inject")
+def render_inject(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -> str:
+    """Inject a service into the template context."""
+    if not expr: return ""
+    parts = [p.strip() for p in expr.split(',', 1)]
+    var_name = parts[0]
+    service_alias = parts[1] if len(parts) > 1 else var_name
+    return f"{{% set {var_name} = eden_dependency({service_alias}) %}}"
+
+
+# ── Advanced Form Components ──────────────────────────────────────────────────
+
+@directive("form")
+def render_form(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -> str:
+    """Render a form tag with automatic CSRF injection."""
+    body_compiled = get_body_compiled(compiler, node)
+    # Check if it's a POST form (case-insensitive)
+    is_post = expr and "POST" in expr.upper()
+    csrf = '{% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}' if is_post else ""
+    return f'<form {expr}>{csrf}{body_compiled}</form>'
+
+@directive(["field", "input", "button"])
+def render_form_components(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -> str:
+    """Integrate with form/UI component system."""
+    body_compiled = get_body_compiled(compiler, node)
+    if body_compiled:
+        return f'{{% component "{node.name}", {expr} %}}{body_compiled}{{% endcomponent %}}'
+    return f'{{{{ component("{node.name}", {expr}) }}}}'

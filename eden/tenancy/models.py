@@ -101,7 +101,14 @@ class Tenant(Model):
             
             await session.run_sync(_create_tables)
             
-            # 4. Commit the schema creation and table setup
+            # 4. Stamp the schema with the current migration head
+            # This ensures subsequent 'eden db migrate --schema X' calls work correctly.
+            from eden.db.migrations import MigrationManager
+            manager = MigrationManager()
+            # We use stamp() to mark this schema as already being at the current head
+            manager.stamp(revision="head", schema=safe_schema)
+            
+            # 5. Commit the schema creation and table setup
             # (Note: Caller will typically commit the overall transaction)
             
         finally:

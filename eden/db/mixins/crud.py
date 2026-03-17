@@ -128,67 +128,14 @@ class CrudMixin:
 
         return await cls.filter(session=session, **kwargs).paginate(page, per_page)
 
-    async def save(self, session: Optional[Any] = None, validate: bool = True, commit: bool = True) -> Any:
-        """
-        Save the current instance to the database.
-        """
-        async with contextlib.AsyncExitStack() as stack:
-            if session:
-                sess = session
-            else:
-                sess = await stack.enter_async_context(self.__class__._provide_session())
-            
-            is_new = self.id is None
-            if is_new:
-                await self._call_hook("before_create", sess)
-            
-            await self._call_hook("before_save", sess)
-            
-            if validate:
-                await self.full_clean()
-            
-            # Add to session
-            sess.add(self)
-            await sess.flush()
-            
-            if is_new:
-                await self._call_hook("after_create", sess)
-            await self._call_hook("after_save", sess)
-            
-            if commit and session is None:
-                await sess.commit()
-                await sess.refresh(self)
-            elif commit: # If session was passed, we just flush but maybe user wants us to commit?
-                # Original Eden behavior was to commit if session passed too? 
-                # Let's check test_orm.py
-                pass 
-            
-        return self
-
     async def update(self, session: Optional[Any] = None, commit: bool = True, **kwargs) -> Any:
         """
         Update the instance with the given keyword arguments and save it.
         """
         for k, v in kwargs.items():
             setattr(self, k, v)
+        # self.save() is provided by LifecycleMixin in the Model class
         return await self.save(session=session, commit=commit)
-
-    async def delete(self, session: Optional[Any] = None, commit: bool = True) -> None:
-        """
-        Delete the instance from the database.
-        """
-        async with contextlib.AsyncExitStack() as stack:
-            if session:
-                sess = session
-            else:
-                sess = await stack.enter_async_context(self.__class__._provide_session())
-            
-            await self._call_hook("before_delete", sess)
-            await sess.delete(self)
-            await self._call_hook("after_delete", sess)
-            
-            if commit and session is None:
-                await sess.commit()
 
     @classmethod
     async def create(cls, session: Optional[Any] = None, **kwargs) -> Any:
@@ -249,6 +196,22 @@ class CrudMixin:
         """Fetch a record or create it if not found."""
         obj = await cls.filter_one(session=session, **kwargs)
         if obj:
+            return obj, False
+
+        params = {**kwargs, **(defaults or {})}
+        return await cls.create(session=session, **params), True
+
+    @classmethod
+    async def update_or_create(
+        cls, session: Optional[Any] = None, defaults: Optional[Dict[str, Any]] = None, **kwargs
+    ) -> tuple[Any, bool]:
+        """Update a record if it exists, otherwise create it."""
+        obj = await cls.filter_one(session=session, **kwargs)
+        if obj:
+            if defaults:
+                for k, v in defaults.items():
+                    setattr(obj, k, v)
+                await obj.save(session=session)
             return obj, False
 
         params = {**kwargs, **(defaults or {})}

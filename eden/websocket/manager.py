@@ -1,12 +1,22 @@
 from __future__ import annotations
 
 import asyncio
+import hmac
 import json
 import logging
+import re
+import secrets
+import uuid
 from collections import defaultdict
-from typing import Any, Dict, Set, Optional, Union, List
+from typing import Any, Dict, Set, Optional, Union, List, TYPE_CHECKING
 
 from starlette.websockets import WebSocket, WebSocketState, WebSocketDisconnect
+
+from eden.core.backends.base import DistributedBackend
+from eden.core.metrics import metrics
+
+if TYPE_CHECKING:
+    from eden.requests import Request
 
 logger = logging.getLogger("eden.websocket")
 
@@ -17,7 +27,11 @@ class ConnectionManager:
     This unifies the previous RealTimeManager and ConnectionManager into a single,
     robust implementation.
     """
-    def __init__(self) -> None:
+    def __init__(
+        self, 
+        allowed_origins: list[str] | None = None,
+        require_csrf: bool = False
+    ) -> None:
         # channel_name -> set of websockets
         self._channels: dict[str, set[WebSocket]] = defaultdict(set)
         # websocket -> set of channel_names
@@ -25,30 +39,69 @@ class ConnectionManager:
         
         # User-specific tracking for isolation
         self._user_sockets: dict[str, set[WebSocket]] = defaultdict(set)
+        
+        # Distributed backend support
+        self._distributed_backend: DistributedBackend | None = None
+        self._worker_id: str = str(uuid.uuid4())
+        
+        # Security configuration
+        self.allowed_origins = [re.compile(o) for o in (allowed_origins or [])]
+        self.require_csrf = require_csrf
+        self._csrf_session_key = "eden_csrf_token" # matches CSRFMiddleware
 
     async def connect(self, websocket: WebSocket, user_id: str | None = None) -> None:
-        """Accept and register a WebSocket connection."""
+        """Accept and register a WebSocket connection with security checks."""
+        # 1. Origin Validation
+        if self.allowed_origins:
+            origin = websocket.headers.get("origin", "")
+            if not any(pattern.match(origin) for pattern in self.allowed_origins):
+                logger.warning(f"WebSocket rejected: origin '{origin}' not allowed.")
+                await websocket.close(code=4003) # Forbidden
+                return
+
+        # 2. CSRF Validation
+        if self.require_csrf:
+            session = websocket.scope.get("session", {})
+            expected_token = session.get(self._csrf_session_key)
+            # WebSockets usually send CSRF token in query params for the initial handshake
+            submitted_token = websocket.query_params.get("csrf_token")
+            
+            if not expected_token or not submitted_token or not hmac.compare_digest(submitted_token, expected_token):
+                logger.warning("WebSocket rejected: CSRF validation failed.")
+                await websocket.close(code=4403) # Forbidden
+                return
+
         if websocket.client_state == WebSocketState.CONNECTING:
             await websocket.accept()
         
         self._socket_channels[websocket] = set()
         if user_id:
             self._user_sockets[str(user_id)].add(websocket)
+            
+        # Update metrics
+        metrics.set_gauge("websocket_active_connections", self.count())
+        metrics.increment("websocket_connect_total")
 
     async def disconnect(self, websocket: WebSocket) -> None:
         """Clean up on disconnect."""
         # Remove from all channels
         channels = self._socket_channels.pop(websocket, set())
         for channel in channels:
-            self._channels[channel].discard(websocket)
-            if not self._channels[channel]:
-                del self._channels[channel]
+            sockets = self._channels.get(channel)
+            if sockets:
+                sockets.discard(websocket)
+                if not sockets:
+                    self._channels.pop(channel, None)
         
         # Remove from user tracking
         for user_id, sockets in list(self._user_sockets.items()):
             sockets.discard(websocket)
             if not sockets:
-                del self._user_sockets[user_id]
+                self._user_sockets.pop(user_id, None)
+                
+        # Update metrics
+        metrics.set_gauge("websocket_active_connections", self.count())
+        metrics.increment("websocket_disconnect_total")
 
     async def subscribe(self, websocket: WebSocket, channel: str) -> None:
         """Subscribe a websocket to a channel (or 'room')."""
@@ -66,9 +119,29 @@ class ConnectionManager:
         self, 
         message: Any, 
         channel: str = "default", 
-        exclude: WebSocket | None = None
+        exclude: WebSocket | None = None,
+        _is_distributed: bool = False
     ) -> None:
-        """Broadcast a message to all subscribers of a channel."""
+        """
+        Broadcast a message to all subscribers of a channel.
+        
+        If a distributed backend is configured, it also publishes the message
+        to all other workers (unless it came from another worker).
+        """
+        # If we have a distributed backend and the message originated locally,
+        # publish it to the backend for other workers to receive.
+        if self._distributed_backend and not _is_distributed:
+            await self._distributed_backend.publish(
+                "ws_broadcast", 
+                {
+                    "worker_id": self._worker_id,
+                    "channel": channel,
+                    "message": message
+                    # We can't really exclude a specific socket across workers 
+                    # unless it has a global ID.
+                }
+            )
+
         if channel not in self._channels:
             return
 
@@ -91,6 +164,7 @@ class ConnectionManager:
             except Exception as e:
                 logger.debug(f"Failed to send to websocket: {e}")
                 dead.append(ws)
+                metrics.increment("websocket_broadcast_errors_total")
 
         for ws in dead:
             await self.disconnect(ws)
@@ -152,8 +226,36 @@ class ConnectionManager:
             "users": [getattr(getattr(ws, "user", None), "id", None) for ws in sockets]
         }
 
+    async def set_distributed_backend(self, backend: DistributedBackend) -> None:
+        """Enable distributed broadcasting across multiple workers."""
+        if self._distributed_backend:
+            return
+            
+        self._distributed_backend = backend
+        await self._distributed_backend.subscribe("ws_broadcast", self._on_distributed_message)
+        w_id = str(self._worker_id)
+        short_id = w_id[:8] if len(w_id) >= 8 else w_id
+        logger.info(f"WebSocket ConnectionManager synchronized with distributed backend (worker_id={short_id})")
+
+    async def _on_distributed_message(self, data: Any) -> None:
+        """Handle broadcast events from other workers."""
+        if not isinstance(data, dict):
+            return
+            
+        worker_id = data.get("worker_id")
+        # Ignore messages originating from this worker (they've already been broadcast locally)
+        if worker_id == self._worker_id:
+            return
+            
+        channel = data.get("channel")
+        message = data.get("message")
+        
+        if channel and message is not None:
+            # Broadcast locally, marking it as distributed to avoid feedback loops
+            await self.broadcast(message, channel=channel, _is_distributed=True)
+
     def count(self) -> int:
-        """Return total number of active connections."""
+        """Return total number of active connections on this worker."""
         return len(self._socket_channels)
 
     @property
@@ -167,8 +269,32 @@ class ConnectionManager:
 
     @property
     def active_channels(self) -> list[str]:
-        """List all channels with active subscribers."""
+        """List all channels with active subscribers on this worker."""
         return list(self._channels.keys())
+
+    async def shutdown(self) -> None:
+        """Close all active WebSocket connections gracefully."""
+        active_sockets = list(self._socket_channels.keys())
+        logger.info("Closing %d WebSocket connections for shutdown...", len(active_sockets))
+        
+        # 1001: Going Away (server shutdown)
+        close_coroutines = [
+            socket.close(code=1001) for socket in active_sockets 
+            if socket.client_state != WebSocketState.DISCONNECTED
+        ]
+        
+        if close_coroutines:
+            await asyncio.gather(*close_coroutines, return_exceptions=True)
+            
+        # Clear all state
+        self._channels.clear()
+        self._socket_channels.clear()
+        self._user_sockets.clear()
+        
+        # Reset metrics
+        metrics.set_gauge("websocket_active_connections", 0)
+        
+        logger.info("WebSocket shutdown complete.")
 
 # Global instance for easy access
 connection_manager = ConnectionManager()

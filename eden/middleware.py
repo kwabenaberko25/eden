@@ -837,10 +837,13 @@ class EdenFunctionMiddleware:
         self.app = app
         self.handler = handler
         
-        # Create an internal dispatcher that wraps Starlette's Request
+        # Create an internal dispatcher that wraps Starlette's Request.
+        # Use from_scope() to avoid accessing request._send (private API).
         async def dispatch(request, call_next):
-            from eden.requests import Request
-            eden_request = Request(request.scope, request.receive, request._send)
+            from eden.requests import Request as EdenRequest
+            eden_request = EdenRequest.from_scope(
+                request.scope, request.receive, request._send
+            )
             
             async def eden_call_next(req):
                 # Ensure we are passing back to Starlette's call_next

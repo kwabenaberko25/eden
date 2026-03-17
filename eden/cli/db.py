@@ -13,6 +13,7 @@ from eden.db.migrations import (
     run_downgrade,
     show_history,
     run_check,
+    MigrationManager,
 )
 
 
@@ -28,7 +29,7 @@ def db() -> None:
     default=None,
     help="Database URL (defaults to config).",
 )
-def db_init(db_url: str) -> None:
+def db_init(db_url: str | None) -> None:
     """Initialize the migrations directory."""
     try:
         init_migrations(db_url=db_url)
@@ -45,41 +46,45 @@ def db_init(db_url: str) -> None:
 
 
 @db.command("migrate")
+@click.option("--revision", default="head", help="Target revision.")
+@click.option("--schema", default=None, help="Target specific tenant schema.")
 @click.option(
     "--db-url",
     default=None,
     help="Database URL (defaults to config).",
 )
-def db_migrate(db_url: str) -> None:
-    """Apply pending migrations (alias for upgrade)."""
-    click.echo("  ⬆️  Applying pending migrations...")
-    run_upgrade(revision="head", db_url=db_url)
+def db_migrate(revision: str, schema: str | None, db_url: str | None) -> None:
+    """Apply pending migrations."""
+    target = f"schema '{schema}'" if schema else "default schema"
+    click.echo(f"  ⬆️  Applying migrations to {revision} on {target}...")
+    run_upgrade(revision=revision, db_url=db_url, schema=schema)
     click.echo("  ✅ Database migrated.")
 
 
 @db.command("apply")
+@click.option("--revision", default="head", help="Target revision.")
+@click.option("--schema", default=None, help="Target specific tenant schema.")
 @click.option(
     "--db-url",
     default=None,
     help="Database URL (defaults to config).",
 )
-def db_apply(db_url: str) -> None:
+def db_apply(revision: str, schema: str | None, db_url: str | None) -> None:
     """Apply pending migrations (alias for migrate)."""
-    db_migrate(db_url)
+    db_migrate(revision=revision, schema=schema, db_url=db_url)
 
 
 @db.command("upgrade")
 @click.option("--revision", default="head", help="Target revision.")
+@click.option("--schema", default=None, help="Target specific tenant schema.")
 @click.option(
     "--db-url",
     default=None,
     help="Database URL (defaults to config).",
 )
-def db_upgrade(revision: str, db_url: str) -> None:
+def db_upgrade(revision: str, schema: str | None, db_url: str | None) -> None:
     """Apply pending migrations."""
-    click.echo(f"  ⬆️  Upgrading to: {revision}")
-    run_upgrade(revision=revision, db_url=db_url)
-    click.echo("  ✅ Database upgraded.")
+    db_migrate(revision=revision, schema=schema, db_url=db_url)
 
 
 @db.command("downgrade")
@@ -103,24 +108,52 @@ def db_downgrade(revision: str, db_url: str) -> None:
     help="Database URL (defaults to config).",
 )
 def db_history(db_url: str) -> None:
-    """Show migration history."""
-    show_history(db_url=db_url)
+    """Show migration history intelligently."""
+    click.echo("  📜 Migration History:")
+    from eden.db.migrations import MigrationManager
+    
+    manager = MigrationManager(db_url)
+    history_data = manager.history()
+    
+    if not history_data:
+        click.echo("     (No migrations found)")
+        return
+        
+    for item in history_data:
+        status_color = "green" if item["status"] == "applied" else "yellow"
+        status_icon = "✅" if item["status"] == "applied" else "⏳"
+        
+        flags = []
+        if item["is_head"]:
+            flags.append("HEAD")
+        if item["is_current"]:
+            flags.append("CURRENT")
+            
+        flag_str = f" [{', '.join(flags)}]" if flags else ""
+        
+        click.secho(
+            f"  {status_icon} {item['revision']} - {item['message']}{flag_str}",
+            fg=status_color
+        )
 
 
 @db.command("generate")
 @click.option("-m", "--message", required=True, help="Migration message.")
+@click.option("--tenant", is_flag=True, help="Generate migration for tenant-isolated models.")
 @click.option(
     "--db-url",
     default=None,
     help="Database URL (defaults to config).",
 )
-def db_generate(message: str, db_url: str) -> None:
+def db_generate(message: str, tenant: bool, db_url: str | None) -> None:
     """Generate a new database migration."""
     import alembic.util.exc
 
-    click.echo(f"  🔄 Generating migration: {message}")
+    label = "Tenant" if tenant else "Shared"
+    click.echo(f"  🔄 Generating {label} migration: {message}")
     try:
-        create_migration(message=message, db_url=db_url)
+        manager = MigrationManager(db_url)
+        manager.generate(message=message, tenant_isolated=tenant)
         click.echo("  ✅ Migration created in migrations/versions/")
     except alembic.util.exc.CommandError as e:
         if "Path doesn't exist" in str(e):
