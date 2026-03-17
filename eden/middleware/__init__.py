@@ -17,7 +17,8 @@ from typing import Any, Optional, Sequence
 from starlette.middleware.cors import CORSMiddleware as StarletteCORS
 from starlette.middleware.gzip import GZipMiddleware as StarletteGZip
 from starlette.middleware.sessions import SessionMiddleware as StarletteSession
-from starlette.requests import Request
+from starlette.requests import Request as StarletteRequest
+from eden.requests import Request
 from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
@@ -347,7 +348,7 @@ class RequestContextMiddleware:
         from eden.context import reset_request, set_request
         from eden.requests import Request as EdenRequest
 
-        request = EdenRequest(scope, receive, send)
+        request = EdenRequest.from_scope(scope, receive, send)
         token = set_request(request)
         try:
             await self.app(scope, receive, send)

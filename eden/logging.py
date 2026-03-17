@@ -13,7 +13,8 @@ import sys
 import time
 import uuid
 
-from starlette.requests import Request
+from starlette.requests import Request as StarletteRequest
+from eden.requests import Request
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 # ── Logger Setup ─────────────────────────────────────────────────────────
@@ -179,7 +180,7 @@ class RequestLoggingMiddleware:
             await self.app(scope, receive, send)
             return
 
-        request = Request(scope, receive, send)
+        request = Request.from_scope(scope, receive, send)
         path = request.url.path
 
         # Skip excluded paths
