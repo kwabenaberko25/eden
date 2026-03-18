@@ -72,7 +72,8 @@ class MessageContainer:
         session = getattr(self.request, "session", {})
         if self.session_key in session:
             try:
-                sticky_messages = []
+                # We pop the data, which means it MUST BE SAVED BACK by _save()
+                # if not consumed/cleared.
                 data = session.pop(self.session_key)
                 for item in data:
                     msg = Message(
@@ -82,19 +83,33 @@ class MessageContainer:
                         sticky=item.get("sticky", False),
                     )
                     self._loaded_messages.append(msg)
-                    if msg.sticky:
-                        sticky_messages.append(msg.to_dict())
-                
-                # If we have sticky messages, ensure they stay in the session
-                if sticky_messages:
-                    session = getattr(self.request, "session", None)
-                    if session is not None:
-                        existing = session.get(self.session_key, [])
-                        session[self.session_key] = existing + sticky_messages
             except (TypeError, ValueError, KeyError):
                 pass
         
         self._loaded = True
+
+    def _save(self) -> None:
+        """
+        Persist unconsumed messages back to the session.
+        This is typically called by the MessagesMiddleware at the end of a request.
+        """
+        if not self._loaded and not self._queued_messages:
+            # Nothing to do if we didn't load and have no new messages
+            return
+
+        session = getattr(self.request, "session", None)
+        if session is None:
+            return
+
+        # Prepare unconsumed messages for storage
+        # We combine loaded messages (that weren't iterated) and queued messages (new)
+        messages_to_save = [m.to_dict() for m in self._loaded_messages + self._queued_messages]
+        
+        if messages_to_save:
+            session[self.session_key] = messages_to_save
+        elif self.session_key in session:
+            # All messages consumed, clear session key
+            del session[self.session_key]
 
     def add(self, message: str, level: int = INFO, extra_tags: str = "", 
             push: bool = True, channel: Optional[str] = None, 
@@ -103,10 +118,9 @@ class MessageContainer:
         Add a new message and optionally push via WebSocket.
         """
         # Ensure we've loaded existing session messages BEFORE adding new ones
-        # to prevent double-loading our own messages if _load is called later.
         self._load()
 
-        # Deduplication (checks both local queue and loaded session messages)
+        # Deduplication
         if not allow_duplicates:
             all_messages = self._queued_messages + self._loaded_messages
             if any(m.message == message and m.level == level for m in all_messages):
@@ -115,13 +129,6 @@ class MessageContainer:
         msg = Message(message=message, level=level, extra_tags=extra_tags, sticky=sticky)
         self._queued_messages.append(msg)
         
-        # Persist to session immediately (Flash pattern)
-        session = getattr(self.request, "session", None)
-        if session is not None:
-            messages = session.get(self.session_key, [])
-            messages.append(msg.to_dict())
-            session[self.session_key] = messages
-
         # Real-time Push via WebSocket
         if push:
             self._push_realtime(msg, channel=channel)
@@ -184,6 +191,14 @@ class MessageContainer:
         """Return the count of messages for a specific level."""
         return len(self.get_by_level(level))
 
+    def all(self) -> List[Message]:
+        """
+        Return all messages (loaded + queued) without consuming them.
+        Useful for checking status without clearing the flash queue.
+        """
+        self._load()
+        return self._loaded_messages + self._queued_messages
+
     def debug(self, message: str, **kwargs) -> None:
         """Quick add a DEBUG message."""
         self.add(message, level=DEBUG, **kwargs)
@@ -213,15 +228,16 @@ class MessageContainer:
         for msg in self._queued_messages:
             yield msg
         
-        # Clear local buffers
-        self._loaded_messages = []
-        self._queued_messages = []
+        # Clear local buffers but RETAIN sticky ones for session persistence
+        self._loaded_messages = [m for m in self._loaded_messages if m.sticky]
+        self._queued_messages = [m for m in self._queued_messages if m.sticky]
 
     def __len__(self) -> int:
         self._load()
         return len(self._loaded_messages) + len(self._queued_messages)
 
     def __bool__(self) -> bool:
+        """Return True if there are any unconsumed messages."""
         return len(self) > 0
 
 

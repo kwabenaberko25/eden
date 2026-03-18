@@ -43,6 +43,10 @@ from eden.core.metrics import metrics
 from eden.core.idempotency import IdempotencyManager
 from eden.websocket.manager import connection_manager
 
+if TYPE_CHECKING:
+    from eden.storage import StorageManager
+    from eden.config import Config
+
 
 class Eden:
     """
@@ -128,14 +132,14 @@ class Eden:
             is_test = (
                 os.getenv("EDEN_ENV") == "test" or 
                 getattr(config, "env", "") == "test" or
-                (hasattr(config, "is_test") and config.is_test()) or
+                (hasattr(config, "is_test") and config.is_test() if callable(getattr(config, "is_test", None)) else getattr(config, "is_test", False)) or
                 "pytest" in sys.modules
             )
             
             redis_url = None
             if not is_test:
                 redis_url = getattr(config, "redis_url", None)
-                if not redis_url and hasattr(config, "items"):
+                if not redis_url and hasattr(config, "get"):
                     # Handle dict config
                     redis_url = config.get("redis_url")
                 
@@ -144,6 +148,7 @@ class Eden:
             from eden.logging import get_logger
             get_logger("eden").warning(f"Failed to create broker: {e}. Falling back to InMemoryBroker.")
             self._raw_broker = create_broker(None)
+            redis_url = None
             
         self._eden_broker = EdenBroker(self._raw_broker)
         self._eden_broker.app = self
@@ -167,8 +172,9 @@ class Eden:
         
         # Templating
         self._templates: EdenTemplates | None = None
+        
         # Storage
-        self.storage = eden_storage
+        self.storage: "StorageManager" = eden_storage
         self.storage.register(
             "local",
             LocalStorageBackend(base_path=self.media_dir, base_url="/media/"),
@@ -195,9 +201,6 @@ class Eden:
 
         # Caching
         self.cache: Optional["CacheBackend"] = None
-        
-        # Storage
-        self.storage = eden_storage
 
     def setup_tasks(self) -> None:
         """Hook for initializing/configuring task lifecycle and dependencies."""
@@ -270,10 +273,15 @@ class Eden:
             # Media Storage check
             if self.storage:
                 try:
-                    # We can't easily check all backends, but we check if it's usable
-                    probes["storage"] = "ok"
-                except Exception:
-                    probes["storage"] = "error"
+                    # Check if at least one backend is registered and active
+                    # This is a light probe to ensure the storage system is initialized
+                    if not self.storage._backends:
+                        probes["storage"] = "error: no backends registered"
+                        all_ok = False
+                    else:
+                        probes["storage"] = "ok"
+                except Exception as e:
+                    probes["storage"] = f"error: {str(e)}"
                     all_ok = False
 
             # 2. User-registered checks
@@ -517,9 +525,10 @@ class Eden:
         if self.secret_key and not self.is_test():
             self.add_middleware("session", priority=self.PRIORITY_CORE + 20, secret_key=self.secret_key)
             self.add_middleware("csrf", priority=self.PRIORITY_CORE + 30)
+            self.add_middleware("messages", priority=self.PRIORITY_CORE + 40)
         elif self.debug and not self.is_test():
             from eden.logging import get_logger
-            get_logger("eden").warning("secret_key not set. Session and CSRF middleware disabled.")
+            get_logger("eden").warning("secret_key not set. Session, CSRF, and Messages middleware disabled.")
         
         # 4. Standard App Middleware
         self.add_middleware("auth", priority=self.PRIORITY_HIGH)

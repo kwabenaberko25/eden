@@ -33,6 +33,7 @@ def test_custom_session_key():
         assert container.session_key == custom_key
         
         container.success("Custom Key Test")
+        container._save() # Must call _save() manually in tests
         assert custom_key in request.session
         assert "_eden_messages" not in request.session
 
@@ -116,16 +117,22 @@ def test_message_persistence_sticky():
     container.add("I stay", sticky=True)
     container.add("I go", sticky=False)
     
+    container._save() # Save to session
     assert len(request.session["_eden_messages"]) == 2
     
     # Next request simulation
     request2 = MockRequest(session=request.session)
     container2 = MessageContainer(request2)
     
-    # Load should find 2 messages, but only re-queue the sticky one
+    # Load should find 2 messages
     container2._load()
     assert len(container2._loaded_messages) == 2
-    # The sticky one should have been re-added to session for request3
+    
+    # Iterate over them (simulate reading in template)
+    list(container2)
+    
+    # The sticky one should have been re-added to session for request3, non-sticky should be gone
+    container2._save()
     assert len(request2.session["_eden_messages"]) == 1
     assert request2.session["_eden_messages"][0]["message"] == "I stay"
 

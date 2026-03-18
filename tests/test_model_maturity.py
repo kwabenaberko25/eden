@@ -17,7 +17,7 @@ async def db():
     yield database
     await database.disconnect()
 
-class Product(Model):
+class MaturityProduct(Model):
     name: str = StringField(max_length=100)
     price: int = IntField()
     stock: int = IntField(default=0)
@@ -32,22 +32,22 @@ class Product(Model):
 async def test_signal_registration(db):
     saved_instances = []
 
-    @receiver(post_save, sender=Product)
+    @receiver(post_save, sender=MaturityProduct)
     async def on_product_save(sender, instance, **kwargs):
         saved_instances.append(instance)
 
-    product = Product(name="Test Product", price=100)
+    product = MaturityProduct(name="Test Product", price=100)
     await product.save()
 
     assert len(saved_instances) == 1
     assert saved_instances[0].id == product.id
     
     # Cleanup receiver to avoid side effects on other tests
-    post_save.disconnect(on_product_save, sender=Product)
+    post_save.disconnect(on_product_save, sender=MaturityProduct)
 
 @pytest.mark.asyncio
 async def test_validation_clean_method(db):
-    product = Product(name="Invalid", price=100)
+    product = MaturityProduct(name="Invalid", price=100)
     
     with pytest.raises(ValidationErrors) as excinfo:
         await product.save()
@@ -66,7 +66,7 @@ async def test_validation_clean_method(db):
 
 @pytest.mark.asyncio
 async def test_full_clean_lifecycle(db):
-    product = Product(name="A" * 101, price=10) # Too long
+    product = MaturityProduct(name="A" * 101, price=10) # Too long
     
     with pytest.raises(ValidationErrors) as excinfo:
         await product.save()
@@ -74,13 +74,13 @@ async def test_full_clean_lifecycle(db):
     # Note: min_length/max_length rules are usually added by ValidationScanner 
     # from docstrings or field metadata in __init_subclass__
     # Let's verify our product has those rules.
-    assert "name" in Product._validation_rules
-    assert any(r.rule_type == 'max_length' for r in Product._validation_rules["name"])
+    assert "name" in MaturityProduct._validation_rules
+    assert any(r.rule_type == 'max_length' for r in MaturityProduct._validation_rules["name"])
 
 @pytest.mark.asyncio
 async def test_update_or_create(db):
     # Create
-    product, created = await Product.update_or_create(
+    product, created = await MaturityProduct.update_or_create(
         name="Unique Product",
         defaults={"price": 50}
     )
@@ -88,7 +88,7 @@ async def test_update_or_create(db):
     assert product.price == 50
 
     # Update
-    product_updated, created = await Product.update_or_create(
+    product_updated, created = await MaturityProduct.update_or_create(
         name="Unique Product",
         defaults={"price": 75}
     )
@@ -100,23 +100,23 @@ async def test_update_or_create(db):
 async def test_delete_signals(db):
     deleted_calls = []
 
-    @receiver(pre_delete, sender=Product)
+    @receiver(pre_delete, sender=MaturityProduct)
     async def on_product_pre_delete(sender, instance, **kwargs):
         deleted_calls.append("pre_" + str(instance.id))
 
-    @receiver(post_delete, sender=Product)
+    @receiver(post_delete, sender=MaturityProduct)
     async def on_product_post_delete(sender, instance, **kwargs):
         deleted_calls.append("post_" + str(instance.id))
 
-    product = await Product.create(name="To Delete", price=10)
+    product = await MaturityProduct.create(name="To Delete", price=10)
     pid = str(product.id)
     await product.delete()
 
     assert f"pre_{pid}" in deleted_calls
     assert f"post_{pid}" in deleted_calls
     
-    pre_delete.disconnect(on_product_pre_delete, sender=Product)
-    post_delete.disconnect(on_product_post_delete, sender=Product)
+    pre_delete.disconnect(on_product_pre_delete, sender=MaturityProduct)
+    post_delete.disconnect(on_product_post_delete, sender=MaturityProduct)
 
 
 @pytest.mark.asyncio
@@ -174,42 +174,42 @@ async def test_bulk_signals(db):
     
     events = []
     
-    @receiver(pre_bulk_update, sender=Product)
+    @receiver(pre_bulk_update, sender=MaturityProduct)
     async def on_pre_bulk_update(sender, instance, **kwargs):
         events.append(("pre_update", kwargs.get("values")))
 
-    @receiver(post_bulk_update, sender=Product)
+    @receiver(post_bulk_update, sender=MaturityProduct)
     async def on_post_bulk_update(sender, instance, **kwargs):
         events.append(("post_update", kwargs.get("count")))
 
-    @receiver(pre_bulk_delete, sender=Product)
+    @receiver(pre_bulk_delete, sender=MaturityProduct)
     async def on_pre_bulk_delete(sender, instance, **kwargs):
         events.append(("pre_delete", None))
 
-    @receiver(post_bulk_delete, sender=Product)
+    @receiver(post_bulk_delete, sender=MaturityProduct)
     async def on_post_bulk_delete(sender, instance, **kwargs):
         events.append(("post_delete", kwargs.get("count")))
 
     # Prepare data
-    await Product.bulk_create([
-        Product(name="P1", price=10),
-        Product(name="P2", price=20)
+    await MaturityProduct.bulk_create([
+        MaturityProduct(name="P1", price=10),
+        MaturityProduct(name="P2", price=20)
     ])
     
     # Test Bulk Update
-    await Product.filter(price__lt=30).update(price=100)
+    await MaturityProduct.filter(price__lt=30).update(price=100)
     
     assert any(e[0] == "pre_update" and e[1] == {"price": 100} for e in events)
     assert any(e[0] == "post_update" and e[1] >= 2 for e in events)
     
     # Test Bulk Delete
-    count = await Product.filter(price=100).delete(hard=True)
+    count = await MaturityProduct.filter(price=100).delete(hard=True)
     
     assert any(e[0] == "pre_delete" for e in events)
     assert any(e[0] == "post_delete" and e[1] == count for e in events)
 
     # Cleanup
-    pre_bulk_update.disconnect(on_pre_bulk_update, sender=Product)
-    post_bulk_update.disconnect(on_post_bulk_update, sender=Product)
-    pre_bulk_delete.disconnect(on_pre_bulk_delete, sender=Product)
-    post_bulk_delete.disconnect(on_post_bulk_delete, sender=Product)
+    pre_bulk_update.disconnect(on_pre_bulk_update, sender=MaturityProduct)
+    post_bulk_update.disconnect(on_post_bulk_update, sender=MaturityProduct)
+    pre_bulk_delete.disconnect(on_pre_bulk_delete, sender=MaturityProduct)
+    post_bulk_delete.disconnect(on_post_bulk_delete, sender=MaturityProduct)

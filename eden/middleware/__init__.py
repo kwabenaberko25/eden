@@ -663,8 +663,8 @@ class EdenFunctionMiddleware:
 
 class MessageMiddleware:
     """
-    Middleware that ensures messages are loaded from the session
-    and made available on the request.
+    Middleware that integrate the Eden messaging system into the request lifecycle.
+    Ensures that flash messages are persisted back to the session if ignored/sticky.
     """
 
     def __init__(self, app: ASGIApp) -> None:
@@ -675,11 +675,18 @@ class MessageMiddleware:
             await self.app(scope, receive, send)
             return
 
-        # Request.messages is a lazy property on EdenRequest,
-        # so we don't need to do anything here except pass through.
-        # This middleware exists to provide a clean configuration point
-        # and to ensure it's placed after SessionMiddleware.
-        await self.app(scope, receive, send)
+        from eden.requests import Request as EdenRequest
+        request = EdenRequest.from_scope(scope, receive, send)
+
+        async def send_wrapper(message: Message) -> None:
+            if message["type"] == "http.response.start":
+                # Only store if response is successful (2xx) or redirect (3xx)
+                # Note: We use int() because status might be a str in some ASGI adapters
+                if hasattr(request, "_messages") and int(message.get("status", 200)) < 400:
+                    request._messages._save()
+            await send(message)
+
+        await self.app(scope, receive, send_wrapper)
 
 
 # Note: RequestTracking logic was moved to eden.middleware.correlation.CorrelationIdMiddleware

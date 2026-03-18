@@ -18,7 +18,8 @@ def test_message_addition():
     assert len(container._queued_messages) == 1
     assert container._queued_messages[0].message == "Test success"
     assert container._queued_messages[0].level == SUCCESS
-    # Check session persistence
+    # Check session persistence - must call _save() manually in tests
+    container._save()
     assert "_eden_messages" in request.session
     assert request.session["_eden_messages"][0]["message"] == "Test success"
 
@@ -49,6 +50,7 @@ def test_message_levels():
     container.warning("warning")
     container.error("error")
     
+    container._save()
     assert len(request.session["_eden_messages"]) == 5
     levels = [m["level"] for m in request.session["_eden_messages"]]
     assert levels == [10, 20, 25, 30, 40]

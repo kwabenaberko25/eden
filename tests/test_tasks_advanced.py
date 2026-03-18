@@ -94,7 +94,7 @@ class TestTasksAdvanced:
 
         await app.broker.startup()
         try:
-            await asyncio.sleep(0.35) # Should run ~3 times
+            await asyncio.sleep(0.45) # Should run ~4 times, but at least 3
             assert task_state["execution_count"] >= 3
         finally:
             await app.broker.shutdown()

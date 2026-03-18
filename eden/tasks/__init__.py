@@ -416,8 +416,8 @@ class EdenBroker:
     def task(
         self,
         *args: Any,
-        retries: int | None = None,
-        delays: list[int] | None = None,
+        max_retries: int | None = None,
+        retry_delays: list[int] | None = None,
         exponential_backoff: bool = True,
         **kwargs: Any,
     ) -> Any:
@@ -425,8 +425,8 @@ class EdenBroker:
         if len(args) == 1 and callable(args[0]):
             return self.task()(args[0])
 
-        target_retries = retries if retries is not None else self.max_retries
-        target_delays = delays if delays is not None else self.retry_delays
+        target_retries = max_retries if max_retries is not None else self.max_retries
+        target_delays = retry_delays if retry_delays is not None else self.retry_delays
 
         def decorator(func: Callable[..., Any]) -> Any:
             # Wrap the function to inject Eden dependencies and handle retries
