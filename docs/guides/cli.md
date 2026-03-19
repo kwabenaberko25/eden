@@ -12,11 +12,11 @@ The Eden CLI is more than just a task runner; it's a **Project Lifecycle Manager
 
 ```mermaid
 graph TD
-    A[Developer] --> B["Eden CLI: Entry Point"]
+    A["Developer"] --> B["Eden CLI: Entry Point"]
     B --> C["Forge Engine: Code Generation"]
     B --> D["DB Manager: Migration Suite"]
     B --> E["Identity: Auth & Superuser"]
-    C --> F["Auto-Registration: main.py Injection"]
+    C --> F["Auto-Registration: "main.py Injection"]
     D --> G["Multi-Schema Strategy: Postgres/SQLite"]
     F --> H["Project: models / routes / templates"]
 ```

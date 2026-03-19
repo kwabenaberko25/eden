@@ -59,7 +59,9 @@ For complex SaaS or multi-tenant applications.
 For logic that spans multiple models or requires external integrations (e.g., Stripe, Email), use a **Service Layer**.
 
 ```python
+
 # services/user_service.py
+
 class UserService:
     @staticmethod
     async def create_premium_user(data: UserSchema):
@@ -75,7 +77,9 @@ class UserService:
 As your API grows, decompose it into semantic routers.
 
 ```python
+
 # routes/users.py
+
 from eden import Router
 user_router = Router(prefix="/users")
 
@@ -83,6 +87,7 @@ user_router = Router(prefix="/users")
 async def list_users(): ...
 
 # In app.py
+
 app.include_router(user_router)
 ```
 

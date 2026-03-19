@@ -24,7 +24,7 @@ Comprehensive troubleshooting for Eden templating directives.
 | @auth | `@auth { }` | `@auth { <p>Hi</p> }` | `@auth()` or `@auth` (no braces) |
 | @csrf | `@csrf` | `<form> @csrf </form>` | `@csrf()` (don't add parens) |
 | @url | `@url('route')` | `@url('posts:show')` | `@url(posts.show)` (quotes required) |
-| @active_link | `@active_link('route', 'class')` | `@active_link('home', 'active')` | `@active_link('home')` (needs class) |
+| @active_link | `@active_link('route', 'active', 'inactive')` | `@active_link('home', 'active', 'muted')` | `@active_link('home')` (needs classes) |
 | @checked | `@checked(condition)` | `@checked(user.agrees)` | `@if (checked)` — use @checked instead! |
 | @let | `@let var = value` | `@let total = 42` | `@let(var = 42)` (no parens) |
 | @component | `@component('name') { }` | `@component('card') { }` | `@component card { }` |
@@ -143,33 +143,30 @@ Comprehensive troubleshooting for Eden templating directives.
 
 **Troubleshooting Wildcard:**
 
-1. At least one route matching the prefix must exist:
-   ```python
-   # ✓ At least one admin route must exist
-
-   @app.get("/admin/dashboard", name="admin:index")
-   @app.get("/admin/users", name="admin:users")
-   @app.get("/admin/settings", name="admin:settings")
-   ```
-
-2. The wildcard pattern must match the namespace:
-   ```html
-   <!-- Works if you have admin:* routes -->
-
-   @active_link('admin:*', 'highlight')
+1. **At least one route matching the prefix must exist**:
+   The wildcard `'admin:*'` matches the current URL if the current URL starts with the path of a route belonging to that namespace.
    
-   <!-- Doesn't work - no 'blog:*' routes -->
-
-   @active_link('blog:*', 'highlight')
+   ```python
+   # ✓ Routes are defined with namesapces or names
+   @app.get("/admin/dashboard", name="admin_index")
+   @app.get("/admin/users", name="admin_users")
    ```
 
-3. Debug wildcard matching:
-   ```html
-   <!-- Check what path is being matched -->
+2. **The wildcard pattern matches the path prefix**:
+   If the current URL is `/admin/users/123`, it will match `@active_link('admin:*', ...)` because `/admin/users/123` starts with `/admin`.
 
-   Path: {{ request.url.path }}<br>
-   Base URL for 'admin:*': {{ request.url_for('admin:index') }}<br>
-   Active: {{ is_active(request, 'admin:*') }}
+3. **Check the multi-state toggling**:
+   If you are using the 3rd argument, verify that the classes are swapped correctly:
+   ```html
+   @active_link('projects:*', 'is-active', 'is-inactive')
+   ```
+
+4. **Debug matching logic**:
+   Add this to your template to see what's happening:
+   ```html
+   Current path: {{ request.url.path }}<br>
+   Trying to match: admin:* <br>
+   Is active: {{ is_active(request, 'admin:*') }}
    ```
 
 ---

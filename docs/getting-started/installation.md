@@ -59,10 +59,13 @@ pip install eden-framework[all]
 For architects who prefer a custom foundation, follow this manual sequence:
 
 ### 1. Environment Isolation
+
 ```bash
 mkdir my-eden-app && cd my-eden-app
 python -m venv .venv
+
 # On Windows: .venv\Scripts\activate
+
 source .venv/bin/activate
 ```
 
@@ -91,13 +94,17 @@ async def index():
 Execute these diagnostics to verify your engine is correctly tuned:
 
 ```bash
+
 # Verify Framework Presence
+
 python -c "import eden; print(f'Eden Version: {eden.__version__}')"
 
 # Verify SQL Engine
+
 python -c "import sqlalchemy; print('Alchemy 2.0+ Active')"
 
 # Verify CLI Integration
+
 eden info
 ```
 

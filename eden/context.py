@@ -407,11 +407,12 @@ user = ContextProxy(get_user, "user")
 
 def is_active(request: Optional[Any], url: str) -> bool:
     """
-    Helper to check if a URL is currently active (matches current request path).
+    Helper to check if a URL or route is currently active (matches current request path).
+    Supports exact route names, wildcard sections ('admin:*'), and literal URL paths.
     
     Args:
         request: Request object (optional, defaults to context)
-        url: URL string to check
+        url: URL string or route name to check
         
     Returns:
         bool: True if active, False otherwise
@@ -424,11 +425,35 @@ def is_active(request: Optional[Any], url: str) -> bool:
         
     try:
         current_path = request.url.path.rstrip("/") or "/"
-        target_path = url.rstrip("/") or "/"
+        target_path = url
         
+        # 1. Handle wildcard section (e.g., 'admin:*')
+        is_wildcard = target_path.endswith("*")
+        if is_wildcard:
+            target_path = target_path[:-1].rstrip(":_")
+
+        # 2. Try to resolve route name if it doesn't look like a path
+        if "/" not in target_path and target_path != "":
+            try:
+                # Support both 'auth:login' and 'auth_login' style route names
+                name = target_path.replace(":", "_")
+                resolved = str(request.url_for(name)).rstrip("/") or "/"
+                target_path = resolved
+            except Exception:
+                # Fallback to literal if resolution fails
+                pass
+        
+        # 3. Path normalization for literal paths or resolved routes
         if "://" in target_path:
             from urllib.parse import urlparse
-            target_path = urlparse(target_path).path.rstrip("/") or "/"
+            target_path = urlparse(target_path).path
+        
+        target_path = target_path.rstrip("/") or "/"
+        
+        # 4. Perform matching
+        if is_wildcard:
+            # Matches if it's either the exact base path or starts with base path followed by /
+            return current_path == target_path or current_path.startswith(target_path + "/")
             
         return current_path == target_path
     except Exception:

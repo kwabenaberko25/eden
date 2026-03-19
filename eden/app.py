@@ -123,6 +123,7 @@ class Eden:
         self._router = Router()
         self._middleware_stack: list[tuple[type, dict[str, Any], int]] = []
         self._exception_handlers: dict[type[Exception] | int, Callable] = {}
+        self._defaults_setup_done = False
         
         from eden.exceptions.dispatcher import ExceptionDispatcher
         self._exception_dispatcher = ExceptionDispatcher(self)
@@ -516,7 +517,18 @@ class Eden:
         else:
             cls = middleware
             middleware_name = getattr(cls, "__name__", str(cls))
-        
+
+        # If custom CORS is added, remove the default (empty) CORSMiddleware entry
+        try:
+            from eden.middleware import CORSMiddleware
+            if isinstance(cls, type) and issubclass(cls, CORSMiddleware):
+                self._middleware_stack = [
+                    m for m in self._middleware_stack
+                    if not (isinstance(m[0], type) and issubclass(m[0], CORSMiddleware))
+                ]
+        except Exception:
+            pass
+
         self._middleware_stack.append((cls, kwargs, priority))
 
     def is_test(self) -> bool:
@@ -537,6 +549,9 @@ class Eden:
 
     def setup_defaults(self) -> None:
         """Register recommended default middleware in correct execution order."""
+        if self._defaults_setup_done:
+            return
+
         # 1. Traceability & Context (Outermost)
         self.add_middleware("request_id", priority=self.PRIORITY_CORE - 10)
         
@@ -565,14 +580,16 @@ class Eden:
         
         # 5. CORS (Secure by default: block all unless configured)
         # Check for existing custom CORS before adding default
+        from eden.middleware import CORSMiddleware as _BaseCORSMiddleware
+
         has_cors = any(
-            (isinstance(m[0], type) and m[0].__name__ == "CORSMiddleware") or
+            (isinstance(m[0], type) and issubclass(m[0], _BaseCORSMiddleware)) or
             (isinstance(m[0], str) and m[0] == "cors")
             for m in self._middleware_stack
         )
         if not has_cors:
             self.add_middleware("cors", priority=self.PRIORITY_STANDARD, allow_origins=[])
-
+        self._defaults_setup_done = True
     # ── Lifespan Hooks ───────────────────────────────────────────────────
 
     def on_startup(self, func: Callable) -> Callable:
@@ -733,6 +750,10 @@ class Eden:
             # Use state for typed extension and attribute for legacy access
             self._app.state.eden = self
             setattr(self._app, "eden", self)
+            
+            # Proxy core methods to underlying Starlette app for consistency
+            setattr(self._app, "render", self.render)
+            setattr(self._app, "url_for", self.url_for)
             
             return self._app
 

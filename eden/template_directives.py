@@ -192,12 +192,19 @@ def render_url(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -
 
 @directive("active_link")
 def render_active_link(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -> str:
-    parts = [p.strip() for p in (expr or "").split(',', 1)]
+    """
+    Apply CSS classes conditionally based on the active state of the route.
+    Usage: @active_link('route', 'active-classes', 'inactive-classes')
+    """
+    parts = [p.strip() for p in (expr or "").split(',', 2)]
     url_v = parts[0]
-    css_v = parts[1].strip('"\'')
+    active_css = parts[1].strip('"\'') if len(parts) > 1 else ""
+    inactive_css = parts[2].strip('"\'') if len(parts) > 2 else ""
+    
     if url_v.startswith("'") or url_v.startswith('"'):
         url_v = f'"{url_v[1:-1]}"'
-    return f'{{{{ "{css_v}" if is_active(request, {url_v}) else "" }}}}'
+        
+    return f'{{{{ "{active_css}" if is_active(request, {url_v}) else "{inactive_css}" }}}}'
 
 @directive("class")
 def render_class(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -> str:

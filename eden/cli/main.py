@@ -152,6 +152,22 @@ def run(host: str, port: int, reload: bool, no_browser_reload: bool, workers: in
              click.echo("\n  💡 Tip: Try specifying the app instance manually: eden run --app your_file:your_app_instance")
 
 
+@cli.command("help")
+@click.argument("command", required=False)
+@click.pass_context
+def help(ctx: click.Context, command: str | None) -> None:
+    """Show help for Eden or a subcommand."""
+    if command:
+        cmd = cli.get_command(ctx, command)
+        if cmd is None:
+            click.echo(f"Command '{command}' not found.")
+            ctx.exit(1)
+        with click.Context(cmd, info_name=command, parent=ctx) as command_ctx:
+            click.echo(cmd.get_help(command_ctx))
+    else:
+        click.echo(cli.get_help(ctx))
+
+
 @cli.command()
 def version() -> None:
     """Print Eden version."""

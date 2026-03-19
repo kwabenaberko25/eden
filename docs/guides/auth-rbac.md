@@ -55,6 +55,7 @@ rbac.add_permission("admin", "delete_posts")
 Eden provides a suite of decorators designed for readability and reliability. They automatically handle the current request context and support both function-based views and class-based views.
 
 ### 1. Simple Role Guards
+
 ```python
 from eden.auth import require_role, roles_required
 
@@ -71,6 +72,7 @@ async def billing_view(request):
 ```
 
 ### 2. Fine-Grained Permission Guards
+
 Avoid hardcoding roles in your logic. Instead, check for specific *permissions*. This makes your code more resilient to role structure changes.
 
 ```python
@@ -83,6 +85,7 @@ async def delete_post(request, id: int):
 ```
 
 ### 3. Class-Based View (CBV) Protection
+
 Secure an entire resource by applying decorators to the class.
 
 ```python
@@ -120,6 +123,7 @@ class User(Model):
 Eden’s templating engine provides semantic directives for controlling your UI based on identity.
 
 ### `@can` / `@cannot` (Permissions)
+
 ```html
 @can("delete_posts") {
     <button class="btn btn-danger" hx-delete="/posts/{{ post.id }}">
@@ -129,6 +133,7 @@ Eden’s templating engine provides semantic directives for controlling your UI 
 ```
 
 ### `@auth` / `@guest` (Status & Role)
+
 ```html
 @auth("admin") {
     <a href="/admin">Admin Dashboard</a>
@@ -147,22 +152,24 @@ Eden’s templating engine provides semantic directives for controlling your UI 
 
 | Decorator | Description |
 | :--- | :--- |
-| `@require_role` | Checks for a single role. |
-| `@require_permission` | Checks for a single permission. |
-| `@roles_required` | User must have **all** listed roles. |
+| `@require_role` | User must have a specific role (or hierarchical parent). |
+| `@require_permission` | User must have a specific functional permission. |
+| `@roles_required` | User must have **at least one** of the listed roles. |
 | `@permissions_required` | User must have **all** listed permissions. |
-| `@require_any_role` | User must have **at least one** listed role. |
+| `@require_any_role` | Alias for `@roles_required`. |
+| `@require_any_permission` | User must have **at least one** listed permission. |
 
 ### Superuser Bypass
+
 All checks include a "God Mode" bypass. If `request.user.is_superuser` is `True`, all decorators automatically grant access. This is essential for administrative troubleshooting.
 
 ---
 
 ## 💡 Best Practices
 
-1.  **Prefer Permissions over Roles**: Check for `@can("edit_settings")` rather than `@auth("admin")`. This allows you to create custom roles later without changing your code.
-2.  **Audit Logs**: Use Eden’s `telemetry` features to log whenever a permission check fails—this is an early warning sign for potential security probes.
-3.  **Fail-Secure**: Eden’s decorators return a `403 Forbidden` response by default if any check fails, ensuring your application remains "Secure by Default."
+1. **Prefer Permissions over Roles**: Check for `@can("edit_settings")` rather than `@auth("admin")`. This allows you to create custom roles later without changing your code.
+2. **Audit Logs**: Use Eden’s `telemetry` features to log whenever a permission check fails—this is an early warning sign for potential security probes.
+3. **Fail-Secure**: Eden’s decorators return a `403 Forbidden` response by default if any check fails, ensuring your application remains "Secure by Default."
 
 ---
 

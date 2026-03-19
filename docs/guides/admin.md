@@ -46,6 +46,32 @@ app.mount_admin(path="/admin")
 
 ---
 
+## 📦 Core Model Auto-Registration
+
+Eden's Admin Site is designed to be "batteries-included." By default, the framework automatically registers essential system models during the `build_router` phase so you can manage your application's infrastructure immediately—**no extra code required**.
+
+### Automatically Registered Models
+
+- **`User`**: Full management of staff and customer accounts.
+- **`AuditLog`**: A searchable history of every change made via the admin or API.
+- **`APIKey`**: Management of server-to-server credentials and permissions.
+
+### Customizing Core Models
+
+If you need to customize the interface for a core model (e.g., adding custom filters to `AuditLog`), simply re-register it with your own `ModelAdmin` class:
+
+```python
+from eden.auth import User
+from eden.admin import admin
+
+@admin.register(User)
+class MyUserAdmin:
+    list_display = ["email", "is_active", "custom_field"]
+    # This overrides the default registration
+```
+
+---
+
 ## 📊 The Professional Dashboard
 
 Eden allows you to build a visual "Mission Control" for your SaaS using declarative widgets.
@@ -75,6 +101,7 @@ class MainDashboard:
 ## 🏗️ Advanced UI Control
 
 ### 1. The List Interface
+
 Customize how your data is displayed, filtered, and searched.
 
 ```python
@@ -93,6 +120,7 @@ class UserAdmin:
 ```
 
 ### 2. Inlines (Relational Editing)
+
 Manage related models (like Comments for a Post or Licenses for a User) on the same parent page.
 
 ```python
@@ -160,10 +188,10 @@ class MyAdminSite(admin.AdminSite):
 
 ## 💡 Best Practices
 
-1.  **Search is King**: Always define `search_fields` to prevent performance degradation when browsing thousands of records.
-2.  **Display Helpers**: Use `@admin.display` to render human-readable labels for enums or formatted dates.
-3.  **Low-Privilege Access**: Group related permissions into Roles and restrict the Admin Panel to specific roles, keeping your production data safe.
-4.  **Audit Logs**: Every change made via the Admin Panel is tracked. Use the "History" view to see who changed what and when.
+1. **Search is King**: Always define `search_fields` to prevent performance degradation when browsing thousands of records.
+2. **Display Helpers**: Use `@admin.display` to render human-readable labels for enums or formatted dates.
+3. **Low-Privilege Access**: Group related permissions into Roles and restrict the Admin Panel to specific roles, keeping your production data safe.
+4. **Audit Logs**: Every change made via the Admin Panel is tracked. Use the "History" view to see who changed what and when.
 
 ---
 

@@ -14,7 +14,7 @@ Eden leverages the PostgreSQL `search_path` to dynamically route database querie
 
 ```mermaid
 graph LR
-    A["Request for Tenant ACME"] --> B[Middleware]
+    A["Request for Tenant ACME"] --> B["Middleware"]
     B --> C["SET search_path TO 'tenant_acme', public"]
     C --> D["SQL Query: SELECT * FROM users"]
     D --> E["Resolves to 'tenant_acme.users'"]

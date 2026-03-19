@@ -117,6 +117,7 @@ async def profile(request):
 Eden provides filters to safely pass Python data to HTMX attributes.
 
 ### `hx_vals` and `hx_headers`
+
 Automatically serializes dictionaries to JSON for HTMX attributes.
 
 ```html
@@ -129,6 +130,7 @@ Automatically serializes dictionaries to JSON for HTMX attributes.
 ## Advanced Patterns
 
 ### Inline Form Validation
+
 Use `@fragment` to return validated fields without refreshing the whole form.
 
 ```html
@@ -143,6 +145,7 @@ Use `@fragment` to return validated fields without refreshing the whole form.
 ```
 
 ### Multi-Target Updates (Out-of-Band)
+
 Return multiple snippets in one response for complex UI updates.
 
 ```python
@@ -162,6 +165,7 @@ async def add_to_cart(request):
 This tutorial demonstrates building a live-filtering user table with professional loading states and zero custom JavaScript.
 
 ### 1. The Frontend (`users/index.html`)
+
 We use `hx-trigger="keyup delay:500ms, changed"` to avoid overwhelming the server.
 
 ```html
@@ -224,6 +228,7 @@ We use `hx-trigger="keyup delay:500ms, changed"` to avoid overwhelming the serve
 ```
 
 ### 2. The Backend (`app/routes/users.py`)
+
 Eden's `@app.get` automatically handles the fragment swap if `HX-Target` matches.
 
 ```python
@@ -247,6 +252,7 @@ async def list_users(request):
 ---
 
 ## 📜 Pattern: Infinite Scroll
+
 Infinite scroll is trivial with Eden's `hx-swap="afterend"`.
 
 **The Template (`feed.html`):**

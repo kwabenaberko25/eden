@@ -219,6 +219,24 @@ def test_authentication_middleware_exported():
     print("✅ Layer 5: AuthenticationMiddleware exported")
 
 
+def test_complete_login_required_alias():
+    """complete.login_required should behave like eden.auth.login_required."""
+    from eden.auth import login_required as base_login_required
+    from eden.auth.complete import login_required as complete_login_required
+
+    @base_login_required
+    async def base_view(request):
+        return "ok"
+
+    @complete_login_required
+    async def complete_view(request):
+        return "ok"
+
+    assert getattr(base_view, "_login_required", False)
+    assert getattr(complete_view, "_login_required", False)
+    print("✅ Layer 5: complete.login_required behavior matches decorators")
+
+
 @pytest.mark.asyncio
 async def test_permission_decorator_enforces_permission():
     """@require_permission decorator enforces permissions."""

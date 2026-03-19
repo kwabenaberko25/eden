@@ -216,7 +216,7 @@ else:
         
         ex = None
         def _run_in_thread():
-            nonlocal ex
+            global ex
             try:
                 asyncio.run(run_migrations_online())
             except Exception as e:
@@ -390,12 +390,18 @@ def downgrade() -> None:
 
         return results
 
-    def downgrade(self, revision: str) -> None:
+    def downgrade(self, revision: str, schema: Optional[str] = None) -> None:
         """Revert to a previous migration."""
-        logger.info(f"Migrations: Reverting to {revision}...")
+        target = f"schema '{schema}'" if schema else "default schema"
+        logger.info(f"Migrations: Reverting to {revision} on {target}...")
+        
+        config = self._get_alembic_config()
+        if schema:
+            config.set_main_option("tenant_schema", schema)
+            
         try:
-            command.downgrade(self.config, revision)
-            logger.info("Migrations: Schema reverted.")
+            command.downgrade(config, revision)
+            logger.info(f"Migrations: {target} reverted.")
         except Exception as e:
             logger.error(f"Migration Error: {e}")
             raise MigrationError(f"Failed to revert migrations: {e}")
@@ -509,14 +515,14 @@ def create_migration(message: str, db_url: Optional[str] = None):
     manager.generate(message)
 
 
-def run_upgrade(revision: str, db_url: Optional[str] = None):
+def run_upgrade(revision: str, db_url: Optional[str] = None, schema: Optional[str] = None):
     manager = MigrationManager(db_url)
-    manager.migrate(revision)
+    manager.migrate(revision, schema=schema)
 
 
-def run_downgrade(revision: str, db_url: Optional[str] = None):
+def run_downgrade(revision: str, db_url: Optional[str] = None, schema: Optional[str] = None):
     manager = MigrationManager(db_url)
-    manager.downgrade(revision)
+    manager.downgrade(revision, schema=schema)
 
 
 def show_history(db_url: Optional[str] = None):

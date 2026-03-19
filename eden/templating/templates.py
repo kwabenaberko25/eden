@@ -289,4 +289,15 @@ def render_template(template_name: str, **context: Any) -> Any:
     request = get_request()
     if request is None:
         raise RuntimeError("render_template() must be called within a request context.")
-    return request.app.render(template_name, **context)
+    if hasattr(request, "render"):
+        return request.render(template_name, **context)
+    
+    # Fallback to app.render (which we proxy in Eden.build)
+    if hasattr(request.app, "render"):
+        return request.app.render(template_name, **context)
+        
+    # Final fallback to accessing Eden directly if available
+    if hasattr(request.app, "eden"):
+        return request.app.eden.render(template_name, **context)
+        
+    raise AttributeError(f"Could not find a 'render' method on request or app. App is {type(request.app)}")

@@ -86,9 +86,9 @@ async def index():
 if __name__ == "__main__":
     app.run()
 '''
-    (project_dir / "main.py").write_text(main_content)
-    (project_dir / ".env").write_text(f"SECRET_KEY={secrets.token_hex(32)}\nDATABASE_URL={db_config['url']}\n")
-    (project_dir / "requirements.txt").write_text(f"eden-framework\n{db_config['driver']}\n")
+    (project_dir / "main.py").write_text(main_content, encoding="utf-8")
+    (project_dir / ".env").write_text(f"SECRET_KEY={secrets.token_hex(32)}\nDATABASE_URL={db_config['url']}\n", encoding="utf-8")
+    (project_dir / "requirements.txt").write_text(f"eden-framework\n{db_config['driver']}\n", encoding="utf-8")
 
 def generate_complete(project_dir: Path, name: str, db_type: str, extras: List[str]):
     """Generate a modular complete project structure."""
@@ -114,7 +114,7 @@ if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
 '''
-    (project_dir / "main.py").write_text(main_py)
+    (project_dir / "main.py").write_text(main_py, encoding="utf-8")
 
     # app/__init__.py
     app_init = f'''from eden import Eden
@@ -135,30 +135,35 @@ def create_app():
     app.add_middleware("cors", allow_origins=["*"])
     app.add_middleware("rate_limit", default_limit="60/minute")
 
+'''
     if "Payments (Stripe)" in extras:
-        app.add_middleware("payments", provider="stripe", api_key=os.getenv("STRIPE_KEY"))
+        app_init += '    app.add_middleware("payments", provider="stripe", api_key=os.getenv("STRIPE_KEY"))\n'
 
     if "Chats/Websockets" in extras:
-        from eden import WebSocketRouter
-        ws_router = WebSocketRouter()
-        
-        @ws_router.on("connect")
-        async def on_connect(socket, user):
-            await socket.accept()
-            await socket.send_json({"msg": f"Connected to {name}"})
-            
-        app.include_router(ws_router)
+        app_init += '''    from eden import WebSocketRouter
+    ws_router = WebSocketRouter()
+
+    @ws_router.on("connect")
+    async def on_connect(socket, user):
+        await socket.accept()
+        await socket.send_json({"msg": "Connected to {name}"})
+
+    app.include_router(ws_router)
 '''
+
     if "Admin UI" in extras:
         app_init += '    app.mount_admin("/admin")\n'
-    
+
+    if "Mail Support" in extras:
+        app_init += '    # TODO: configure mail support and SMTP settings\n'
+
     app_init += '''    
     # Routes
     app.include_router(main_router)
     
     return app
 '''
-    (project_dir / "app" / "__init__.py").write_text(app_init)
+    (project_dir / "app" / "__init__.py").write_text(app_init, encoding="utf-8")
 
     # app/routes/__init__.py
     routes_init = '''from eden import Router, html
@@ -169,19 +174,19 @@ main_router = Router()
 async def home():
     return html("<h1>Welcome to Eden Complete Setup 🌿</h1>")
 '''
-    (project_dir / "app" / "routes" / "__init__.py").write_text(routes_init)
+    (project_dir / "app" / "routes" / "__init__.py").write_text(routes_init, encoding="utf-8")
 
     # Setup individual route files if needed
-    (project_dir / "app" / "routes" / "api.py").write_text("from eden import Router\n\napi_router = Router()\n")
+    (project_dir / "app" / "routes" / "api.py").write_text("from eden import Router\n\napi_router = Router()\n", encoding="utf-8")
 
     # app/models/__init__.py
-    (project_dir / "app" / "models" / "__init__.py").write_text("# Put your models here\n")
+    (project_dir / "app" / "models" / "__init__.py").write_text("# Put your models here\n", encoding="utf-8")
 
     # .env
-    (project_dir / ".env").write_text(f"SECRET_KEY={secrets.token_hex(32)}\nDATABASE_URL={db_config['url']}\n")
+    (project_dir / ".env").write_text(f"SECRET_KEY={secrets.token_hex(32)}\nDATABASE_URL={db_config['url']}\n", encoding="utf-8")
     
     # requirements.txt
-    (project_dir / "requirements.txt").write_text(f"eden-framework\n{db_config['driver']}\n")
+    (project_dir / "requirements.txt").write_text(f"eden-framework\n{db_config['driver']}\n", encoding="utf-8")
 
 def get_db_config(db_type: str, project_name: str) -> dict:
     if db_type == "Postgres":
@@ -199,13 +204,13 @@ def generate_flat(project_dir: Path, name: str):
     (project_dir / "routes").mkdir(parents=True, exist_ok=True)
     (project_dir / "tests").mkdir(parents=True, exist_ok=True)
     
-    (project_dir / "app.py").write_text(f'from eden import Eden\napp = Eden(title="{name}")\n')
-    (project_dir / "models.py").write_text('from eden.db import Model\n')
-    (project_dir / "settings.py").write_text('DEBUG = True\n')
-    (project_dir / "routes" / "__init__.py").write_text('from eden import Router\nmain_router = Router()\n')
-    (project_dir / "Dockerfile").write_text('FROM python:3.11\nCMD ["uvicorn", "app:app"]\n')
-    (project_dir / "docker-compose.yml").write_text('version: "3.8"\nservices:\n  web:\n    build: .\n')
-    (project_dir / "tests" / "conftest.py").write_text('import pytest\n')
+    (project_dir / "app.py").write_text(f'from eden import Eden\napp = Eden(title="{name}")\n', encoding="utf-8")
+    (project_dir / "models.py").write_text('from eden.db import Model\n', encoding="utf-8")
+    (project_dir / "settings.py").write_text('DEBUG = True\n', encoding="utf-8")
+    (project_dir / "routes" / "__init__.py").write_text('from eden import Router\nmain_router = Router()\n', encoding="utf-8")
+    (project_dir / "Dockerfile").write_text('FROM python:3.11\nCMD ["uvicorn", "app:app"]\n', encoding="utf-8")
+    (project_dir / "docker-compose.yml").write_text('version: "3.8"\nservices:\n  web:\n    build: .\n', encoding="utf-8")
+    (project_dir / "tests" / "conftest.py").write_text('import pytest\n', encoding="utf-8")
     
     (project_dir / "eden.json").write_text(json.dumps({
         "name": name,

@@ -12,11 +12,11 @@ Security in Eden is built on a "Three Pillars" architecture. Each layer is indep
 
 ```mermaid
 graph TD
-    A["Incoming Request"] --> B[AuthenticationMiddleware]
+    A["Incoming Request"] --> B["AuthenticationMiddleware"]
     B --> C{"Detect Backend"}
-    C --  "Authorization: Bearer" --> D[JWTBackend]
-    C --  "Cookie: session" --> E[SessionBackend]
-    C -- X-API-Key --> F[APIKeyBackend]
+    C -- "Authorization: Bearer" --> D["JWTBackend"]
+    C -- "Cookie: session" --> E["SessionBackend"]
+    C -- "X-API-Key" --> F["APIKeyBackend"]
     
     D & E & F --> G["Identity Resolution: User Model"]
     G --> H["Request Context: request.user"]
@@ -30,38 +30,81 @@ graph TD
 ```
 
 ### Core Philosophy
-1.  **Identity is Pluggable**: Use the default `User` model or roll your own by extending `BaseUser`.
-2.  **Multi-Backend Support**: Protect your API with JWT and your admin panel with Sessions simultaneously.
-3.  **Hierarchical Authorization**: Roles inherit permissions from parents, reducing boilerplate in complex RBAC systems.
+
+1. **Identity is Pluggable**: Use the default `User` model or roll your own by extending `BaseUser`.
+2. **Multi-Backend Support**: Protect your API with JWT and your admin panel with Sessions simultaneously.
+3. **Hierarchical Authorization**: Roles inherit permissions from parents, reducing boilerplate in complex RBAC systems.
+
+---
+
+## ⚡ 60-Second Auth Setup
+
+Ready to protect your first route? Follow this pattern to bootstrap a fully secure endpoint in under a minute.
+
+```python
+from eden import Eden, render_template
+from eden.auth import login_required, create_user
+
+app = Eden()
+
+@app.get("/secret-dashboard")
+@login_required # 🛡️ The core guard
+async def dashboard(request):
+    return render_template("dashboard.html", user=request.user)
+
+# Pro-tip: Create your first user via the CLI or bootstrap script
+
+# await create_user(email="admin@example.com", password="secure_password")
+
+```
 
 ---
 
 ## 👤 Identity: The `User` Model
 
-All security revolves around the `User` model. Eden provides a standard implementation using SQLAlchemy, but you can customize it easily.
+All security revolves around the `User` model. Eden provides a standard implementation using SQLAlchemy, but you can customize it easily by extending `BaseUser`.
 
 ```python
-from eden.auth import User
+from eden.auth import BaseUser, User
+from eden.db import Model, f, Mapped
+
+# Example: Custom User with extra fields
+
+class MyUser(BaseUser, Model):
+    __tablename__ = "users"
+    phone: Mapped[str] = f(nullable=True)
+```
+
+### Accessing the Current User
+
+The user is automatically injected into the request object by the `AuthenticationMiddleware`.
+
+```python
 
 # In your view
+
 if request.user.is_authenticated:
     print(f"User ID: {request.user.id}")
     print(f"Roles: {request.user.roles}")
 ```
 
 ### High-Level Convenience Functions
-Instead of manual ORM queries, use the `complete` module for standard identity tasks.
+
+Eden provides a unified set of actions for identity tasks in `eden.auth`. These handle password hashing, session binding, and database persistence in one call, ensuring a consistent security posture across the framework.
 
 ```python
 from eden.auth import create_user, authenticate, login
 
 # Create a new user with hashed password
+
 user = await create_user(email="alice@example.com", password="secure_password_123")
 
 # Verify credentials
+
 authenticated_user = await authenticate(email="alice@example.com", password="password_123")
 
 # Bind to the current request (Session/JWT)
+
 if authenticated_user:
     await login(request, authenticated_user)
 ```
@@ -79,6 +122,7 @@ Eden supports multiple concurrent authentication methods.
 | **`APIKeyBackend`** | Header-based keys | Server-to-server communication, Webhooks. |
 
 ### Configuring JWT
+
 ```python
 from eden.auth import JWTBackend
 
@@ -88,6 +132,7 @@ jwt_backend = JWTBackend(
 )
 
 # Create a token manually
+
 token = jwt_backend.encode({"sub": user.id})
 ```
 
@@ -98,38 +143,53 @@ token = jwt_backend.encode({"sub": user.id})
 Eden's Role-Based Access Control (RBAC) supports **inheritance**. If a `manager` inherits from `employee`, they automatically gain all `employee` permissions.
 
 ### Defining Hierarchy
+
 ```python
 from eden.auth import default_rbac as rbac
 
 # Build the hierarchy
+
 rbac.add_role("employee")
 rbac.add_role("manager", parents=["employee"])
 rbac.add_role("admin", parents=["manager"])
 
 # Assign permissions
+
 rbac.add_permission("employee", "post:view")
 rbac.add_permission("manager", "post:edit")
 rbac.add_permission("admin", "post:delete")
 
 # 'admin' now has all 3 permissions
+
 ```
 
-### Protecting Routes (Decorators)
-Use decorators to enforce your RBAC rules at the entry point.
+Use decorators to enforce your RBAC rules at the entry point. Eden decorators are powerful: they support both function-based handlers and **Class-Based Views (CBVs)**.
+
+### Function-Based Views
 
 ```python
-from eden.auth import require_permission, require_role
-
 @app.get("/analytics")
 @require_role("manager")
 async def view_analytics(request):
-    return {"data": "..."}
-
-@app.delete("/posts/{id}")
-@require_permission("post:delete")
-async def delete_post(request, id: int):
     ...
 ```
+
+### Class-Based Views
+
+Use `view_decorator` to apply a guard to an entire class:
+
+```python
+from eden.auth import view_decorator, login_required
+from eden import View
+
+@view_decorator(login_required)
+class ProtectedView(View):
+    async def get(self, request):
+        return {"data": "secret"}
+```
+
+> [!TIP]
+> **Superuser Bypass**: All decorators automatically bypass checks for users with `is_superuser=True`, ensuring your admins never get locked out.
 
 ---
 
@@ -138,7 +198,9 @@ async def delete_post(request, id: int):
 Enable automatic protection across your entire application.
 
 ```python
+
 # In your app configuration
+
 app.add_middleware("security")  # Sets CSP, X-Frame-Options, HSTS
 app.add_middleware("csrf")      # Automatic CSRF protection for forms
 app.add_middleware("ratelimit") # Protect against brute force
@@ -163,7 +225,7 @@ app.add_middleware("ratelimit") # Protect against brute force
 | :--- | :--- | :--- |
 | `@login_required` | - | Requires any authenticated user. |
 | `@require_role` | `role: str` | Requires user to have specific role (or child). |
-| `@require_permission`| `perm: str` | Requires specific functional permission. |
+| `@require_permission` | `perm: str` | Requires specific functional permission. |
 | `@staff_required` | - | Shorthand for users with `is_staff=True`. |
 
 ### `EdenRBAC` (Role Manager)
@@ -195,9 +257,9 @@ async def list_documents(request):
 
 ## 💡 Best Practices
 
-1.  **Use Hierarchy**: Don't manually add 50 permissions to an `admin` role. Add them to sub-roles and have `admin` inherit them.
-2.  **Stateless First**: Use `JWTBackend` for your API to ensure global scalability.
-3.  **Always Secure Cookies**: In production, ensure `SESSION_COOKIE_SECURE=True` is enabled.
+1. **Use Hierarchy**: Don't manually add 50 permissions to an `admin` role. Add them to sub-roles and have `admin` inherit them.
+2. **Stateless First**: Use `JWTBackend` for your API to ensure global scalability.
+3. **Always Secure Cookies**: In production, ensure `SESSION_COOKIE_SECURE=True` is enabled.
 
 ---
 

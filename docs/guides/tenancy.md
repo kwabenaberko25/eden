@@ -14,7 +14,7 @@ Eden supports two primary isolation patterns depending on your security and scal
 
 ```mermaid
 graph TD
-    A["Incoming Request"] --> B[TenantResolver]
+    A["Incoming Request"] --> B["TenantResolver"]
     B -- "X-Tenant-ID / Subdomain" --> C{"Active Strategy"}
     
     subgraph "Row-Level Isolation (Default)"

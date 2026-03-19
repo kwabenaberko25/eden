@@ -16,6 +16,7 @@ import logging
 from typing import Optional, List, Set, Any, AsyncGenerator
 from passlib.context import CryptContext
 import argon2
+from eden.auth.decorators import login_required as _decorator_login_required
 
 logger = logging.getLogger(__name__)
 
@@ -495,35 +496,8 @@ async def require_permission(
 def login_required(func):
     """
     Decorator requiring authentication.
-    
-    Example:
-        @login_required
-        async def get_profile(request):
-            user = await get_current_user(request)
-            return user.profile()
     """
-    import functools
-    from eden.auth.base import get_current_user
-    
-    @functools.wraps(func)
-    async def wrapper(*args, **kwargs):
-        # Extract request
-        request = kwargs.get("request")
-        if not request and args:
-            request = args[0]
-            
-        if not request:
-            from eden.context import get_request
-            request = get_request()
-            
-        user = await get_current_user(request)
-        if not user:
-            from starlette.exceptions import HTTPException
-            raise HTTPException(status_code=401, detail="Unauthorized")
-        
-        return await func(*args, **kwargs)
-    
-    return wrapper
+    return _decorator_login_required(func)
 
 
 def staff_required(func):

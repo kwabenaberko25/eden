@@ -32,7 +32,11 @@ async def admin_dashboard(request: Request, admin_site: Any) -> HtmlResponse:
 
     for model, model_admin in admin_site._registry.items():
         # Use model.count() which supports auto-session injection
-        count = await model.count()
+        try:
+            count = await model.count()
+        except Exception:
+            # Fallback to zero if table doesn't exist or other error
+            count = 0
 
         models_info.append({
             "name": model_admin.get_verbose_name(model),

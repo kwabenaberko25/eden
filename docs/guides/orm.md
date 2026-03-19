@@ -20,7 +20,7 @@ graph TD
     C --> F["Automatic Pagination"]
     
     G["App Logic"] --> H["atomic Transactions"]
-    H --> I[AsyncSession]
+    H --> I["AsyncSession"]
     I --> J["DB Engine: PostgreSQL/SQLite"]
     
     A --> K["AccessControl Mixin"]
@@ -28,9 +28,30 @@ graph TD
 ```
 
 ### Core Philosophy
+
 1.  **Async-First**: Every database interaction (`.all()`, `.first()`, `.save()`) is natively `async`.
 2.  **Single Source of Truth**: Define your schema once; use it for migrations, validation, and UI generation.
 3.  **Elite Productivity**: Common tasks like soft deletes, slug generation, and pagination are handled by built-in Mixins.
+
+---
+
+## ⚡ 60-Second Data Setup
+
+Bootstrap your data layer in under a minute with `f()` helpers and `Mapped` types.
+
+```python
+from eden.db import Model, f, Mapped
+
+class Project(Model):
+    __tablename__ = "projects"
+    
+    title: Mapped[str] = f(max_length=100, index=True)
+    is_active: Mapped[bool] = f(default=True)
+
+# Usage in a View
+
+projects = await Project.filter(is_active=True).all()
+```
 
 ---
 
@@ -56,6 +77,7 @@ class Product(Model):
 ```
 
 ### Field Helpers: The `f()` Shorthand
+
 The `f()` helper is the recommended way to define model columns. It wraps SQLAlchemy's `mapped_column` while adding Eden-specific UI and validation metadata.
 
 | Param | Description |
@@ -74,25 +96,32 @@ The `f()` helper is the recommended way to define model columns. It wraps SQLAlc
 Eden provides a high-level `QuerySet` API inspired by Django, allowing for complex queries without writing boilerplate SQLAlchemy `select()`.
 
 ### Basic Filtering
+
 ```python
+
 # Simple equality
+
 active_users = await User.filter(is_active=True).all()
 
 # Using lookups (icontains, gte, lte, in)
+
 pro_users = await User.filter(subscription__lte=3).all()
 search_results = await Post.filter(title__icontains="Eden").all()
 ```
 
 ### Complex Logic with `Q` and `F`
+
 Use `Q` objects for complex `OR` and `NOT` logic, and `F` expressions for field-to-field comparisons.
 
 ```python
 from eden.db import Q, F
 
 # Find posts that are either featured OR have high views
+
 posts = await Post.filter(Q(featured=True) | Q(views__gt=1000)).all()
 
 # Find products where stock is less than the warning threshold
+
 low_stock = await Product.filter(stock__lt=F("threshold")).all()
 ```
 
@@ -115,6 +144,7 @@ class Document(Model, AccessControl):
     }
 
 # In your view, security is applied automatically
+
 docs = await Document.filter_for_user(request.user).all()
 ```
 
@@ -123,16 +153,20 @@ docs = await Document.filter_for_user(request.user).all()
 ## ⚡ Productivity Mixins
 
 ### 1. `SoftDeleteMixin`
+
 Instead of deleting records, marks them with `deleted_at`.
 ```python
 class Project(Model, SoftDeleteMixin):
     title: Mapped[str] = f()
 
 # await project.delete()  -> Sets deleted_at
+
 # await Project.all()     -> Excludes soft-deleted items automatically
+
 ```
 
 ### 2. `SlugMixin`
+
 Automatically generates SEO-friendly slugs from a source field.
 ```python
 from eden.db import SlugMixin
@@ -155,6 +189,7 @@ print(f"Showing items {page.offset} to {page.offset + len(page.items)}")
 print(f"Total Pages: {page.total_pages}")
 
 # page.links generates HATEOAS URLs for your API
+
 links = page.generate_links("/api/products")
 ```
 

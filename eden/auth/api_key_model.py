@@ -147,12 +147,11 @@ class APIKey(Model):
         Returns:
             The APIKey instance if found and valid, None otherwise.
         """
-        from sqlalchemy import select
-
         key_hash = hashlib.sha256(raw_key.encode()).hexdigest()
-        stmt = select(cls).where(cls.key_hash == key_hash, cls.is_active)
-        result = await session.execute(stmt)
-        api_key = result.scalar_one_or_none()
+        
+        # Use QuerySet to handle session resolution and RBAC
+        # We also filter for is_active and manually check expires_at
+        api_key = await cls.query(session).filter(key_hash=key_hash, is_active=True).first()
 
         if api_key and api_key.is_expired:
             return None

@@ -89,15 +89,17 @@ def db_upgrade(revision: str, schema: str | None, db_url: str | None) -> None:
 
 @db.command("downgrade")
 @click.option("--revision", default="-1", help="Target revision (default: -1).")
+@click.option("--schema", default=None, help="Target specific tenant schema.")
 @click.option(
     "--db-url",
     default=None,
     help="Database URL (defaults to config).",
 )
-def db_downgrade(revision: str, db_url: str) -> None:
+def db_downgrade(revision: str, schema: str | None, db_url: str | None) -> None:
     """Revert to a previous migration."""
-    click.echo(f"  ⬇️  Downgrading to: {revision}")
-    run_downgrade(revision=revision, db_url=db_url)
+    target = f"schema '{schema}'" if schema else "default schema"
+    click.echo(f"  ⬇️  Downgrading to: {revision} on {target}")
+    run_downgrade(revision=revision, db_url=db_url, schema=schema)
     click.echo("  ✅ Database downgraded.")
 
 

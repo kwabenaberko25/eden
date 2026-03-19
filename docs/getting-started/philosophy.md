@@ -13,7 +13,9 @@ Born from the friction of modern web architecture, Eden was designed for the dev
 Every line of Eden is built for the modern, asynchronous web. From our database drivers to our template rendering engine, everything is non-blocking. This ensures your application handles thousands of concurrent users with the grace of a specialized monolith.
 
 ```python
+
 # The Eden Standard: Non-blocking IO by default
+
 async def get_active_users():
     return await User.select().where(f(User.is_active) == True).all()
 ```
@@ -62,7 +64,9 @@ Security isn't a checkbox; it's the foundation. Argon2 password hashing, automat
 
 **Traditional Approach** ❌ (Boilerplate-heavy, manual security)
 ```python
+
 # Manual validation, weak hashing, no N+1 protection
+
 @app.route("/register", methods=["POST"])
 def register():
     data = request.get_json()

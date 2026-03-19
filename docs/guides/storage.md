@@ -12,7 +12,7 @@ The storage system is built around a **Pluggable Backend** architecture. Your ap
 
 ```mermaid
 graph TD
-    A["Incoming Upload"] --> B[FileUploadValidator]
+    A["Incoming Upload"] --> B["FileUploadValidator"]
     B -- "Size/MIME Check" --> C{"Atomic Transaction?"}
     C -- "Yes" --> D["Upload to Backend"]
     D --> E["Update Database"]

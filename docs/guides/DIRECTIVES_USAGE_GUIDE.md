@@ -335,6 +335,8 @@ Check `request.user.has_permission()` to conditionally show or hide content base
 
 ### @active_link - Highlight Active Navigation
 
+The `@active_link` directive intelligently marks links as active based on the current URI. It supports exact route names, wildcard sections (`*`), and even an optional third parameter for "inactive" styling.
+
 ```html
 <!-- Simple active highlight -->
 <nav class="flex gap-4">
@@ -346,29 +348,51 @@ Check `request.user.has_permission()` to conditionally show or hide content base
     </a>
 </nav>
 
-<!-- With custom classes -->
-<a href="@url('posts:index')" 
-   class="px-4 py-2 rounded @active_link('posts:index', 'bg-blue-600 text-white')">
-    Posts
-</a>
-
 <!-- WILDCARD: Highlight menu section for all sub-routes -->
-<li class="@active_link('admin:*', 'bg-blue-700 font-bold')">
-    <a href="@url('admin:index')">Admin Panel</a>
+<li class="@active_link('projects:*', 'bg-blue-700 font-bold')">
+    <a href="@url('projects:index')">Projects</a>
 </li>
 
-<!-- Multiple classes in wildcard -->
-<a href="@url('blog:index')" 
-   class="nav-link @active_link('blog:*', 'text-white border-b-2 border-white')">
-    Blog
+<!-- PREMIUM: Toggling between Active and Inactive states (3 arguments) -->
+<a href="@url('calendar')"
+   class="nav-item @active_link('calendar', 'text-white bg-blue-600', 'text-gray-400 hover:text-white')">
+    Calendar
 </a>
 
-<!-- Dynamic route name -->
-@let current_section = 'users:*'
-<a href="@url('users:index')"
+<!-- Dynamic route name with wildcard -->
+@let current_section = 'admin:*'
+<a href="@url('admin:index')"
    class="@active_link(current_section, 'is-active')">
-    Users
+    Admin Console
 </a>
+```
+
+#### Premium UI Example (Side Navigation)
+
+This example leverages the 3-argument syntax to create a polished, state-aware navigation menu:
+
+```html
+<nav class="sidebar">
+    <a href="@url('home')"
+       class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 
+              @active_link('home', 
+                  'text-lime-400 font-bold border-r-2 border-lime-400 bg-lime-400/10', 
+                  'text-gray-400 hover:text-purple-400 hover:bg-gray-800'
+              )">
+        <span class="material-symbols-outlined">dashboard</span>
+        <span>Dashboard</span>
+    </a>
+
+    <a href="@url('teams:index')"
+       class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 
+              @active_link('teams:*', 
+                  'text-lime-400 font-bold border-r-2 border-lime-400 bg-lime-400/10', 
+                  'text-gray-400 hover:text-purple-400 hover:bg-gray-800'
+              )">
+        <span class="material-symbols-outlined">groups</span>
+        <span>Teams</span>
+    </a>
+</nav>
 ```
 
 #### Wildcard Matching Examples

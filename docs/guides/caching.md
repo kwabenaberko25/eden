@@ -22,7 +22,7 @@ graph TD
     
     subgraph "Isolation Layer"
         G["TenantCacheWrapper"]
-        H[""Automatic Namespacing: tenant:{id"}:{key}"]
+        H["Automatic Namespacing: tenant:{id"}:{key}"]
     end
     
     B -.-> G

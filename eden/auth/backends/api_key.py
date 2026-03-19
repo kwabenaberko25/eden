@@ -48,8 +48,6 @@ class APIKeyBackend(AuthBackend[User]):
 
         # Get DB session from request state (set by DB middleware)
         session = getattr(request.state, "db", None)
-        if not session:
-            return None
 
         # Look up the key
         from eden.auth.api_key_model import APIKey

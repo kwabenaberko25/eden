@@ -80,11 +80,7 @@ class JWTBackend(AuthBackend[User]):
 
             # Get session from request state if available (set by db middleware)
             session = getattr(request.state, "db", None)
-            if not session:
-                # If db middleware hasn't run or is missing, we might have to create one
-                # but it's better to ensure db middleware runs before auth.
-                return None
-
+            
             return await User.get(session, user_id)
 
         except (jwt.PyJWTError, ValueError):

@@ -98,12 +98,52 @@ class AdminSite:
         """Get all registered models and their admins."""
         return dict(self._registry)
 
+    def register_defaults(self):
+        """Register core models (User, AuditLog, etc.) if they are available."""
+        from eden.admin.options import ModelAdmin
+        
+        try:
+            from eden.auth.models import User
+            if not self.is_registered(User):
+                class UserAdmin(ModelAdmin):
+                    list_display = ["email", "full_name", "is_active", "is_superuser"]
+                    search_fields = ["email", "full_name"]
+                    list_filter = ["is_active", "is_staff", "is_superuser"]
+                self.register(User, UserAdmin)
+        except ImportError:
+            pass
+
+        try:
+            from eden.admin.models import AuditLog
+            if not self.is_registered(AuditLog):
+                class AuditLogAdmin(ModelAdmin):
+                    list_display = ["timestamp", "user_id", "action", "model_name", "record_id"]
+                    list_filter = ["action", "model_name"]
+                    readonly_fields = ["id", "timestamp", "user_id", "action", "model_name", "record_id", "changes"]
+                self.register(AuditLog, AuditLogAdmin)
+        except ImportError:
+            pass
+
+        try:
+            from eden.auth.api_key_model import APIKey
+            if not self.is_registered(APIKey):
+                class APIKeyAdmin(ModelAdmin):
+                    list_display = ["name", "prefix", "user_id", "created_at", "revoked_at"]
+                    search_fields = ["name", "prefix"]
+                    list_filter = ["revoked_at"]
+                self.register(APIKey, APIKeyAdmin)
+        except ImportError:
+            pass
+
     def build_router(self, prefix: str = "/admin") -> Router:
         """
         Generate the admin Router with all CRUD routes.
 
         Returns a Router that can be included in the app.
         """
+        # Auto-register core models if not already registered
+        self.register_defaults()
+
         from eden.admin.views import (
             admin_add_view,
             admin_dashboard,
@@ -168,19 +208,17 @@ class AdminSite:
                 async def list_view(request):
                     return await admin_list_view(request, m, ma)
 
+                @router.route(f"/{t}/add", methods=["GET", "POST"], name=f"admin_{t}_add")
+                @admin_required
+                async def add_view(request):
+                    return await admin_add_view(request, m, ma)
+
                 @router.get(f"/{t}/{{record_id}}", name=f"admin_{t}_detail")
                 @admin_required
                 async def detail_view(request, record_id: str):
                     return await admin_detail_view(request, m, ma, record_id)
 
-                @router.get(f"/{t}/add", name=f"admin_{t}_add")
-                @router.post(f"/{t}/add")
-                @admin_required
-                async def add_view(request):
-                    return await admin_add_view(request, m, ma)
-
-                @router.get(f"/{t}/{{record_id}}/edit", name=f"admin_{t}_edit")
-                @router.post(f"/{t}/{{record_id}}/edit")
+                @router.route(f"/{t}/{{record_id}}/edit", methods=["GET", "POST"], name=f"admin_{t}_edit")
                 @admin_required
                 async def edit_view(request, record_id: str):
                     return await admin_edit_view(request, m, ma, record_id)
@@ -210,6 +248,7 @@ class AdminSite:
             register_model_routes(model, model_admin)
 
         return router
+
 
 
 # Global default admin site

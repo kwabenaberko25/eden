@@ -12,7 +12,7 @@ In a modern web application, responsiveness is paramount. Eden enables you to ma
 
 ```mermaid
 graph TD
-    A["Request Handler"] -->|"defer"| B[EdenBroker]
+    A["Request Handler"] -->|"defer"| B["EdenBroker"]
     B -->|"serialize"| C{"Redis / Broker"}
     C -->|"pull"| D["Eden Worker"]
     D -->|"resolve deps"| E["Execute Task"]
@@ -20,6 +20,30 @@ graph TD
     E -->|"error"| G{"Retry Strategy"}
     G -- "Retry Available" --> C
     G -- "Exhausted" --> H["Dead-Letter Queue"]
+```
+
+---
+
+## ⚡ 60-Second Task Setup
+
+Offload heavy processes in under a minute with the `@app.task` decorator.
+
+```python
+from eden import Eden
+
+app = Eden()
+
+@app.task()
+async def process_report(user_id: int):
+    # This runs in a separate worker process
+    await generate_heavy_pdf(user_id)
+
+# Trigger it from your view
+
+@app.get("/generate")
+async def trigger(request):
+    await app.task.defer(process_report, user_id=1)
+    return {"status": "Processing..."}
 ```
 
 ---
@@ -34,9 +58,11 @@ from eden import Eden, create_broker
 app = Eden()
 
 # Development: In-memory (no extra setup)
+
 app.task = create_broker()
 
 # Production: Redis (requires taskiq-redis)
+
 app.task = create_broker(redis_url="redis://localhost:6379")
 ```
 
@@ -47,6 +73,7 @@ app.task = create_broker(redis_url="redis://localhost:6379")
 Tasks are simple Python functions decorated with `@app.task()`. Eden's **Dependency Injection** system is fully available within tasks, mirroring the experience of writing request handlers.
 
 ### 1. Define the Task
+
 ```python
 from eden import Depends
 from app.services import MailService
@@ -59,13 +86,17 @@ async def send_welcome_email(user_id: int, mailer: MailService = Depends()):
 ```
 
 ### 2. Invoke the Task
+
 Trigger your tasks using the `.kiq()` method (from Taskiq) or Eden's shorthand API.
 
 ```python
+
 # Shorthand (Recommended)
+
 await app.task.defer(send_welcome_email, user_id=123)
 
 # With Delay (Schedule for 60 seconds from now)
+
 await app.task.schedule(send_welcome_email, delay=60, user_id=123)
 ```
 
@@ -76,18 +107,22 @@ await app.task.schedule(send_welcome_email, delay=60, user_id=123)
 Eden makes scheduling recurring tasks a first-class citizen with the `.every()` decorator. It supports intervals and standard **Cron expressions**.
 
 ```python
+
 # Run every 5 minutes
+
 @app.task.every(minutes=5)
 async def check_inventory():
     ...
 
 # Run every night at midnight (Standard Cron)
+
 @app.task.every(cron="0 0 * * *")
 async def generate_daily_reports():
     ...
 ```
 
 ### 🛡️ Distributed Coordination
+
 When scaling horizontally across multiple servers, you don't want your periodic tasks to run N times. Eden's `PeriodicTask` engine uses **distributed locks** (via Redis) to ensure only one instance of your app executes a scheduled task per interval.
 
 ---
@@ -97,6 +132,7 @@ When scaling horizontally across multiple servers, you don't want your periodic 
 Background tasks can sometimes fail due to network issues or external API downtime. Eden provides a resilient execution loop with **Exponential Backoff**.
 
 ### Automatic Retries
+
 ```python
 @app.task(
     max_retries=5,                # Total attempts
@@ -108,7 +144,9 @@ async def fetch_api_stats():
 ```
 
 ### The Dead-Letter Queue (DLQ)
+
 When a task exhausts all its retries, it enters the **Dead-Letter Queue**.
+
 -   **Traceback Tracking**: Captures the full Python traceback and error message.
 -   **Correlation ID**: Automatically propagates the `correlation_id` from the original web request, allowing you to trace the lifecycle of a request from the UI down to the worker logs.
 -   **Monitoring**: Query the DLQ via `app.task._result_backend.get_dead_letter_tasks()`.

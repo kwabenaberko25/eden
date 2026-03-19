@@ -23,6 +23,7 @@ graph TD
 ```
 
 ### Key Pillars
+
 1.  **Pydantic v2 Powered**: Industry-leading speed and type safety out of the box.
 2.  **Model Inheritance**: Forms can be automatically derived from ORM models using `class Meta`.
 3.  **Fragment-Native**: Designed to work seamlessly with HTMX for real-time validation without page reloads.
@@ -69,6 +70,7 @@ Eden maps Python types to HTML5 widgets automatically, but you can override them
 | `UploadedFile` | `file` | Multi-part file upload with [Storage integration](storage.md). |
 
 ### Customizing Widgets
+
 ```python
 bio: str = field(widget="textarea", rows=5)
 category: str = field(widget="select", choices=[("tech", "Technology"), ("life", "Lifestyle")])
@@ -78,7 +80,7 @@ category: str = field(widget="select", choices=[("tech", "Technology"), ("life",
 
 ## 🚀 Model-Bound Forms (`ModelForm`)
 
-`ModelForm` is the "Elite" way to handle CRUD. It automatically generates a schema from your Database Model and provides a `save()` method that handles creating or updating records.
+`ModelForm` automatically generates a schema from your ORM models. It includes a `.save()` method that handles instantiation and persistence.
 
 ```python
 from eden.forms import ModelForm
@@ -87,18 +89,19 @@ from app.models import Project
 class ProjectForm(ModelForm):
     class Meta:
         model = Project
-        fields = ["name", "description", "start_date"]
+        fields = ["name", "description", "status"]
         
     # Override model field with form-specific UI
-    description = FormField(widget="textarea", placeholder="Describe your project...")
+    description = field(widget="textarea", placeholder="Enter project details...")
 
-@app.post("/projects/create")
-async def create_project(request):
-    form = await ProjectForm.from_request(request)
+@app.post("/projects/{id}/edit")
+async def edit_project(request, id: int):
+    project = await Project.query().get(id)
+    form = await ProjectForm.from_request(request, instance=project)
+    
     if form.is_valid():
-        # Atomically creates the Project record
-        project = await form.save()
-        return redirect(f"/projects/{project.id}")
+        await form.save() # Updates the existing record
+        return redirect(f"/projects/{id}")
 ```
 
 ---
@@ -107,68 +110,85 @@ async def create_project(request):
 
 Eden’s `FileField` supports secure, multi-part uploads with built-in progress tracking.
 
-### Secure Uploads
-```python
-class AttachmentSchema(Schema):
-    doc: UploadedFile = field(label="Report (PDF)", widget="file")
+### File Schemas
 
-@app.post("/upload")
-async def upload_file(request):
-    form = await AttachmentSchema.from_request(request)
-    if form.is_valid():
-        file = form.files["doc"]
-        
-        # Save to Local, S3, or Supabase via Storage Layer
-        path = await storage.save(f"uploads/{file.filename}", file.data)
-        ...
+```python
+class AvatarSchema(Schema):
+    avatar: UploadedFile = field(widget="file", label="Profile Picture")
 ```
 
-### Real-time Progress Tracking
-Enable the `show_progress` flag to inject a functional progress bar into the UI.
+### High-Fidelity Rendering
+
+Enable `show_progress` to automatically inject an HTMX-compatible progress bar.
+
 ```html
-{{ form['doc'].as_file(show_progress=True) }}
+<form hx-post="/upload" hx-encoding="multipart/form-data">
+    @csrf
+    {{ form['avatar'].as_file(show_progress=True, accept="image/*") }}
+    <button type="submit">Upload</button>
+</form>
 ```
 
 ---
 
-## 🎨 High-Fidelity Rendering
+## 🎨 Dual-Mode Rendering
 
-### Directives
-Eden provides short-hand directives for common rendering patterns.
+Eden supports both "Quick-Start" composite rendering and "Pro-Logic" manual rendering.
+
+### 1. Composite Rendering (Fast)
+
+The `@render_field` directive renders the label, input, and error message in a standard container.
 
 ```html
-<form method="POST" enctype="multipart/form-data">
-    @csrf
-    
-    @render_field(form['email'], class="input-primary")
-    @render_field(form['password'], class="input-primary")
-    
-    <button type="submit" class="btn">Register</button>
-</form>
+@render_field(form['email'], class="input-primary")
 ```
 
-### Manual Rendering (The "Pro" Way)
-When you need complete control over the HTML structure, access the field attributes directly.
+### 2. Manual Rendering (Granular)
+
+For complete control over the markup, access the field properties directly.
 
 ```html
-<div class="field-container @if(form['email'].error) { has-error }">
-    {{ form['email'].render_label(class="top-label") }}
-    {{ form['email'].render(class="form-input", hx_post="/validate/email") }}
+<div class="group @if(form['email'].error) { border-red-500 }">
+    <label>{{ form['email'].label }}</label>
     
-    @if(form['email'].error) {
-        <span class="error-msg">{{ form['email'].error }}</span>
-    }
+    {{ form['email'].render(class="form-control", placeholder="Override...") }}
+    
+    @if(form['email'].error)
+        <p class="text-red-500">{{ form['email'].error }}</p>
+    @endif
 </div>
+```
+
+---
+
+## ⚡ HTMX Inline Validation
+
+You can provide instant feedback by targeting specific fields using HTMX.
+
+```html
+{{ form['username'].render(hx_post="/validate/username", hx_trigger="blur") }}
+```
+
+In the backend:
+
+```python
+@app.post("/validate/username")
+async def validate_username(request):
+    form = await RegistrationSchema.from_request(request)
+    form.is_valid() # Run validation
+    
+    # Return just the field fragment with current error state
+    return form['username'].render()
 ```
 
 ---
 
 ## 💡 Best Practices
 
-1.  **Use `ModelForm` for CRUD**: It reduces boilerplate and ensures your database constraints are respected in the UI.
-2.  **Explicit CSRF**: Always use the `@csrf` directive in your forms to protect against cross-site request forgery.
-3.  **Async Validation**: Handle complex verification (like scanning for viruses or checking unique email addresses) inside your service layer, calling `form.add_error()` if they fail.
-4.  **HTMX Inline Validation**: Use `hx-post` on individual fields to trigger server-side validation as the user types, providing instant feedback.
+1.  **Use `v()` for Speed**: The `v` alias makes large schemas much more readable.
+2.  **Atomic Saves**: Always use `ModelForm.save()` for CRUD to ensure transactional integrity.
+3.  **Progress Bars**: Always enable `show_progress` for files larger than 5MB to improve user perceived performance.
+4.  **CSRF Enforcement**: Never omit `@csrf` inside a `<form>`. Eden will automatically detect its absence in development.
 
 ---
 

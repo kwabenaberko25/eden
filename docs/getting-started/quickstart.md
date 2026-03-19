@@ -30,6 +30,7 @@ Create a file named `app.py`. Eden's core `Eden` class is a high-level wrapper t
 from eden import Eden, Request
 
 # Initialize with a secret_key to enable sessions, CSRF, and security middleware
+
 app = Eden(
     title="Eden Task Manager",
     secret_key="dev-secret-key-change-in-prod",
@@ -37,6 +38,7 @@ app = Eden(
 )
 
 # Root endpoint - Returns a high-performance JSON response
+
 @app.get("/")
 async def home():
     return {"status": "online", "message": "Welcome to Eden! 🌿"}
@@ -61,6 +63,7 @@ from eden import Model, f
 from sqlalchemy.orm import Mapped
 
 # Configure SQLite - Eden bootstraps the database on the first request
+
 app.state.database_url = "sqlite+aiosqlite:///tasks.db"
 
 class Task(Model):
@@ -73,12 +76,14 @@ class Task(Model):
     completed: Mapped[bool] = f(default=False)
 
 # List all tasks with a single line
+
 @app.get("/tasks")
 async def list_tasks():
     tasks = await Task.all()
     return {"count": len(tasks), "tasks": tasks}
 
 # Create a task from a JSON request
+
 @app.post("/tasks")
 async def create_task(request: Request):
     data = await request.json()
