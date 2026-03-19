@@ -1,106 +1,130 @@
-# Multi-Tenancy: Schema-Based Isolation 🏗️
+# 🏗️ PostgreSQL Schema-Based Isolation
 
-While Eden defaults to **Shared Database, Shared Schema** (row-level isolation via `tenant_id` columns), many enterprise SaaS applications require higher levels of data isolation. Eden provides built-in support for **Separate Schema** isolation using PostgreSQL's `search_path` mechanism.
+**For enterprise-grade SaaS applications requiring absolute data privacy and high-performance querying, Eden provides built-in support for PostgreSQL schema-based isolation.**
 
 ---
 
-## 🏛️ Isolation Strategies
+## 🧠 Conceptual Overview
 
-| Strategy | Architecture | Privacy Level | Complexity |
-| :--- | :--- | :--- | :--- |
-| **Row-Level** | Shared Schema | Standard | Low (Default) |
-| **Schema-Level** | Separate Schema per Tenant | High | Medium |
-| **Db-Level** | Separate Database per Tenant | Absolute | High |
+While row-level isolation (RLS) is standard, **Schema-Level Isolation** creates a physical separation of data using PostgreSQL namespaces (schemas). This ensures that each tenant's tables are physically isolated, offering superior security and simplifying database maintenance for large-scale fleets.
+
+### The `search_path` Mechanism
+
+Eden leverages the PostgreSQL `search_path` to dynamically route database queries to the correct tenant's schema at the start of every request.
+
+```mermaid
+graph LR
+    A["Request for Tenant ACME"] --> B[Middleware]
+    B --> C["SET search_path TO 'tenant_acme', public"]
+    C --> D["SQL Query: SELECT * FROM users"]
+    D --> E["Resolves to 'tenant_acme.users'"]
+    
+    F["Worker Release"] --> G["SET search_path TO 'public'"]
+    G --> H["Connection Pool"]
+```
+
+### Core Philosophy
+1.  **Physical Privacy**: Tenant A's data is in a different schema than Tenant B's data—preventing accidental `JOIN` leaks.
+2.  **Zero-Change Codebase**: Your application code (e.g., `User.all()`) remains identical to row-level isolation.
+3.  **Fleet Management**: Seamlessly apply migrations across 1, 10, or 1,000 schemas with a single command.
 
 ---
 
 ## 🚀 Enabling Schema Isolation
 
-To switch Eden to schema-based isolation, update your configuration:
+### 1. Configuration
+Update your `.env` or app settings to switch strategies.
 
-1. **Set Environment Variables**:
 ```bash
+# .env
 TENANCY_STRATEGY=schema
 TENANCY_DEFAULT_SCHEMA=public
 ```
 
-2. **Configure the Tenant Model**:
-    Ensure your `Tenant` model has a `schema_name` field correctly populated.
+### 2. Tenant Model Integration
+Ensure your `Tenant` model has a `schema_name` field. This name is used to identify the target schema in Postgres.
+
+```python
+tenant = await Tenant.create(
+    name="Acme Corp", 
+    slug="acme", 
+    schema_name="tenant_acme"
+)
+```
 
 ---
 
-## 🛠️ The Provisioning Workflow
+## ⚡ Elite Patterns
 
-When a new tenant signs up, you must provision their dedicated database schema. Eden provides a standard method on the `Tenant` model to automate this process including table creation.
+### 1. Automated Provisioning (`provision_schema`)
+When a new customer signs up, Eden can automatically create their schema, provision all necessary tables, and stamp it with the latest migration version.
 
 ```python
 from eden.tenancy import Tenant
-from eden.db import get_db
 
-async def onboard_customer(name: str, slug: str):
+async def onboard_new_customer(name: str, slug: str):
     async with get_db() as session:
         # 1. Create the tenant record
-        tenant = Tenant(
-            name=name, 
-            slug=slug, 
-            schema_name=f"tenant_{slug}"
-        )
+        tenant = Tenant(name=name, slug=slug, schema_name=f"t_{slug}")
         session.add(tenant)
         await session.commit()
 
-        # 2. Provision the database schema
-        # This creates the PG schema and runs all framework migrations/table creation
+        # 2. Provision the database schema (Industrial Automation)
+        # This creates the PG schema and runs all framework migrations
         await tenant.provision_schema(session)
-        await session.commit()
-    
-    return tenant
 ```
 
-### What `provision_schema()` does
-
-1. **Sanitizes** the schema name (alphanumeric only).
-2. Creates the schema: `CREATE SCHEMA IF NOT EXISTS {schema_name}`.
-3. Temporarily sets the `search_path`: `SET search_path TO {schema_name}, public`.
-4. Executes `Model.metadata.create_all()` to build all tables within that specific schema.
-5. **Critically** resets the `search_path` back to `public` to prevent connection pool pollution.
-
----
-
-## 🔄 Middleware Integration
-
-When `TENANCY_STRATEGY=schema` is active, the `TenantMiddleware` performs the following on every request:
-
-1.  **Resolves** the tenant from the URL/Header.
-2.  **Acquires** a database connection.
-3.  **Executes** `SET search_path TO {tenant_schema}, public` before your view handler runs.
-4.  **Resets** the `search_path` when the request finishes and the connection returns to the pool.
-
-This ensures that a simple `await User.all()` automatically targets the `users` table inside the current tenant's schema without you writing any custom SQL.
-
----
-
-## 📦 Migrations in a Multi-Schema World
-
-Migrations become more complex when data is spread across N schemas. Use Eden's CLI with the `---all-tenants` flag to apply migrations across your entire fleet.
+### 2. Multi-Schema Migrations
+Managing a fleet of schemas requires specialized tools. Eden’s CLI includes a `--all-tenants` flag to loop through every registered schema.
 
 ```bash
-# Apply a new migration to every tenant schema
+# Upgrade every tenant schema to the latest migration head
 eden migrate upgrade --all-tenants
+
+# Check migration status across the entire fleet
+eden migrate status --all-tenants
 ```
 
 ---
 
-## ⚠️ Critical Considerations
+## 🛡️ Critical Security & Performance
 
-### 1. Connection Pooling
-Schema switching happens at the connection level. If you manually acquire a connection and change the `search_path`, you **must** reset it before releasing the connection. Failure to do so will cause "Cross-Tenant Leaks" where the next request using that connection inherits the previous tenant's schema.
+### 1. Connection Pool Safety
+Eden implements a "Critical Reset" pattern. At the end of every request, the `search_path` is explicitly reset to `public`. This prevents **Connection Pollution**, where a subsequent request might inherit the previous tenant's schema.
 
-### 2. Migration Performance
-With 1,000 tenants, running a migration means updating 1,000 schemas. Ensure your migration scripts are optimized and run during maintenance windows or background processes for large fleets.
+### 2. Global vs. Scoped Tables
+*   **Scoped**: Models with `TenantMixin` are created in each tenant's schema.
+*   **Global**: Models **without** `TenantMixin` (e.g., system settings, global roles) remain in the `public` schema.
 
-### 3. Global vs. Scoped Tables
-Tables for models that **do not** use `TenantMixin` should typically stay in the `public` schema. Eden's default `provision_schema` behavior creates ALL tables in the tenant schema; you may need to customize your `Metadata` strategy if you want a mix of global and scoped tables.
+> [!TIP]
+> **Performance Note**: For high-traffic applications, PostgreSQL handles hundreds of schemas extremely well. However, if you plan to exceed 2,000+ schemas, consider using the **Row-Level (RLS)** strategy or sharding across multiple database instances.
 
 ---
 
-**Next Steps**: [SaaS Admin Panel](admin.md)
+## 📄 API Reference
+
+### `Tenant` Model Methods
+
+| Method | Parameters | Description |
+| :--- | :--- | :--- |
+| `provision_schema`| `session: AsyncSession`| Low-level automation to create the schema and build all tables. |
+| `get_schema_name` | - | Returns the sanitized schema string for the current tenant. |
+
+### CLI Commands
+
+| Command | Argument | Description |
+| :--- | :--- | :--- |
+| `eden migrate upgrade`| `--all-tenants` | Iterates through `eden_tenants` and migrates each. |
+| `eden db setup` | `--schema X` | Initializes a specific schema for a new tenant manually. |
+
+---
+
+## 💡 Best Practices
+
+1.  **Sanitization**: Always sanitize the `schema_name` (alphanumeric only) before creation to prevent SQL injection at the schema layer.
+2.  **Monitoring**: Use PostgreSQL extensions like `pg_stat_statements` to monitor query performance specifically within tenant schemas.
+3.  **Backup Strategy**: With schema-based isolation, you can perform granular backups/restores for a single tenant if needed.
+
+---
+
+**Next Steps**: [SaaS Admin Panel & Dashboard](admin.md)

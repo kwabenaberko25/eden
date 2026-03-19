@@ -1,0 +1,80 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.13.12, pytest-9.0.2, pluggy-1.6.0 -- C:\Users\COBBY\AppData\Local\Microsoft\WindowsApps\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\python.exe
+cachedir: .pytest_cache
+rootdir: C:\PROJECTS\eden-framework
+configfile: pyproject.toml
+plugins: anyio-4.12.1, Faker-40.1.2, asyncio-1.3.0, cov-7.0.0, django-4.11.1
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 8 items
+
+tests/test_tenancy.py::test_tenant_creation ERROR                        [ 12%]
+tests/test_tenancy.py::test_tenant_isolation PASSED                      [ 25%]
+tests/test_tenancy.py::test_cross_tenant_access_prevention PASSED        [ 37%]
+tests/test_tenancy.py::test_global_access_no_context PASSED              [ 50%]
+tests/test_tenancy.py::test_manual_tenant_assignment PASSED              [ 62%]
+tests/audit/test_tenancy_isolation.py::test_tenant_isolation_basic PASSED [ 75%]
+tests/audit/test_tenancy_isolation.py::test_tenant_leakage_on_missing_context PASSED [ 87%]
+tests/audit/test_tenancy_isolation.py::test_tenant_bypass_manual_where PASSED [100%]
+
+=================================== ERRORS ====================================
+___________________ ERROR at setup of test_tenant_creation ____________________
+
+    @pytest.fixture
+    async def tenant_a():
+>       return await Tenant.create(name="Tenant A", slug="tenant-a")
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_tenancy.py:22: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+eden\db\mixins\crud.py:144: in create
+    await instance.save(session)
+eden\db\mixins\lifecycle.py:75: in save
+    async with db.transaction(session=session) as sess:
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.3312.0_x64__qbz5n2kfra8p0\Lib\contextlib.py:221: in __aexit__
+    await anext(self.gen)
+eden\db\session.py:155: in transaction
+    await session.commit()
+C:\Users\COBBY\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\sqlalchemy\ext\asyncio\session.py:1000: in commit
+    await greenlet_spawn(self.sync_session.commit)
+C:\Users\COBBY\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\sqlalchemy\util\_concurrency_py3k.py:190: in greenlet_spawn
+    result = context.switch(*args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\sqlalchemy\orm\session.py:2030: in commit
+    trans.commit(_to_root=True)
+<string>:2: in commit
+    ???
+C:\Users\COBBY\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\sqlalchemy\orm\state_changes.py:101: in _go
+    self._raise_for_prerequisite_state(fn.__name__, current_state)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <sqlalchemy.orm.session.SessionTransaction object at 0x0000015AC9B2E6D0>
+operation_name = 'commit', state = <SessionTransactionState.DEACTIVE: 4>
+
+    def _raise_for_prerequisite_state(
+        self, operation_name: str, state: _StateChangeState
+    ) -> NoReturn:
+        if state is SessionTransactionState.DEACTIVE:
+            if self._rollback_exception:
+>               raise sa_exc.PendingRollbackError(
+                    "This Session's transaction has been rolled back "
+                    "due to a previous exception during flush."
+                    " To begin a new transaction with this Session, "
+                    "first issue Session.rollback()."
+                    f" Original exception was: {self._rollback_exception}",
+                    code="7s2a",
+                )
+E               sqlalchemy.exc.PendingRollbackError: This Session's transaction has been rolled back due to a previous exception during flush. To begin a new transaction with this Session, first issue Session.rollback(). Original exception was: (sqlite3.OperationalError) no such table: eden_audit_logs
+E               [SQL: INSERT INTO eden_audit_logs (id, user_id, action, model_name, record_id, changes, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING created_at, updated_at]
+E               [parameters: ('272b624ddbc24f739645e978b96426d8', None, 'create', 'Tenant', '1fb0d3f5-aa15-4b00-9a92-3c1c34bcc371', '{"name": {"old": null, "new": "Tenant A"}, "slug": {"old": null, "new": "tenant-a"}, "is_active": {"old": null, "new": true}, "id": {"old": null, "ne ... (13 characters truncated) ... -aa15-4b00-9a92-3c1c34bcc371"}, "created_at": {"old": null, "new": "2026-03-19T05:26:02"}, "updated_at": {"old": null, "new": "2026-03-19T05:26:02"}}', '2026-03-19 05:26:02.022439')]
+E               (Background on this error at: https://sqlalche.me/e/20/e3q8) (Background on this error at: https://sqlalche.me/e/20/7s2a)
+
+C:\Users\COBBY\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\site-packages\sqlalchemy\orm\session.py:971: PendingRollbackError
+----------------------------- Captured log setup ------------------------------
+WARNING  eden.db.lifecycle:lifecycle.py:227 Audit logging failed for Tenant: (sqlite3.OperationalError) no such table: eden_audit_logs
+[SQL: INSERT INTO eden_audit_logs (id, user_id, action, model_name, record_id, changes, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING created_at, updated_at]
+[parameters: ('272b624ddbc24f739645e978b96426d8', None, 'create', 'Tenant', '1fb0d3f5-aa15-4b00-9a92-3c1c34bcc371', '{"name": {"old": null, "new": "Tenant A"}, "slug": {"old": null, "new": "tenant-a"}, "is_active": {"old": null, "new": true}, "id": {"old": null, "ne ... (13 characters truncated) ... -aa15-4b00-9a92-3c1c34bcc371"}, "created_at": {"old": null, "new": "2026-03-19T05:26:02"}, "updated_at": {"old": null, "new": "2026-03-19T05:26:02"}}', '2026-03-19 05:26:02.022439')]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+=========================== short test summary info ===========================
+ERROR tests/test_tenancy.py::test_tenant_creation - sqlalchemy.exc.PendingRol...
+========================= 7 passed, 1 error in 1.77s ==========================

@@ -166,7 +166,5 @@ class Request(StarletteRequest):
         """
         Access the messaging container for this request.
         """
-        if not hasattr(self, "_messages"):
-            from eden.messages import MessageContainer
-            self._messages = MessageContainer(self)
-        return self._messages
+        from eden.messages import get_messages
+        return get_messages(self)

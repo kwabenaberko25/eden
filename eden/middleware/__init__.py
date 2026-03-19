@@ -676,14 +676,16 @@ class MessageMiddleware:
             return
 
         from eden.requests import Request as EdenRequest
+        from eden.messages import get_messages
         request = EdenRequest.from_scope(scope, receive, send)
 
         async def send_wrapper(message: Message) -> None:
             if message["type"] == "http.response.start":
                 # Only store if response is successful (2xx) or redirect (3xx)
                 # Note: We use int() because status might be a str in some ASGI adapters
-                if hasattr(request, "_messages") and int(message.get("status", 200)) < 400:
-                    request._messages._save()
+                if int(message.get("status", 200)) < 400:
+                    msgs = get_messages(request)
+                    msgs._save()
             await send(message)
 
         await self.app(scope, receive, send_wrapper)

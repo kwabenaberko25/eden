@@ -101,18 +101,20 @@ class APIKey(Model):
         if expires_in:
             expires_at = datetime.datetime.utcnow() + expires_in
 
-        api_key = cls(
-            name=name,
-            prefix=prefix,
-            key_hash=key_hash,
-            user_id=user.id,
-            scopes=scopes or [],
-            expires_at=expires_at,
-        )
+        db = cls._get_db()
+        async with db.transaction(session=session) as tx_session:
+            api_key = cls(
+                name=name,
+                prefix=prefix,
+                key_hash=key_hash,
+                user_id=user.id,
+                scopes=scopes or [],
+                expires_at=expires_at,
+            )
 
-        session.add(api_key)
-        await session.commit()
-        await session.refresh(api_key)
+            tx_session.add(api_key)
+            await tx_session.flush()
+            await tx_session.refresh(api_key)
 
         return api_key, raw_key
 
@@ -126,14 +128,16 @@ class APIKey(Model):
         """
         from sqlalchemy import update
 
-        stmt = (
-            update(cls)
-            .where(cls.prefix == prefix, cls.is_active)
-            .values(is_active=False)
-        )
-        result = await session.execute(stmt)
-        await session.commit()
-        return result.rowcount > 0
+        db = cls._get_db()
+        async with db.transaction(session=session) as tx_session:
+            stmt = (
+                update(cls)
+                .where(cls.prefix == prefix, cls.is_active)
+                .values(is_active=False)
+            )
+            result = await tx_session.execute(stmt)
+            await tx_session.flush()
+            return result.rowcount > 0
 
     @classmethod
     async def find_by_raw_key(cls, session, raw_key: str) -> Optional["APIKey"]:

@@ -8,12 +8,16 @@ class QSUser(Model):
     is_active: bool = f(default=True)
 
 @pytest.fixture(autouse=True)
-async def setup_db(db):
+async def setup_db(db, db_transaction):
+    """
+    Setup database for these tests. 
+    Uses db_transaction for isolation, but first ensures QSUser table exists.
+    """
     async with db.engine.begin() as conn:
         await conn.run_sync(Model.metadata.create_all)
     yield
-    async with db.engine.begin() as conn:
-        await conn.run_sync(Model.metadata.drop_all)
+    # No need for manual drop_all here as db_transaction will roll back any data,
+    # and tables will be dropped/cleared if needed by other fixtures.
 
 @pytest.fixture
 async def sample_users():

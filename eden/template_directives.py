@@ -63,6 +63,10 @@ def render_eden_head(compiler: "TemplateCompiler", node: "DirectiveNode", expr: 
 def render_eden_scripts(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -> str:
     return '{{ eden_scripts() }}'
 
+@directive("eden_toasts")
+def render_eden_toasts(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -> str:
+    return '{{ eden_toasts() }}'
+
 @directive("css")
 def render_css(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -> str:
     return f'<link rel="stylesheet" href={expr}>'

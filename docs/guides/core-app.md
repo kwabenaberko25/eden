@@ -31,6 +31,24 @@ app.static_dir = "public"
 | `description` | `str` | `""` | A brief description of the application. |
 | `secret_key` | `str` | `""` | Used for session signing and security. |
 
+### Configuration Precedence
+
+Eden resolves configuration in the following order:
+
+1.  **Explicit constructor arguments**: Values passed directly to the `Eden()` constructor.
+2.  **Configuration object values**: Values from a standard `Config` object or environment variables.
+3.  **Framework Defaults**: Sensible defaults provided by Eden.
+
+> [!NOTE]
+> The `debug` flag is special: a value of `True` explicitly passed to the constructor will always override any configuration or environment setting.
+
+### Automatic Bootstrapping
+
+Eden's `ServiceBootstrapper` automatically configures core services if it detects relevant settings in your app's state or environment:
+
+-   **Database**: Automatic connection and table creation (for SQLite) if `app.state.database_url` is set.
+-   **Cache**: Redis-backed cache is auto-configured if `REDIS_URL` is found in the environment.
+
 ### Instance Attributes
 
 These properties can be customized after the `Eden` instance is created:
@@ -120,6 +138,22 @@ Eden follows the standard ASGI 3.0 specification. When a request arrives, it tra
 2. **Navigator**: Router (Path & Method matching).
 3. **Execution**: Your `async` handler.
 4. **Resonance**: Response processing & Template rendering.
+
+---
+
+
+---
+
+### Automatic Middleware Stack
+
+When you specify a `secret_key` and aren't in a test environment, Eden automatically assembles a robust middleware stack in the following execution order:
+
+1.  **Request ID**: Injects a unique `X-Request-ID` into every request.
+2.  **Security**: Configures security headers (CSP, HSTS, XSS protection).
+3.  **Session & CSRF**: (Conditional) Encrypted cookie sessions and CSRF protection.
+4.  **Auth**: Provides `request.user` and authentication logic.
+5.  **GZip**: Compresses compatible high-volume responses.
+6.  **CORS**: Secure Cross-Origin Resource Sharing defaults.
 
 ---
 

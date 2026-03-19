@@ -14,12 +14,13 @@ from typing import TYPE_CHECKING, Any, Generic, TypeVar, List, Dict, Optional, C
 
 from sqlalchemy import delete, select, update, func, select as sa_select
 from sqlalchemy.orm import selectinload, joinedload
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from .utils import _MISSING
 from eden.db.pagination import Page
 
 if TYPE_CHECKING:
-    pass
+    from .session import Database
 
 T = TypeVar("T", bound=Any)
 
@@ -62,47 +63,16 @@ class QuerySet(Generic[T]):
         """Checks if a session is currently available without triggering acquisition."""
         return self._session is not None
 
-    async def _resolve_session(self) -> "AsyncSession":
+    def _resolve_session_sync(self) -> "AsyncSession" | None:
         """
-        Resolve the session for query execution with fallback chain:
-        1. Explicitly passed session to QuerySet
-        2. Session from async context (set by middleware/transaction)
-        3. Model's bound database (if configured)
-        4. Raise error with guidance if no session available
-        
-        Raises:
-            RuntimeError: If no session can be resolved with helpful message
+        Pure lookup for an existing session in current context.
+        Returns None if no session found.
         """
         if self._session is not None and self._session is not _MISSING:
             return self._session
 
-        # Try context-aware session lookup (set by middleware or @atomic decorator)
         from eden.db.session import get_session
-        context_session = get_session()
-        if context_session is not None:
-            self._session = context_session
-            return context_session
-
-        # Try model's bound database
-        if self._model_cls._db is not None:
-            # For auto-acquired sessions, we need to manage lifecycle
-            # This is typically done in model class methods like .all()
-            db = self._model_cls._db
-            async_session = await db.session().__aenter__()
-            # Store it so we can close it later if needed
-            self._session = async_session
-            return async_session
-
-        # No session available — provide helpful error message
-        raise RuntimeError(
-            "QuerySet requires a session for execution. "
-            "Ensure one of:\n"
-            "  1) Pass session explicitly: QuerySet(Model, session=session)\n"
-            "  2) Call within request context: @app.get('/'); async def handler(session):\n"
-            "  3) Use @atomic decorator: @app.post('/'); @atomic; async def create():\n"
-            "  4) Use model methods: await Model.all() [auto-acquires session]\n"
-            "  5) Configure model: Model._bind_db(database_instance)"
-        )
+        return get_session()
 
     def _clone(self) -> QuerySet[T]:
         """Create a copy of this QuerySet for safe chaining."""
@@ -339,27 +309,26 @@ class QuerySet(Generic[T]):
         Asynchronous context manager to resolve and provide a database session.
         Ensures that auto-acquired sessions are properly closed.
         """
-        # 1. Use existing session if available
-        if self._session is not None and self._session is not _MISSING:
-            yield self._session
+        # 1. Use existing session lookup (explicit or context-aware)
+        session = self._resolve_session_sync()
+        if session:
+            yield session
             return
 
-        # 2. Try to resolve from context (middleware-set)
-        from eden.db.session import get_session
-        context_session = get_session()
-        if context_session is not None:
-            yield context_session
-            return
-
-        # 3. Fallback to model-bound database
+        # 2. Fallback to model-bound database
         if self._model_cls._db is not None:
             async with self._model_cls._db.session() as session:
                 yield session
                 return
 
-        # 4. Final attempt/error via _resolve_session
-        session = await self._resolve_session()
-        yield session
+        # 3. Final error if no session could be resolved
+        raise RuntimeError(
+            "QuerySet requires a session for execution. "
+            "Ensure one of:\n"
+            f"  1) Call within request context or transaction\n"
+            f"  2) Bind model to database: {self._model_cls.__name__}._bind_db(db)\n"
+            f"  3) Pass session explicitly to .query(session=session)"
+        )
 
     def for_user(self, user: Any, action: str = "read") -> QuerySet[T]:
         """
@@ -608,10 +577,26 @@ class QuerySet(Generic[T]):
     def _get_cache_key(self) -> str:
         """Generate a unique cache key for the current statement."""
         import hashlib
-        # We use a string representation of the statement as part of the key
+        from eden.context import get_user, get_tenant_id
+
+        # Query-specific base derived from SQLAlchemy statement
         stmt_str = str(self._stmt.compile(compile_kwargs={"literal_binds": True}))
-        # Include prefetch paths and other modifiers
-        key_raw = f"{self._model_cls.__name__}:{stmt_str}:{self._prefetch_paths}:{self._return_dicts}"
+
+        # Context matters in RBAC / multi-tenant scenarios.
+        tenant_id = get_tenant_id() or ""
+        user = get_user()
+        user_id = ""
+        if user is not None:
+            user_id = str(getattr(user, "id", user))
+
+        key_raw = (
+            f"{self._model_cls.__name__}:"
+            f"{tenant_id}:"
+            f"{user_id}:"
+            f"{stmt_str}:"
+            f"{self._prefetch_paths}:"
+            f"{self._return_dicts}"
+        )
         return f"qs:{hashlib.md5(key_raw.encode()).hexdigest()}"
 
     async def _execute(self, stmt: Any, session: "AsyncSession") -> Any:
@@ -754,9 +739,15 @@ class QuerySet(Generic[T]):
     async def update(self, **kwargs: Any) -> int:
         """
         Perform a bulk update on the matching records.
-        Warning: Bypasses Model instance hooks.
+        Warning: Bypasses Model instance hooks and soft delete.
         """
-        async with self._provide_session() as session:
+        # Ensure we have a database
+        db = self._model_cls._db
+        if db is None:
+            raise RuntimeError(f"Model {self._model_cls.__name__} is not bound to a database.")
+
+        # Use transaction layer (will join existing or start new)
+        async with db.transaction() as session:
             from eden.db.lookups import F, _FExpr
             
             # Resolve F-expressions
@@ -775,8 +766,11 @@ class QuerySet(Generic[T]):
             from eden.db.signals import pre_bulk_update, post_bulk_update
             await pre_bulk_update.send(sender=self._model_cls, instance=self, values=values)
 
-            # Build update statement
-            upd_stmt = update(self._model_cls)
+            # Build update statement: manually construct to ensure it applies to QuerySet's filters
+            from sqlalchemy import update as sqla_update
+            upd_stmt = sqla_update(self._model_cls)
+            
+            # Apply filters from current QuerySet
             if self._stmt._where_criteria:
                 upd_stmt = upd_stmt.where(*self._stmt._where_criteria)
             
@@ -788,7 +782,7 @@ class QuerySet(Generic[T]):
             
             await post_bulk_update.send(sender=self._model_cls, instance=self, values=values, count=result.rowcount)
             
-            await session.commit()
+            # Note: No explicit commit() here! db.transaction() handles it.
             return result.rowcount
 
     async def delete(self, hard: bool = False) -> int:
@@ -796,7 +790,8 @@ class QuerySet(Generic[T]):
         Perform a bulk delete on the matching records.
         If hard=False and model has SoftDeleteMixin, performs a soft delete.
         """
-        async with self._provide_session() as session:
+        db = self._model_cls._get_db()
+        async with db.transaction(session=self._session) as session:
             # Check for soft delete
             if hasattr(self._model_cls, "deleted_at") and not hard:
                 from datetime import datetime
@@ -822,7 +817,7 @@ class QuerySet(Generic[T]):
             
             await post_bulk_delete.send(sender=self._model_cls, instance=self, count=result.rowcount)
             
-            await session.commit()
+            # Note: No explicit commit() here! db.transaction() handles it.
             return result.rowcount
 
     async def get_or_404(self, **filters) -> T:
@@ -855,7 +850,8 @@ class QuerySet(Generic[T]):
         Fetch or create a record.
         Returns (instance, created) where created is True if a new record was created.
         """
-        async with self._provide_session() as session:
+        db = self._model_cls._get_db()
+        async with db.transaction(session=self._session) as session:
             # Try to get the record
             existing = await self.filter(**filters).first()
             if existing:
@@ -868,7 +864,7 @@ class QuerySet(Generic[T]):
             
             instance = self._model_cls(**create_data)
             session.add(instance)
-            await session.commit()
+            await session.flush()
             await session.refresh(instance)
             return (instance, True)
 
@@ -877,7 +873,8 @@ class QuerySet(Generic[T]):
         Create multiple instances in batches.
         Returns the count of created objects.
         """
-        async with self._provide_session() as session:
+        db = self._model_cls._get_db()
+        async with db.transaction(session=self._session) as session:
             count = 0
             for i in range(0, len(objects), batch_size):
                 batch = objects[i : i + batch_size]
@@ -886,5 +883,5 @@ class QuerySet(Generic[T]):
                     count += 1
                 await session.flush()
             
-            await session.commit()
+            # Note: No explicit commit() here! db.transaction() handles it.
             return count

@@ -1,10 +1,38 @@
-# Transactions & Atomicity 🛡️
+# 🛡️ Transactions & Atomicity
 
-Eden provides robust tools for ensuring data integrity through atomic operations.
+**Eden provides robust tools for ensuring data integrity through atomic operations, nested savepoints, and automatic session management.**
 
-## The `@atomic` Decorator
+---
 
-The simplest way to wrap a controller or service method in a transaction. If an exception is raised, the entire operation is rolled back.
+## 🧠 Conceptual Overview
+
+In a high-concurrency async environment, managing database state requires precision. Eden handles the complexities of the **SQLAlchemy AsyncSession** by providing high-level abstractions like the `@atomic` decorator and context-managed transactions.
+
+### The Transaction Lifecycle
+
+```mermaid
+graph TD
+    A["Start Request"] --> B{"Decorator: @atomic?"}
+    B -- "Yes"--> C["Initialize AsyncSession"]
+    C --> D["Begin Transaction"]
+    D --> E["Execute Business Logic"]
+    E --> F{"Exception?"}
+    F -- "No"--> G["Commit Transaction"]
+    F -- "Yes"--> H["Rollback Transaction"]
+    G & H --> I["Release Session to Pool"]
+```
+
+### Core Philosophy
+1.  **All-or-Nothing**: Every operation inside an `atomic` block must succeed for any to be committed.
+2.  **Context Discovery**: Eden models automatically "discover" the active transaction context, removing the need to pass `session` objects manually in most cases.
+3.  **Safe-by-Default**: If a request handler crashes, Eden automatically rolls back any pending changes to prevent data corruption.
+
+---
+
+## 🏗️ Implementing Atomicity
+
+### 1. The `@atomic` Decorator
+The simplest way to protect a controller or service method.
 
 ```python
 from eden.db import atomic
@@ -12,93 +40,90 @@ from eden.db import atomic
 @app.post("/checkout")
 @atomic
 async def process_checkout(request):
-    # If any of these fail, everything is rolled back
-    order = await Order.create(status="processing")
-    await Inventory.adjust(items=request.json["items"])
+    # This entire block is wrapped in a single transaction
+    order = await Order.create(user=request.user, total=request.json["total"])
+    await Inventory.decrement(items=request.json["items"])
     await Payment.record(order=order)
     
-    return json({"status": "success"})
+    # If any error occurs above, everything is rolled back
+    return {"status": "success"}
 ```
 
----
-
-## Context Manager Usage
-
-For fine-grained control, use the `db.session()` context manager.
+### 2. Manual Context Control
+For fine-grained control or logic that spans multiple separate transactions.
 
 ```python
-from eden.db import get_db
+from eden.db import get_session
 
-async def transfer_credits(sender_id, receiver_id, amount):
-    db = get_db()
-    
-    async with db.session() as session:
-        sender = await User.get(sender_id, session=session)
-        receiver = await User.get(receiver_id, session=session)
-        
-        if sender.credits < amount:
-            raise ValueError("Insufficient credits")
-            
-        sender.credits -= amount
-        receiver.credits += amount
-        
-        # Saves are buffered in the session
-        await sender.save(session=session)
-        await receiver.save(session=session)
+async def update_user_profile(user_id, data):
+    async with get_session() as session:
+        # Use session explicitly for surgical control
+        user = await User.get(user_id, session=session)
+        user.update(**data)
+        await user.save(session=session)
         
         # Transaction commits automatically at the end of 'async with'
 ```
 
 ---
 
-## Savepoints (Nested Transactions)
+## 🧩 Advanced Patterns
 
-Use `session.begin_nested()` to create a savepoint. This allows you to roll back a specific part of a transaction without losing the whole thing.
+### Savepoints (Nested Transactions)
+A **Savepoint** allows you to "checkpoint" a transaction. You can roll back a specific sub-operation without losing the progress of the main transaction.
 
 ```python
-async with db.session() as session:
-    # Main transaction
-    await MainRecord.create(data="main")
+@atomic
+async def process_batch(items):
+    await BatchLog.create(status="starting")
     
-    try:
-        async with session.begin_nested():
-            # This part can fail independently
-            await OptionalLog.create(msg="attempting...")
-            raise RuntimeError("Sub-task failed")
-    except RuntimeError:
-        # Savepoint rolled back, but 'MainRecord' is still intact
-        print("Optional task failed, but main task continues")
-        
-    # MainRecord will be committed here
+    for item in items:
+        # Each item can fail independently
+        try:
+            async with savepoint():
+                await process_item(item)
+        except ProcessingError as e:
+            # Only process_item is rolled back; BatchLog remains
+            await BatchLog.create(error=f"Item {item.id} failed: {e}")
 ```
 
----
-
-## Implicit Session Handling
-
-Eden models are "session-aware". When you call a method like `.save()` or `.update()` within an active session context (like under an `@atomic` decorator), Eden automatically uses that session.
-
-### The Lifecycle
-1. **Request Starts**: Middleware prepares a session if needed.
-2. **Logic Executes**: `Model.get()` or `Model.filter()` finds the active session.
-3. **Commit/Rollback**: Handled automatically by the context manager.
-
----
-
-## Best Practices
-
-1. **Keep Transactions Short**: Don't perform long-running blocking operations (like external API calls or large file reads) inside an atomic block.
-2. **Order of Operations**: Perform logic/validation *before* starting the transaction if possible.
-3. **Explicit Sessions**: For complex service layers, it's often better to pass the `session` object explicitly to ensure all model calls stay in the same transaction.
+### Implicit Session Discovery
+Eden models are "session-aware". When you call a method like `.save()` or `.update()`, Eden checks the current **async context** for an active session.
 
 ```python
-# Service Layer Pattern
-class BillingService:
-    async def bill_subscriber(self, user, amount, session=None):
-        # Use provided session or model default
-        invoice = await Invoice.create(user=user, amount=amount, session=session)
-        return invoice
+# No session passed explicitly, but @atomic handles it behind the scenes
+@atomic
+async def update_settings():
+    setting = await Setting.get("theme")
+    setting.value = "dark"
+    await setting.save() # Discovers and uses the atomic session
 ```
+
+---
+
+## ⚡ Isolation Levels
+
+| Level | Description | Recommended For |
+| :--- | :--- | :--- |
+| **`READ COMMITTED`** | **Default**. Prevents reading uncommitted data. | Standard web applications. |
+| **`SERIALIZABLE`** | Strongest isolation. Acts as if transactions ran sequentially. | Financial ledger operations, inventory locks. |
+
+```python
+from eden.db import serializable
+
+@serializable
+async def transfer_balance(sender, receiver, amount):
+    # This adds 'FOR UPDATE' locks and strict isolation
+    ...
+```
+
+---
+
+## 💡 Best Practices
+
+1.  **Keep it Brief**: Avoid long-running tasks (like external API calls or file processing) inside a transaction. This prevents holding database locks for too long.
+2.  **Handle Exceptions early**: Always wrap your `@atomic` calls in a `try/except` if you need custom error messaging to the client.
+3.  **Atomic Increments**: Use `F()` expressions for numeric updates (`points = F("points") + 1`) to ensure the DB handles the increment atomically even without an explicit transaction lock.
 
 ---
 

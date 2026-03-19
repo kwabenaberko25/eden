@@ -134,6 +134,14 @@ class ContextManager:
             _tenant_id_ctx.set(None)
             _request_id_ctx.set("")
 
+            # Sync cleanup with internal tenancy context for ORM isolation
+            try:
+                from eden.tenancy.context import _tenant_ctx
+                _tenant_ctx.set(None)
+            except ImportError:
+                # If tenancy is not available, nothing to cleanup
+                pass
+
         except Exception as e:
             logger.warning(f"Error cleaning up context: {e}")
 
@@ -312,6 +320,11 @@ def set_user(user: Any) -> contextvars.Token:
     return context_manager.set_user(user)
 
 
+def set_current_user(user: Any) -> contextvars.Token:
+    """Alias for set_user."""
+    return set_user(user)
+
+
 def set_app(app: Any) -> None:
     """Set the current app in context."""
     _app_ctx.set(app)
@@ -330,6 +343,11 @@ def get_tenant_id() -> Optional[str]:
 def set_tenant(tenant_id: str) -> None:
     """Set current tenant ID."""
     context_manager.set_tenant(tenant_id)
+
+
+def set_current_tenant_id(tenant_id: str) -> None:
+    """Alias for set_tenant."""
+    return set_tenant(tenant_id)
 
 
 def get_request_id() -> str:

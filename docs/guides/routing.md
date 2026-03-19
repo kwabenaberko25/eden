@@ -1,36 +1,58 @@
-# Routing System 🛣️
+# 🌿 Routing & Navigation
 
-Eden's routing system is designed to be expressive, hierarchical, and type-safe.
+**Expressive, hierarchical, and type-safe routing that bridges the power of Starlette with Eden's "Elite" developer experience.**
 
-> **Advanced Routing?** See [Advanced Routing with Metadata](advanced-routing.md) for named routes, tags, route-specific middleware, RBAC, versioning, and dynamic route generation.
+---
 
-## Basic Routing
+## 🚀 Quick Start
 
-Routes are defined using decorators on the `app` instance.
-
-```python
-@app.get("/")
-async def home(request):
-    return {"page": "Home"}
-
-@app.post("/submit")
-async def handle_submit(request):
-    data = await request.form()
-    return {"status": "received"}
-```
-
-Supported methods: `@app.get()`, `@app.post()`, `@app.put()`, `@app.patch()`, `@app.delete()`.
-
-## The `@app` Decorators
-
-Eden uses intuitive decorators for route registration.
+Define your first routes in seconds using intuitive decorators on the `app` or `Router` instances.
 
 ```python
+from eden import Eden, Request
+
+app = Eden()
+
 @app.get("/")
-async def get_user(request, user_id: int):
-    # user_id is automatically cast to an integer
-    return {"id": user_id}
+async def home(request: Request):
+    return {"message": "Welcome to Eden"}
+
+@app.get("/greet/{name}")
+async def greet(request: Request, name: str):
+    return {"greeting": f"Hello, {name}!"}
 ```
+
+---
+
+## 🧠 Conceptual Overview
+
+Eden's routing system isn't just a way to map URLs to functions; it's a high-performance **orchestration layer**. Built on top of **Starlette**, it extends the base routing with:
+
+1.  **Dependency Injection (DI)**: Every route handler is automatically injected with its requirements (Request, User, Database Sessions, etc.) via the `DependencyResolver`.
+2.  **Type-Safe Path Parameters**: Automatic casting of path segments to `int`, `uuid`, `float`, or recursive `path` types.
+3.  **Hierarchical Composition**: Deeply nested sub-routers with inherited middleware and naming conventions.
+4.  **Starlette Bridge**: Seamless conversion to native Starlette `Route` objects for 100% ecosystem compatibility.
+
+### Architectural Flow
+
+When a request enters Eden, it undergoes a transformation from a raw ASGI scope to a high-level `EdenRequest` before being dispatched to your handler.
+
+```mermaid
+graph TD
+    A["Incoming ASGI Request"] --> B["Starlette Router"]
+    B --> C["Eden Route Wrapper"]
+    C --> D["DI: Resolve Dependencies"]
+    D --> E["Execute Handler"]
+    E --> F["Result Auto-wrapper"]
+    F --> G["Outgoing Response"]
+```
+
+---
+
+## 🛠️ Detailed Usage
+
+### 1. Basic Routing (Decorators)
+Routes are defined using the standard HTTP method decorators. Eden supports `@get`, `@post`, `@put`, `@patch`, `@delete`, `@options`, and `@head`.
 
 ### Parameter Types
 
@@ -41,8 +63,6 @@ async def get_user(request, user_id: int):
 | `float` | `{val:float}` | Captures and casts to float. |
 | `uuid` | `{id:uuid}` | Captures and casts to a UUID object. |
 | `path` | `{file:path}` | Captures everything, including slashes. |
-
-### 1. The Backend (`app/realtime.py`)
 
 ```python
 # Single parameter
@@ -77,93 +97,55 @@ async def serve_file(request, filepath: str):
     return FileResponse(f"uploads/{filepath}")
 ```
 
----
+> [!TIP]
+> Use **Path Parameter Types** (e.g., `{id:int}`) to ensure your handlers only receive valid data.
 
-## 🚀 Tutorial: Search-as-you-type Dashboard
-
-Query parameters are accessed via `request.query_params`:
+### 2. Query Parameters & Search
+Query parameters are accessed via `request.query_params`.
 
 ```python
-# Single query parameter
+# Single query parameter for search
 @app.get("/search")
 async def search(request):
     q = request.query_params.get("q", "")  # Default to ""
     results = await Post.filter(title__contains=q)
     return {"results": [r.to_dict() for r in results]}
 
-# Multiple query parameters
+# Paging and Filtering (REST API pattern)
 @app.get("/products")
 async def list_products(request):
     page = int(request.query_params.get("page", 1))
-    per_page = int(request.query_params.get("per_page", 20))
     sort_by = request.query_params.get("sort", "created_at")
     
-    products = await Product.filter(
-        is_active=True
-    ).order_by(sort_by).limit(per_page).offset((page-1)*per_page)
-    
-    return {
-        "products": [p.to_dict() for p in products],
-        "page": page,
-        "total": await Product.count()
-    }
-
-# Filter with query parameters (REST API pattern)
-@app.get("/users")
-async def list_users(request):
-    filters = {}
-    
-    # Build filters from query params
-    if request.query_params.get("role"):
-        filters["role"] = request.query_params.get("role")
-    if request.query_params.get("is_active"):
-        filters["is_active"] = request.query_params.get("is_active").lower() == "true"
-    
-    users = await User.filter(**filters)
-    return {"users": [u.to_dict() for u in users]}
+    products = await Product.filter(is_active=True).order_by(sort_by).limit(20)
+    return {"products": [p.to_dict() for p in products], "page": page}
 ```
 
 ---
 
-## Request Body & POST Data
+## 📦 Request Body & Payload Handling
 
+### JSON Request Body
 ```python
-# JSON request body
 @app.post("/posts")
-async def create_post(request):
+async def create_post(request: Request):
     data = await request.json()
-    
     post = await Post.create(
         title=data["title"],
-        content=data["content"],
-        author_id=request.user.id
+        content=data["content"]
     )
-    
     return {"post": post.to_dict()}, 201
+```
 
-# Form data (HTML forms)
-@app.post("/contact")
-async def submit_contact(request):
-    form_data = await request.form()
-    
-    message = await Message.create(
-        name=form_data.get("name"),
-        email=form_data.get("email"),
-        body=form_data.get("message")
-    )
-    
-    return {"status": "Message saved"}, 201
-
-# File uploads
+### Form Data & File Uploads
+```python
 @app.post("/upload")
-async def upload_file(request):
-    form_data = await request.form()
+async def upload_file(request: Request):
+    form_data = await request.form_data()
     file = form_data.get("file")  # UploadedFile object
     
     # Access file properties
-    print(f"Filename: {file.filename}")
-    print(f"Content type: {file.content_type}")
-    print(f"Size: {file.size} bytes")
+    print(f"Filename: {file.filename}, Size: {file.size}")
     
     # Save file
     file_path = f"uploads/{file.filename}"
@@ -175,88 +157,48 @@ async def upload_file(request):
 
 ---
 
-## Status Codes & Responses
+## 🚥 Status Codes & Response Types
 
-Use appropriate HTTP status codes for clarity:
+Eden supports multiple response types. You can return a dictionary (auto-JSON), a string (auto-HTML), or an explicit Response object.
 
 ```python
-from eden import status
+from eden import status, redirect
 
-# 2xx Success
+# Explicit status codes
 @app.post("/tasks")
 async def create_task(request):
-    data = await request.json()
-    task = await Task.create(**data)
-    return {"task": task.to_dict()}, status.HTTP_201_CREATED
+    return {"task": "..." }, status.HTTP_201_CREATED
 
-# 3xx Redirects
+# Redirections
 @app.get("/old-path")
 async def old_url(request):
     return redirect("/new-path", status_code=status.HTTP_301_MOVED_PERMANENTLY)
 
-# 4xx Client Errors
-@app.get("/posts/{id:int}")
-async def get_post(request, id: int):
-    post = await Post.get(id=id)
-    if not post:
-        return {"error": "Post not found"}, status.HTTP_404_NOT_FOUND
-    
-    if not request.user or not user_can_view(request.user, post):
-        return {"error": "Access denied"}, status.HTTP_403_FORBIDDEN
-    
-    return post.to_dict()
-
-# 5xx Server Errors (typically not explicit, but for custom error handling)
-@app.get("/dangerous-operation")
-async def dangerous(request):
-    try:
-        result = await risky_database_query()
-        return result
-    except DatabaseError as e:
-        return {
-            "error": "Database operation failed",
-            "details": str(e)
-        }, status.HTTP_500_INTERNAL_SERVER_ERROR
+# Error Response Codes
+@app.get("/private-item/{id}")
+async def get_private(request, id: int):
+    if not request.user.is_authenticated:
+        return {"error": "Auth required"}, status.HTTP_401_UNAUTHORIZED
+    return {"id": id}
 ```
 
 ---
 
-## Sub-Routers
+## 🏗️ Building Professional Routers
 
-As your application grows, you can split your routes into separate modules using the `Router` class.
-
-### Basic Router Organization
+### Intermediate Scenarios (Routers & Namespaces)
+As your application grows, use `Router` to group related logic. Routers can have their own prefixes, tags, and middleware.
 
 ```python
-# routes/api/users.py
-from eden import Router
-from app.models import User
-
+# api/users.py
 users_router = Router(name="users")
 
 @users_router.get("/", name="list")
 async def list_users():
-    users = await User.all()
-    return [user.to_dict() for user in users]
+    return await User.all()
 
-@users_router.get("/{id:int}", name="detail")
-async def get_user(id: int):
-    user = await User.get(id=id)
-    if not user:
-        return {"error": "Not found"}, 404
-    return user.to_dict()
-
-@users_router.post("/", name="create")
-async def create_user(request):
-    data = await request.json()
-    user = await User.create(**data)
-    return {"user": user.to_dict()}, 201
-
-# routes/api/__init__.py
-from eden import Router
-from .users import users_router
-
-api_router = Router(name="api", prefix="/api/v1")
+# app_api.py
+api_router = Router(prefix="/api/v1", name="api")
 api_router.include_router(users_router, prefix="/users")
 
 # app.py
@@ -265,242 +207,111 @@ app.include_router(api_router)
 
 Now your routes are available at:
 - `GET /api/v1/users` (via `api:users:list`)
-- `GET /api/v1/users/{id}` (via `api:users:detail`)
-- `POST /api/v1/users` (via `api:users:create`)
 
-### Router-Level Middleware
+**Namespace Reversal**: You can generate URLs using the `namespace:name` convention, which makes your code resistant to path changes.
 
 ```python
-from starlette.middleware.base import BaseHTTPMiddleware
-
-class RequireAuth(BaseHTTPMiddleware):
-    async def dispatch(self, request, call_next):
-        if not request.user or not request.user.is_authenticated:
-            return {"error": "Unauthorized"}, 401
-        return await call_next(request)
-
-# Apply middleware to entire router
-admin_router = Router(name="admin", prefix="/admin")
-admin_router.add_middleware(RequireAuth)
-
-@admin_router.get("/stats", name="stats")
-async def admin_stats(request):
-    # This handler always has authenticated user
-    return {"user": request.user.id}
+# Generates '/api/v1/users'
+url = app.url_for("api:users:list")
 ```
 
----
-
-## Request Validation with Schemas
-
-The Eden way is to validate request data using Schemas declaratively:
-
-```python
-from eden.forms import Schema, field, EmailStr
-
-class CreateUserSchema(Schema):
-    name: str = field(min_length=2, max_length=100)
-    email: EmailStr = field()
-    password: str = field(min_length=8)
-
-# Handler using validated schema
-@app.post("/users")
-async def create_user_validated(request, data: CreateUserSchema):
-    # By the time your handler runs:
-    # - data is validated
-    # - types are correct
-    # - data.to_dict() can be passed directly to create()
-    
-    user = await User.create(**data.to_dict())
-    return {"user": user.to_dict()}, 201
-
-# Or use the decorator for auto-error handling
-@app.post("/users")
-@app.validate(CreateUserSchema)
-async def create_user_decorated(request, data: CreateUserSchema):
-    # If validation fails, Eden automatically returns 422 with errors
-    # If valid, data is injected already validated
-    user = await User.create(**data.to_dict())
-    return {"user": user.to_dict()}, 201
-```
-
-### Complex Validation
-
-```python
-from pydantic import model_validator
-
-class UpdateProductSchema(Schema):
-    title: str = field(min_length=1)
-    price: float = field(gt=0)
-    stock: int = field(ge=0)
-    
-    @model_validator(mode="after")
-    def validate_business_logic(self):
-        """Check cross-field constraints."""
-        # Premium products must have stock
-        if self.price > 1000 and self.stock == 0:
-            raise ValueError("High-value items must have stock > 0")
-        return self
-
-@app.put("/products/{id:int}")
-@app.validate(UpdateProductSchema)
-async def update_product(request, id: int, data: UpdateProductSchema):
-    product = await Product.get(id=id)
-    if not product:
-        return {"error": "Not found"}, 404
-    
-    await product.update(**data.to_dict())
-    return {"product": product.to_dict()}
-```
-
----
-
-## Error Handling
-
-### Exception Handlers
-
-```python
-from eden.exceptions import HTTPException
-
-# Global exception handler
-@app.exception_handler(ValueError)
-async def handle_value_error(request, exc):
-    return {
-        "error": "Invalid value",
-        "details": str(exc)
-    }, 400
-
-# Handle specific entity not found
-@app.exception_handler(404)
-async def handle_not_found(request, exc):
-    return {
-        "error": "Resource not found",
-        "path": request.url.path
-    }, 404
-
-# Raise exceptions from handlers
-@app.get("/posts/{id:int}")
-async def get_post(request, id: int):
-    post = await Post.get(id=id)
-    if not post:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Post {id} not found"
-        )
-    return post.to_dict()
-```
-
-### Conditional Error Responses
-
-```python
-@app.post("/payments")
-async def process_payment(request):
-    data = await request.json()
-    
-    try:
-        result = await payment_service.charge(
-            amount=data["amount"],
-            token=data["token"]
-        )
-        return {"transaction_id": result.id}, 200
-    
-    except payment_service.InsufficientFunds:
-        return {"error": "Insufficient funds"}, 402
-    except payment_service.InvalidCard:
-        return {"error": "Card declined"}, 400
-    except payment_service.NetworkError:
-        return {
-            "error": "Payment processing temporarily unavailable",
-            "retry_after": 60
-        }, 503
-```
-
----
-
-## Namespaced Routing
-
-Eden's namespaces allow you to group related routes and generate clean, reverse-able URLs. When you include a router with a `name`, it creates a namespace.
-
-```python
-# routes/auth.py
-router = Router(name="auth")
-
-@router.get("/login", name="login")
-async def login(request):
-    ...
-```
-
-### URL Generation in Templates
-
-Instead of hardcoding URLs, use the `@url` template directive to dynamically generate paths based on route names and namespaces.
-
-```html
-<!-- Sign In link -->
-<a href="@url('auth:login')">Sign In</a>
-
-<!-- Link with parameters -->
-<a href="@url('users:profile', id=user.id)">View Profile</a>
-```
-
-### URL Reversal with `url_for`
-
-Eden provides `url_for()` at three levels — on the **Router**, the **Request**, and the **Eden app** — to generate URLs from route names instead of hardcoding paths.
-
-```python
-# In a route handler — generates a relative path
-@app.get("/dashboard")
-async def dashboard(request):
-    profile_url = request.url_for("users:profile", id=request.user.id)
-    return request.render("dashboard.html", {"profile_url": profile_url})
-
-# On the app instance
-login_path = app.url_for("auth:login")
-
-# On the router directly (returns relative path)
-router.url_for("list")  # → "/users"
-```
-
-> [!TIP]
-> `request.url_for()` returns an **absolute URL** (including scheme and host), while `router.url_for()` returns a **relative path**. Use the one that fits your context.
-
-### Redirect by Route Name
-
-Use `redirect_to()` to redirect to a named route without hardcoding the URL path:
-
-```python
-from eden import redirect_to
-
-@app.post("/login")
-async def handle_login(request):
-    # ... authenticate user ...
-    return redirect_to("dashboard")
-
-@app.post("/users/{id:int}/delete")
-async def delete_user(request, id: int):
-    await User.get(id=id).delete()
-    return redirect_to("users:list")
-```
-
----
-
-## Recursive Middleware
-
-Eden allows you to apply middleware to specific sub-routers, providing granular control over your application's security and behavior.
+### Recursive Middleware
+Apply security middleware (like `AuthMiddleware`) at the `Router` level to protect a group of routes instantly.
 
 ```python
 from eden.middleware import AuthMiddleware
 
-api_router = Router()
-api_router.add_middleware(AuthMiddleware)
+admin_router = Router(name="admin", prefix="/admin")
+admin_router.add_middleware(AuthMiddleware)
 
-@api_router.get("/v1/profile")
-async def profile(request):
-    return request.user
+@admin_router.get("/dashboard")
+async def dashboard(request):
+    return {"admin": True}
 ```
 
 ---
 
-## HTMX & Targeted Fragments
+## 🚀 Advanced Pattern: Auto-CRUD Generation
+One of Eden's "Killer Features" is the ability to generate a full suite of professional CRUD routes directly from an ORM model.
+
+```python
+from eden import Router
+from app.models import Product
+
+# This single line generates list, show, create, update, and delete routes!
+product_router = Router(prefix="/products", model=Product)
+
+app.include_router(product_router)
+```
+
+> [!IMPORTANT]
+> The `model` argument in `Router` automatically handles template rendering (at `{table_name}/list.html`), redirection, and validation error propagation.
+
+---
+
+## 📖 API Reference
+
+### `Router` Class
+The `Router` class is the primary interface for route registration and organization. Information sourced from `eden/routing.py`.
+
+| Method | Parameters | Return Type | Description |
+| :--- | :--- | :--- | :--- |
+| `get(path, name, ...)` | `path: str`, `name: str` | `Callable` | Registers a GET route. |
+| `post(path, name, ...)` | `path: str`, `name: str` | `Callable` | Registers a POST route. |
+| `add_view(path, view_class, ...)` | `path: str`, `view_class: type[View]` | `None` | Registers a Class-Based View (CBV). |
+| `include_router(router, prefix)` | `router: Router`, `prefix: str` | `None` | Merge another router's routes into this one. |
+| `url_for(name, **params)` | `name: str` | `str` | Generates a fully-interpolated path string. |
+
+### Class-Based Views (CBVs)
+For complex logic, inheritance provides a cleaner structure than decorators.
+
+```python
+from eden.routing import View
+
+class UserProfileView(View):
+    async def get(self, user_id: int):
+        return {"id": user_id, "action": "viewing"}
+
+    async def post(self, user_id: int):
+        return {"id": user_id, "action": "updating"}
+
+router.add_view("/users/{user_id:int}", UserProfileView)
+```
+
+---
+
+## 🛡️ Validation & Error Handling
+
+### Request Validation with Schemas
+The Eden way is to validate request data using Schemas declaratively:
+
+```python
+from eden.forms import Schema, field
+
+class CreateUserSchema(Schema):
+    name: str = field(min_length=2)
+    email: str = field()
+
+@app.post("/users")
+@app.validate(CreateUserSchema)
+async def create_user(request, data: CreateUserSchema):
+    user = await User.create(**data.to_dict())
+    return {"user": user.to_dict()}, 201
+```
+
+### Global Exception Handlers
+```python
+from eden.exceptions import HTTPException
+
+# Handle 404 globally
+@app.exception_handler(404)
+async def handle_not_found(request, exc):
+    return {"error": "Resource not found", "path": request.url.path}, 404
+```
+
+---
+
+## ⚡ HTMX & Targeted Fragments
 
 One of Eden's elite features is the ability to render specific template sections (fragments) based on the request state.
 
@@ -518,162 +329,11 @@ async def search(request):
 
 ---
 
-## Deep Dive: Request & Response API
+## 💡 Best Practices
 
-### 1. The `Request` Object
-The `Request` object encapsulates the incoming HTTP message. It is passed as the first argument to every route handler.
-
-| Property / Method | Description |
-| :--- | :--- |
-| `request.method` | The HTTP method (GET, POST, etc). |
-| `request.url` | The full URL object. |
-| `request.headers` | Multi-dict of HTTP headers. |
-| `request.query_params` | Dictionary of URL query parameters. |
-| `request.path_params` | Dictionary of captured path segments. |
-| `request.cookies` | Dictionary of request cookies. |
-| `request.client` | The client's host and port. |
-| `request.state` | A mutable object for storing request-local data (common in middleware). |
-| `request.session` | The encrypted session dictionary (if SessionMiddleware is active). |
-| `request.user` | The authenticated user object (if AuthMiddleware is active). |
-| **`request.url_for(name, **params)`** | Generate an absolute URL for a named route. |
-| **`await request.json()`** | Parses the body as JSON. |
-| **`await request.form()`** | Parses the body as multi-part or form data. |
-| **`await request.body()`** | Returns the raw binary content of the body. |
-
----
-
-### 2. Response Types
-Eden supports multiple response types. You can return a dictionary (auto-JSON), a string (auto-HTML), or an explicit Response object.
-
-#### JSON Response
-
-```python
-from eden import json
-
-@app.get("/api/ping")
-async def ping():
-    return json({"status": "ok"}, status=200)
-
-# Shortcut: Return a dict directly
-@app.get("/api/v1")
-async def api_root():
-    return {"version": "1.0.0"}
-```
-
-#### Redirect Response
-
-```python
-from eden import redirect
-
-@app.get("/legacy")
-async def legacy():
-    # Supports internal routes and external URLs
-    return redirect("/new-home")
-
-@app.get("/named-redirect")
-async def named():
-    # Redirect to a named route
-    return redirect(url_for("home"))
-```
-
-#### File & Streaming Responses
-Used for serving downloads or large data sets.
-
-```python
-from eden.responses import FileResponse, StreamingResponse
-
-@app.get("/download/{filename}")
-async def download(request, filename: str):
-    return FileResponse(
-        path=f"storage/public/{filename}",
-        filename=filename,
-        content_type="application/octet-stream"
-    )
-
-@app.get("/log-stream")
-async def stream_logs():
-    async def log_generator():
-        for i in range(100):
-            yield f"Line {i}\n"
-            await asyncio.sleep(0.1)
-            
-    return StreamingResponse(log_generator(), media_type="text/plain")
-```
-
-#### HTMX Response
-Specialized response for HTMX interactions (see [HTMX Guide](htmx.md)).
-
-```python
-from eden.htmx import HtmxResponse
-
-@app.post("/action")
-async def htmx_action():
-    return HtmxResponse("Action successful", trigger="refresh-list")
-```
-
----
-
-## 🚀 Advanced SaaS Routing 🏢
-
-For enterprise applications, Eden supports sophisticated routing patterns using sub-domains and recursive middleware.
-
-```python
-from eden import Router
-
-# Sub-domain routing for SaaS tenants
-api_router = Router(prefix="/api/v1")
-api_router.add_middleware("tenant")
-
-@api_router.get("/metrics")
-async def get_tenant_metrics(request):
-    # request.state.tenant is populated by the middleware
-    return {"tenant": request.state.tenant.id}
-
-# Registering the router
-app.include_router(api_router)
-```
-
----
-
-## 🏗️ Best Practices: Professional Namespacing
-
-For large applications like a **School Management System**, namespacing is your best friend. It prevents name collisions and makes your code self-documenting.
-
-
-### 1. The Multi-Level Pattern
-
-Don't be afraid to nest namespaces.
- It makes your `@url` calls incredibly clear.
-
-```python
-# routes/admin/students.py
-router = Router(name="students")
-
-# routes/admin/__init__.py
-admin_router = Router(name="admin")
-admin_router.include_router(student_router, prefix="/students")
-
-# app.py
-app.include_router(admin_router, prefix="/admin")
-```
-
-Now, in your templates, you can call:
-`@url('admin:students:list')`
-
-
-### 2. Namespace vs. Prefix
-
-- **Prefix**: The physical URL path (e.g., `/api/v1`).
-
-- **Namespace**: The logical name used for code (e.g., `api`).
-Always keep them synchronized for the easiest developer experience.
-
-
-
-### 3. Use trailing slashes consistently
-
-Eden handles trailing slashes automatically
-, but for the best SEO and consistency, stick to the pattern defined in your `prefix`.
+- **Naming Matters**: Always provide a `name` to your routers and routes. This enables the use of `@url()` in templates and `redirect_to()` in code.
+- **Middleware Placement**: Apply security middleware at the `Router` level to protect a group of routes instantly.
+- **Trailing Slashes**: Eden is flexible with trailing slashes. For the best SEO consistency, stick to the pattern defined in your `prefix`.
 
 ---
 

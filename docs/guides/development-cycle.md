@@ -8,13 +8,13 @@ Building professional, high-performance web applications with Eden follows a ref
 
 ```mermaid
 graph TD
-    A[1. Define Data Models] -->|f helper| B[2. Configure RBAC]
-    B --> C[3. Create Validated Schemas]
-    C -->|to_schema| D[4. Implementation Logic]
-    D -->|@app.validate| E[5. UI Development]
-    E -->|HTMX / Fragments| F[6. Real-time & Tasks]
-    F --> G[7. Audit & Security Check]
-    G --> H[8. Deployment]
+    A["1. Define Data Models"] -->|"f helper"| B["2. Configure RBAC"]
+    B --> C["3. Create Validated Schemas"]
+    C -->|"to_schema"| D["4. Implementation Logic"]
+    D -->|"@app.validate"| E["5. UI Development"]
+    E -->|"HTMX / Fragments"| F["6. Real-time & Tasks"]
+    F --> G["7. Audit & Security Check"]
+    G --> H["8. Deployment"]
 ```
 
 ---

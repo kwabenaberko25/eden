@@ -8,6 +8,10 @@ from __future__ import annotations
 
 import datetime
 import uuid
+from typing import Any, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 from eden.context import get_user
 from ..fields import f
@@ -33,18 +37,23 @@ class SoftDeleteMixin:
             return stmt.where(getattr(target_cls, "deleted_at").is_(None))
         return stmt
 
-    async def delete(self, session, *, commit: bool = True, hard: bool = False) -> None:
+    async def delete(self, session: Optional[AsyncSession] = None, *, commit: bool = True, hard: bool = False) -> None:
         """
         Soft deletes the record by setting deleted_at to the current timestamp.
         Use `hard=True` to permanently delete the row.
         """
-        if hard:
-            await session.delete(self)
-        else:
-            self.deleted_at = datetime.datetime.now(datetime.UTC)
-
-        if commit:
-            await session.commit()
+        from ..base import Model
+        db = Model._get_db()
+        
+        async with db.transaction(session=session) as tx_session:
+            if hard:
+                await tx_session.delete(self)
+            else:
+                self.deleted_at = datetime.datetime.now(datetime.UTC)
+                await tx_session.merge(self)
+            
+            if not commit:
+                await tx_session.flush()
 
 
 class TimestampMixin:

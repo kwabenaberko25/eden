@@ -39,6 +39,27 @@ async def handle_logic_error(request, exc):
     )
 ```
 
+### Programmatic Registration
+
+If you prefer to register handlers without decorators (useful for modular service providers), use `register_exception_handler`:
+
+```python
+app.register_exception_handler(ValueError, my_value_error_handler)
+```
+
+For advanced use cases, you can register a full `ErrorHandler` class instance:
+
+```python
+from eden.exceptions import ErrorHandler
+
+class MyAdvancedHandler(ErrorHandler):
+    def handle(self, exc, request, app):
+        # Custom logic here
+        ...
+
+app.register_error_handler(MyAdvancedHandler())
+```
+
 ### Common HTTP Exceptions
 It's often useful to override default handlers for common status codes like 404 or 500.
 

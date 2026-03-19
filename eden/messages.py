@@ -241,7 +241,7 @@ class MessageContainer:
         return len(self) > 0
 
 
-def get_messages(request: Optional[Any] = None) -> Union[MessageContainer, Iterator[Message]]:
+def get_messages(request: Optional[Any] = None) -> MessageContainer:
     """
     Retrieve the message container for the current request.
     
@@ -253,9 +253,11 @@ def get_messages(request: Optional[Any] = None) -> Union[MessageContainer, Itera
         request = get_request()
     
     if not request:
-        return iter([])
+        # Fallback for when no request is available
+        return MessageContainer(None)
         
-    if not hasattr(request, "_messages"):
-        request._messages = MessageContainer(request)
+    # Standardize on scope-based storage to ensure all Request instances share it
+    if "_eden_messages" not in request.scope:
+        request.scope["_eden_messages"] = MessageContainer(request)
         
-    return request._messages
+    return request.scope["_eden_messages"]

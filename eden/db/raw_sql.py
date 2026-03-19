@@ -135,12 +135,12 @@ class RawQuery:
         # Validate tenant isolation
         RawQuery._validate_tenant_isolation(sql, skip_check=_skip_tenant_check)
         
-        # Use Eden's standard session context
+        # Use Eden's standard transaction context
         from sqlalchemy import text
-        async with Model._get_session() as session:
+        db = Model._get_db()
+        async with db.transaction() as session:
             try:
                 # Convert $1, $2 placeholders to :p1, :p2 for SQLAlchemy compatibility
-                # if the user is using the legacy $ syntax
                 converted_sql = sql
                 sql_params = {}
                 if params:
@@ -186,7 +186,8 @@ class RawQuery:
         # Validate tenant isolation
         RawQuery._validate_tenant_isolation(sql, skip_check=_skip_tenant_check)
         
-        async with Model._get_session() as session:
+        db = Model._get_db()
+        async with db.transaction() as session:
             # Placeholder conversion
             converted_sql = sql
             sql_params = {}
@@ -244,7 +245,8 @@ async def raw_update(
     
     from .base import Model
     from sqlalchemy import text
-    async with Model._get_session() as session:
+    db = Model._get_db()
+    async with db.transaction() as session:
         # Placeholder conversion
         converted_sql = sql
         sql_params = {}
@@ -257,7 +259,7 @@ async def raw_update(
                     sql_params[param_name] = val
 
         result = await session.execute(text(converted_sql), sql_params or all_params)
-        await session.commit()
+        await session.flush()
         return result.rowcount
     
     # Parse "UPDATE 5" -> 5

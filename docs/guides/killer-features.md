@@ -1,23 +1,19 @@
-# 🚀 Eden Framework: Killer Features & Elite Architecture
+# 🚀 Killer Features & Elite Architecture
 
-Eden isn't just a library; it's a **curated developer experience**. We've eliminated the friction of integrating disparate tools by building a unified ecosystem. This guide deep-dives into the "Killer Features" that make Eden the most productive framework for modern, async Python development.
+**Eden isn't just a library; it's a curated developer ecosystem. By eliminating the friction of integrating disparate tools, Eden provides a unified "Zero-Configuration" experience that allows you to build high-fidelity applications with unprecedented speed.**
 
 ---
 
 ## 💎 1. The Unified Developer API
 
-One of the most significant changes in the latest Eden versions is the **Consolidated Import Pattern**. No more jumping between `sqlalchemy`, `starlette`, and `pydantic`.
+One of the most significant advantages of Eden is the **Consolidated Import Pattern**. By abstracting the complexities of Starlette, SQLAlchemy, and Pydantic into a single interface, Eden reduces mental context switching.
 
-### The "Eden Way"
-
-We've exported the most common tools directly from the `eden` package.
-
+### The "Eden Way" (Clean & Direct)
 ```python
 # Before (Legacy/Messy)
 from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy import select, func
 from starlette.requests import Request
-from starlette.responses import JSONResponse
 from pydantic import BaseModel
 
 # After (Eden Elite 🌿)
@@ -28,43 +24,27 @@ from eden import Model, f, Mapped, select, func, Request, json, Schema, v
 
 ## ⚡ 2. Native Real-time Sync (Reactive ORM)
 
-Eden features a "Zero-Configuration" real-time layer. Any change in your database can be instantly reflected on every connected user's screen without a single line of JavaScript.
+Eden features a "Zero-Configuration" real-time layer. Any change in your database can be instantly reflected on every connected user's screen—without a single line of client-side JavaScript.
 
 ### Deep Dive: Reactive Models
-
-To make a model reactive, simply set `__reactive__ = True`. Eden will automatically broadcast events to a WebSocket channel derived from your table name.
+To make a model reactive, simply set `__reactive__ = True`. Eden will automatically broadcast events to a WebSocket channel whenever a record is created, updated, or deleted.
 
 ```python
-from eden import Model, f, Mapped
-
 class Notification(Model):
     __reactive__ = True
     message: Mapped[str] = f()
-    is_read: Mapped[bool] = f(default=False)
 ```
 
 ---
 
-## ⚙️ 3. Background Task Orchestration (Taskiq)
-
-Eden abstracts away the complexity of distributed task queues. With the `EdenBroker`, you can run one-shot or periodic tasks with standard Python decorators.
-
-```python
-@app.task.every(hours=1)
-async def send_daily_digest():
-    """Eden handles the cron/scheduling automatically."""
-    ...
-```
-
----
-
-## 🎯 4. Fragment-Based HTMX Workflow
+## 🎯 3. Fragment-Based HTMX Workflow
 
 Eden's templating engine is uniquely aware of HTMX. You can mark specific regions of your template and have Eden render **only those regions** during an AJAX request, without creating separate partial files.
 
 ```html
 <div id="stats">
     @fragment("stats_grid") {
+        <!-- This block is rendered surgically when HX-Target is 'stats' -->
         <div class="stat">...</div>
     }
 </div>
@@ -72,105 +52,70 @@ Eden's templating engine is uniquely aware of HTMX. You can mark specific region
 
 ---
 
-## 🏗️ 5. Server-Side Components (Python-Only)
+## 🏗️ 4. Server-Side "Elite" Components
 
-Eden introduces a revolutionary component system that allows you to build interactive UI widgets entirely in Python. These components manage their own state and handle interactivity via HTMX without requiring you to manage complex frontend state machines.
+Eden introduces a revolutionary component system that allows you to build interactive UI widgets entirely in Python. These components manage their own state and handle interactivity via HTMX.
 
 ### The "WOW" Factor: No-JS Interactivity
-A component encapsulates its logic, markup, and **reactive state**. When an action is triggered, Eden re-instantiates the component, restores its state, and renders the update.
-
 ```python
 @register("newsletter")
 class NewsletterComponent(Component):
     template_name = "newsletter.html"
     
-    def __init__(self, email="", is_subscribed=False, **kwargs):
-        self.email = email
-        self.is_subscribed = is_subscribed
-        super().__init__(**kwargs)
-    
     @action
     async def subscribe(self, request, email: str):
-        # Business logic in pure Python
         await db.save_subscriber(email)
         self.is_subscribed = True
         return await self.render()
 ```
 
-### Usage in Templates
-```html
-@component("newsletter", email="hello@eden.io")
-```
-
 ---
 
-## 🎪 The "Killer" Synergy: The AI Video Processor Loop
+## 🎪 The "Killer" Synergy: The AI Video Loop
 
-The true power of Eden is how these features work together. Let's look at a "Killer" scenario: An AI-powered video processing pipeline.
+The true power of Eden is how these features work together. Let's look at an AI-powered processing pipeline:
 
-### 1. The Route (HTTP)
+### The Synergy Flow
 
-The user submits a video. We save it to the DB and kick off a background task.
+```mermaid
+sequenceDiagram
+    participant User
+    participant Router
+    participant Worker
+    participant DB
+    participant UI
 
-```python
-@app.post("/videos/process")
-async def process(request):
-    data = await request.form()
-    video = await Video.create(title=data["title"], status="processing")
+    User->>Router: "Submit Video (/videos/process)"
+    Router->>DB: "Status: 'processing'"
+    Router->>Worker: "Defer AI Processing"
+    Router-->>User: "Initial render (Status: Processing)"
     
-    # Defer to background worker
-    await app.task.defer(ai_process_video, video.id, request.user.id)
-    
-    return request.render("video_details.html", {"video": video})
-```
-
-### 2. The Worker (Background Task)
-The worker does the heavy AI lifting and then signals the frontend.
-
-```python
-@app.task()
-async def ai_process_video(video_id: int, user_id: int):
-    # Perform expensive AI processing...
-    video = await Video.get(id=video_id)
-    video.status = "ready"
-    video.ai_tags = ["epic", "cinematic"]
-    await video.save() # Triggers Reactive ORM broadcast!
-```
-
-### 3. The UI (WebSocket + HTMX)
-
-The frontend listens for the model update and refreshes the status surgically using `@fragment`.
-
-```html
-<!-- video_details.html -->
-<div hx-ext="ws" ws-connect="/ws/updates">
-    <h1>{{ video.title }}</h1>
-    
-    <div id="video-status" 
-         hx-get="@url('video:details', id=video.id)" 
-         hx-trigger="videos:updated from:body">
-         @fragment("status_badge") {
-            <span class="badge {{ video.status }}">
-                {{ video.status | title_case }}
-            </span>
-         }
-    </div>
-</div>
+    Worker->>DB: "AI magic complete (Status: 'ready')"
+    DB-->>UI: "Reactive ORM: Signal 'videos:updated'"
+    UI->>Router: "HTMX Auto-refresh specific fragment"
+    Router-->>UI: "Rendered HTML Fragment (Status: Ready)"
 ```
 
 ### Why this is a "Killer" Scenario:
-
-1.  **Reactive ORM**: `video.save()` automatically sent the `videos:updated` event.
-2.  **WebSockets**: The `ws-connect` bridge carried that event to the browser.
+1.  **Reactive ORM**: `video.save()` automatically sent the event.
+2.  **WebSockets**: The bridge carried that event to the browser.
 3.  **HTMX**: The `hx-trigger` matched the event and requested a refresh.
-4.  **Auto-Fragments**: Eden's `TemplateResponse` saw `HX-Target="video-status"` and rendered **only** the `status_badge` fragment.
+4.  **Auto-Fragments**: Eden rendered **only** the `status_badge` fragment.
 
 **Total JavaScript written: 0 lines.**
 
 ---
 
-> [!IMPORTANT]
-> **Eden Philosophy**:
-> - **convention over complexity**: Real-time sync and fragments should be defaults, not "add-ons."
-> - **Unified API**: One framework, one import, one language.
-> - **Premium by Default**: Every component and interaction feels high-end out of the box.
+## 🛡️ 5. Integrated Multi-Tenancy
+
+Eden isn't just "tenant-aware"; it's **Tenant-Native**. Isolation is enforced at the ORM level, preventing data leaks by default.
+
+```python
+# All queries are automatically scoped to the current tenant context
+projects = await Project.all()
+# SELECT * FROM projects WHERE tenant_id = 'current-tenant-uuid'
+```
+
+---
+
+**Next Steps**: [The Eden Development Cycle](development-cycle.md)

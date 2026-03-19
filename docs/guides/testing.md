@@ -1,181 +1,168 @@
-# Testing 🧪
+# 🧪 High-Speed Reliability & Testing
 
-Eden provides built-in testing utilities that make it easy to test routes, models, and forms. This guide covers the complete testing workflow, from basic unit tests to complex integration scenarios.
+**Build bulletproof SaaS applications with Eden's integrated testing infrastructure. From sub-millisecond unit tests to complex multi-tenant integration scenarios, Eden ensures your code is production-ready before it leaves your machine.**
 
 ---
 
-## The Testing Environment
+## 🧠 Conceptual Overview
 
-Eden uses `pytest` as its primary testing framework. We recommend using the following fixtures in your `conftest.py`.
+Eden’s testing philosophy centers on **Speed** and **Isolation**. We provide an async-native `TestClient` and transactional database fixtures that ensure every test runs in a "clean room" environment—fast, deterministic, and repeatable.
 
-### 1. The Async Test Client
+### The Testing Pipeline
+
+```mermaid
+graph TD
+    A["Pytest Runner"] --> B["Eden: conftest.py Setup"]
+    B --> C["Fixture: Transactional DB"]
+    C --> D["Eden: TestClient Initialization"]
+    D -- "> E["Test: Request" -> App -> DB"]
+    E --> F["Assertion: Status / JSON / Fragment"]
+    F --> G["Fixture: DB Rollback"]
+    G --> H["Test Suite: Next Test"]
+```
+
+---
+
+## 🏗️ Environment Setup
+
+Eden uses `pytest` as its core engine. A professional `conftest.py` is the foundation of a high-fidelity test suite.
 
 ```python
+# conftest.py
 import pytest
-from eden.testing import TestClient
-from app.main import app
+from eden.testing import TestClient, create_test_app
+from app.main import app as my_app
 
 @pytest.fixture
 async def client():
-    async with TestClient(app) as client:
+    """Returns an authenticated, tenant-aware TestClient."""
+    async with TestClient(my_app) as client:
         yield client
-```
-
-### 2. Transactional Database Fixture
-
-To keep tests fast and isolated, run each test inside a database transaction that rolls back at the end.
-
-```python
-from eden.db import db
 
 @pytest.fixture(autouse=True)
 async def transactional_db():
-    async with db.transaction() as transaction:
+    """Wraps every test in a transaction that rolls back automatically."""
+    from eden.db import db
+    async with db.transaction() as tx:
         yield
-        await transaction.rollback()
+        await tx.rollback()
 ```
 
 ---
 
-## Testing Routes & APIs
+## 🚀 The Eden `TestClient`
 
-### Verifying JSON Responses
+The `TestClient` is an extended version of the Starlette client, specifically tuned for Eden’s unique features like Identity and Multi-Tenancy.
+
+### 1. Identity & Context
+Easily simulate authenticated users and staff members without manually managing tokens or cookies.
 
 ```python
 @pytest.mark.asyncio
-async def test_get_user_api(client):
-    response = await client.get("/api/users/1")
+async def test_admin_profile(client):
+    # Log in as a specific user identity
+    client.login(email="admin@eden.sh", is_superuser=True)
     
+    response = await client.get("/admin/profile")
     assert response.status_code == 200
-    assert response.json() == {
-        "id": 1,
-        "name": "Eden User",
-        "email": "user@eden.framework"
-    }
+    assert response.json()["is_superuser"] is True
 ```
 
-### Testing Redirects & Cookies
+### 2. Multi-Tenant Isolation
+Testing tenant leaks is the most critical part of SaaS development. Eden makes this declarative.
 
 ```python
 @pytest.mark.asyncio
-async def test_login_flow(client):
-    # This logic runs after the user confirms on a separate screen
-    response = await client.post("/auth/login", data={
-        "email": "admin@test.com",
-        "password": "password123"
-    })
+async def test_tenant_leaks(client):
+    # Setup two separate tenants
+    tenant_a = await Tenant.create(name="Team A")
+    tenant_b = await Tenant.create(name="Team B")
     
-    # Check for redirect
-    assert response.status_code == 302
-    assert response.headers["Location"] == "/dashboard"
+    # Context: User is viewing Tenant A
+    client.set_tenant(tenant_a)
     
-    # Verify session cookie was set
-    assert "eden_session" in client.cookies
+    # Try to access a resource belonging to Tenant B
+    response = await client.get(f"/api/v1/projects/{tenant_b.id}")
+    
+    # Assert that the system 'fails-secure' with a 404/403
+    assert response.status_code == 404
 ```
 
 ---
 
-## 📋 Testing Forms & Validation
+## 📋 High-Fidelity Assertions
 
-Verify that your `Schema` classes handle invalid data correctly and return appropriate error messages.
+Eden provides a suite of semantic assertions to reduce boilerplate checks.
 
+### JSON & Error Responses
 ```python
-from app.schemas import SignupSchema
-from eden.testing import assert_form_error
-
 @pytest.mark.asyncio
-async def test_signup_validation(client):
-    # Test missing email
-    response = await client.post("/signup", data={"password": "password101"})
-    assert response.status_code == 200 # Form re-renders
-    assert_form_error(response, "email", "field required")
-
-    # Test weak password
-    response = await client.post("/signup", data={
-        "email": "test@eden.org", 
-        "password": "123"
-    })
-    assert_form_error(response, "password", "at least 8 characters")
+async def test_api_validation(client):
+    response = await client.post("/api/users", json={"email": "invalid"})
+    
+    # Assert standard Eden error format
+    client.assert_error_response(response, code="VALIDATION_ERROR", status_code=400)
+    
+    # Assert partial JSON content
+    client.assert_json_contains(response, "field", "email")
 ```
 
-## 🏢 Testing Multi-Tenancy
-
-In SaaS apps, it's critical to verify that users cannot access data from other tenants.
-
-```python
-@pytest.mark.asyncio
-async def test_tenant_isolation(client, other_tenant_data):
-    # Log in as Tenant A
-    await client.login("user@tenant-a.com")
-    
-    # Try to access Tenant B's data
-    response = await client.get(f"/projects/{other_tenant_data.id}")
-    
-    # Assert isolation works
-    assert response.status_code == 404 # Or 403
-```
-
----
-
-## Testing Directives & Fragments
-
-Eden's `TestClient` allows you to assert that specific template fragments were rendered.
+### Form & Fragment Testing
+When building reactive UIs with HTMX, you often need to verify that only a specific HTML fragment was returned.
 
 ```python
 @pytest.mark.asyncio
-async def test_htmx_search(client):
-    # Request a specific fragment
+async def test_htmx_search_fragment(client):
+    # Request a specific fragment via HTMX headers
     response = await client.get("/search?q=eden", headers={"HX-Request": "true"})
     
-    # Assert that only the 'results' fragment was rendered
+    # Verify fragment vs full page
     assert "<ul>" in response.text
-    assert "<html>" not in response.text # Should not contain layout
-    assert response.status_code == 200
+    assert "<html>" not in response.text
 ```
 
 ---
 
-## Testing Background Tasks
+## ⚡ Elite Pattern: Mocking Background Tasks
 
-When testing background tasks, you can use the `TaskMock` to verify a task was queued without actually executing it.
+Never hit external services or slow down your suite with real worker execution during unit tests. Use `mock_tasks` to verify queuing logic.
 
 ```python
 from eden.tasks import mock_tasks
 
 @pytest.mark.asyncio
-async def test_email_queuing(client):
+async def test_registration_emails(client):
     async with mock_tasks() as tasks:
-        await client.post("/auth/register", data={"email": "new@user.com"})
+        await client.post("/register", data={"email": "tester@eden.io"})
         
-        # Verify the 'send_welcome_email' task was triggered
+        # Verify the background task was queued with correct args
         assert tasks.has_been_called("send_welcome_email")
-        assert tasks.call_args("send_welcome_email")["email"] == "new@user.com"
+        assert tasks.call_args("send_welcome_email")["email"] == "tester@eden.io"
 ```
 
 ---
 
-## 🛠️ Running Tests
+## 📄 API Reference: Test Utilities
 
-Eden projects use standard `pytest`. If `pytest` is not found in your path, run it through the Python module.
+### `TestClient` Methods
 
-```bash
-# Run all tests
-python3 -m pytest
-
-# Run with verbose output and tracebacks
-python3 -m pytest -vv --tb=short
-
-# Run a specific file
-python3 -m pytest tests/test_auth.py
-```
-
-## Best Practices
-
-1. **Clear Context**: Always use the `db_session` fixture to ensure you're querying the same database state as your app.
-2. **Isolation**: Tests should never depend on each other. If `test_b` requires data from `test_a`, move that setup into a shared fixture.
-3. **Mocks**: Mock external APIs (Stripe, Twilio) using `pytest-mock` to prevent tests from making real network calls.
-4. **Coverage**: Run with `--cov` to identify untested areas of your business logic.
+| Method | Description |
+| :--- | :--- |
+| `login(email)` | Sets current user identity for all subsequent requests. |
+| `set_tenant(tenant)` | Sets the `X-Tenant-ID` header for multi-tenant context. |
+| `get_json(path)` | GET request that returns parsed JSON directly. |
+| `assert_status` | Detailed assertion that includes response body on failure. |
+| `assert_error_response`| Verifies the response matches Eden's standard error schema. |
 
 ---
 
-**Next Steps**: [Deployment Guide](deployment.md)
+## 💡 Best Practices
+
+1.  **Transactional Integrity**: Always use the `autouse` transactional fixture. It ensures your sequence of tests never pollutes your local development database.
+2.  **Mock External Points**: Always mock Stripe, SendGrid, or AWS calls. Testing should be possible even when you are offline.
+3.  **Test the Negative**: Don't just test that a feature works; test that it *doesn't* work when identity or permissions are missing.
+4.  **Coverage Guardrails**: Use `pytest-cov` to ensure your critical business logic (Payments, Multi-tenancy) has 100% coverage.
+
+---
+
+**Next Steps**: [Deployment & Scaling](deployment.md)

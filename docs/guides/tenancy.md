@@ -1,180 +1,161 @@
-# Multi-Tenancy 🏢
+# 🏢 Multi-Tenancy & SaaS Architecture
 
-Eden is built from the ground up to support SaaS applications. Its multi-tenancy system provides row-level isolation that is transparent to the developer.
+**Eden is an industrial-grade, multi-tenant framework. It provides transparent data isolation, cross-tenant security guards, and flexible resolution strategies designed for the next generation of SaaS platforms.**
 
-## Core Concepts
+---
 
-In Eden, a **Tenant** represents a silo of data (e.g., an Organization, a Team, or a Client).
+## 🧠 Conceptual Overview
 
-### 1. Enabling the Middleware
-Multi-tenancy is activated globally in your `app.py`.
+Multi-tenancy in Eden is "Invisible by Design." Once a model is marked for isolation, the framework automatically scopes all database queries, cache entries, and background tasks to the active tenant—without requiring manual `WHERE` clauses from the developer.
 
-```python
-app.add_middleware("tenancy")
+### Isolation Strategies
+
+Eden supports two primary isolation patterns depending on your security and scale requirements:
+
+```mermaid
+graph TD
+    A["Incoming Request"] --> B[TenantResolver]
+    B -- "X-Tenant-ID / Subdomain" --> C{"Active Strategy"}
+    
+    subgraph "Row-Level Isolation (Default)"
+        C --> D["Shared DB + Shared Schema"]
+        D --> E["Automatic WHERE tenant_id = ?"]
+    end
+    
+    subgraph "Schema-Level Isolation (PostgreSQL)"
+        C --> F["Shared DB + Dynamic Schema"]
+        F --> G["SET search_path TO 'tenant_123'"]
+    end
+    
+    E & G --> H["Sanitized Response"]
 ```
 
-### 2. The `TenantMixin`
-Any model you want to isolate should inherit from `TenantMixin`.
+### Core Philosophy
+1.  **Fail-Secure by Default**: If a tenant context cannot be resolved (and is required), Eden returns **zero results** instead of leaking global data.
+2.  **Zero-Boilerplate Scoping**: Logic remains the same whether you're building a single-user app or a 10,000-tenant SaaS.
+3.  **Context-Aware Workers**: Background tasks automatically inherit the tenant context of the trigger request.
 
-> **Important**: `TenantMixin` **MUST** come before `Model` in the inheritance list. This is due to Python's Method Resolution Order (MRO).
+---
+
+## 🏗️ Model Architecture: The `TenantMixin`
+
+To isolate a data model, inherit from `TenantMixin`. 
+
+> [!IMPORTANT]
+> **The Golden Rule**: Due to Python's Method Resolution Order (MRO), `TenantMixin` **must** appear before `Model` in your class definition.
 
 ```python
+from eden.db import Model, f, Mapped
 from eden.tenancy import TenantMixin
-from eden.db import EdenModel, StringField
 
-# CORRECT: TenantMixin comes FIRST
-class Project(TenantMixin, EdenModel):
-    name: Mapped[str] = StringField()
-
-# WRONG: Isolation will fail!
-# class Project(EdenModel, TenantMixin): ...
+class Project(TenantMixin, Model):
+    """
+    Every record will have an automatic 'tenant_id' column.
+    All queries (Project.all(), Project.get(id)) are automatically scoped.
+    """
+    title: Mapped[str] = f(label="Project Title")
+    is_active: Mapped[bool] = f(default=True)
 ```
 
-This adds a `tenant_id` column to your table automatically.
+### Global (Shared) Data
+For models that should be shared across all tenants (e.g., `SystemNotification`, `GlobalRole`), simply omit the `TenantMixin`.
 
 ---
 
-## Automatic Scoping 🎯
+## 🚀 Resolving the Active Tenant
 
-Once configured, Eden's ORM automatically filters all queries based on the current tenant in the request context.
+Eden can resolve the current tenant using built-in strategies or custom logic.
 
-```python
-# No need to manually filter by tenant_id!
-# This only returns projects belonging to the current user's tenant.
-projects = await Project.all()
-```
+| Resolver | Configuration | Typical Use Case |
+| :--- | :--- | :--- |
+| **`SubdomainResolver`**| `tenancy_resolver="subdomain"` | Professional SaaS (e.g. `acme.app.com`). |
+| **`HeaderResolver`** | `tenancy_resolver="header"` | Mobile Apps, Internal APIs (e.g. `X-Tenant-ID`). |
+| **`CookieResolver`** | `tenancy_resolver="cookie"` | Simple enterprise portals. |
 
----
-
-## Global (Shared) Data
-
-If a model should be shared across all tenants (like standard Roles or system Settings), simply omit the `TenantMixin`.
-
-```python
-class SystemStatus(EdenModel):
-    # Shared by everyone
-    is_maintenance: Mapped[bool] = BoolField()
-```
-
----
-
-## Tenant Context Management
-
-You can manually switch or verify the tenant context in background tasks or administration scripts.
-
-```python
-from eden.tenancy import set_current_tenant
-
-async with set_current_tenant(org.id):
-    # Everything inside this block is scoped to 'org.id'
-    await Project.create(name="Scoped Project")
-```
-
----
-
-### ⚠️ Fail-Secure Behavior
-
-By default, if the tenant context is missing (e.g., in background tasks or if middleware fails), queries will return **zero results** instead of all data. This prevents accidental data leakage.
-
-If you need to query across all tenants (admin operations), you must explicitly clear the context:
-
-```python
-from eden.tenancy import set_current_tenant, reset_current_tenant
-
-# Setting to None bypasses isolation in the current context
-token = set_current_tenant(None)
-try:
-    all_projects = await Project.all()
-finally:
-    reset_current_tenant(token)
-```
-
-
----
-
-## Schema-Based Isolation 🏗️
-
-While Eden defaults to **Shared Database, Shared Schema** (row-level isolation), it also supports **Shared Database, Separate Schema** for higher isolation requirements.
-
-Set `TENANCY_STRATEGY=schema` in your `.env` to enable schema switching based on the current tenant's `schema_name` field.
-
-For complete implementation details, architecture explanation, and PostgreSQL configuration, see the [Tenant Schema Switching Guide](tenancy-postgres.md). It covers the `search_path` mechanism, connection pool safety, migrations, and production deployment strategies.
-```
-
----
-
-## Multi-Tenancy Drift Detection
-
-Eden includes internal utilities to detect when queries might be missing a tenant scope, helping you maintain a secure, leak-proof SaaS.
-
----
-
----
-
-## 🛠️ Tenant Identification Strategies
-
-Eden's middleware can identify tenants through multiple channels. You can configure this in your `Eden` app settings.
-
-### 1. Subdomain Resolution (`customer.eden.dev`)
-The most professional pattern for SaaS.
-
-```python
-app = Eden(
-    tenancy_resolver="subdomain",
-    tenancy_domain="eden.dev" # Optional base domain
-)
-```
-
-### 2. Custom Header Resolver (`X-Tenant-ID`)
-Ideal for internal APIs or mobile apps.
-
+### Custom Resolver Example
 ```python
 from eden.tenancy import TenantResolver
 
-class HeaderResolver(TenantResolver):
+class MyCustomResolver(TenantResolver):
     async def resolve(self, request):
-        return request.headers.get("X-Tenant-ID")
+        # Resolve via auth token metadata or specialized header
+        return request.user.organization_id if request.user else None
 
-app = Eden(tenancy_resolver=HeaderResolver())
+app = Eden(tenancy_resolver=MyCustomResolver())
 ```
 
 ---
 
-## 👑 Super-Admin & Cross-Tenant Operations
+## ⚡ Elite Patterns
 
-System administrators often need to overlook all data without individual tenant scoping.
-
-### The `AcrossTenants` Context Manager
-A safe way to temporarily disable row-level isolation for high-level reporting or cross-tenant data migrations.
+### 1. Safe Cross-Tenant Access (`AcrossTenants`)
+System administrators often need to perform global reporting or maintenance. Use the `AcrossTenants` context manager to temporarily disable isolation.
 
 ```python
 from eden.tenancy import AcrossTenants
 
-@app.get("/system/stats")
+@app.get("/admin/stats")
 @require_role("super_admin")
-async def global_stats(request):
+async def global_report(request):
     async with AcrossTenants():
-        # Scoping is disabled here
-        total_projects = await Project.count()
+        # Scoping is disabled within this block
         total_revenue = await Invoice.sum("amount")
+        tenant_count = await Tenant.count()
         
-    return {"total_projects": total_projects, "revenue": total_revenue}
+    return {"total": total_revenue, "tenants": tenant_count}
 ```
 
-### Best Practices for Super-Admins
-1.  **Never Use Global Scope by Default**: Always keep isolation ON and use `AcrossTenants()` only when needed.
-2.  **Logging**: Eden automatically logs when `AcrossTenants()` is invoked, providing an audit trail for security compliance.
-3.  **UI Feedback**: When an admin is in "Global View", ensure the UI clearly indicates this state with a prominent banner to prevent accidental data modification.
+### 2. Manual Context Handling
+In background jobs or CLI scripts, you can manually set the context.
+
+```python
+from eden.tenancy import set_tenant_context
+
+async def my_background_worker(tenant_id: int):
+    async with set_tenant_context(tenant_id):
+        # Any DB queries here are scoped to the specified tenant
+        project = await Project.first()
+        await project.process_data()
+```
+
+### 3. Tenant-Aware Caching
+Eden's `TenantCacheWrapper` ensures that cached data remains isolated even if two tenants use the same key name.
+
+```python
+# Tenant A sets 'settings' -> stored as 'tenant:123:settings'
+# Tenant B sets 'settings' -> stored as 'tenant:456:settings'
+await app.cache.set("settings", current_config)
+```
 
 ---
 
-## Best Practices
+## 📄 API Reference
 
-- ✅ **Inherit Correctly**: Always put `TenantMixin` **before** `Model`.
-- ✅ **Test Isolation**: Use Eden's `TenantTestCase` to verify that data from Tenant A never leaks into Tenant B.
-- ✅ **Scoped Tasks**: When triggering background tasks, Eden automatically passes the `tenant_id` to the worker. If you need a cross-tenant worker, invoke the task from an `AcrossTenants()` block.
-- ✅ **Default Scoping**: Use `shared=True` in your models only for truly public/system data.
+### Context Helpers (`eden.tenancy`)
+
+| Function | Parameters | Description |
+| :--- | :--- | :--- |
+| `get_current_tenant_id`| - | Returns the ID of the active tenant or `None`. |
+| `set_tenant_context` | `tenant_id` | Context manager to bind a tenant to the current async task. |
+| `AcrossTenants` | - | Context manager to bypass all multi-tenant isolation. |
+
+### Configuration (`Eden` Settings)
+
+| Setting | Default | Description |
+| :--- | :--- | :--- |
+| `TENANCY_ENABLED` | `True` | Master toggle for the multi-tenancy system. |
+| `TENANCY_STRATEGY` | `"row"` | Choice between `"row"` (RLS) and `"schema"` (Postgres). |
+| `TENANCY_HEADER` | `"X-Tenant-ID"` | Header name used by the `HeaderResolver`. |
 
 ---
 
-**Next Steps**: [Internationalization & Localization](i18n.md)
+## 💡 Best Practices
+
+1.  **Test for Leakage**: Always write a test using `TenantClient` that verifies Tenant A cannot access Tenant B's data via ID.
+2.  **Audit Logs**: Ensure that any use of `AcrossTenants()` is logged to an audit trail for compliance.
+3.  **Avoid Raw SQL**: Row-level isolation is applied at the ORM level. If you use raw `await db.execute("SELECT...")`, you **must** manually append `WHERE tenant_id = :tid`.
+4.  **Static Data**: Keep your system configuration and global roles in non-isolated models to simplify updates.
+
+---
+
+**Next Steps**: [PostgreSQL Schema-Level Isolation](tenancy-postgres.md)

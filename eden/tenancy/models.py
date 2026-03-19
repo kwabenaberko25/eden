@@ -17,12 +17,13 @@ class Tenant(Model):
 
     Usage:
         # Create a new tenant
-        tenant = Tenant(name="Acme Corp", slug="acme-corp")
-        session.add(tenant)
-        await session.commit()
+        db = Tenant._get_db()
+        async with db.transaction() as session:
+            tenant = Tenant(name="Acme Corp", slug="acme-corp")
+            session.add(tenant)
 
         # Look up by slug
-        tenant = await Tenant.filter_one(session, slug="acme-corp")
+        tenant = await Tenant.filter_one(slug="acme-corp")
     """
 
     __tablename__ = "eden_tenants"

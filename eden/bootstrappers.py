@@ -11,8 +11,8 @@ class ServiceBootstrapper:
     
     @staticmethod
     def bootstrap_database(app: "Eden") -> None:
-        """Configure database if database_url is present in state."""
-        db_url = getattr(app.state, "database_url", None)
+        """Configure database if database_url is present in config or state."""
+        db_url = getattr(app.config, "database_url", None) or getattr(app.state, "database_url", None)
         if db_url:
             from eden.db import Model, init_db
             if not hasattr(Model, "_db") or Model._db is None:
@@ -25,8 +25,12 @@ class ServiceBootstrapper:
 
     @staticmethod
     def bootstrap_cache(app: Eden) -> None:
-        """Configure cache if REDIS_URL or redis_url is present."""
-        redis_url = os.environ.get("REDIS_URL") or getattr(app.state, "redis_url", None)
+        """Configure cache if redis_url is present in config or state."""
+        redis_url = (
+            getattr(app.config, "redis_url", None) or 
+            getattr(app.state, "redis_url", None) or
+            os.environ.get("REDIS_URL")
+        )
         if redis_url and not app.cache:
             from eden.cache.redis import RedisCache
             app.cache = RedisCache(url=redis_url)

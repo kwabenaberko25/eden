@@ -1,0 +1,187 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.13.12, pytest-9.0.2, pluggy-1.6.0 -- C:\Users\COBBY\AppData\Local\Microsoft\WindowsApps\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\python.exe
+cachedir: .pytest_cache
+rootdir: C:\PROJECTS\eden-framework
+configfile: pyproject.toml
+plugins: anyio-4.12.1, Faker-40.1.2, asyncio-1.3.0, cov-7.0.0, django-4.11.1
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 134 items
+
+tests/audit/test_session_hygiene.py::test_session_middleware_not_present_without_secret PASSED [  0%]
+tests/audit/test_session_hygiene.py::test_session_middleware_present_with_secret PASSED [  1%]
+tests/audit/test_session_hygiene.py::test_cors_default_allow_none PASSED [  2%]
+tests/test_config_and_testing.py::TestConfigBasics::test_config_defaults PASSED [  2%]
+tests/test_config_and_testing.py::TestConfigBasics::test_config_env_enum PASSED [  3%]
+tests/test_config_and_testing.py::TestConfigBasics::test_config_debug_defaults_by_env PASSED [  4%]
+tests/test_config_and_testing.py::TestConfigBasics::test_config_database_url_defaults PASSED [  5%]
+tests/test_config_and_testing.py::TestConfigValidation::test_secret_key_required_in_prod PASSED [  5%]
+tests/test_config_and_testing.py::TestConfigValidation::test_secret_key_auto_generated_in_dev PASSED [  6%]
+tests/test_config_and_testing.py::TestConfigValidation::test_jwt_secret_defaults_to_secret_key PASSED [  7%]
+tests/test_config_and_testing.py::TestConfigValidation::test_jwt_secret_auto_generated PASSED [  8%]
+tests/test_config_and_testing.py::TestConfigValidation::test_database_url_required_in_prod PASSED [  8%]
+tests/test_config_and_testing.py::TestConfigEnvironmentVariables::test_config_from_envvars PASSED [  9%]
+tests/test_config_and_testing.py::TestConfigEnvironmentVariables::test_config_manager_loads_from_env PASSED [ 10%]
+tests/test_config_and_testing.py::TestConfigEnvironmentVariables::test_config_manager_singleton PASSED [ 11%]
+tests/test_config_and_testing.py::TestConfigEnvironmentVariables::test_get_config_convenience PASSED [ 11%]
+tests/test_config_and_testing.py::TestConfigModes::test_is_dev PASSED    [ 12%]
+tests/test_config_and_testing.py::TestConfigModes::test_is_test PASSED   [ 13%]
+tests/test_config_and_testing.py::TestConfigModes::test_is_prod PASSED   [ 14%]
+tests/test_config_and_testing.py::TestConfigSecrets::test_config_has_secret_fields PASSED [ 14%]
+tests/test_config_and_testing.py::TestConfigSecrets::test_stripe_config_optional PASSED [ 15%]
+tests/test_config_and_testing.py::TestConfigSecrets::test_aws_config_optional PASSED [ 16%]
+tests/test_config_and_testing.py::TestConfigSecrets::test_redis_config_default PASSED [ 17%]
+tests/test_config_and_testing.py::TestTestClientBasics::test_testclient_context_manager PASSED [ 17%]
+tests/test_config_and_testing.py::TestTestClientBasics::test_testclient_get_request PASSED [ 18%]
+tests/test_config_and_testing.py::TestTestClientBasics::test_testclient_post_request PASSED [ 19%]
+tests/test_config_and_testing.py::TestTestClientContext::test_testclient_context_isolation FAILED [ 20%]
+tests/test_config_and_testing.py::TestFixtures::test_user_factory PASSED [ 20%]
+tests/test_config_and_testing.py::TestFixtures::test_user_factory_admin PASSED [ 21%]
+tests/test_config_and_testing.py::TestFixtures::test_user_factory_batch PASSED [ 22%]
+tests/test_config_and_testing.py::TestMockFixtures::test_mock_stripe PASSED [ 23%]
+tests/test_config_and_testing.py::TestMockFixtures::test_mock_email PASSED [ 23%]
+tests/test_config_and_testing.py::TestMockFixtures::test_mock_s3 PASSED  [ 24%]
+tests/test_config_and_testing.py::TestPytestIntegration::test_markers_registered PASSED [ 25%]
+tests/test_config_and_testing.py::TestConfigAndTestingIntegration::test_app_uses_config PASSED [ 26%]
+tests/test_config_and_testing.py::TestConfigAndTestingIntegration::test_testclient_with_configured_app PASSED [ 26%]
+tests/test_config_and_testing.py::test_config_documentation_example PASSED [ 27%]
+tests/test_config_and_testing.py::test_testclient_documentation_example PASSED [ 28%]
+tests/test_audit_integration.py::TestImportCleanliness::test_top_level_import_succeeds PASSED [ 29%]
+tests/test_audit_integration.py::TestImportCleanliness::test_all_exports_are_importable PASSED [ 29%]
+tests/test_audit_integration.py::TestImportCleanliness::test_no_circular_imports PASSED [ 30%]
+tests/test_audit_integration.py::TestImportCleanliness::test_core_classes_exist PASSED [ 31%]
+tests/test_audit_integration.py::TestImportCleanliness::test_response_shortcuts_exist PASSED [ 32%]
+tests/test_audit_integration.py::TestImportCleanliness::test_orm_utilities_importable PASSED [ 32%]
+tests/test_audit_integration.py::TestImportCleanliness::test_exception_hierarchy PASSED [ 33%]
+tests/test_audit_integration.py::TestImportCleanliness::test_validator_imports PASSED [ 34%]
+tests/test_audit_integration.py::TestEdenApp::test_eden_instantiation PASSED [ 35%]
+tests/test_audit_integration.py::TestEdenApp::test_eden_sets_context PASSED [ 35%]
+tests/test_audit_integration.py::TestEdenApp::test_route_registration PASSED [ 36%]
+tests/test_audit_integration.py::TestEdenApp::test_all_http_methods_register PASSED [ 37%]
+tests/test_audit_integration.py::TestEdenApp::test_include_router PASSED [ 38%]
+tests/test_audit_integration.py::TestEdenApp::test_middleware_string_shorthand PASSED [ 38%]
+tests/test_audit_integration.py::TestEdenApp::test_middleware_class_registration PASSED [ 39%]
+tests/test_audit_integration.py::TestEdenApp::test_exception_handler_registration PASSED [ 40%]
+tests/test_audit_integration.py::TestEdenApp::test_startup_shutdown_hooks PASSED [ 41%]
+tests/test_audit_integration.py::TestEdenApp::test_build_returns_starlette_app PASSED [ 41%]
+tests/test_audit_integration.py::TestEdenApp::test_build_sets_eden_reference PASSED [ 42%]
+tests/test_audit_integration.py::TestRouting::test_router_prefix PASSED  [ 43%]
+tests/test_audit_integration.py::TestRouting::test_named_routes PASSED   [ 44%]
+tests/test_audit_integration.py::TestRouting::test_namespace_propagation PASSED [ 44%]
+tests/test_audit_integration.py::TestRouting::test_route_middleware_merge PASSED [ 45%]
+tests/test_audit_integration.py::TestRouting::test_to_starlette_routes PASSED [ 46%]
+tests/test_audit_integration.py::TestRouting::test_websocket_route PASSED [ 47%]
+tests/test_audit_integration.py::TestRouting::test_crud_router PASSED    [ 47%]
+tests/test_audit_integration.py::TestTemplating::test_extends_directive PASSED [ 48%]
+tests/test_audit_integration.py::TestTemplating::test_include_directive PASSED [ 49%]
+tests/test_audit_integration.py::TestTemplating::test_if_else_endif_directives PASSED [ 50%]
+tests/test_audit_integration.py::TestTemplating::test_for_loop_directive PASSED [ 50%]
+tests/test_audit_integration.py::TestTemplating::test_csrf_directive PASSED [ 51%]
+tests/test_audit_integration.py::TestTemplating::test_method_directive PASSED [ 52%]
+tests/test_audit_integration.py::TestTemplating::test_url_directive_simple PASSED [ 52%]
+tests/test_audit_integration.py::TestTemplating::test_url_directive_with_params PASSED [ 53%]
+tests/test_audit_integration.py::TestTemplating::test_url_directive_component PASSED [ 54%]
+tests/test_audit_integration.py::TestTemplating::test_section_directive PASSED [ 55%]
+tests/test_audit_integration.py::TestTemplating::test_yield_directive PASSED [ 55%]
+tests/test_audit_integration.py::TestTemplating::test_css_directive PASSED [ 56%]
+tests/test_audit_integration.py::TestTemplating::test_js_directive PASSED [ 57%]
+tests/test_audit_integration.py::TestTemplating::test_old_directive PASSED [ 58%]
+tests/test_audit_integration.py::TestTemplating::test_json_directive PASSED [ 58%]
+tests/test_audit_integration.py::TestTemplating::test_dump_directive PASSED [ 59%]
+tests/test_audit_integration.py::TestTemplating::test_auth_guest_directives PASSED [ 60%]
+tests/test_audit_integration.py::TestTemplating::test_htmx_directive PASSED [ 61%]
+tests/test_audit_integration.py::TestTemplating::test_checked_directive PASSED [ 61%]
+tests/test_audit_integration.py::TestTemplating::test_fragment_directive PASSED [ 62%]
+tests/test_audit_integration.py::TestTemplating::test_switch_case_directives PASSED [ 63%]
+tests/test_audit_integration.py::TestTemplating::test_let_directive PASSED [ 64%]
+tests/test_audit_integration.py::TestTemplating::test_render_field_directive PASSED [ 64%]
+tests/test_audit_integration.py::TestComponents::test_component_registration PASSED [ 65%]
+tests/test_audit_integration.py::TestComponents::test_action_decorator PASSED [ 66%]
+tests/test_audit_integration.py::TestComponents::test_action_url_generation PASSED [ 67%]
+tests/test_audit_integration.py::TestComponents::test_component_get_state PASSED [ 67%]
+tests/test_audit_integration.py::TestComponents::test_get_component_router_routes PASSED [ 68%]
+tests/test_audit_integration.py::TestResponses::test_json_response PASSED [ 69%]
+tests/test_audit_integration.py::TestResponses::test_html_response PASSED [ 70%]
+tests/test_audit_integration.py::TestResponses::test_redirect_response PASSED [ 70%]
+tests/test_audit_integration.py::TestResponses::test_safe_redirect_blocks_external PASSED [ 71%]
+tests/test_audit_integration.py::TestResponses::test_safe_redirect_allows_local PASSED [ 72%]
+tests/test_audit_integration.py::TestResponses::test_safe_redirect_blocks_double_slash PASSED [ 73%]
+tests/test_audit_integration.py::TestResponses::test_json_shortcut PASSED [ 73%]
+tests/test_audit_integration.py::TestResponses::test_html_shortcut PASSED [ 74%]
+tests/test_audit_integration.py::TestResponses::test_pydantic_serialization PASSED [ 75%]
+tests/test_audit_integration.py::TestContext::test_set_get_request PASSED [ 76%]
+tests/test_audit_integration.py::TestContext::test_set_get_user PASSED   [ 76%]
+tests/test_audit_integration.py::TestContext::test_proxy_raises_on_empty_context PASSED [ 77%]
+tests/test_audit_integration.py::TestContext::test_proxy_delegates_to_real_object PASSED [ 78%]
+tests/test_audit_integration.py::TestExceptions::test_exception_defaults PASSED [ 79%]
+tests/test_audit_integration.py::TestExceptions::test_exception_custom_detail PASSED [ 79%]
+tests/test_audit_integration.py::TestExceptions::test_exception_to_dict PASSED [ 80%]
+tests/test_audit_integration.py::TestExceptions::test_validation_error_with_errors PASSED [ 81%]
+tests/test_audit_integration.py::TestForms::test_schema_validation_valid PASSED [ 82%]
+tests/test_audit_integration.py::TestForms::test_schema_validation_invalid PASSED [ 82%]
+tests/test_audit_integration.py::TestForms::test_form_field_rendering PASSED [ 83%]
+tests/test_audit_integration.py::TestForms::test_form_field_textarea PASSED [ 84%]
+tests/test_audit_integration.py::TestForms::test_form_field_select PASSED [ 85%]
+tests/test_audit_integration.py::TestForms::test_form_iteration PASSED   [ 85%]
+tests/test_audit_integration.py::TestForms::test_form_field_error_class PASSED [ 86%]
+tests/test_audit_integration.py::TestMiddleware::test_middleware_registry PASSED [ 87%]
+tests/test_audit_integration.py::TestMiddleware::test_csrf_safe_methods PASSED [ 88%]
+tests/test_audit_integration.py::TestMiddleware::test_security_headers_defaults PASSED [ 88%]
+tests/test_audit_integration.py::TestMiddleware::test_limiter_parse PASSED [ 89%]
+tests/test_audit_integration.py::TestWebSocket::test_connection_manager PASSED [ 90%]
+tests/test_audit_integration.py::TestWebSocket::test_websocket_router_event_registration PASSED [ 91%]
+tests/test_audit_integration.py::TestWebSocket::test_websocket_router_lifecycle_hooks PASSED [ 91%]
+tests/test_audit_integration.py::TestWebSocket::test_realtime_manager_singleton PASSED [ 92%]
+tests/test_audit_integration.py::TestCrossModuleIntegration::test_eden_build_includes_component_routes PASSED [ 93%]
+tests/test_audit_integration.py::TestCrossModuleIntegration::test_eden_build_includes_sync_websocket PASSED [ 94%]
+tests/test_audit_integration.py::TestCrossModuleIntegration::test_router_generates_starlette_compatible_routes PASSED [ 94%]
+tests/test_audit_integration.py::TestCrossModuleIntegration::test_eden_templates_property PASSED [ 95%]
+tests/test_audit_integration.py::TestCrossModuleIntegration::test_middleware_functional_registration PASSED [ 96%]
+tests/test_audit_integration.py::TestValidators::test_email_validation PASSED [ 97%]
+tests/test_audit_integration.py::TestValidators::test_url_validation PASSED [ 97%]
+tests/test_audit_integration.py::TestValidators::test_slug_validation PASSED [ 98%]
+tests/test_audit_integration.py::TestValidators::test_phone_validation PASSED [ 99%]
+tests/test_audit_integration.py::TestValidators::test_password_validation PASSED [100%]
+
+================================== FAILURES ===================================
+___________ TestTestClientContext.test_testclient_context_isolation ___________
+
+self = <tests.test_config_and_testing.TestTestClientContext object at 0x00000164FEF18A50>
+
+    @pytest.mark.asyncio
+    async def test_testclient_context_isolation(self):
+        """TestClient context isolates requests."""
+        from eden import Eden
+        from eden.context import get_user
+    
+        app = Eden(title="Test", debug=True)
+    
+        @app.get("/user-email")
+        async def get_user_email():
+            user = get_user()
+            return {"email": user.email if user else None}
+    
+        async with TestClient(app) as client:
+            # Without context
+            response1 = await client.get("/user-email")
+            assert response1.json()["email"] is None
+    
+            # With mocked user
+            mock_user = type("User", (), {"email": "test@example.com"})()
+            async with client.context(user=mock_user):
+                response2 = await client.get("/user-email")
+>               assert response2.json()["email"] == "test@example.com"
+E               AssertionError: assert None == 'test@example.com'
+
+tests\test_config_and_testing.py:298: AssertionError
+---------------------------- Captured stdout call -----------------------------
+DEBUG: ContextMiddleware for GET /user-email
+DEBUG: ContextMiddleware for GET /user-email
+============================== warnings summary ===============================
+eden\testing.py:63
+  C:\PROJECTS\eden-framework\eden\testing.py:63: PytestCollectionWarning: cannot collect test class 'EdenTestClient' because it has a __init__ constructor (from: tests/test_config_and_testing.py)
+    class EdenTestClient(httpx.AsyncClient):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_config_and_testing.py::TestTestClientContext::test_testclient_context_isolation
+================== 1 failed, 133 passed, 1 warning in 1.52s ===================

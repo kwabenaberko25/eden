@@ -1,508 +1,163 @@
-# Caching & Performance 🚀
+# ⚡ High-Performance Caching & Performance
 
-Eden provides a flexible, high-performance caching system to reduce database load and accelerate your application.
-
----
-
-## Quick Start
-
-### In-Memory Cache (Default)
-
-```python
-from eden.cache import cache
-
-# Set a value
-await cache.set("user:123", user_data, ttl=3600)
-
-# Get a value
-user = await cache.get("user:123")
-
-# Delete
-await cache.delete("user:123")
-
-# Clear all
-await cache.clear()
-```
-
-### Redis Cache (Distributed)
-
-For production or multi-instance deployments:
-
-```bash
-pip install redis aioredis
-```
-
-```python
-from eden.cache import RedisCache
-
-cache = RedisCache(
-    url="redis://localhost:6379"
-)
-
-# Mount with automatic connect/disconnect hooks
-cache.mount(app)
-
-# Now available as app.cache
-await app.cache.set("user:123", {"name": "Alice"}, ttl=600)
-user = await app.cache.get("user:123")
-```
+**Eden provides an industrial-grade, multi-backend caching system designed for extreme scalability, automatic multi-tenant isolation, and sub-millisecond response times.**
 
 ---
 
-## Cache Backends
+## 🧠 Conceptual Overview
 
-### InMemoryCache
+Eden's caching layer is built on a **Tenant-Aware** architecture. By default, every cache key is automatically namespaced to the current request's tenant, preventing data leakage and ensuring clean isolation in SaaS environments.
 
-Perfect for single-instance applications or caching session data.
+### The Caching Lifecycle (Cache-Aside Pattern)
 
-**Pros:**
-- ✅ No external dependencies
-- ✅ Sub-millisecond performance
-- ✅ Good for development/testing
+The "Cache-Aside" pattern is the most robust strategy for web applications. Eden makes it seamless to implement logic that prioritizes the cache while falling back to the primary data source on a miss.
 
-**Cons:**
-- ❌ Data lost on restart
-- ❌ Not shared across instances
-- ❌ Uses RAM (good for small datasets only)
-
-```python
-from eden.cache import InMemoryCache
-
-cache = InMemoryCache()
-app.cache = cache
-
-# Now use via app.cache
-await app.cache.set("key", "value", ttl=300)
-value = await app.cache.get("key")
+```mermaid
+graph TD
+    A["Incoming Request"] --> B{"Key in Cache?"}
+    B --  "YES (Hit)" --> C["Return Cached Result"]
+    B --  "NO (Miss)" --> D["Fetch from DB / API"]
+    D --> E["Store result in Cache with TTL"]
+    E --> F["Return Fresh Result"]
+    
+    subgraph "Isolation Layer"
+        G["TenantCacheWrapper"]
+        H[""Automatic Namespacing: tenant:{id"}:{key}"]
+    end
+    
+    B -.-> G
+    G --> H
 ```
 
-### RedisCache
+### Core Philosophy
+1.  **Isolation by Default**: Use `TenantCacheWrapper` to ensure Tenant A can never see Tenant B's data—without changing a single line of logic.
+2.  **Pluggable Backends**: Swap `InMemoryCache` (dev) for `RedisCache` (prod) via environment variables.
+3.  **Syntactic Sugar**: Built-in decorators like `@cache_view` automate the repetitive task of caching common response payloads.
 
-Distributed caching perfect for scale and persistence.
+---
 
-**Pros:**
-- ✅ Shared across multiple servers
-- ✅ Survives restarts
-- ✅ Can handle massive datasets
-- ✅ Sub-millisecond performance at scale
+## 🏗️ Architecture & Backends
 
-**Cons:**
-- ⚠️ Requires Redis server
-- ⚠️ Network latency (microseconds)
+Eden supports multiple backends depending on your infrastructure needs.
+
+| Backend | Logic | Use Case | Performance |
+| :--- | :--- | :--- | :--- |
+| **`InMemoryCache`** | Dictionary-based | Development, CI/CD, Small datasets. | < 0.1ms |
+| **`RedisCache`** | Remote/Distributed | Production, K8s, Webhooks, SaaS. | ~1-5ms |
+
+### 1. The Global vs. Tenant Namespace
+A common challenge in SaaS is caching global data (e.g., config) alongside tenant-specific data (e.g., user profiles).
 
 ```python
-from eden.cache import RedisCache
+# Access tenant-specific cache (isolated automatically)
+await cache.set("user_profile", data) # Saves as 'tenant:123:user_profile'
 
-cache = RedisCache(
-    url=os.getenv("REDIS_URL", "redis://localhost:6379"),
-    db=0,
-    encoding="utf-8"
-)
-
-app.configure_cache(cache)
+# Access global cache (shared across all tenants)
+await cache.global_cache.set("system_config", data) # Saves as 'global:system_config'
 ```
 
 ---
 
-## Common Patterns
+## 🚀 Quick Start: Multi-Tenant Setup
 
-### Cache Methods Reference
-
-**Core Operations:**
+Configure your caching layer in your `app.py` or bootstrapper.
 
 ```python
-# Check if key exists
-exists = await app.cache.has("user:123")  # or .exists() on RedisCache
+import os
+from eden.cache.redis import RedisCache
+from eden.cache import TenantCacheWrapper, InMemoryCache
 
-# Get value (Redis supports default parameter)
-value = await app.cache.get("user:123")
-value_safe = await app.cache.get("user:123", default={})  # RedisCache only
+# 1. Initialize Backend
+if os.getenv("REDIS_URL"):
+    backend = RedisCache(url=os.getenv("REDIS_URL"))
+else:
+    backend = InMemoryCache()
 
-# Set with TTL
-await app.cache.set("key", "value", ttl=3600)
-
-# Delete single key
-await app.cache.delete("user:123")
-
-# Clear all or by pattern
-await app.cache.clear()  # Clear all
-await app.cache.clear(pattern="user:*")  # Clear pattern (Redis only)
-
-# Increment counter (rate limiting, counters) - Redis only
-count = await app.cache.incr("requests:user:123", amount=1)
+# 2. Wrap for Tenancy (Optional but Recommended)
+app.cache = TenantCacheWrapper(backend)
 ```
 
-### View-Level Caching
+---
 
-Cache entire view responses by time:
+## ⚡ Elite Patterns
+
+### 1. View-Level Caching (`@cache_view`)
+Automatically cache entire responses. Eden handles `HX-Target` variations and user-specific variations automatically.
 
 ```python
 from eden.cache import cache_view
 
-@app.get("/blog/posts")
-@cache_view(ttl=3600)
-async def blog_list(request):
-    posts = await Post.all()
-    return render_template("blog.html", posts=posts)
-```
-
-**With user-specific caching:**
-
-```python
 @app.get("/dashboard")
-@cache_view(ttl=1800, vary_on_user=True)  # Cache per user
+@cache_view(ttl=3600, vary_on_user=True)
 async def dashboard(request):
-    user_data = await User.get(id=request.user.id)
-    return render_template("dashboard.html", user=user_data)
+    # This block only runs on cache miss
+    data = await fetch_complex_analytics(request.user)
+    return render_template("dashboard.html", data=data)
 ```
 
-**Invalidate by clearing pattern:**
+### 2. Cache Stampede Prevention (Atomic Locks)
+When a high-traffic key expires, 1000 concurrent requests might try to re-compute it. Use a lock to ensure only one worker computes while others wait.
 
 ```python
-@app.post("/blog/posts")
-async def create_post(request):
-    post = await Post.create(...)
-    # Invalidate view cache for blog list
-    await app.cache.clear(pattern="view:*blog*")
-    return json({"id": post.id})
-```
-
-### Query Result Caching
-
-Cache database queries:
-
-```python
-async def get_user_with_cache(user_id: int):
-    cache_key = f"user:{user_id}"
+async def get_popular_data():
+    cache_key = "popular_stat"
+    result = await cache.get(cache_key)
     
-    # Try cache first
-    user = await cache.get(cache_key)
-    if user:
-        return user
-    
-    # Cache miss - query database
-    user = await User.get(id=user_id)
-    
-    # Store in cache for 1 hour
-    await cache.set(cache_key, user, ttl=3600)
-    return user
-```
-
-### Decorator-Based Caching Pattern
-
-Manually cache function results:
-
-```python
-async def get_user_cached(user_id: int):
-    """Helper pattern for caching function results."""
-    cache_key = f"user:{user_id}:data"
-    
-    # Try cache first
-    cached = await app.cache.get(cache_key)
-    if cached:
-        return cached
-    
-    # Cache miss - fetch
-    user = await User.get(id=user_id)
-    data = user.model_dump()
-    
-    await app.cache.set(cache_key, data, ttl=3600)
-    return data
-
-# Usage
-user = await get_user_cached(123)
-user = await get_user_cached(123)  # From cache
-```
-
-### Session & Cookie Caching
-
-Cache session data across requests:
-
-```python
-# Store complex object
-await cache.set(
-    f"session:{request.session.id}:user_prefs",
-    {"theme": "dark", "language": "en"},
-    ttl=86400  # 24 hours
-)
-
-# Retrieve
-prefs = await cache.get(f"session:{request.session.id}:user_prefs")
-```
-
-### Rate Limiting with Cache
-
-Combine caching with rate limiting:
-
-```python
-from eden.cache import cache
-
-async def check_rate_limit(user_id: str, limit: int = 100, period: int = 3600):
-    key = f"ratelimit:{user_id}"
-    count = await cache.incr(key)
-    
-    if count == 1:
-        await cache.expire(key, period)
-    
-    return count <= limit
-
-# In route
-@app.post("/api/messages")
-async def send_message(request):
-    if not await check_rate_limit(request.user.id):
-        return json({"error": "Rate limit exceeded"}, status=429)
-    
-    # Process message
-    return json({"ok": True})
-```
-
----
-
-## Multi-Tenancy & Caching
-
-When using multi-tenant deployments, cache keys are automatically namespaced by tenant:
-
-```python
-from eden.cache import TenantCacheWrapper
-from eden.cache.redis import RedisCache
-
-# Automatically prefixes all keys with current tenant ID
-redis = RedisCache(url="redis://localhost:6379")
-cache = TenantCacheWrapper(redis)
-
-# In your route with tenant context:
-@app.get("/data")
-async def get_data(request):
-    # Automatically uses tenant:123:data as cache key
-    await cache.set("data", some_value)
-    
-    # Different tenants have isolated cache
-    return json({"cached": True})
-```
-
-**Accessing Global Cache:**
-
-```python
-# When TenantCacheWrapper is active, use .global_cache for non-tenant data
-await cache.global_cache.set("global_config", config_data)
-
-# Tenant data still isolated
-await cache.set("local_data", user_data)  # Scoped to tenant:123
-```
-
-@app.get("/data")
-async def get_tenant_data(request):
-    # Cache key automatically includes tenant context
-    await cache.set("data", some_value)
-    return json({"cached": True})
-```
-
-Cache key isolation:
-
-```
-Tenant A:         tenant:123:user_data
-Tenant B:         tenant:456:user_data
-Global (shared):  global_config
-```
-
----
-
-## Advanced Patterns
-
-### Cache Warming
-
-Pre-populate cache on startup:
-
-```python
-async def warm_cache():
-    posts = await Post.all()
-    for post in posts:
-        await cache.set(f"post:{post.id}", post, ttl=86400)
-
-# Run on app startup
-@app.on_event("startup")
-async def startup():
-    await warm_cache()
-```
-
-### Cache Stampede Prevention
-
-When multiple requests hit same key simultaneously, fetch once:
-
-```python
-import asyncio
-
-async def safe_expensive_query():
-    cache_key = "expensive_result"
-    
-    # Try cache first
-    cached = await app.cache.get(cache_key)
-    if cached:
-        return cached
-    
-    # Use a separate "lock" key to prevent duplicate work
-    lock_key = f"{cache_key}:computing"
-    if await app.cache.exists(lock_key):
-        # Another request already computing, wait
-        await asyncio.sleep(0.5)
-        return await app.cache.get(cache_key)
-    
-    # Set lock
-    await app.cache.set(lock_key, "1", ttl=10)
-    
-    try:
-        result = await expensive_db_query()
-        await app.cache.set(cache_key, result, ttl=3600)
-        return result
-    finally:
-        await app.cache.delete(lock_key)
-```
-
-### Conditional Caching
-
-Cache based on conditions:
-
-```python
-async def expensive_data():
-    result = await fetch_data()
-    
-    # Only cache non-sensitive data
-    if not result.get('sensitive'):
-        await cache.set("data", result, ttl=3600)
-    
+    if result is None:
+        # Simple lock pattern
+        lock_key = f"{cache_key}:lock"
+        if await cache.set(lock_key, "1", ttl=5, nx=True):
+            try:
+                result = await compute_expensive_query()
+                await cache.set(cache_key, result, ttl=3600)
+            finally:
+                await cache.delete(lock_key)
+        else:
+            # Wait and retry once
+            await asyncio.sleep(0.5)
+            result = await cache.get(cache_key)
+            
     return result
 ```
 
-### Key Patterns for Bulk Invalidation
-
-Use consistent key patterns for grouped invalidation:
+### 3. Namespaced Patterns for Bulk Invalidation
+Invalidate groups of related keys instantly.
 
 ```python
-# Store related cache keys with prefix pattern
-await app.cache.set("blog:post:123", post_data, ttl=3600)
-await app.cache.set("blog:post:456", post_data, ttl=3600)
-await app.cache.set("blog:list", all_posts, ttl=1800)
-
-# Later, invalidate all blog-related caches
-await app.cache.clear(pattern="blog:*")
-
-# Or just posts
-await app.cache.clear(pattern="blog:post:*")
+# Invalidate all blog-related cache for the current tenant
+await cache.clear(pattern="blog:*")
 ```
 
 ---
 
-## Monitoring & Debugging
+## 📄 API Reference
 
-### Cache Statistics
+### `CacheBackend` (Protocol)
 
-Monitor cache performance:
+| Method | Parameters | Return Type | Description |
+| :--- | :--- | :--- | :--- |
+| `get` | `key: str` | `Any \| None` | Retrieve a value by key. |
+| `set` | `key, value, ttl` | `None` | Store a value with optional TTL (seconds). |
+| `has` | `key: str` | `bool` | Check if a key exists without retrieving content. |
+| `delete`| `key: str` | `None` | Remove a specific key. |
+| `clear` | `pattern: str \| None`| `None` | Clear all or matching keys. |
 
-```python
-stats = await cache.stats()
-print(f"Hits: {stats['hits']}")
-print(f"Misses: {stats['misses']}")
-print(f"Hit Rate: {stats['hit_rate']:.2%}")
-```
+### `TenantCacheWrapper`
 
-### Enable Debug Logging
-
-```python
-import logging
-
-logging.getLogger("eden.cache").setLevel(logging.DEBUG)
-
-# Will log all cache operations
-```
-
-### Inspect Cache
-
-```python
-# List all keys (in-memory only)
-keys = await cache.keys()
-print(f"Cached items: {len(keys)}")
-
-# Get key metadata
-ttl = await cache.ttl("user:123")
-print(f"Expires in {ttl} seconds")
-```
+| Method | Argument | Description |
+| :--- | :--- | :--- |
+| `get/set/delete`| `bypass_tenancy: bool`| If `True`, accesses the `global:` namespace instead of `tenant:{id}:`. |
+| `.global_cache`| - | Property that returns a `GlobalCacheView` shorthand. |
 
 ---
 
-## Best Practices
+## 💡 Best Practices
 
-### ✅ DO
-
-- Cache expensive computations (database queries, API calls)
-- Use TTL to avoid stale data
-- Use tags for related data invalidation
-- Monitor cache hit rates
-- Implement cache warming for critical data
-- Use Redis in production for multi-instance apps
-
-### ❌ DON'T
-
-- Cache user-sensitive data (passwords, tokens)
-- Set TTL too high (data staleness)
-- Cache objects that change frequently
-- Forget to invalidate cache when data changes
-- Use in-memory cache in distributed systems
-- Cache unbounded query results
+1.  **Production Readiness**: Never use `InMemoryCache` in production behind a load balancer (Gunicorn/Uvicorn workers). Use **Redis**.
+2.  **Short TTLs for Volatile Data**: Better to have a 60-second TTL on a dashboard than a 24-hour TTL that requires manual purging.
+3.  **Pattern Prefixing**: Always use prefixes like `user:`, `product:`, or `view:` to allow for granular `clear(pattern=...)` calls.
+4.  **Serialization**: Eden handles JSON serialization automatically for simple types. For complex classes, implement `to_dict()` or use Pydantic `model_dump()`.
 
 ---
 
-## Configuration
-
-### Environment-Based Setup
-
-```python
-import os
-from eden.cache import InMemoryCache
-from eden.cache.redis import RedisCache
-
-cache_backend = os.getenv("CACHE_BACKEND", "memory")
-
-if cache_backend == "redis":
-    cache = RedisCache(url=os.getenv("REDIS_URL"))
-    cache.mount(app)
-else:
-    cache = InMemoryCache()
-    app.cache = cache
-```
-
-### Docker Compose Example
-
-```yaml
-version: '3'
-services:
-  app:
-    image: my-app
-    environment:
-      CACHE_BACKEND: redis
-      REDIS_URL: redis://redis:6379
-    depends_on:
-      - redis
-  
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-```
-
----
-
-## Performance Tips
-
-| Technique | Impact | Complexity |
-|-----------|--------|------------|
-| Query result caching | 50-90% faster | Low |
-| View-level caching | 70-95% faster | Low |
-| Cache warming | 85-99% faster | Medium |
-| Distributed caching (Redis) | Scales horizontally | Medium |
-| Cache compression | Saves 60-80% space | High |
-
-A well-tuned cache can reduce database load by 80-95% and improve response times by 50-200x.
-
----
-
-**Next Steps**: Configure your preferred cache backend and implement view or query-level caching for your most-accessed data.
+**Next Steps**: [Multi-Tenant Database Architecture](tenancy.md)

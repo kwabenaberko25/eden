@@ -1,0 +1,125 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.13.12, pytest-9.0.2, pluggy-1.6.0 -- C:\Users\COBBY\AppData\Local\Microsoft\WindowsApps\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\python.exe
+cachedir: .pytest_cache
+rootdir: C:\PROJECTS\eden-framework
+configfile: pyproject.toml
+plugins: anyio-4.12.1, Faker-40.1.2, asyncio-1.3.0, cov-7.0.0, django-4.11.1
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 1042 items
+
+tests/audit/test_auth_resilience.py::test_auth_middleware_failure_resilience PASSED [  0%]
+tests/audit/test_auth_resilience.py::test_auth_middleware_all_failing PASSED [  0%]
+tests/audit/test_orm_isolation.py::test_engine_reuse_for_isolation_levels PASSED [  0%]
+tests/audit/test_orm_isolation.py::test_isolation_level_actually_applied PASSED [  0%]
+tests/audit/test_orm_joins.py::test_auto_join_involvement PASSED         [  0%]
+tests/audit/test_orm_joins.py::test_auto_join_performance PASSED         [  0%]
+tests/audit/test_orm_security.py::test_orm_lookup_sql_injection PASSED   [  0%]
+tests/audit/test_orm_security.py::test_orm_q_object_injection PASSED     [  0%]
+tests/audit/test_orm_security.py::test_orm_raw_expression_bypass PASSED  [  0%]
+tests/audit/test_rbac_isolation.py::test_rbac_isolation_read PASSED      [  0%]
+tests/audit/test_rbac_isolation.py::test_rbac_bypass_attempt PASSED      [  1%]
+tests/audit/test_session_hygiene.py::test_session_middleware_not_present_without_secret FAILED [  1%]
+
+================================== FAILURES ===================================
+_____________ test_session_middleware_not_present_without_secret ______________
+
+    @pytest.mark.asyncio
+    async def test_session_middleware_not_present_without_secret():
+        """Verify that sessions/csrf are NOT added if secret_key is missing."""
+        class MockConfig:
+            secret_key = None
+            title = "Eden"
+            version = "0.1.0"
+            debug = False
+    
+>       app = Eden(secret_key=None, config=MockConfig())
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\audit\test_session_hygiene.py:14: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <eden.app.Eden object at 0x00000257594E1FD0>, title = None
+version = None, debug = False, description = None, secret_key = None
+config = <test_session_hygiene.test_session_middleware_not_present_without_secret.<locals>.MockConfig object at 0x00000257594438C0>
+static_dir = 'static', static_url = '/static', templates_dir = 'templates'
+browser_reload = True
+
+    def __init__(
+        self,
+        title: str | None = None,
+        version: str | None = None,
+        debug: bool = False,
+        description: str | None = None,
+        secret_key: str | None = None,
+        config: dict[str, Any] | Config | None = None,
+        static_dir: str = "static",
+        static_url: str = "/static",
+        templates_dir: str = "templates",
+        browser_reload: bool = True,
+    ) -> None:
+        from eden.context import set_app
+        set_app(self)
+    
+        # Precedence: Explicit constructor arguments > config object values
+        # Load configuration if not provided
+        from eden.config import Config, get_config
+        if config is None:
+            self.config = get_config()
+        elif isinstance(config, dict):
+            self.config = Config(**config)
+        else:
+            self.config = config
+    
+        # Configure with explicit overrides
+        self.title = title or self.config.title or "Eden App"
+        self.version = version or self.config.version or "0.1.0"
+        self.description = description or getattr(self.config, "description", None)
+        self.secret_key = secret_key or self.config.secret_key
+    
+        # debug is special as it's a bool
+        # Priority: Explicit True > Config > Default False
+        self.debug = debug or self.config.debug or False
+    
+        # Apply config to state for bootstrappers and other components
+        self.state = State()
+        self._apply_config()
+    
+>       self.browser_reload = self.config.browser_reload
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'MockConfig' object has no attribute 'browser_reload'
+
+eden\app.py:117: AttributeError
+============================== warnings summary ===============================
+eden\testing.py:63
+  C:\PROJECTS\eden-framework\eden\testing.py:63: PytestCollectionWarning: cannot collect test class 'EdenTestClient' because it has a __init__ constructor (from: tests/test_config_and_testing.py)
+    class EdenTestClient(httpx.AsyncClient):
+
+tests\test_directives_integration.py:295
+  C:\PROJECTS\eden-framework\tests\test_directives_integration.py:295: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.unit
+
+tests\test_directives_integration.py:313
+  C:\PROJECTS\eden-framework\tests\test_directives_integration.py:313: PytestUnknownMarkWarning: Unknown pytest.mark.integration - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.integration
+
+tests\test_storage_cleanup.py:26
+  C:\PROJECTS\eden-framework\tests\test_storage_cleanup.py:26: PytestCollectionWarning: cannot collect test class 'TestUser' because it has a __init__ constructor (from: tests/test_storage_cleanup.py)
+    class TestUser(Model):
+
+tests\test_storage_cleanup.py:34
+  C:\PROJECTS\eden-framework\tests\test_storage_cleanup.py:34: PytestCollectionWarning: cannot collect test class 'TestPost' because it has a __init__ constructor (from: tests/test_storage_cleanup.py)
+    class TestPost(Model):
+
+tests/audit/test_orm_joins.py::test_auto_join_involvement
+  C:\PROJECTS\eden-framework\eden\db\mixins\crud.py:143: SAWarning: relationship 'Company.employee' will copy column companys.id to column employees.company_id, which conflicts with relationship(s): 'Company.employees' (copies companys.id to employees.company_id), 'Employee.companys' (copies companys.id to employees.company_id). If this is not the intention, consider if these relationships should be linked with back_populates, or if viewonly=True should be applied to one or more if they are read-only. For the less common case that foreign key constraints are partially overlapping, the orm.foreign() annotation can be used to isolate the columns that should be written towards.   To silence this warning, add the parameter 'overlaps="companys,employees"' to the 'Company.employee' relationship. (Background on this warning at: https://sqlalche.me/e/20/qzyx) (This warning originated from the `configure_mappers()` process, which was invoked automatically in response to a user-initiated operation.)
+    instance = cls(**kwargs)
+
+tests/audit/test_orm_joins.py::test_auto_join_involvement
+  C:\PROJECTS\eden-framework\eden\db\mixins\crud.py:143: SAWarning: relationship 'Employee.company' will copy column companys.id to column employees.company_id, which conflicts with relationship(s): 'Company.employees' (copies companys.id to employees.company_id), 'Employee.companys' (copies companys.id to employees.company_id). If this is not the intention, consider if these relationships should be linked with back_populates, or if viewonly=True should be applied to one or more if they are read-only. For the less common case that foreign key constraints are partially overlapping, the orm.foreign() annotation can be used to isolate the columns that should be written towards.   To silence this warning, add the parameter 'overlaps="companys,employees"' to the 'Employee.company' relationship. (Background on this warning at: https://sqlalche.me/e/20/qzyx) (This warning originated from the `configure_mappers()` process, which was invoked automatically in response to a user-initiated operation.)
+    instance = cls(**kwargs)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/audit/test_session_hygiene.py::test_session_middleware_not_present_without_secret
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!
+================== 1 failed, 11 passed, 7 warnings in 39.63s ==================

@@ -59,8 +59,11 @@ class APIKeyBackend(AuthBackend[User]):
             return None
 
         # Update last_used_at
-        api_key.last_used_at = datetime.datetime.now(datetime.UTC)
-        await session.commit()
+        from eden.auth.api_key_model import APIKey
+        db = APIKey._get_db()
+        async with db.transaction(session=session) as tx_session:
+            api_key.last_used_at = datetime.datetime.now(datetime.UTC)
+            await tx_session.flush()
 
         # Store scopes on request state for downstream use
         request.state.api_key_scopes = api_key.scopes

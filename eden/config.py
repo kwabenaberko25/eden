@@ -62,7 +62,7 @@ from typing import Optional, Any, Dict
 from pathlib import Path
 
 try:
-    from pydantic import BaseModel, Field, field_validator, model_validator
+    from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 except ImportError:
     raise ImportError(
         "pydantic is required for configuration. "
@@ -124,12 +124,13 @@ class Config(BaseModel):
         messages_session_key: Session key for flash messages (default: _eden_messages)
     """
     
-    class Config:
-        """Pydantic config."""
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = False
-        extra = "allow"  # Allow extra fields for custom config
+    model_config = ConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="allow",
+        arbitrary_types_allowed=True,
+    )
     
     # Environment
     env: Environment = Field(default=Environment.DEV, description="Environment mode")
@@ -237,6 +238,12 @@ class Config(BaseModel):
     messages_session_key: str = Field(
         default="_eden_messages",
         description="Session key for flash messages"
+    )
+    
+    # Development
+    browser_reload: bool = Field(
+        default=True,
+        description="Enable browser auto-reload on code changes"
     )
     
     @field_validator("env", mode="before")
@@ -363,11 +370,8 @@ class ConfigManager:
         
         Returns:
             Loaded Config instance
-        
-        Raises:
-            ValueError: If required secrets are missing
         """
-        # Load .env file if exists
+        # Load .env file if it exists
         env_file = env_file or Path.cwd() / ".env"
         if isinstance(env_file, str):
             env_file = Path(env_file)
@@ -377,8 +381,6 @@ class ConfigManager:
                 from dotenv import load_dotenv
                 load_dotenv(env_file)
             except ImportError:
-                # Silently skip if python-dotenv not installed
-                # (Configuration can still use env vars)
                 pass
         
         # Load environment-specific .env file
@@ -392,9 +394,10 @@ class ConfigManager:
                 pass
         
         # Create config from environment variables
+        # We allow Pydantic to handle more complex types downstream if needed
         self._config = Config(
             env=os.getenv("EDEN_ENV", "dev"),
-            debug=os.getenv("EDEN_DEBUG", os.getenv("DEBUG", "")).lower() in ("true", "1"),
+            debug=os.getenv("EDEN_DEBUG", os.getenv("DEBUG", "")).lower() in ("true", "1", "yes"),
             secret_key=os.getenv("SECRET_KEY", ""),
             database_url=os.getenv("DATABASE_URL", ""),
             jwt_secret=os.getenv("JWT_SECRET", ""),
@@ -406,10 +409,13 @@ class ConfigManager:
             aws_s3_region=os.getenv("AWS_S3_REGION", "us-east-1"),
             redis_url=os.getenv("REDIS_URL", "redis://localhost:6379"),
             cache_ttl=int(os.getenv("CACHE_TTL", "3600")),
-            title=os.getenv("EDEN_TITLE", "Eden"),
-            version=os.getenv("EDEN_VERSION", "0.1.0"),
+            title=os.getenv("EDEN_TITLE", os.getenv("TITLE", "Eden")),
+            version=os.getenv("EDEN_VERSION", os.getenv("VERSION", "0.1.0")),
             log_level=os.getenv("LOG_LEVEL", "INFO"),
+            allowed_hosts=os.getenv("ALLOWED_HOSTS", "*").split(","),
+            cors_origins=os.getenv("CORS_ORIGINS", "").split(",") if os.getenv("CORS_ORIGINS") else [],
             messages_session_key=os.getenv("EDEN_MESSAGES_SESSION_KEY", "_eden_messages"),
+            browser_reload=os.getenv("EDEN_BROWSER_RELOAD", "true").lower() in ("true", "1", "yes"),
         )
         
         return self._config
@@ -453,6 +459,24 @@ def get_config() -> Config:
         await db.connect()
     """
     return ConfigManager.instance().get()
+
+
+def set_config(config: Config) -> None:
+    """
+    Set active configuration.
+    
+    Useful for testing or dynamic configuration updates.
+    
+    Args:
+        config: Config instance to set
+    
+    **Example:**
+    
+        from eden.config import set_config, Config
+        config = Config(debug=True)
+        set_config(config)
+    """
+    ConfigManager.instance().set(config)
 
 
 def create_config(env: str = "dev", **kwargs) -> Config:

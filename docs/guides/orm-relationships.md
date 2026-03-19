@@ -1,54 +1,64 @@
-# Relationship Patterns 🔗
+# 🔗 Relationship Patterns
 
-Eden handles complex database relationships with a mix of automatic inference and granular control.
-
-## Overview
-
-Relationships in Eden are defined using standard SQLAlchemy `Mapped` types and the `relationship()` function. Eden enhances this with **Automatic Join Inference** during filtering.
+**Eden simplifies complex database associations with high-level abstractions that handle foreign keys, back-references, and eager loading automatically.**
 
 ---
 
-## One-to-Many / Many-to-One
+## 🧠 Conceptual Overview
 
-This is the most common relationship. One "Parent" has many "Children".
+Relationships in Eden are first-class citizens. By combining SQLAlchemy's powerful mapping engine with Eden's **Automatic Join Inference**, you can query across tables as if they were a single unified object.
+
+### Common Relationship Archetypes
+
+```mermaid
+graph LR
+    subgraph "One-to-One"
+        User --- Profile
+    end
+    
+    subgraph "One-to-Many"
+        Brand --- Product1
+        Brand --- Product2
+    end
+    
+    subgraph "Many-to-Many"
+        Student1 --- ClassA
+        Student2 --- ClassA
+        Student1 --- ClassB
+    end
+```
+
+---
+
+## 🏗️ Core Relationship Types
+
+### 1. One-to-Many (1:N)
+The most common pattern. A single parent has many children (e.g., a Company has many Employees).
 
 ```python
 from typing import List
 from eden.db import Model, f, Mapped, relationship
 
 class Company(Model):
-    __tablename__ = "companies"
     name: Mapped[str] = f()
     # One Company -> Many Employees
     employees: Mapped[List["Employee"]] = relationship(back_populates="company")
 
 class Employee(Model):
-    __tablename__ = "employees"
     name: Mapped[str] = f()
+    # Foreign Key defines the link
     company_id: Mapped[int] = f(foreign_key="companies.id")
-    # Many Employees -> One Company
+    # Reference back to Parent
     company: Mapped["Company"] = relationship(back_populates="employees")
 ```
 
-### Querying Across Relationships
-Eden automatically joins tables when you use the `related__field` syntax.
-
-```python
-# Find employees working at 'Eden Corp'
-# Eden infers the join from Employee to Company automatically
-staff = await Employee.filter(company__name="Eden Corp")
-```
-
----
-
-## Many-to-Many (M2M)
-
-Requires an association table. Eden allows you to manage these collections like standard Python lists.
+### 2. Many-to-Many (N:M)
+Requires an intermediate **Association Table**. Eden manages this link transparently.
 
 ```python
 from sqlalchemy import Table, Column, Integer, ForeignKey
 
-# Association Table
+# The bridge table
 user_groups = Table(
     "user_groups",
     Model.metadata,
@@ -57,103 +67,73 @@ user_groups = Table(
 )
 
 class User(Model):
-    __tablename__ = "users"
     name: Mapped[str] = f()
     groups: Mapped[List["Group"]] = relationship(
         secondary=user_groups, back_populates="users"
     )
 
 class Group(Model):
-    __tablename__ = "groups"
     name: Mapped[str] = f()
     users: Mapped[List["User"]] = relationship(
         secondary=user_groups, back_populates="groups"
     )
 ```
 
-### Managing M2M Collections
+---
+
+## 🚀 Advanced Querying: Automatic Join Inference
+
+Eden's `QuerySet` can "see" through your relationships. You can filter by related model attributes using the `__` separator.
+
 ```python
-user = await User.get(1)
-group = await Group.get(5)
+# Find all employees working for 'Eden Corp'
+# Eden automatically performs the INNER JOIN under the hood
+staff = await Employee.filter(company__name="Eden Corp").all()
 
-# Add to relationship
-await user.groups.append(group)
-
-# Check membership
-if group in await user.groups:
-    print("User is in group")
+# Logic: Find posts written by users with a specific role
+featured_posts = await Post.filter(author__role="editor").all()
 ```
 
 ---
 
-## One-to-One
+## ⚡ Solving the N+1 Problem: Eager Loading
 
-Useful for profiles or settings tables that extend a base model.
+The **N+1 problem** occurs when you load a list of items and then trigger a separate database query for *each* related object. In an async environment, this is catastrophic for performance.
+
+### Loading Strategies
+
+| Strategy | SQLAlchemy Method | Description |
+| :--- | :--- | :--- |
+| **`selectinload`** | `selectinload()` | **Default**. Emits a second bulk query using `IN (...)`. Fast and safe for collections. |
+| **`joinedload`** | `joinedload()` | Uses a `LEFT OUTER JOIN` in the same query. Best for 1:1 or 1:N with few results. |
+| **`subqueryload`** | `subqueryload()` | Emits a subquery to fetch children. Used for complex legacy schemas. |
+
+### Using `.prefetch()`
+Eden's `.prefetch()` helper uses `selectinload` by default.
 
 ```python
-class Profile(Model):
-    __tablename__ = "profiles"
-    bio: Mapped[str] = f()
-    user_id: Mapped[int] = f(foreign_key="users.id", unique=True)
-    
-    # uselist=False makes it One-to-One
-    user: Mapped["User"] = relationship(back_populates="profile", uselist=False)
+# Query 1: Fetch 100 posts
+# Query 2: Fetch all authors for those 100 posts in ONE query
+posts = await Post.query().prefetch("author", "comments").all()
 
-class User(Model):
-    __tablename__ = "users"
-    profile: Mapped["Profile"] = relationship(back_populates="user", uselist=False)
+for post in posts:
+    # This access is now instantaneous (already loaded in memory)
+    print(f"{post.title} by {post.author.name}")
+```
+
+### Deep Prefetching
+Use dot notation to pre-load nested relationships (e.g., `Post` -> `Author` -> `Brand`).
+```python
+results = await Post.query().prefetch("author.brand").all()
 ```
 
 ---
 
-## ⚡ Solving the N+1 Problem
+## 💡 Best Practices
 
-The "N+1 Problem" occurs when you load a list of objects and then access a related object for each one, causing a separate database query for every row.
-
-### The Problem (Slow)
-```python
-# Query 1: Fetch 100 employees
-employees = await Employee.all()
-
-for emp in employees:
-    # Queries 2-101: Fetch company for each employee
-    print(emp.company.name) 
-```
-
-### The Solution: `prefetch` (Fast)
-Eden uses `selectinload` strategy by default when you call `.prefetch()`.
-
-```python
-# Query 1 & 2: Fetches all employees and all their companies in 2 bulk queries
-employees = await Employee.query().prefetch("company").all()
-
-for emp in employees:
-    # No extra database hits!
-    print(emp.company.name)
-```
-
-### Nested Prefetching
-Use dot notation to load deep relationships.
-```python
-# Load Project -> Client -> AccountManager
-projects = await Project.query().prefetch("client.account_manager").all()
-```
-
----
-
-## Recursive Relationships
-
-Useful for categories, folder structures, or "Following" systems.
-
-```python
-class Category(Model):
-    __tablename__ = "categories"
-    name: Mapped[str] = f()
-    parent_id: Mapped[int] = f(foreign_key="categories.id", nullable=True)
-    
-    parent: Mapped["Category"] = relationship(remote_side=[id])
-    subcategories: Mapped[List["Category"]] = relationship()
-```
+1.  **Explicit `back_populates`**: Always define `back_populates` on both sides of a relationship to ensure SQLAlchemy's identity map remains consistent.
+2.  **Default to `selectinload`**: For async applications, `selectinload` is almost always the most efficient choice as it avoids the massive result-set multiplication of `joinedload`.
+3.  **Unique Constraints for 1:1**: On a One-to-One relationship, always ensure the foreign key column is marked as `unique=True` in the child model.
 
 ---
 

@@ -1,10 +1,32 @@
-# Background Tasks ⚙️
+# ⚙️ Background Tasks & Distributed Workers
 
-Eden offloads long-running or periodic processes to a background worker system powered by **Taskiq** and the **EdenBroker**. This enables you to maintain a fast, responsive UI by deferring heavy computations, email sending, or data processing to a dedicated worker.
+**Eden offloads heavy processes and recurring logic to a high-performance worker system powered by Taskiq and the EdenBroker. Maintain a snappy UI while Eden handles the heavy lifting in the background.**
 
-## Configuration
+---
 
-Eden uses a "Broker" to manage the task queue. We recommend **Redis** for production and an **In-Memory** broker for local development.
+## 🧠 Conceptual Overview
+
+In a modern web application, responsiveness is paramount. Eden enables you to maintain a snappy UI by deferring long-running computations, email sending, or data processing to a dedicated background worker—with full support for Dependency Injection and distributed coordination.
+
+### The Task Lifecycle
+
+```mermaid
+graph TD
+    A["Request Handler"] -->|"defer"| B[EdenBroker]
+    B -->|"serialize"| C{"Redis / Broker"}
+    C -->|"pull"| D["Eden Worker"]
+    D -->|"resolve deps"| E["Execute Task"]
+    E -->|"result"| F["TaskResult Store"]
+    E -->|"error"| G{"Retry Strategy"}
+    G -- "Retry Available" --> C
+    G -- "Exhausted" --> H["Dead-Letter Queue"]
+```
+
+---
+
+## 🏗️ Core Architecture: The EdenBroker
+
+Eden uses a "Broker" to manage the task queue. We recommend **Redis** for production and an **In-Memory** broker for local development/testing.
 
 ```python
 from eden import Eden, create_broker
@@ -18,180 +40,100 @@ app.task = create_broker()
 app.task = create_broker(redis_url="redis://localhost:6379")
 ```
 
-## Defining & Invoking Tasks
+---
 
-Tasks are simple Python functions decorated with `@app.task()`.
+## 🚀 Defining & Invoking Tasks
+
+Tasks are simple Python functions decorated with `@app.task()`. Eden's **Dependency Injection** system is fully available within tasks, mirroring the experience of writing request handlers.
 
 ### 1. Define the Task
 ```python
+from eden import Depends
+from app.services import MailService
+
 @app.task()
-async def send_welcome_email(user_id: int):
-    user = await User.get(id=user_id)
-    # ... expensive logic ...
-    print(f"Welcome email sent to {user.email}")
+async def send_welcome_email(user_id: int, mailer: MailService = Depends()):
+    # Logic is executed in the background worker
+    user = await User.get(user_id)
+    await mailer.send_welcome(user.email)
 ```
 
 ### 2. Invoke the Task
-There are two ways to trigger a task:
-
-#### The `.kiq()` method (Standard)
-```python
-# Triggers the task in the background worker
-await send_welcome_email.kiq(user.id)
-```
-
-#### The `defer()` helper (Clean API)
-```python
-# A more readable way to send a task to the queue
-await app.task.defer(send_welcome_email, user.id)
-```
-
-## Periodic & Scheduled Tasks 🕰️
-
-Eden makes scheduling recurring tasks a first-class citizen with the `.every()` decorator.
+Trigger your tasks using the `.kiq()` method (from Taskiq) or Eden's shorthand API.
 
 ```python
-# Every 1 minute
-@app.task.every(minutes=1)
-async def check_alerts():
-    ...
+# Shorthand (Recommended)
+await app.task.defer(send_welcome_email, user_id=123)
 
-# Every night at midnight (Standard Cron)
-@app.task.every(cron="0 0 * * *")
-async def daily_report():
-    ...
-
-# Every 30 seconds
-@app.task.every(seconds=30)
-async def heartbeat():
-    ...
-```
-
-### Delaying Tasks
-To run a task after a specific delay (in seconds):
-
-```python
-# Remind the user in 1 hour (3600 seconds)
-await app.task.schedule(send_reminder, delay=3600, user_id=42)
-```
-
-## Running the Workers
-
-To execute your background tasks, you must run the Eden worker process in a separate terminal:
-
-```bash
-# Run 4 parallel worker processes
-eden tasks worker --workers 4
-```
-
-For scheduled tasks (`.every()` or delayed tasks), you also need to run the scheduler:
-
-```bash
-eden tasks scheduler
-```
-
-## Lifecycle & Synergies
-
-### The "Killer" Loop: Task -> WebSocket
-A common pattern in Eden is to kick off a task and have it notify the user via WebSockets when finished.
-
-```python
-@app.task()
-async def process_video(video_id: int, user_id: int):
-    # 1. Heavy processing...
-    await do_processing(video_id)
-    
-    # 2. Notify the user instantly via WebSocket
-    from eden.websocket import connection_manager
-    await connection_manager.broadcast(
-        {"event": "video_ready", "id": video_id},
-        room=f"user_{user_id}"
-    )
+# With Delay (Schedule for 60 seconds from now)
+await app.task.schedule(send_welcome_email, delay=60, user_id=123)
 ```
 
 ---
 
-## 🛡️ Error Handling & Retries
+## 🕰️ Periodic & Scheduled Tasks
 
-Background tasks can sometimes fail due to external network issues or database locks. Eden allows you to define retry policies to make your tasks resilient.
+Eden makes scheduling recurring tasks a first-class citizen with the `.every()` decorator. It supports intervals and standard **Cron expressions**.
+
+```python
+# Run every 5 minutes
+@app.task.every(minutes=5)
+async def check_inventory():
+    ...
+
+# Run every night at midnight (Standard Cron)
+@app.task.every(cron="0 0 * * *")
+async def generate_daily_reports():
+    ...
+```
+
+### 🛡️ Distributed Coordination
+When scaling horizontally across multiple servers, you don't want your periodic tasks to run N times. Eden's `PeriodicTask` engine uses **distributed locks** (via Redis) to ensure only one instance of your app executes a scheduled task per interval.
+
+---
+
+## 🔁 Resiliency: Retries & Dead-Letter Queue
+
+Background tasks can sometimes fail due to network issues or external API downtime. Eden provides a resilient execution loop with **Exponential Backoff**.
 
 ### Automatic Retries
 ```python
 @app.task(
-    retries=3,          # Retry up to 3 times
-    retry_on=[TimeoutError, NetworkError], # Only retry on these errors
-    delay=5             # Wait 5 seconds between retries
+    max_retries=5,                # Total attempts
+    retry_delays=[1, 2, 4, 8, 16], # Delays in seconds
+    exponential_backoff=True      # Multiplies delay by 2 on each fail
 )
-async def fetch_external_data(api_url: str):
-    # Logic...
+async def fetch_api_stats():
+    ...
 ```
 
-### Manual Retry Logic
-You can also trigger a retry manually from within the task based on custom logic.
-
-```python
-from taskiq import TaskiqRetry
-
-@app.task()
-async def provision_server(server_id: int):
-    status = await check_status(server_id)
-    if status != "ready":
-        # Raise this to put the task back in the queue
-        raise TaskiqRetry("Server not ready yet, retrying...")
-```
+### The Dead-Letter Queue (DLQ)
+When a task exhausts all its retries, it enters the **Dead-Letter Queue**.
+-   **Traceback Tracking**: Captures the full Python traceback and error message.
+-   **Correlation ID**: Automatically propagates the `correlation_id` from the original web request, allowing you to trace the lifecycle of a request from the UI down to the worker logs.
+-   **Monitoring**: Query the DLQ via `app.task._result_backend.get_dead_letter_tasks()`.
 
 ---
 
-## 📊 Task Results & Monitoring
+## 📊 Monitoring & Task Results
 
-Sometimes you need to know what a task returned or if it succeeded.
+Every execution is tracked in the `TaskResult` store, allowing you to monitor the health of your background processes.
 
-### Fetching Results
-To get the return value of a task, ensure you use the Redis broker as it stores task results.
-
-```python
-# 1. Dispatch the task
-task_handle = await app.task.defer(heavy_calc, 10, 20)
-
-# 2. Wait for the result (in a route or another task)
-result = await task_handle.wait_result(timeout=10.0)
-print(f"Computed value: {result.return_value}")
-```
-
-### Result Persistence
-By default, results are kept for 24 hours in Redis. You can configure this in your `EDEN_SETTINGS` to store them longer for auditing.
+| Field | Description |
+| :--- | :--- |
+| **`status`** | `pending`, `success`, `failed`, or `dead_letter`. |
+| **`result`** | The JSON-serialized return value of the task. |
+| **`correlation_id`** | Link between the task and the request that spawned it. |
+| **`retries`** | The number of times the task was retried before completing. |
 
 ---
 
-## 🛠️ Advanced: Progress Tracking
-For very long tasks, you can report progress that the UI can pick up via WebSockets.
+## 💡 Best Practices
 
-```python
-@app.task()
-async def import_csv(file_id: int):
-    rows = await load_csv(file_id)
-    total = len(rows)
-    
-    for i, row in enumerate(rows):
-        await process_row(row)
-        
-        # Report progress every 10%
-        if i % (total // 10) == 0:
-            await app.ws.broadcast(
-                {"event": "import_progress", "percent": (i/total)*100},
-                room=f"file_{file_id}"
-            )
-```
-
----
-
-## Best Practices
-
-- ✅ **Small Arguments**: Pass IDs (like `user_id`) instead of large objects. Let the worker fetch the data it needs.
-- ✅ **Atomic Tasks**: Ensure your tasks are idempotent (safe to run multiple times if retried).
-- ✅ **Redis for Production**: Always use the Redis broker in production to handle persistence and concurrency.
-- ✅ **Monitor Logs**: Use `eden worker --debug` during development to see task output in real-time.
-- ✅ **Timeout Control**: Use `timeout` in your `.kiq()` calls to prevent tasks from hanging forever.
+1.  **Idempotency**: Ensure your tasks are safe to run multiple times. If a task fails halfway through, a retry should not create duplicate side effects.
+2.  **Pass IDs, Not Objects**: Instead of `send_email(user_obj)`, use `send_email(user_id)`. Large objects increase serialization overhead and may contain stale data.
+3.  **Keep Payloads Small**: Broker memory is valuable. Avoid passing large binary blobs or excessive JSON as task arguments.
+4.  **Graceful Shutdown**: Eden's `shutdown` lifecycle automatically waits for active tasks to complete before killing the worker process.
 
 ---
 

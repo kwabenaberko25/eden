@@ -10,6 +10,7 @@ async def test_session_middleware_not_present_without_secret():
         title = "Eden"
         version = "0.1.0"
         debug = False
+        browser_reload = False
 
     app = Eden(secret_key=None, config=MockConfig())
     await app.build()
@@ -25,7 +26,8 @@ async def test_session_middleware_not_present_without_secret():
 @pytest.mark.asyncio
 async def test_session_middleware_present_with_secret(monkeypatch):
     """Verify that sessions/csrf ARE added if secret_key is present."""
-    monkeypatch.setenv("EDEN_ENV", "production")
+    monkeypatch.setenv("EDEN_ENV", "prod")
+    monkeypatch.setenv("SECRET_KEY", "some-prod-secret")
     app = Eden(secret_key="some-secret")
     await app.build()
     

@@ -1,217 +1,137 @@
-# Role-Based Access Control (RBAC) 👑
+# 👑 Role-Based Access Control (RBAC)
 
-Eden provides a granular, tenant-aware permission system that allows you to secure your application at the role and permission levels — across both backend routes and frontend templates.
-
-## Roles vs. Permissions
-
-- **Roles**: Broad categories of users (e.g., `admin`, `manager`, `editor`).
-- **Permissions**: Specific atomic actions a user can perform (e.g., `can_delete_post`, `can_publish`).
-
-In Eden, roles typically act as containers for permissions.
+**Granular, tenant-aware identity management. Eden provides a high-security access control system that allows you to secure your SaaS architecture at the role and permission levels—across both backend routes and frontend templates.**
 
 ---
 
-## Defining a Role Hierarchy
+## 🧠 Conceptual Overview
 
-You can define a hierarchy where higher roles automatically inherit permissions from lower roles.
+Eden’s RBAC system is built for Enterprise SaaS. It supports hierarchical roles (where an "Admin" automatically inherits "User" permissions) and understands that in a multi-tenant world, a user’s role changes depending on which Organization they are currently viewing.
 
-```python
-from eden.auth import RoleHierarchy
+### The Security Handshake
 
-hierarchy = RoleHierarchy({
-    "superadmin": ["admin", "manager", "user"],
-    "admin": ["manager", "user"],
-    "manager": ["user"],
-    "user": []
-})
-
-# Attach to app state
-app.state.role_hierarchy = hierarchy
+```mermaid
+graph TD
+    A["Request to /admin/settings"] --> B["Eden: Auth Middleware"]
+    B --> C{"Authenticated?"}
+    C -- "Yes" --> D["Eden: RBAC Decorator"]
+    D --> E{"User is Superuser?"}
+    E -- "Yes" --> F["Access Granted: God Mode"]
+    E -- "No" --> G["Fetch Tenant-Scoped Roles"]
+    G --> H["Resolve Role Hierarchy"]
+    H --> I{"Permission Found?"}
+    I -- "Yes" --> J["Access Granted"]
+    I -- "No" --> K["Reject: 403 Forbidden"]
 ```
 
 ---
 
-## Securing Routes
+## 🏗️ Hierarchy & Permissions
 
-### The `@roles_required` Decorator
-
-Requires the user to have **all** of the specified roles.
+Define your domain-specific roles and their inheritance relationships. Inheritance simplifies management by allowing higher roles to naturally perform the actions of lower ones.
 
 ```python
-from eden.auth import roles_required
+from eden.auth import EdenRBAC
 
-@app.get("/admin/settings")
-@roles_required(["admin"])
-async def admin_settings(request):
-    return render_template("admin/settings.html")
+rbac = EdenRBAC()
+
+# 1. Define Hierarchy (Role, Parents - roles it inherits FROM)
+rbac.add_role("user")
+rbac.add_role("editor", parents=["user"])
+rbac.add_role("admin", parents=["editor", "user"])
+
+# 2. Assign Atomic Permissions
+rbac.add_permission("user", "view_posts")
+rbac.add_permission("editor", "create_posts")
+rbac.add_permission("admin", "delete_posts")
+
+# 'admin' now has all 3 permissions
 ```
 
-### The `@permissions_required` Decorator
+---
 
-Requires the user to have **all** of the specified permissions.
+## 🚀 Securing Backend Routes
 
+Eden provides a suite of decorators designed for readability and reliability. They automatically handle the current request context and support both function-based views and class-based views.
+
+### 1. Simple Role Guards
 ```python
-from eden.auth import permissions_required
+from eden.auth import require_role, roles_required
 
-@app.post("/posts/{id}/delete")
-@permissions_required(["can_delete_posts"])
-async def delete_post(request, id: int):
-    post = await Post.get(id)
-    await post.delete()
-    return redirect("/posts")
-```
-
-### The `@require_any_role` Decorator
-
-Grants access if the user has **at least one** of the listed roles.
-
-```python
-from eden.auth import require_any_role
-
-@app.get("/reports")
-@require_any_role(["admin", "analyst", "manager"])
-async def view_reports(request):
-    ...
-```
-
-### The `@require_any_permission` Decorator
-
-Grants access if the user has **at least one** of the listed permissions.
-
-```python
-from eden.auth import require_any_permission
-
-@app.post("/content")
-@require_any_permission(["create_posts", "edit_posts"])
-async def manage_content(request):
-    ...
-```
-
-### Single Shorthand: `@require_role` and `@require_permission`
-
-When you only need to check a single role or permission:
-
-```python
-from eden.auth import require_role, require_permission
-
-@app.get("/admin")
+@app.get("/admin/logs")
 @require_role("admin")
-async def admin_only(request):
-    ...
+async def view_logs(request):
+    return {"logs": "..."}
 
-@app.delete("/users/{id}")
-@require_permission("delete_users")
-async def delete_user(request, id: int):
+# Requires multiple roles
+@app.get("/billing")
+@roles_required(["admin", "billing_manager"])
+async def billing_view(request):
     ...
 ```
 
-### Superuser Bypass
-
-All role-based and permission-based decorators automatically grant access when `user.is_superuser` evaluates to `True`. This prevents accidental lockout and simplifies development.
-
-### CBV Support via `@view_decorator`
-
-Apply auth decorators to all methods of a Class-Based View:
+### 2. Fine-Grained Permission Guards
+Avoid hardcoding roles in your logic. Instead, check for specific *permissions*. This makes your code more resilient to role structure changes.
 
 ```python
-from eden.auth import login_required, roles_required, view_decorator
-from eden.routing import View
+from eden.auth import require_permission, permissions_required
+
+@app.post("/posts/delete/{id}")
+@require_permission("delete_posts")
+async def delete_post(request, id: int):
+    ...
+```
+
+### 3. Class-Based View (CBV) Protection
+Secure an entire resource by applying decorators to the class.
+
+```python
+from eden.auth import view_decorator, roles_required
 
 @view_decorator(roles_required(["admin"]))
-class AdminView(View):
+class AdminPanel(View):
     async def get(self, request):
-        return {"panel": "admin"}
-
+        return app.render("admin.html")
+        
     async def post(self, request):
-        # Also protected by roles_required
+        # Also protected automatically
         ...
 ```
 
-> [!IMPORTANT]
-> All decorators use `_find_request()` internally to locate the Request object in both function-based views and CBVs. This means they work transparently regardless of view type.
-
 ---
 
-## Tenant-Aware RBAC
+## ⚡ Tenant-Aware RBAC
 
-In multi-tenant applications, a user may have different roles in different tenants. Eden's decorators automatically resolve tenant-scoped roles when the current tenant context is set.
-
-### How It Works
-
-1. The `TenantMiddleware` sets the current tenant on each request.
-2. When a decorator checks roles, it calls `_get_tenant_roles(user)` which:
-   - First checks for `user.get_roles_for_tenant(tenant_id)` method
-   - Falls back to `user.tenant_roles` attribute
-   - Falls back to `user.roles` (flat list)
-
-### Implementation
+In SaaS, a user is rarely "just an Admin." They are an "Admin of Organization A" but perhaps only a "Member of Organization B." Eden's guards automatically call `request.user.get_roles_for_tenant(tenant_id)` to resolve roles in context.
 
 ```python
-from eden.db import Model
-
+# In your User model
 class User(Model):
     async def get_roles_for_tenant(self, tenant_id: str) -> list[str]:
-        """Return roles scoped to this specific tenant."""
-        memberships = await TenantMembership.filter(
-            user_id=self.id,
-            tenant_id=tenant_id
-        )
-        return [m.role for m in memberships]
-
-    async def get_permissions_for_tenant(self, tenant_id: str) -> list[str]:
-        """Return permissions scoped to this specific tenant."""
-        roles = await self.get_roles_for_tenant(tenant_id)
-        perms = set()
-        for role in roles:
-            role_perms = await RolePermission.filter(role=role)
-            perms.update(p.permission for p in role_perms)
-        return list(perms)
+        # Fetch role from memberships table
+        membership = await Membership.get_by(user_id=self.id, tenant_id=tenant_id)
+        return [membership.role] if membership else []
 ```
 
 ---
 
-## Dynamic Checks in Logic
+## 🎨 RBAC in Templates
 
-Sometimes decorators aren't enough, and you need to check permissions inside your function body.
+Eden’s templating engine provides semantic directives for controlling your UI based on identity.
 
-```python
-async def update_profile(request):
-    user = request.user
-
-    # Superuser bypass
-    if user.is_superuser:
-        ...
-
-    # Check if user can edit this specific profile
-    if not user.has_permission("can_edit_others"):
-        raise PermissionDenied("Access Denied")
-```
-
----
-
-## Usage in Templates
-
-Eden's templating engine provides RBAC-aware directives for controlling UI elements:
-
-### `@can` / `@cannot` Directives
-
+### `@can` / `@cannot` (Permissions)
 ```html
 @can("delete_posts") {
-    <button class="btn-danger">Delete Post</button>
-}
-
-@cannot("view_admin") {
-    <div class="alert alert-warning">
-        You do not have access to this feature.
-    </div>
+    <button class="btn btn-danger" hx-delete="/posts/{{ post.id }}">
+        Delete Post
+    </button>
 }
 ```
 
-### Role-Based Rendering
-
+### `@auth` / `@guest` (Status & Role)
 ```html
 @auth("admin") {
-    <a href="/admin" class="nav-link">Admin Panel</a>
+    <a href="/admin">Admin Dashboard</a>
 }
 
 @guest {
@@ -219,48 +139,30 @@ Eden's templating engine provides RBAC-aware directives for controlling UI eleme
 }
 ```
 
-> [!TIP]
-> `@can` checks `request.user.has_permission()` while `@auth` checks `request.user.role`. Use `@can` for fine-grained permission checks and `@auth` for role-based UI sections.
+---
+
+## 📄 API Reference
+
+### RBAC Decorators
+
+| Decorator | Description |
+| :--- | :--- |
+| `@require_role` | Checks for a single role. |
+| `@require_permission` | Checks for a single permission. |
+| `@roles_required` | User must have **all** listed roles. |
+| `@permissions_required` | User must have **all** listed permissions. |
+| `@require_any_role` | User must have **at least one** listed role. |
+
+### Superuser Bypass
+All checks include a "God Mode" bypass. If `request.user.is_superuser` is `True`, all decorators automatically grant access. This is essential for administrative troubleshooting.
 
 ---
 
-## Row-Level Security (RLS)
+## 💡 Best Practices
 
-A common pattern is restricting a query based on the user's role.
-
-```python
-async def list_documents(request):
-    query = Document.query()
-
-    # Non-admins only see their own documents
-    if not request.user.has_role("admin"):
-        query = query.filter(owner_id=request.user.id)
-
-    documents = await query.all()
-    return render_template("docs.html", documents=documents)
-```
-
----
-
-## Complete Decorator Reference
-
-| Decorator | Behavior | CBV Support |
-| :--- | :--- | :--- |
-| `@login_required` | Requires authenticated user | ✅ |
-| `@roles_required(["..."])` | Requires **all** listed roles | ✅ |
-| `@permissions_required(["..."])` | Requires **all** listed permissions | ✅ |
-| `@require_role("...")` | Requires a single role | ✅ |
-| `@require_permission("...")` | Requires a single permission | ✅ |
-| `@require_any_role(["..."])` | Requires **any one** of the listed roles | ✅ |
-| `@require_any_permission(["..."])` | Requires **any one** of the listed permissions | ✅ |
-| `@view_decorator(dec)` | Applies any decorator to all CBV methods | ✅ |
-| `@bind_user_principal` | Attaches user to request from auth backend | ✅ |
-
-All decorators support:
-
-- **Superuser bypass** (`user.is_superuser`)
-- **Tenant-aware resolution** (via `_get_tenant_roles` / `_get_tenant_permissions`)
-- **CBV via `_find_request`** (automatically finds Request in args/kwargs)
+1.  **Prefer Permissions over Roles**: Check for `@can("edit_settings")` rather than `@auth("admin")`. This allows you to create custom roles later without changing your code.
+2.  **Audit Logs**: Use Eden’s `telemetry` features to log whenever a permission check fails—this is an early warning sign for potential security probes.
+3.  **Fail-Secure**: Eden’s decorators return a `403 Forbidden` response by default if any check fails, ensuring your application remains "Secure by Default."
 
 ---
 

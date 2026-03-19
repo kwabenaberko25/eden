@@ -14,16 +14,39 @@ Eden's templating engine is a state-of-the-art templating system designed for ma
 
 ---
 
+## The Architecture
+Eden uses a custom lexer and parser to transform a clean, developer-friendly `@directive` syntax into optimized Jinja2 bytecode. This allows for a "Modern Web" feel without sacrificing the performance of a mature engine.
+
+```mermaid
+graph TD
+    A["Raw Template (.html)"] --> B["Eden Lexer"]
+    B --> C["Eden Parser"]
+    C --> D["Jinja2 Bytecode"]
+    D --> E["Rendered HTML"]
+    
+    subgraph "Extensions & Context"
+        F["@eden_head / @eden_scripts"]
+        G["HTMX Fragment Extraction"]
+        H["Dependency Injection (@inject)"]
+    end
+    
+    F -.-> D
+    G -.-> D
+    H -.-> D
+```
+
+---
+
 ## Table of Contents
 
 1. [Rendering Templates](#rendering-templates)
 2. [Quick Start Guide](#quick-start-guide)
 3. [Control Flow Directives](#control-flow-directives)
-4. [Design System & Assets](#design-system-assets)
-5. [HTMX & Fragments](#htmx-fragments)
-6. [Global Variables & Helpers](#global-variables-and-helpers)
+4. [Design System and Assets](#design-system-and-assets)
+5. [HTMX and Fragments](#htmx-and-fragments)
+6. [Global Variables and Helpers](#global-variables-and-helpers)
 7. [Filters Reference](#filters-reference)
-8. [Advanced Component Patterns](#advanced-component-patterns)
+8. [Component Patterns](#component-patterns)
 
 ---
 
@@ -97,6 +120,7 @@ A cleaner way to handle user states:
 }
 ```
 
+## Form Logic Integration
 ### Looping & Iteration
 Eden's `@for` loop includes an optional `@empty` block for graceful empty states.
 
@@ -114,7 +138,7 @@ Eden's `@for` loop includes an optional `@empty` block for graceful empty states
 
 ---
 
-## Design System & Assets
+## Design System and Assets
 
 Eden injects a premium design system by default. Use the `@eden_head` and `@eden_scripts` directives to activate it.
 
@@ -149,7 +173,7 @@ Eden provides filters to quickly apply brand-consistent styling.
 
 ---
 
-## HTMX & Fragments
+## HTMX and Fragments
 
 ### Auto-Fragment Swaps
 
@@ -161,11 +185,32 @@ Eden eliminates the need for manual partial templates. Wrap dynamic regions in `
         <span>{{ total_users }} Users Online</span>
     }
 </div>
-
+|
 <button hx-get="/refresh" hx-target="#user-count">
     Update Count
 </button>
 ```
+
+---
+
+### How it Works (Visualized)
+
+When an HTMX request comes in with an `HX-Target` header matching a fragment name, Eden intercepts the render and extracts only that specific node.
+
+```mermaid
+sequenceDiagram
+    participant B as "Browser (HTMX)"
+    participant E as "Eden Server"
+    participant T as "Template Engine"
+
+    B->>E: "GET /refresh (HX-Target: 'count')"
+    E->>T: "render template.html"
+    T->>T: "Detect fragment 'count'"
+    T-->>E: "Return HTML node"
+    E-->>B: "200 OK"
+```
+
+---
 
 ---
 
@@ -192,7 +237,7 @@ Eden eliminates the need for manual partial templates. Wrap dynamic regions in `
 
 ---
 
-## Advanced Component Patterns
+## Component Patterns
 
 ### Elite Pattern: The Data Table
 
@@ -240,6 +285,7 @@ Data tables often require complex logic. Combine `@for`, `@empty`, and `@fragmen
         </table>
     </div>
 }
+```
 
 ---
 
@@ -621,8 +667,8 @@ Apply Eden's premium design tokens directly.
 <div class="{{ 'primary' | eden_bg }}">
     Primary Background
 </div>
-```
 
+```html
 {{ 'success' | eden_bg }}  <!-- Output: bg-emerald-600 -->
 {{ 'danger' | eden_bg }}  <!-- Output: bg-red-600 -->
 <section class="{{ status | eden_bg }}">
@@ -638,8 +684,8 @@ Apply Eden's premium design tokens directly.
 <card class="{{ 'md' | eden_shadow }}">
     Medium shadow
 </card>
-```
 
+```html
 <box class="{{ 'lg' | eden_shadow }}">
     Large shadow card
 </box>
@@ -732,6 +778,137 @@ Eden automatically injects several useful variables and helper functions into ev
 1.  **Use Brace Syntax**: Always prefer `@if(cond) { ... }` over legacy `{% if %}` for consistency with the Eden design philosophy.
 2.  **Leverage Fragments**: Design your pages with `@fragment` markers to enable seamless HTMX transitions without writing extra view logic.
 3.  **Type-Safe URLs**: Always use `@url('route_name')` to avoid broken links during refactoring.
+
+---
+
+## The Master-Detail Pattern: `@push` & `@stack`
+
+One of Eden's most powerful features is the ability to "push" content from a child template or component into a "stack" defined in a master layout. This is essential for managing per-page scripts, styles, or meta tags.
+
+### 1. Define a Stack in Layout
+```html
+<!-- layouts/app.html -->
+<head>
+    @eden_head
+    @stack("custom_css")
+</head>
+<body>
+    @yield("content")
+    @eden_scripts
+    @stack("page_scripts")
+</body>
+```
+
+### 2. Push from a Component or Page
+```html
+<!-- profile.html -->
+@extends("layouts/app")
+
+@section("content") {
+    <h1>User Profile</h1>
+    @push("page_scripts") {
+        <script>console.log("Profile page loaded!");</script>
+    }
+}
+```
+
+> [!IMPORTANT]
+> Use `@pushOnce("name")` to ensure that even if a component is rendered multiple times, its scripts are only pushed to the stack once.
+
+---
+
+## API Reference
+
+### `render_template(template_name, **context)`
+The primary entry point for rendering HTML.
+
+*   **`template_name`**: Path relative to the `templates/` directory.
+*   **`**context`**: Key-value pairs to pass to the template.
+*   **Returns**: A `Response` object that Starlette can handle.
+*   **Note**: Automatically injects `request`, `user`, `messages`, and `current_tenant`.
+
+### `EdenTemplates` (Class)
+The underlying engine wrapper (extends `Jinja2Templates`).
+
+| Method | Description |
+| :--- | :--- |
+| `render(request, name, context)` | Manual render call (preferred over `TemplateResponse`). |
+| `get_template(name)` | Retrieves a raw Jinja2 template object. |
+| `env.globals` | Access to registered global helpers. |
+| `env.filters` | Access to available data transformation filters. |
+
+### Global Constants
+| Constant | Description |
+| :--- | :--- |
+| `HTMX_VERSION` | Current version of HTMX injected by `@eden_scripts`. |
+| `TAILWIND_VERSION` | Current version of Tailwind loaded by `@eden_head`. |
+| `ALPINE_VERSION` | Current version of Alpine.js injected. |
+
+
+---
+
+## The Master-Detail Pattern: `@push` & `@stack`
+
+One of Eden's most powerful features is the ability to "push" content from a child template or component into a "stack" defined in a master layout. This is essential for managing per-page scripts, styles, or meta tags.
+
+### 1. Define a Stack in Layout
+```html
+<!-- layouts/app.html -->
+<head>
+    @eden_head
+    @stack("custom_css")
+</head>
+<body>
+    @yield("content")
+    @eden_scripts
+    @stack("page_scripts")
+</body>
+```
+
+### 2. Push from a Component or Page
+```html
+<!-- profile.html -->
+@extends("layouts/app")
+
+@section("content") {
+    <h1>User Profile</h1>
+    @push("page_scripts") {
+        <script>console.log("Profile page loaded!");</script>
+    }
+}
+```
+
+> [!IMPORTANT]
+> Use `@pushOnce("name")` to ensure that even if a component is rendered multiple times, its scripts are only pushed to the stack once.
+
+---
+
+## API Reference
+
+### `render_template(template_name, **context)`
+The primary entry point for rendering HTML.
+
+*   **`template_name`**: Path relative to the `templates/` directory.
+*   **`**context`**: Key-value pairs to pass to the template.
+*   **Returns**: A `Response` object that Starlette can handle.
+*   **Note**: Automatically injects `request`, `user`, `messages`, and `current_tenant`.
+
+### `EdenTemplates` (Class)
+The underlying engine wrapper (extends `Jinja2Templates`).
+
+| Method | Description |
+| :--- | :--- |
+| `render(request, name, context)` | Manual render call (preferred over `TemplateResponse`). |
+| `get_template(name)` | Retrieves a raw Jinja2 template object. |
+| `env.globals` | Access to registered global helpers. |
+| `env.filters` | Access to available data transformation filters. |
+
+### Global Constants
+| Constant | Description |
+| :--- | :--- |
+| `HTMX_VERSION` | Current version of HTMX injected by `@eden_scripts`. |
+| `TAILWIND_VERSION` | Current version of Tailwind loaded by `@eden_head`. |
+| `ALPINE_VERSION` | Current version of Alpine.js injected. |
 
 ### @checked - Boolean Checkbox States
 
@@ -1538,8 +1715,9 @@ Building admin interfaces is a core use case. Let's create a production-ready da
                     }
                 </tbody>
             </table>
-        </div>
-        
+            }
+}
+```
 ## Pagination and Navigation
 
 Eden integrates seamlessly with complex navigation patterns. Use components for reusable pagination logic.
@@ -1642,7 +1820,7 @@ async def admin_products_list(request):
 
 ```
 
---## Advanced Directives & Loop Control
+## Advanced Directives & Loop Control
 
 These directives provide fine-grained control over template execution and state management.
 

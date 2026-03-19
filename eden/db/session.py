@@ -1,7 +1,7 @@
 import contextlib
 import contextvars
 import logging
-from typing import Any, AsyncGenerator, Dict, Optional, Type, Union
+from typing import Any, AsyncGenerator, AsyncIterator, Callable, Dict, Optional, Type, Union
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
@@ -94,84 +94,94 @@ class Database:
         return getattr(self.engine, name)
 
     @contextlib.asynccontextmanager
-    async def transaction(self, isolation_level: Optional[str] = None) -> AsyncGenerator[AsyncSession, None]:
+    async def transaction(
+        self, isolation_level: Optional[str] = None, session: Optional[AsyncSession] = None
+    ) -> AsyncIterator[AsyncSession]:
         """
-        Context manager for explicit transaction handling.
+        Context manager for database transactions.
         Automatically commits on successful exit, rolls back on exception.
+        Supports nested transactions via savepoints if an existing session is in context.
         
         Args:
             isolation_level: Optional transaction isolation level 
                             (e.g., 'SERIALIZABLE', 'READ COMMITTED').
+            session: Optional existing session to join.
         """
+        # 1. Try to join provided or existing session if no isolation level is required
+        target_session = session or get_session()
+        if target_session and not isolation_level:
+            # If the session is already in a transaction, we just join it and flush on exit.
+            # If it's not, we start a transaction and we MUST manage its lifecycle.
+            is_owner = False
+            if not target_session.in_transaction():
+                await target_session.begin()
+                is_owner = True
+
+            try:
+                yield target_session
+                # Ensure changes are flushed before exiting to capture errors early
+                await target_session.flush()
+                if is_owner:
+                    await target_session.commit()
+            except Exception:
+                if is_owner:
+                    await target_session.rollback()
+                raise
+            return
+
+        # 2. Handle explicit isolation level (requires separate connection/session)
         if isolation_level:
-            # We must create a session with a bind that has the isolation level set.
-            # Cache the branched engine to avoid redundant creation.
             if isolation_level not in self._engine_cache:
                 self._engine_cache[isolation_level] = self.engine.execution_options(
                     isolation_level=isolation_level
                 )
             
             engine = self._engine_cache[isolation_level]
-            session = AsyncSession(engine, expire_on_commit=False)
-        else:
-            # Use standard session context manager logic but manually enter
-            async with self.session() as session:
-                try:
-                    yield session
-                    await session.commit()
-                except Exception:
-                    await session.rollback()
-                    raise
-                return
+            new_session = AsyncSession(engine, expire_on_commit=False)
+            
+            try:
+                async with new_session:
+                    yield new_session
+                    await new_session.commit()
+            except Exception:
+                await new_session.rollback()
+                raise
+            return
 
-        # Explicitly entered session for isolation_level
-        try:
-            async with session:
-                yield session
-                await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
+        # 3. Standard case: New session and transaction
+        async with self.session() as session:
+            # We also need to set this session in context so nested calls can find it
+            token = set_session(session)
+            try:
+                # Start transaction explicitly so outer call owns it
+                async with session.begin():
+                    yield session
+            except Exception:
+                # SQLAlchemy's async with session.begin() handles rollback
+                raise
+            finally:
+                reset_session(token)
 
     @contextlib.asynccontextmanager
-    async def savepoint(self, name: str = "sp1") -> AsyncGenerator[AsyncSession, None]:
+    async def savepoint(self, session: Optional[AsyncSession] = None) -> AsyncIterator[AsyncSession]:
         """
-        Context manager for nested transactions (savepoints).
-        Useful for rolling back parts of a transaction without losing the entire transaction.
-        
-        Usage:
-            async with db.transaction() as session:
-                user = await User.create(session, name="Alice")
-                
-                try:
-                    async with db.savepoint("sp1") as sp_session:
-                        await user.delete(sp_session)
-                        # This will rollback if exception occurs
-                except Exception:
-                    # User still exists because savepoint rolled back
-                    pass
+        Creates a savepoint within the current transaction.
         
         Args:
-            name: Unique name for this savepoint (default: "sp1")
-        
-        Raises:
-            Any exception will trigger savepoint rollback.
+            session: Optional existing session to use.
         """
-        current_session = get_session()
-        if current_session is None:
+        target_session = session or get_session()
+        if not target_session:
             raise RuntimeError(
                 "Savepoint requires an active transaction context. "
-                "Use: async with db.transaction() as session: await db.savepoint() ..."
+                "Use: async with db.transaction() as session: ... await db.savepoint() ..."
             )
         
-        # SQLAlchemy savepoint
-        savepoint = await current_session.begin_nested()
-        try:
-            yield current_session
-            await savepoint.commit()
-        except Exception:
-            await savepoint.rollback()
-            raise
+        # Explicit begin_nested for savepoints
+        async with target_session.begin_nested():
+            yield target_session
+            # Ensure it flushes before exit to capture changes in identifiers/counts
+            await target_session.flush()
 
     async def atomic(self, func: Any, *args: Any, **kwargs: Any) -> Any:
         """
@@ -192,11 +202,11 @@ class Database:
             Any exception from the function (transaction auto-rolls back)
         """
         async with self.transaction() as session:
-            set_session(session)
+            token = set_session(session)
             try:
                 return await func(*args, **kwargs)
             finally:
-                reset_session()
+                reset_session(token)
 
 
 def set_session(session: AsyncSession) -> contextvars.Token:

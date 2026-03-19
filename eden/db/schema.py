@@ -543,10 +543,27 @@ class ValidationScanner:
     """Discovers validation rules from model attributes."""
     
     @classmethod
+    def _is_numeric_attr(cls, attr: Any) -> bool:
+        """Check if attribute represents a numeric field."""
+        # Check SQLAlchemy type if available
+        if hasattr(attr, "prop"):  # InstrumentedAttribute
+            try:
+                col = attr.prop.columns[0]
+                return isinstance(col.type, (Integer, Float, Numeric))
+            except (AttributeError, IndexError):
+                pass
+
+        if hasattr(attr, "type"):
+            return isinstance(attr.type, (Integer, Float, Numeric))
+        elif hasattr(attr, "column") and hasattr(attr.column, "type"):
+            return isinstance(attr.column.type, (Integer, Float, Numeric))
+
+        return False
+
+    @classmethod
     def discover_rules(cls, model_cls: Type[Model]) -> List[tuple]:
         """Scans model and its base classes for validation metadata."""
         discovered_rules = []
-        seen_names = set()
 
         # Iterate through MRO to collect rules from base classes
         for base in model_cls.__mro__:
@@ -554,27 +571,23 @@ class ValidationScanner:
                 continue
 
             for name, attr in base.__dict__.items():
-                # Avoid duplicate rules for the same field from different levels
-                # (though usually we want to keep them if they are different rules)
-                # But for 'max_length' or 'required', we might only want the most specific one.
-                # However, SQLAlchemy Column 'info' doesn't usually change in subclasses unless redefined.
-                
                 info = None
                 if hasattr(attr, "info"):
                     info = attr.info
                 elif hasattr(attr, "column") and hasattr(attr.column, "info"):
                     info = attr.column.info
-                
+
                 if not info:
                     continue
 
-                # To prevent duplicate rules for the same field name from multiple base classes
-                # (since columns are usually shared or inherited), we can track (name, rule_type).
-                
+                is_numeric = cls._is_numeric_attr(attr)
+
                 if "max" in info:
-                    discovered_rules.append((model_cls.rule_max_length, name, info["max"]))
+                    meth = model_cls.rule_max_value if is_numeric else model_cls.rule_max_length
+                    discovered_rules.append((meth, name, info["max"]))
                 if "min" in info:
-                    discovered_rules.append((model_cls.rule_min_length, name, info["min"]))
+                    meth = model_cls.rule_min_value if is_numeric else model_cls.rule_min_length
+                    discovered_rules.append((meth, name, info["min"]))
                 if "required" in info and info["required"]:
                     if not info.get("is_reference") and not info.get("is_m2m"):
                         discovered_rules.append((model_cls.rule_required, name, None))
@@ -582,5 +595,5 @@ class ValidationScanner:
                     discovered_rules.append((model_cls.rule_choices, name, info["choices"]))
                 if "pattern" in info:
                     discovered_rules.append((model_cls.rule_pattern, name, info["pattern"]))
-                    
+
         return discovered_rules

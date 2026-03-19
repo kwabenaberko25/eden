@@ -21,6 +21,9 @@ HTMX_CDN = f"https://unpkg.com/htmx.org@{HTMX_VERSION}"
 TAILWIND_CDN = "https://cdn.tailwindcss.com"
 FONTAWESOME_CDN = f"https://cdnjs.cloudflare.com/ajax/libs/font-awesome/{FONTAWESOME_VERSION}/css/all.min.css"
 
+import json
+from typing import Any
+
 # Google Fonts (Plus Jakarta Sans + Outfit)
 FONTS_CDN = (
     "https://fonts.googleapis.com/css2?"
@@ -129,6 +132,43 @@ def eden_head(
         parts.append(f'<script defer src="{ALPINE_CDN}"></script>')
 
     return Markup("\n    ".join(parts))
+
+
+def eden_toasts() -> Markup:
+    """
+    Component-style helper that renders both session-flashed and incoming
+    WebSocket real-time messages as premium toasts.
+    
+    Usage:
+        {{ eden_toasts() }}
+        @eden_toasts
+    """
+    from eden.messages import get_messages
+    messages = get_messages()
+    
+    # 1. Provide the container
+    html = ['<div class="eden-toast-container"></div>']
+    
+    # 2. Iterate and trigger showToast for existing session messages
+    scripts = ['<script>']
+    scripts.append("  document.addEventListener('DOMContentLoaded', () => {")
+    scripts.append("    if (typeof showToast !== 'function') {")
+    scripts.append("      console.warn('[Eden] showToast not found. Ensure {{ eden_scripts() }} is included.');")
+    scripts.append("      return;")
+    scripts.append("    }")
+    
+    # We use a set to avoid duplicates if something re-renders, 
+    # but normally messages are consumed here.
+    for msg in messages:
+        msg_dict = msg.to_dict()
+        msg_json = json.dumps(msg_dict)
+        scripts.append(f"    showToast({msg_json}.message, {msg_json}.level_tag);")
+        
+    scripts.append("  });")
+    scripts.append('</script>')
+    
+    html.extend(scripts)
+    return Markup("\n".join(html))
 
 
 def eden_scripts() -> Markup:

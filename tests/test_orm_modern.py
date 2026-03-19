@@ -42,6 +42,7 @@ async def setup_db_tables(db):
 @pytest.mark.asyncio
 async def test_annotated_schema_inference(db):
     """Test that schema is correctly inferred from Annotated types."""
+    print("\n--- RUNNING test_annotated_schema_inference ---")
     from sqlalchemy import inspect
     
     def get_columns(conn):
@@ -68,6 +69,7 @@ async def test_annotated_schema_inference(db):
 @pytest.mark.asyncio
 async def test_modern_crud_operations(db):
     """Test CRUD operations with modern models."""
+    print("\n--- RUNNING test_modern_crud_operations ---")
     # Create
     user = await ModernUser.create(
         name="Modern User",
@@ -97,9 +99,9 @@ async def test_validation_rules_from_annotated(db):
     
     # The validation happens in .clean() or during .create() if it calls clean
     # Model.create usually does validation
-    from eden.exceptions import ValidationError
+    from eden.db.validation import ValidationErrors
     
-    with pytest.raises(ValidationError) as excinfo:
+    with pytest.raises(ValidationErrors) as excinfo:
         await ModernUser.create(
             name="Test",
             email="test@example.com",
@@ -109,5 +111,5 @@ async def test_validation_rules_from_annotated(db):
     # Check that it's a validation error for 'bio'
     error_dict = excinfo.value.to_dict()
     errors = error_dict["extra"]["errors"]
-    assert any(e["loc"] == ("bio",) or e["loc"] == ["bio"] for e in errors)
+    assert any(e["loc"] == ["bio"] for e in errors)
     assert any("500" in e["msg"] for e in errors)

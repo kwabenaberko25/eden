@@ -46,7 +46,7 @@ nav:
     - Routing System: guides/routing.md
     - Advanced Routing: guides/advanced-routing.md
     - Context Variables: guides/context-variables.md
-    - Dependency Injection: guides/dependencies.md
+    - Dependency Injection: guides/dependency-injection.md
     - Middleware & Security: guides/middleware.md
     - Exception Handling: guides/exceptions.md
     - Sessions: guides/sessions.md
@@ -114,10 +114,17 @@ nav:
     - 9. Deployment: tutorial/task9_deployment.md
     - 10. Testing: tutorial/task10_testing.md
 
+extra_javascript:
+  - https://unpkg.com/mermaid@10/dist/mermaid.min.js
+
 markdown_extensions:
   - pymdownx.highlight:
       anchor_linenums: true
-  - pymdownx.superfences
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
   - pymdownx.tabbed:
       alternate_style: true
   - admonition

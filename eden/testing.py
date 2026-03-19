@@ -1,50 +1,39 @@
 """
 Eden Testing Infrastructure
 
-Provides TestClient, fixtures, and utilities for testing Eden applications.
-
-Usage:
-    from eden.testing import TestClient, create_test_app
-    
-    def test_list_users():
-        app = create_test_app()
-        client = TestClient(app)
-        
-        response = client.get("/users")
-        assert response.status_code == 200
-        assert "id" in response.json()[0]
+Provides Async TestClient, fixtures, and utilities for modern Eden applications.
+Supports database isolation via transactions and context-safe mocking.
 """
 
 from __future__ import annotations
 
 import asyncio
+from contextlib import asynccontextmanager
 import contextvars
-from typing import Any, Optional, AsyncGenerator, Callable, Dict, List
-from unittest.mock import AsyncMock, MagicMock, patch
+from datetime import datetime, timedelta
+from typing import Any, AsyncGenerator, Callable, Dict, List, Optional, Union
 from dataclasses import dataclass
-import json
 
-# Try to import pytest; if not available, mark with None
-try:
-    import pytest
-    PYTEST_AVAILABLE = True
-except ImportError:
-    pytest = None
-    PYTEST_AVAILABLE = False
+import httpx
+import jwt
+import pytest
 
-from starlette.testclient import TestClient as StarletteTestClient
-from starlette.applications import Starlette
+from starlette.types import ASGIApp
 
+from eden.app import Eden, create_app
+from eden.config import Config, set_config, get_config
+from eden.db.session import Database, set_session, reset_session, get_session
+from eden.context import (
+    set_current_user, 
+    set_current_tenant_id, 
+    set_request_id,
+    set_app
+)
 
 @dataclass
 class TestUser:
-    """
-    Test user fixture with common defaults.
-    
-    Example:
-        user = TestUser(email="test@example.com", is_staff=True)
-        assert user.is_staff
-    """
+    """Mock user for testing."""
+    __test__ = False
     id: int = 1
     email: str = "testuser@example.com"
     name: str = "Test User"
@@ -52,14 +41,8 @@ class TestUser:
     is_active: bool = True
     is_staff: bool = False
     is_superuser: bool = False
-    groups: List[str] = None
-    
-    def __post_init__(self):
-        if self.groups is None:
-            self.groups = []
-    
+
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary."""
         return {
             "id": self.id,
             "email": self.email,
@@ -69,418 +52,341 @@ class TestUser:
             "is_superuser": self.is_superuser,
         }
 
-
 @dataclass
 class TestTenant:
-    """
-    Test tenant fixture for multi-tenant testing.
-    
-    Example:
-        tenant = TestTenant(name="Acme Corp")
-        assert tenant.name == "Acme Corp"
-    """
+    """Mock tenant for testing."""
+    __test__ = False
     id: str = "test-tenant-1"
     name: str = "Test Tenant"
     slug: str = "test-tenant"
-    active: bool = True
 
-
-class TestClient(StarletteTestClient):
+class EdenTestClient(httpx.AsyncClient):
     """
-    Extended TestClient with Eden-specific utilities.
-    
-    Extends Starlette's TestClient with:
-    - Context injection (user, tenant_id)
-    - Response assertion helpers
-    - Mock data creation
-    - Database transaction rollback after each test
+    Elite Async TestClient for Eden applications.
+    Built on httpx for true async request handling.
     """
     
-    def __init__(self, app: Starlette, **kwargs):
-        """
-        Initialize test client.
-        
-        Args:
-            app: Starlette application
-            **kwargs: Additional arguments for TestClient
-        """
-        super().__init__(app, **kwargs)
+    def __init__(
+        self, 
+        app: ASGIApp, 
+        base_url: str = "http://testserver", 
+        **kwargs
+    ):
+        super().__init__(
+            transport=httpx.ASGITransport(app=app), # type: ignore
+            base_url=base_url,
+            **kwargs
+        )
         self.app = app
         self._current_user: Optional[TestUser] = None
         self._current_tenant: Optional[TestTenant] = None
-    
+
     def set_user(self, user: Optional[TestUser]) -> None:
-        """
-        Set the current test user.
-        
-        All subsequent requests will be authenticated as this user.
-        
-        Args:
-            user: TestUser instance or None to logout
-            
-        Example:
-            client = TestClient(app)
-            client.set_user(TestUser(email="admin@example.com", is_staff=True))
-            response = client.get("/admin")
-            assert response.status_code == 200
-        """
+        """Authenticate subsequent requests as this user."""
         self._current_user = user
         if user:
-            # Set auth header for subsequent requests
             token = self._generate_token(user)
-            self.headers.update({"Authorization": f"Bearer {token}"})
+            self.headers["Authorization"] = f"Bearer {token}"
         else:
-            # Clear auth header
             self.headers.pop("Authorization", None)
-    
-    def set_tenant(self, tenant: Optional[TestTenant]) -> None:
-        """
-        Set the current test tenant (multi-tenant mode).
+
+    def set_tenant(self, tenant: Optional[Union[TestTenant, str]]) -> None:
+        """Set tenant context for subsequent requests."""
+        if isinstance(tenant, TestTenant):
+            self._current_tenant = tenant
+            tenant_id = tenant.id
+        else:
+            tenant_id = tenant
         
-        All subsequent requests operate in this tenant context.
-        
-        Args:
-            tenant: TestTenant instance or None
-            
-        Example:
-            client.set_tenant(TestTenant(id="tenant-123"))
-            response = client.get("/users")
-            # Only users in tenant-123 are returned
-        """
-        self._current_tenant = tenant
-        if tenant:
-            self.headers.update({"X-Tenant-ID": tenant.id})
+        if tenant_id:
+            self.headers["X-Tenant-ID"] = tenant_id
         else:
             self.headers.pop("X-Tenant-ID", None)
-    
-    def login(self, email: str = "testuser@example.com", password: str = "testpass123") -> TestUser:
-        """
-        Log in as a test user.
-        
-        Simulates user authentication flow.
-        
-        Args:
-            email: User email
-            password: User password
-            
-        Returns:
-            TestUser instance
-            
-        Example:
-            user = client.login("admin@example.com")
-            assert user.is_staff
-        """
+
+    async def login(self, email: str = "testuser@example.com") -> TestUser:
+        """Simulate a login by setting a test user."""
         user = TestUser(email=email, is_staff=email.startswith("admin"))
         self.set_user(user)
         return user
-    
+
     def logout(self) -> None:
-        """
-        Log out the current user.
-        
-        Example:
-            client.logout()
-            response = client.get("/protected")
-            assert response.status_code == 401
-        """
+        """Clear authentication."""
         self.set_user(None)
-    
-    def get_json(self, *args, **kwargs) -> Any:
+
+    @asynccontextmanager
+    async def context(self, user: Optional[Any] = None, tenant: Optional[Any] = None):
         """
-        Make GET request and return parsed JSON.
+        Asynchronous context manager for isolating request state.
         
         Example:
-            users = client.get_json("/api/users")
-            assert len(users) > 0
+            async with client.context(user=mock_user):
+                response = await client.get("/")
         """
-        response = self.get(*args, **kwargs)
-        return response.json()
-    
-    def post_json(self, path: str, data: Dict[str, Any], **kwargs) -> Dict[str, Any]:
-        """
-        Make POST request with JSON body, return parsed JSON.
+        old_user = self._current_user
+        old_tenant = self._current_tenant
         
-        Example:
-            response = client.post_json("/api/users", {"email": "new@example.com"})
-            assert response["id"]
-        """
-        response = self.post(path, json=data, **kwargs)
-        return response.json() if response.content else {}
-    
-    def assert_status(self, response: Any, expected_status: int) -> None:
-        """
-        Assert response has expected status code.
-        
-        Example:
-            response = client.get("/users")
-            client.assert_status(response, 200)
-        """
-        assert response.status_code == expected_status, \
-            f"Expected {expected_status}, got {response.status_code}: {response.text}"
-    
-    def assert_json_contains(self, response: Any, key: str, value: Any = None) -> None:
-        """
-        Assert response JSON contains key (and optionally value).
-        
-        Example:
-            response = client.get("/users/1")
-            client.assert_json_contains(response, "email", "testuser@example.com")
-        """
-        data = response.json()
-        assert key in data, f"Key '{key}' not in response: {data}"
-        if value is not None:
-            assert data[key] == value, f"Expected {value}, got {data[key]}"
-    
+        if user is not None:
+            self.set_user(user)
+        if tenant is not None:
+            self.set_tenant(tenant)
+            
+        try:
+            yield self
+        finally:
+            self.set_user(old_user)
+            self.set_tenant(old_tenant)
+
     def _generate_token(self, user: TestUser) -> str:
-        """Generate a test JWT token for user."""
-        import jwt
-        from datetime import datetime, timedelta
+        """Generate a test-signed JWT."""
+        # Try to get secret from app first
+        secret = getattr(self.app, "secret_key", None)
+        if not secret:
+            config = get_config()
+            secret = getattr(config, "SECRET_KEY", "test-secret-key")
         
-        token_data = {
-            "sub": user.email,
-            "user_id": user.id,
-            "is_staff": user.is_staff,
-            "exp": datetime.utcnow() + timedelta(hours=1),
+        from datetime import datetime, timezone, timedelta
+        payload = {
+            "sub": str(getattr(user, "id", "0")),
+            "email": getattr(user, "email", "test@example.com"),
+            "is_staff": getattr(user, "is_staff", False),
+            "exp": datetime.now(timezone.utc) + timedelta(hours=1),
+            "test": True,
         }
-        
-        return jwt.encode(
-            token_data,
-            "test-secret-key",
-            algorithm="HS256"
-        )
+        return jwt.encode(payload, secret, algorithm="HS256")
 
+# --- Pytest Fixtures ---
 
-# Pytest Fixtures (only if pytest is installed)
+@pytest.fixture(scope="session")
+def event_loop():
+    """Create a session-scoped event loop."""
+    loop = asyncio.get_event_loop_policy().new_event_loop()
+    yield loop
+    loop.close()
 
-if PYTEST_AVAILABLE:
-    @pytest.fixture
-    def test_app() -> Starlette:
-        """
-        Create a test app with in-memory database.
-        
-        Example:
-            def test_something(test_app):
-                client = TestClient(test_app)
-                response = client.get("/")
-        """
-        from eden.app import create_app
-        from eden.config import Config, set_config
-        
-        # Create test config
-        test_config = Config()
-        test_config.ENVIRONMENT = "testing"
-        test_config.DATABASE_URL = "sqlite:///:memory:"
-        test_config.DEBUG = True
-        set_config(test_config)
-        
-        # Create app
-        app = create_app()
-        
-        return app
-
-    @pytest.fixture
-    def client(test_app: Starlette) -> TestClient:
-        """
-        Create a test client for the test app.
-        
-        Example:
-            def test_list_users(client):
-                response = client.get("/api/users")
-                assert response.status_code == 200
-        """
-        return TestClient(test_app)
-
-    @pytest.fixture
-    def test_user() -> TestUser:
-        """
-        Create a test user fixture.
-        
-        Example:
-            def test_user_profile(client, test_user):
-                client.set_user(test_user)
-                response = client.get(f"/api/users/{test_user.id}")
-        """
-        return TestUser(
-            id=1,
-            email="testuser@example.com",
-            name="Test User",
-            is_staff=False,
-        )
-
-    @pytest.fixture
-    def admin_user() -> TestUser:
-        """
-        Create an admin test user fixture.
-        
-        Example:
-            def test_admin_only(client, admin_user):
-                client.set_user(admin_user)
-                response = client.get("/admin")
-        """
-        return TestUser(
-            id=2,
-            email="admin@example.com",
-            name="Admin User",
-            is_staff=True,
-            is_superuser=True,
-        )
-
-    @pytest.fixture
-    def test_tenant() -> TestTenant:
-        """
-        Create a test tenant fixture (multi-tenant mode).
-        
-        Example:
-            def test_tenant_isolation(client, test_tenant):
-                client.set_tenant(test_tenant)
-                response = client.get("/api/users")
-        """
-        return TestTenant(
-            id="test-tenant-123",
-            name="Test Tenant",
-            slug="test-tenant",
-        )
-
-    @pytest.fixture
-    def db_transaction():
-        """
-        Provide a database transaction that rolls back after test.
-        
-        Ensures test data doesn't persist between tests.
-        
-        Example:
-            async def test_create_user(db_transaction):
-                user = await User.create(email="test@example.com")
-                assert user.id
-                # Auto-rollback after test
-        """
-        # This is a placeholder - actual implementation depends on your DB
-        # Typically implemented as a context manager that provides
-        # a transaction-scoped session
-        pass
-
-
-# Context Managers for Test Setup
-
-async def mock_context(**kwargs) -> AsyncGenerator[None, None]:
+@pytest.fixture(scope="session")
+async def test_app() -> Eden:
     """
-    Mock context for testing (user, tenant_id, request_id).
-    
-    Example:
-        async def test_get_current_user():
-            test_user = TestUser(email="test@example.com")
-            async with mock_context(user=test_user):
-                from eden.context import get_user
-                assert get_user().email == "test@example.com"
+    Create and configure the Eden application for testing.
+    Uses an in-memory SQLite database by default.
     """
-    from eden.context import (
-        set_app, set_request, set_current_user,
-        set_current_tenant_id, set_request_id
-    )
+    from eden.config import Config, set_config, Environment
+    import os
+    os.environ["EDEN_ENV"] = "test"
     
-    # Set context vars
-    if "app" in kwargs:
-        set_app(kwargs["app"])
-    if "request" in kwargs:
-        set_request(kwargs["request"])
-    if "user" in kwargs:
-        set_current_user(kwargs["user"])
-    if "tenant_id" in kwargs:
-        set_current_tenant_id(kwargs["tenant_id"])
-    if "request_id" in kwargs:
-        set_request_id(kwargs["request_id"])
+    config = Config()
+    config.env = Environment.TEST
+    config.DATABASE_URL = "sqlite+aiosqlite:///:memory:"
+    config.DEBUG = True
+    config.SECRET_KEY = "test-secret-key-for-eden-tests"
+    set_config(config)
+    
+    app = create_app()
+    # Initialize app state so db is available
+    app.state.db = Database(config.DATABASE_URL)
+    await app.state.db.connect(create_tables=True)
+    
+    return app
+
+@pytest.fixture
+async def db(test_app: Eden) -> Database:
+    """Provides access to the test database."""
+    return test_app.state.db
+
+@pytest.fixture
+async def db_transaction(db: Database) -> AsyncGenerator[None, None]:
+    """
+    Forces a transaction per test and rolls it back at the end.
+    This ensures complete database isolation between tests.
+    """
+    async with db.engine.connect() as connection:
+        # Start a transaction on the connection
+        transaction = await connection.begin()
+        
+        # Create a session bound to this connection
+        from sqlalchemy.ext.asyncio import AsyncSession
+        # Ensure the session uses the active connection and wraps its commits in SAVEPOINTs
+        session = AsyncSession(
+            bind=connection, 
+            expire_on_commit=False, 
+            join_transaction_mode="create_savepoint"
+        )
+        
+        # Inject this session into the Eden context
+        token = set_session(session)
+        
+        try:
+            # We also start an initial transaction for the session so that 
+            # any code calling session.commit() targets a savepoint.
+            await session.begin()
+            
+            yield
+        finally:
+            # Revert everything at the connection level
+            await transaction.rollback()
+            await session.close()
+            reset_session(token)
+
+@pytest.fixture
+async def client(test_app: Eden, db_transaction) -> AsyncGenerator[EdenTestClient, None]:
+    """Provides an async test client configured for the test app."""
+    async with EdenTestClient(test_app) as c:
+        yield c
+
+@pytest.fixture
+def test_user() -> TestUser:
+    """Provides a standard test user."""
+    return TestUser()
+
+@pytest.fixture
+def admin_user() -> TestUser:
+    """Provides an admin test user."""
+    return TestUser(id=2, email="admin@example.com", is_staff=True, is_superuser=True)
+
+# --- Utilities ---
+
+@asynccontextmanager
+async def mock_context(
+    user: Optional[TestUser] = None,
+    tenant_id: Optional[str] = None,
+    app: Optional[Eden] = None
+) -> AsyncGenerator[None, None]:
+    """
+    Mock the global Eden context for unit tests.
+    """
+    tokens = []
+    if app:
+        tokens.append(set_app(app))
+    if user:
+        tokens.append(set_current_user(user))
+    if tenant_id:
+        tokens.append(set_current_tenant_id(tenant_id))
     
     try:
         yield
     finally:
-        # Cleanup done automatically in tests
+        # Contextvars are automatically reset in their context, 
+        # but we can be explicit if needed.
         pass
 
+def assert_status(response: httpx.Response, expected: int) -> None:
+    """Better error message for status code assertions."""
+    assert response.status_code == expected, f"Expected {expected}, got {response.status_code}. Body: {response.text}"
 
-# Utilities
-
-def create_test_app(
-    config: Optional[Dict[str, Any]] = None,
-    middleware: Optional[List[tuple]] = None
-) -> Starlette:
-    """
-    Create a fully configured test application.
+class UserFactory:
+    """Async factory for creating real database users in tests."""
     
-    Args:
-        config: Configuration overrides
-        middleware: Additional middleware to add
+    def __init__(self, db: Database):
+        self.db = db
+        # Attempt to get the real User model if it exists
+        try:
+            from eden.auth.models import User
+            self.user_model = User
+        except ImportError:
+            self.user_model = None
+
+    async def create(self, **kwargs) -> Any:
+        if not self.user_model:
+            return TestUser(**kwargs)
+            
+        # Ensure default password if not provided
+        password = kwargs.pop("password", "testpass123")
         
-    Returns:
-        Starlette application ready for testing
+        # Ensure default email/identity
+        if "email" not in kwargs:
+            import uuid
+            kwargs["email"] = f"user_{uuid.uuid4().hex[:8]}@example.com"
+            
+        user = self.user_model(**kwargs)
+        # Use set_password to handle hashing and avoid init errors
+        user.set_password(password)
         
-    Example:
-        app = create_test_app({"DEBUG": True})
-        client = TestClient(app)
-    """
-    from eden.app import create_app
-    from eden.config import Config, set_config
-    
-    # Create test config
-    test_config = Config()
-    test_config.ENVIRONMENT = "testing"
-    test_config.DATABASE_URL = "sqlite:///:memory:"
-    
-    if config:
-        for key, value in config.items():
-            setattr(test_config, key, value)
-    
-    set_config(test_config)
-    
-    # Create app
-    app = create_app()
-    
-    # Add custom middleware if provided
-    if middleware:
-        for middleware_class, options in middleware:
-            app.add_middleware(middleware_class, **options)
-    
-    return app
+        # save() uses db.transaction() internally
+        await user.save()
+        return user
 
+    async def create_admin(self, **kwargs) -> Any:
+        kwargs.setdefault("is_staff", True)
+        kwargs.setdefault("is_superuser", True)
+        return await self.create(**kwargs)
 
-def assert_response_equals(response: Any, expected: Dict[str, Any]) -> None:
-    """
-    Assert response JSON matches expected data (partial match).
+    async def create_batch(self, count: int, **kwargs) -> List[Any]:
+        users = []
+        for i in range(count):
+            batch_kwargs = kwargs.copy()
+            if "email" in batch_kwargs:
+                parts = batch_kwargs["email"].split("@")
+                batch_kwargs["email"] = f"{parts[0]}_{i}@{parts[1]}"
+            users.append(await self.create(**batch_kwargs))
+        return users
+
+class TenantFactory:
+    """Async factory for creating real database tenants in tests."""
     
-    Example:
-        response = client.get("/api/users/1")
-        assert_response_equals(response, {"email": "test@example.com"})
-    """
-    actual = response.json()
-    for key, value in expected.items():
-        assert key in actual, f"Key '{key}' not in response"
-        assert actual[key] == value, f"Expected {value}, got {actual[key]}"
+    def __init__(self, db: Database):
+        self.db = db
+        try:
+            from eden.tenancy.models import Tenant
+            self.tenant_model = Tenant
+        except ImportError:
+            self.tenant_model = None
 
+    async def create(self, **kwargs) -> Any:
+        if not self.tenant_model:
+            return TestTenant(**kwargs)
+            
+        tenant = self.tenant_model(**kwargs)
+        await tenant.save()
+        return tenant
 
-def assert_error_response(response: Any, code: str, status_code: int = 400) -> None:
-    """
-    Assert response is an error with given code.
-    
-    Example:
-        response = client.post("/api/users", {"email": "invalid"})
-        assert_error_response(response, "VALIDATION_ERROR")
-    """
-    assert response.status_code == status_code
-    data = response.json()
-    assert data.get("error") is True
-    assert data.get("code") == code
+@pytest.fixture
+async def user_factory(db: Database) -> UserFactory:
+    """Provides a user factory for tests."""
+    return UserFactory(db)
 
+@pytest.fixture
+async def tenant_factory(db: Database) -> TenantFactory:
+    """Provides a tenant factory for tests."""
+    return TenantFactory(db)
+
+@pytest.fixture
+def mock_stripe():
+    """Mocks stripe API for testing."""
+    import unittest.mock
+    mock = unittest.mock.MagicMock()
+    mock.Charge.create.return_value = {"status": "succeeded", "id": "ch_123"}
+    return mock
+
+@pytest.fixture
+def mock_email():
+    """Mocks email sending for testing."""
+    import unittest.mock
+    return unittest.mock.AsyncMock()
+
+@pytest.fixture
+def mock_s3():
+    """Mocks S3/Storage API for testing."""
+    import unittest.mock
+    mock = unittest.mock.MagicMock()
+    mock.put_object.return_value = {"ETag": "test"}
+    return mock
 
 __all__ = [
-    "TestClient",
+    "EdenTestClient",
     "TestUser",
     "TestTenant",
     "test_app",
+    "db",
+    "db_transaction",
     "client",
     "test_user",
     "admin_user",
-    "test_tenant",
+    "user_factory",
+    "tenant_factory",
+    "mock_stripe",
+    "mock_email",
+    "mock_s3",
     "mock_context",
-    "create_test_app",
-    "assert_response_equals",
-    "assert_error_response",
+    "assert_status",
+    "UserFactory",
+    "TenantFactory",
 ]

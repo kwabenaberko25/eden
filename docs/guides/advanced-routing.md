@@ -606,7 +606,7 @@ Router(
 
 ## Next Steps
 
-- [Dependency Injection](../guides/dependencies.md) - Dynamic parameter resolution
+- [Dependency Injection](../guides/dependency-injection.md) - Dynamic parameter resolution
 - [OpenAPI Documentation](../guides/openapi.md) - Automatic API documentation
 - [Security & Middleware](security.md) - Middleware patterns
 - [URL Generation](../guides/templating.md) - url_for in templates

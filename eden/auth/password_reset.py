@@ -73,27 +73,29 @@ class PasswordResetService:
         # Verify user exists
         user = await User.get_or_404(session, user_id)
         
-        # Invalidate any existing tokens for this user
-        existing_tokens = await PasswordResetToken.query(session).filter(
-            user_id=user_id,
-            used_at=None
-        ).all()
-        
-        for token in existing_tokens:
-            token.used_at = datetime.now(UTC)
-        await session.flush()
-        
         # Generate new token
         token = PasswordResetService.generate_token()
         expires_at = datetime.now(UTC) + timedelta(hours=PasswordResetService.TOKEN_EXPIRATION_HOURS)
         
-        reset_token = PasswordResetToken(
-            user_id=user_id,
-            token=token,
-            expires_at=expires_at
-        )
-        session.add(reset_token)
-        await session.commit()
+        db = PasswordResetToken._get_db()
+        async with db.transaction(session=session) as tx_session:
+            # Invalidate any existing tokens for this user
+            existing_tokens = await PasswordResetToken.query(tx_session).filter(
+                user_id=user_id,
+                used_at=None
+            ).all()
+            
+            for t in existing_tokens:
+                t.used_at = datetime.now(UTC)
+            await tx_session.flush()
+
+            reset_token = PasswordResetToken(
+                user_id=user_id,
+                token=token,
+                expires_at=expires_at
+            )
+            tx_session.add(reset_token)
+            await tx_session.flush()
         
         return token
     
@@ -148,20 +150,23 @@ class PasswordResetService:
         if not new_password or len(new_password) < 8:
             raise BadRequest(detail="Password must be at least 8 characters")
         
-        # Validate token
-        user_id = await PasswordResetService.validate_reset_token(session, token)
-        
-        # Get user
-        user = await User.get_or_404(session, user_id)
-        
-        # Update password
-        user.password = hash_password(new_password)
-        
-        # Mark token as used
-        reset_token = await PasswordResetToken.filter_one(session, token=token)
-        reset_token.used_at = datetime.now(UTC)
-        
-        await session.commit()
+        db = PasswordResetToken._get_db()
+        async with db.transaction(session=session) as tx_session:
+            # Validate token
+            user_id = await PasswordResetService.validate_reset_token(tx_session, token)
+            
+            # Get user
+            user = await User.get_or_404(tx_session, user_id)
+            
+            # Update password
+            user.password = hash_password(new_password)
+            
+            # Mark token as used
+            reset_token = await PasswordResetToken.filter_one(tx_session, token=token)
+            if reset_token:
+                reset_token.used_at = datetime.now(UTC)
+            
+            await tx_session.flush()
 
 
 class PasswordResetEmail:

@@ -1,240 +1,167 @@
 # Quick Start 🚀
 
-Build your first Eden application in 10 minutes with routing, database models, and forms.
+**Eden is designed to take you from a single idea to a production-ready application in minutes. This guide walks you through building a feature-rich "Task Manager" with routing, interactive templates, and a database—all while demonstrating the framework's zero-friction philosophy.**
 
-## Step 1: Initialize Your App
+---
 
-Create `app.py`:
+## 🏗️ The Eden Lifecycle: From Request to Render
+
+Before we write code, understand how Eden handles your application. It abstracts the complexity of ASGI, database management, and middleware into a unified, high-performance pipeline.
+
+```mermaid
+graph TD
+    A["Incoming Request"] --> B["Eden Middleware Stack"]
+    B --> C{"Router"}
+    C -- "Match FOUND" --> D["Dependency Injection (DI)"]
+    D --> E["Route Handler (Async)"]
+    E --> F["ORM / Business Logic"]
+    F --> G["Template Engine / JSON"]
+    G --> B
+    B --> H["Outgoing Response"]
+```
+
+---
+
+## ⚡ Step 1: Your First Eden App
+
+Create a file named `app.py`. Eden's core `Eden` class is a high-level wrapper that handles everything from security to database bootstrapping automatically if configured correctly.
 
 ```python
-from eden import Eden, Model, StringField, BoolField, Request
-from datetime import datetime
+from eden import Eden, Request
 
+# Initialize with a secret_key to enable sessions, CSRF, and security middleware
 app = Eden(
-    title="My First Eden App",
+    title="Eden Task Manager",
     secret_key="dev-secret-key-change-in-prod",
     debug=True
 )
 
-# Configure database
-app.state.database_url = "sqlite+aiosqlite:///app.db"
-
-# Add middleware for security and sessions
-app.add_middleware("security")
-app.add_middleware("session", secret_key=app.secret_key)
-app.add_middleware("csrf")
-app.add_middleware("gzip")
-
-# Root endpoint
+# Root endpoint - Returns a high-performance JSON response
 @app.get("/")
 async def home():
-    return {"message": "Welcome to Eden! 🌿"}
+    return {"status": "online", "message": "Welcome to Eden! 🌿"}
 
 if __name__ == "__main__":
     app.run(host="127.0.0.1", port=8000)
 ```
 
-**Run it**:
-```bash
-python app.py
-# Visit http://localhost:8000
-```
+> [!IMPORTANT]
+> **Automatic Security**: By simply providing a `secret_key`, Eden automatically injects `SessionMiddleware`, `CSRFMiddleware`, and `SecurityMiddleware` into your stack. No manual wiring required.
 
 ---
 
-## Step 2: Add a Database Model
+## 💾 Step 2: Defining Industrial Models
 
-Add this to your `app.py`:
+Eden's ORM uses modern Python type hints (`Mapped`) combined with a "Zen" helper `f()` that automatically chooses the correct database column type.
+
+Add this task model to your `app.py`:
 
 ```python
-from eden import Eden, Model, StringField, TextField, BoolField, Request
+from eden import Model, f
 from sqlalchemy.orm import Mapped
 
-# Define a Task model
-class Task(Model):
-    """A simple todo task."""
-    title: Mapped[str] = StringField(max_length=200)
-    description: Mapped[str | None] = TextField(nullable=True)
-    completed: Mapped[bool] = BoolField(default=False)
+# Configure SQLite - Eden bootstraps the database on the first request
+app.state.database_url = "sqlite+aiosqlite:///tasks.db"
 
-# List all tasks
+class Task(Model):
+    """
+    A SaaS-ready Task model. 
+    Eden automatically adds 'id', 'created_at', and 'updated_at'.
+    """
+    title: Mapped[str] = f(max_length=200)
+    description: Mapped[str | None] = f(nullable=True)
+    completed: Mapped[bool] = f(default=False)
+
+# List all tasks with a single line
 @app.get("/tasks")
 async def list_tasks():
     tasks = await Task.all()
-    return {
-        "count": len(tasks),
-        "tasks": [t.to_dict() for t in tasks]
-    }
+    return {"count": len(tasks), "tasks": tasks}
 
-# Create a new task
+# Create a task from a JSON request
 @app.post("/tasks")
 async def create_task(request: Request):
     data = await request.json()
-    task = await Task.create(
-        title=data.get("title", "Untitled"),
-        description=data.get("description", "")
-    )
-    return {"id": task.id, "title": task.title}, 201
-
-# Get single task
-@app.get("/tasks/{task_id:int}")
-async def get_task(task_id: int):
-    task = await Task.get(task_id)
-    if not task:
-        return {"error": "Task not found"}, 404
-    return task.to_dict()
-
-# Update task
-@app.put("/tasks/{task_id:int}")
-async def update_task(request: Request, task_id: int):
-    task = await Task.get(task_id)
-    if not task:
-        return {"error": "Task not found"}, 404
-    
-    data = await request.json()
-    await task.update(**data)
-    return task.to_dict()
-
-# Mark task complete
-@app.post("/tasks/{task_id:int}/complete")
-async def complete_task(task_id: int):
-    task = await Task.get(task_id)
-    if not task:
-        return {"error": "Task not found"}, 404
-    
-    task.completed = True
-    await task.save()
-    return {"completed": True}
-
-# Delete task
-@app.delete("/tasks/{task_id:int}")
-async def delete_task(task_id: int):
-    task = await Task.get(task_id)
-    if not task:
-        return {"error": "Task not found"}, 404
-    
-    await task.delete()
-    return {"deleted": True}
+    task = await Task.create(**data)
+    return task, 201
 ```
 
-**Test with curl**:
-```bash
-# Create task
-curl -X POST http://localhost:8000/tasks \
-  -H "Content-Type: application/json" \
-  -d '{"title":"Learn Eden","description":"Master the framework"}'
-
-# List tasks
-curl http://localhost:8000/tasks
-
-# Get single task
-curl http://localhost:8000/tasks/1
-
-# Complete task
-curl -X POST http://localhost:8000/tasks/1/complete
-
-# Delete task
-curl -X DELETE http://localhost:8000/tasks/1
-```
+> [!TIP]
+> **ActiveRecord Pattern**: Every Eden model is an "ActiveRecord". You can call `await Task.all()`, `await Task.get(id)`, or `await task.save()` directly without managing a manual session.
 
 ---
 
-## Step 3: Create HTML Templates
+## 🎨 Step 3: Premium Templating & HTMX
 
-Create `templates/base.html`:
+Eden's templating engine is built for "Visual Excellence." It allows you to build interactive UIs using only Python and HTML, powered by built-in **HTMX** integration.
+
+### Create `templates/base.html`
+
+We use a global layout with modern typography and a subtle glassmorphism header.
 
 ```html
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>@span(title | default("My App"))</title>
-    <!-- Tailwind CSS -->
+    <title>@span(title | default("Eden Tasks"))</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-50">
-    <nav class="bg-white shadow">
-        <div class="max-w-6xl mx-auto px-4 py-4">
-            <h1 class="text-2xl font-bold text-blue-600">🌿 Eden</h1>
+<body class="bg-slate-50 text-slate-900 font-sans">
+    <nav class="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200 py-4 mb-8">
+        <div class="max-w-4xl mx-auto px-6 flex justify-between items-center">
+            <h1 class="text-2xl font-black bg-gradient-to-r from-blue-600 to-teal-500 bg-clip-text text-transparent">EDEN</h1>
         </div>
     </nav>
     
-    <main class="max-w-6xl mx-auto px-4 py-8">
+    <main class="max-w-4xl mx-auto px-6 pb-20">
         @yield("content")
     </main>
 </body>
 </html>
 ```
 
-Create `templates/tasks.html`:
+### Create `templates/tasks.html`
+
+Use the `@fragments` directive to allow HTMX to update only parts of the page.
 
 ```html
 @extends("base")
 
 @section("content") {
-    <h2 class="text-3xl font-bold mb-6">My Tasks</h2>
-    
+    <div class="flex justify-between items-end mb-10">
+        <div>
+            <h2 class="text-4xl font-extrabold tracking-tight">Your Tasks</h2>
+            <p class="text-slate-500 mt-1">Manage your productivity with Eden's reactive ORM.</p>
+        </div>
+    </div>
+
     <!-- Task Form -->
-    <div class="bg-white p-6 rounded-lg shadow mb-6">
-        <h3 class="text-xl font-bold mb-4">Add New Task</h3>
-        <form method="POST" action="/tasks/create" class="space-y-4">
+    <section class="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 mb-10">
+        <form hx-post="/tasks/create" hx-target="#task-list" hx-swap="beforeend" class="flex gap-4">
             @csrf
-            
-            <div>
-                <label class="block text-sm font-medium mb-1">Title</label>
-                <input type="text" name="title" class="w-full px-4 py-2 border rounded-lg" required>
-            </div>
-            
-            <div>
-                <label class="block text-sm font-medium mb-1">Description</label>
-                <textarea name="description" rows="4" class="w-full px-4 py-2 border rounded-lg"></textarea>
-            </div>
-            
-            <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium">
+            <input type="text" name="title" placeholder="What needs to be done?" 
+                   class="flex-1 bg-slate-50 border-none rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500" required>
+            <button class="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-blue-700 transition-all">
                 Add Task
             </button>
         </form>
-    </div>
-    
-    <!-- Task List -->
-    <div class="grid gap-4">
-        @if (tasks | length > 0) {
-            @for (task in tasks) {
-                <div class="bg-white p-4 rounded-lg shadow flex items-start justify-between">
-                    <div class="flex-1">
-                        <h4 class="font-bold text-lg @if(task.completed) line-through text-gray-400 @endif">
+    </section>
+
+    <!-- Interactive Task List -->
+    <div id="task-list" class="space-y-4">
+        @for (task in tasks) {
+            @fragment("task-item") {
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between group">
+                    <div class="flex items-center gap-4">
+                        <div class="w-2 h-2 rounded-full @if(task.completed) bg-slate-300 @else bg-blue-500 @endif"></div>
+                        <span class="text-lg font-medium @if(task.completed) line-through text-slate-400 @endif">
                             @span(task.title)
-                        </h4>
-                        @if (task.description) {
-                            <p class="text-gray-600 mt-2">@span(task.description)</p>
-                        }
-                    </div>
-                    
-                    <div class="flex gap-2 ml-4">
-                        @if (!task.completed) {
-                            <form method="POST" action="/tasks/@span(task.id)/complete" style="display:inline;">
-                                @csrf
-                                <button type="submit" class="bg-green-500 text-white px-3 py-1 rounded text-sm">
-                                    ✓ Complete
-                                </button>
-                            </form>
-                        }
-                        
-                        <form method="POST" action="/tasks/@span(task.id)/delete" style="display:inline;">
-                            @csrf
-                            <button type="submit" class="bg-red-500 text-white px-3 py-1 rounded text-sm" 
-                                    onclick="return confirm('Delete this task?')">
-                                Delete
-                            </button>
-                        </form>
+                        </span>
                     </div>
                 </div>
             }
-        } @else {
-            <div class="bg-white p-8 rounded-lg text-center text-gray-500">
-                <p>No tasks yet. Create one to get started!</p>
-            </div>
         }
     </div>
 }
@@ -242,109 +169,46 @@ Create `templates/tasks.html`:
 
 ---
 
-## Step 4: Connect Templates to Routes
+## 🔗 Step 4: Connecting the Dots
 
-Update your `app.py` to render HTML:
+Update your `app.py` to bridge the models and templates.
 
 ```python
 from eden import render_template
 
-# Render task list
-@app.get("/tasks/view")
+@app.get("/view")
 async def view_tasks():
-    tasks = await Task.all()
-    return render_template("tasks.html", {"tasks": tasks})
+    """Server-side render of current tasks."""
+    return render_template("tasks.html", {"tasks": await Task.all()})
 
-# Create task from form
 @app.post("/tasks/create")
-async def create_task_form(request: Request):
+async def create_task_htmx(request: Request):
+    """Handles both AJAX (HTMX) and traditional form posts."""
     form = await request.form()
-    task = await Task.create(
-        title=form.get("title"),
-        description=form.get("description", "")
-    )
-    return request.app.redirect("/tasks/view")
-
-# Delete task from form
-@app.post("/tasks/{task_id:int}/delete")
-async def delete_task_form(task_id: int):
-    task = await Task.get(task_id)
-    if task:
-        await task.delete()
-    return app.redirect("/tasks/view")
-```
-
-**Visit**: `http://localhost:8000/tasks/view`
-
----
-
-## Step 5: Add Users & Authentication
-
-For a todo app with user accounts, add:
-
-```python
-from eden.auth import hash_password, verify_password
-
-class User(Model):
-    """User for authentication."""
-    email: Mapped[str] = StringField(max_length=255, unique=True)
-    password: Mapped[str] = StringField()
-    name: Mapped[str] = StringField(max_length=255)
-    is_active: Mapped[bool] = BoolField(default=True)
-
-# Update Task to belong to User
-class Task(Model):
-    """Task belongs to a user."""
-    title: Mapped[str] = StringField(max_length=200)
-    description: Mapped[str | None] = TextField(nullable=True)
-    completed: Mapped[bool] = BoolField(default=False)
-    user_id: Mapped[int] = IntegerField()  # Foreign key to User
-
-# Register route
-@app.post("/register")
-async def register(request: Request):
-    data = await request.json()
-    user = await User.create(
-        email=data["email"],
-        password=data["password"],  # Auto-hashed by Eden
-        name=data.get("name", "User")
-    )
-    return {"id": user.id, "email": user.email}
-
-# Login route
-@app.post("/login")
-async def login(request: Request):
-    data = await request.json()
-    user = await User.filter(email=data["email"]).first()
+    task = await Task.create(title=form.get("title"))
     
-    if not user or not verify_password(data["password"], user.password):
-        return {"error": "Invalid credentials"}, 401
+    # If it's an HTMX request, render just the fragment
+    if request.headers.get("HX-Request"):
+        return render_template("tasks.html", {"task": task}, fragment="task-item")
     
-    request.session["user_id"] = str(user.id)
-    return {"message": "Logged in successfully"}
-
-# Protected route
-@app.get("/my-tasks")
-async def my_tasks(request: Request):
-    if "user_id" not in request.session:
-        return {"error": "Not authenticated"}, 401
-    
-    user_id = int(request.session["user_id"])
-    tasks = await Task.filter(user_id=user_id).all()
-    return {"tasks": [t.to_dict() for t in tasks]}
+    return request.app.redirect("/view")
 ```
 
 ---
 
-## What's Next?
+## 🚀 Next Steps: Master the Framework
 
-You've just built a secure, async-powered application with a custom template and database model.
+You've just built a modern, reactive application. Now, dive deeper into the systems that make Eden the platform of choice for SaaS and Enterprise apps.
 
-- Master the **[Development Cycle](../guides/development-cycle.md)** to see the big picture.
-- Explore the **[Project Structure](structure.md)** to see how to scale this app.
-- Dive into the **[ORM Guide](../guides/orm.md)** to master data relationships.
-- Learn about **[Authentication](../guides/auth.md)** to protect your routes.
+| Module | Purpose | Guide |
+| :--- | :--- | :--- |
+| **Project Structure** | Scale from one file to a Domain-Driven Monolith. | [Structure Guide](../getting-started/structure.md) |
+| **Authentication** | Multi-backend support (JWT, Session, OAuth). | [Security Guide](../guides/auth.md) |
+| **Reactive ORM** | Real-time updates without writing a single line of JS. | [ORM Guide](../guides/orm.md) |
+| **DI System** | Enterprise-grade Dependency Injection. | [DI Guide](../guides/dependency-injection.md) |
+| **Audit Trails** | Automatic tracking of every database change. | [Audit Guide](../guides/audit.md) |
 
 ---
 
-**Next Steps**: [Project Structure](structure.md)
+> [!TIP]
+> **Elite Tip**: Check out the [Killer Features](../guides/killer-features.md) guide to see how to enable "Automatic Dashboards" and "Reactive WebSockets" with a single line of configuration.

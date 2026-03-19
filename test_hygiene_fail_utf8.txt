@@ -1,0 +1,180 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.13.12, pytest-9.0.2, pluggy-1.6.0 -- C:\Users\COBBY\AppData\Local\Microsoft\WindowsApps\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\python.exe
+cachedir: .pytest_cache
+rootdir: C:\PROJECTS\eden-framework
+configfile: pyproject.toml
+plugins: anyio-4.12.1, Faker-40.1.2, asyncio-1.3.0, cov-7.0.0, django-4.11.1
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 3 items
+
+tests/audit/test_session_hygiene.py::test_session_middleware_not_present_without_secret FAILED [ 33%]
+tests/audit/test_session_hygiene.py::test_session_middleware_present_with_secret FAILED [ 66%]
+tests/audit/test_session_hygiene.py::test_cors_default_allow_none PASSED [100%]
+
+================================== FAILURES ===================================
+_____________ test_session_middleware_not_present_without_secret ______________
+
+    @pytest.mark.asyncio
+    async def test_session_middleware_not_present_without_secret():
+        """Verify that sessions/csrf are NOT added if secret_key is missing."""
+        class MockConfig:
+            secret_key = None
+            title = "Eden"
+            version = "0.1.0"
+            debug = False
+    
+>       app = Eden(secret_key=None, config=MockConfig())
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\audit\test_session_hygiene.py:14: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <eden.app.Eden object at 0x000001601D28AF90>, title = None
+version = None, debug = False, description = None, secret_key = None
+config = <test_session_hygiene.test_session_middleware_not_present_without_secret.<locals>.MockConfig object at 0x000001601D28AE40>
+static_dir = 'static', static_url = '/static', templates_dir = 'templates'
+browser_reload = True
+
+    def __init__(
+        self,
+        title: str | None = None,
+        version: str | None = None,
+        debug: bool = False,
+        description: str | None = None,
+        secret_key: str | None = None,
+        config: dict[str, Any] | Config | None = None,
+        static_dir: str = "static",
+        static_url: str = "/static",
+        templates_dir: str = "templates",
+        browser_reload: bool = True,
+    ) -> None:
+        from eden.context import set_app
+        set_app(self)
+    
+        # Precedence: Explicit constructor arguments > config object values
+        # Load configuration if not provided
+        from eden.config import Config, get_config
+        if config is None:
+            self.config = get_config()
+        elif isinstance(config, dict):
+            self.config = Config(**config)
+        else:
+            self.config = config
+    
+        # Configure with explicit overrides
+        self.title = title or self.config.title or "Eden App"
+        self.version = version or self.config.version or "0.1.0"
+        self.description = description or getattr(self.config, "description", None)
+        self.secret_key = secret_key or self.config.secret_key
+    
+        # debug is special as it's a bool
+        # Priority: Explicit True > Config > Default False
+        self.debug = debug or self.config.debug or False
+    
+        # Apply config to state for bootstrappers and other components
+        self.state = State()
+        self._apply_config()
+    
+>       self.browser_reload = self.config.browser_reload
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'MockConfig' object has no attribute 'browser_reload'
+
+eden\app.py:117: AttributeError
+_________________ test_session_middleware_present_with_secret _________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001601D1F8AF0>
+
+    @pytest.mark.asyncio
+    async def test_session_middleware_present_with_secret(monkeypatch):
+        """Verify that sessions/csrf ARE added if secret_key is present."""
+        monkeypatch.setenv("EDEN_ENV", "production")
+>       app = Eden(secret_key="some-secret")
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\audit\test_session_hygiene.py:29: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+eden\app.py:97: in __init__
+    self.config = get_config()
+                  ^^^^^^^^^^^^
+eden\config.py:461: in get_config
+    return ConfigManager.instance().get()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+eden\config.py:433: in get
+    self.load()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <eden.config.ConfigManager object at 0x000001601D28B380>
+env_file = WindowsPath('C:/PROJECTS/eden-framework/.env')
+
+    def load(self, env_file: Optional[Path | str] = None) -> Config:
+        """
+        Load configuration from environment.
+    
+        Environment detection order:
+        1. EDEN_ENV environment variable
+        2. Environment-specific .env.{env} file
+        3. Default .env file
+        4. Built-in defaults
+    
+        Args:
+            env_file: Path to .env file (default: .env in project root)
+    
+        Returns:
+            Loaded Config instance
+        """
+        # Load .env file if it exists
+        env_file = env_file or Path.cwd() / ".env"
+        if isinstance(env_file, str):
+            env_file = Path(env_file)
+    
+        if env_file.exists():
+            try:
+                from dotenv import load_dotenv
+                load_dotenv(env_file)
+            except ImportError:
+                pass
+    
+        # Load environment-specific .env file
+        current_env = os.getenv("EDEN_ENV", "dev").lower()
+        env_specific_file = env_file.parent / f".env.{current_env}"
+        if env_specific_file.exists():
+            try:
+                from dotenv import load_dotenv
+                load_dotenv(env_specific_file, override=True)
+            except ImportError:
+                pass
+    
+        # Create config from environment variables
+        # We allow Pydantic to handle more complex types downstream if needed
+>       self._config = Config(
+            env=os.getenv("EDEN_ENV", "dev"),
+            debug=os.getenv("EDEN_DEBUG", os.getenv("DEBUG", "")).lower() in ("true", "1", "yes"),
+            secret_key=os.getenv("SECRET_KEY", ""),
+            database_url=os.getenv("DATABASE_URL", ""),
+            jwt_secret=os.getenv("JWT_SECRET", ""),
+            stripe_api_key=os.getenv("STRIPE_API_KEY", ""),
+            stripe_webhook_secret=os.getenv("STRIPE_WEBHOOK_SECRET", ""),
+            aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID", ""),
+            aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY", ""),
+            aws_s3_bucket=os.getenv("AWS_S3_BUCKET", ""),
+            aws_s3_region=os.getenv("AWS_S3_REGION", "us-east-1"),
+            redis_url=os.getenv("REDIS_URL", "redis://localhost:6379"),
+            cache_ttl=int(os.getenv("CACHE_TTL", "3600")),
+            title=os.getenv("EDEN_TITLE", os.getenv("TITLE", "Eden")),
+            version=os.getenv("EDEN_VERSION", os.getenv("VERSION", "0.1.0")),
+            log_level=os.getenv("LOG_LEVEL", "INFO"),
+            allowed_hosts=os.getenv("ALLOWED_HOSTS", "*").split(","),
+            cors_origins=os.getenv("CORS_ORIGINS", "").split(",") if os.getenv("CORS_ORIGINS") else [],
+            messages_session_key=os.getenv("EDEN_MESSAGES_SESSION_KEY", "_eden_messages"),
+            browser_reload=os.getenv("EDEN_BROWSER_RELOAD", "true").lower() in ("true", "1", "yes"),
+        )
+E       pydantic_core._pydantic_core.ValidationError: 1 validation error for Config
+E       env
+E         Value error, 'production' is not a valid Environment [type=value_error, input_value='production', input_type=str]
+E           For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+eden\config.py:398: ValidationError
+=========================== short test summary info ===========================
+FAILED tests/audit/test_session_hygiene.py::test_session_middleware_not_present_without_secret
+FAILED tests/audit/test_session_hygiene.py::test_session_middleware_present_with_secret
+========================= 2 failed, 1 passed in 0.93s =========================

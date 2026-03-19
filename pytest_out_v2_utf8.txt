@@ -1,0 +1,43 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.13.12, pytest-9.0.2, pluggy-1.6.0 -- C:\Users\COBBY\AppData\Local\Microsoft\WindowsApps\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\python.exe
+cachedir: .pytest_cache
+rootdir: C:\PROJECTS\eden-framework
+configfile: pyproject.toml
+plugins: anyio-4.12.1, Faker-40.1.2, asyncio-1.3.0, cov-7.0.0, django-4.11.1
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 5 items
+
+tests/test_core_integration.py::test_app_initialization PASSED           [ 20%]
+tests/test_core_integration.py::test_database_isolation_part_1 PASSED    [ 40%]
+tests/test_core_integration.py::test_database_isolation_part_2 FAILED    [ 60%]
+tests/test_core_integration.py::test_client_request PASSED               [ 80%]
+tests/test_core_integration.py::test_client_authentication PASSED        [100%]
+
+================================== FAILURES ===================================
+_______________________ test_database_isolation_part_2 ________________________
+
+db_transaction = None
+
+    @pytest.mark.asyncio
+    async def test_database_isolation_part_2(db_transaction):
+        """Verify that the user from part 1 was rolled back."""
+        # This test should run after part 1 (pytest order is usually stable)
+        # If isolation works, this user should NOT exist.
+        exists = await User.query().filter(email="isolated@example.com").exists()
+>       assert exists is False
+E       assert True is False
+
+tests\test_core_integration.py:37: AssertionError
+============================== warnings summary ===============================
+eden\testing.py:33
+  C:\PROJECTS\eden-framework\eden\testing.py:33: PytestCollectionWarning: cannot collect test class 'TestUser' because it has a __init__ constructor (from: tests/test_core_integration.py)
+    @dataclass
+
+tests/test_core_integration.py::test_client_authentication
+  C:\PROJECTS\eden-framework\eden\testing.py:123: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "exp": datetime.utcnow() + timedelta(hours=1),
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_core_integration.py::test_database_isolation_part_2 - asser...
+=================== 1 failed, 4 passed, 2 warnings in 0.60s ===================

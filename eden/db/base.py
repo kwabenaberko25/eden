@@ -282,25 +282,16 @@ class Model(Base, AccessControl, ValidatorMixin, LifecycleMixin, SerializationMi
             await inst._call_hook("after_save", sess)
             await post_save.send(sender=cls, instance=inst, is_new=True, session=sess)
 
-        if session:
-            for i, inst in enumerate(actual_instances):
-                await _internal_save(inst, session)
-                if batch_size and (i + 1) % batch_size == 0:
-                    await session.flush()
-            await session.flush()
-            for inst in actual_instances:
-                await _internal_after(inst, session)
-            return actual_instances
-
-        async with cls._provide_session() as sess:
+        db = cls._get_db()
+        async with db.transaction(session=session) as sess:
             for i, inst in enumerate(actual_instances):
                 await _internal_save(inst, sess)
-                if batch_size and (i + 1) % batch_size == 0:
+                if batch_size and (batch_size > 0) and (i + 1) % batch_size == 0:
                     await sess.flush()
+            
             await sess.flush()
             for inst in actual_instances:
                 await _internal_after(inst, sess)
-            await sess.commit()
             return actual_instances
 
     @classmethod
@@ -323,12 +314,10 @@ class Model(Base, AccessControl, ValidatorMixin, LifecycleMixin, SerializationMi
             if whens:
                 set_values[field] = case(*whens, else_=getattr(cls, field))
         stmt = update(cls).where(id_col.in_(ids)).values(set_values)
-        if session:
-            result = await session.execute(stmt)
-            return result.rowcount
-        async with cls._provide_session() as sess:
+        db = cls._get_db()
+        async with db.transaction(session=session) as sess:
             result = await sess.execute(stmt)
-            await sess.commit()
+            await sess.flush()
             return result.rowcount
 
     @classmethod

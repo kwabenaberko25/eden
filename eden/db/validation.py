@@ -29,13 +29,24 @@ class ValidationErrors(Exception):
         message = "; ".join([f"{k}: {', '.join(v)}" for k, v in errors.items()])
         super().__init__(message)
 
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to a standardized error dictionary format."""
+        return {
+            "error": True,
+            "status_code": 422,
+            "detail": "Validation error",
+            "extra": {
+                "errors": [{"loc": [k], "msg": ", ".join(v), "type": "validation"} for k, v in self.errors.items()]
+            }
+        }
+
 
 @dataclass
 class ValidationRule:
     """A single validation rule."""
     
     field_name: str
-    rule_type: str  # 'required', 'email', 'min_length', 'max_length', 'pattern', 'custom'
+    rule_type: str  # 'required', 'email', 'min_length', 'max_length', 'min_value', 'max_value', 'pattern', 'choices', 'custom'
     rule_value: Any = None
     message: Optional[str] = None
     validator_func: Optional[Callable] = None
@@ -103,6 +114,26 @@ class ValidatorMixin:
             rule_type='max_length',
             rule_value=length,
             message=message or f"{field_name} must be at most {length} characters"
+        ))
+
+    @classmethod
+    def rule_min_value(cls, field_name: str, value: Any, message: Optional[str] = None) -> None:
+        """Validate minimum numeric value."""
+        cls.add_validation_rule(field_name, ValidationRule(
+            field_name=field_name,
+            rule_type='min_value',
+            rule_value=value,
+            message=message or f"{field_name} must be at least {value}"
+        ))
+
+    @classmethod
+    def rule_max_value(cls, field_name: str, value: Any, message: Optional[str] = None) -> None:
+        """Validate maximum numeric value."""
+        cls.add_validation_rule(field_name, ValidationRule(
+            field_name=field_name,
+            rule_type='max_value',
+            rule_value=value,
+            message=message or f"{field_name} must be at most {value}"
         ))
 
     @classmethod
@@ -235,6 +266,14 @@ class ValidatorMixin:
         elif rule.rule_type == 'max_length':
             if value and len(str(value)) > rule.rule_value:
                 raise ValidationError(rule.message or f"{field_name} must be at most {rule.rule_value} characters", field_name)
+
+        elif rule.rule_type == 'min_value':
+            if value is not None and value < rule.rule_value:
+                raise ValidationError(rule.message or f"{field_name} must be at least {rule.rule_value}", field_name)
+
+        elif rule.rule_type == 'max_value':
+            if value is not None and value > rule.rule_value:
+                raise ValidationError(rule.message or f"{field_name} must be at most {rule.rule_value}", field_name)
 
         elif rule.rule_type == 'choices':
             if value is not None:

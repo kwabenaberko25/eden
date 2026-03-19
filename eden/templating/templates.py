@@ -59,7 +59,12 @@ class EdenTemplates(StarletteJinja2Templates):
             if ext not in kwargs["extensions"] and str(ext) not in [str(e) for e in kwargs["extensions"]]:
                 kwargs["extensions"].append(ext)
 
-        super().__init__(directory=directory, **kwargs)
+        # To avoid Starlette deprecation warnings, we create the environment explicitly
+        from jinja2 import FileSystemLoader
+        loader = FileSystemLoader(directory)
+        env = Environment(loader=loader, **kwargs)
+        
+        super().__init__(env=env)
 
         # ── Register filters and globals ─────────────────────────────────────
         from . import filters
@@ -124,6 +129,7 @@ class EdenTemplates(StarletteJinja2Templates):
             TAILWIND_VERSION,
             eden_head,
             eden_scripts,
+            eden_toasts,
         )
         self.env.globals["ALPINE_VERSION"] = ALPINE_VERSION
         self.env.globals["HTMX_VERSION"] = HTMX_VERSION
@@ -136,6 +142,7 @@ class EdenTemplates(StarletteJinja2Templates):
         
         self.env.globals["eden_head"] = eden_head
         self.env.globals["eden_scripts"] = eden_scripts
+        self.env.globals["eden_toasts"] = eden_toasts
 
         # Register helpers as globals for directive availability
         self.env.globals["csrf_token"] = self._csrf_token_helper

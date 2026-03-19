@@ -98,10 +98,16 @@ class WebhookRouter:
 
             # Deduplication — check if already processed
             session = getattr(request.state, "db", None)
-            if session:
-                from sqlalchemy import select
+            if not session:
+                return JsonResponse({"error": "No database session available"}, status_code=500)
 
-                existing = await session.execute(
+            # Use Model._get_db() to get the database instance
+            from eden.payments.models import PaymentEvent
+            db = PaymentEvent._get_db()
+            
+            async with db.transaction(session=session) as tx_session:
+                from sqlalchemy import select
+                existing = await tx_session.execute(
                     select(PaymentEvent).where(PaymentEvent.provider_event_id == event_id)
                 )
                 if existing.scalar_one_or_none():
@@ -113,16 +119,16 @@ class WebhookRouter:
                     event_type=event_type,
                     payload=event,
                 )
-                session.add(payment_event)
-                await session.commit()
+                tx_session.add(payment_event)
+                await tx_session.flush()
 
-            # Dispatch to handlers
-            await router_ref.dispatch(event_type, event_data)
+                # Dispatch to handlers
+                # Note: Handlers should ideally share the same transaction, or start their own savepoints
+                await router_ref.dispatch(event_type, event_data)
 
-            # Mark as processed
-            if session:
+                # Mark as processed
                 payment_event.processed = True
-                await session.commit()
+                await tx_session.flush()
 
             return JsonResponse({"status": "ok"})
 

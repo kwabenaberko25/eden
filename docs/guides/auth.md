@@ -1,234 +1,204 @@
-# Authentication & Security 🛡️
+# 🔒 Identity, Authentication & Security
 
-Eden provides a modular, industrial-grade security suite designed to handle everything from simple blogs to complex multi-tenant SaaS platforms.
-
-## Core Philosophy
-
-Security in Eden is built on three pillars:
-
-- **Async-First**: All authentication flows are non-blocking.
-- **Convention over Configuration**: Batteries-included defaults that are safe out of the box.
-- **Multi-Layered**: Authentication, Authorization, and Audit work together seamlessly.
+**Eden provides a unified, industrial-grade security suite that handles identity management, multi-backend authentication, and hierarchical RBAC with zero-friction integration.**
 
 ---
 
-## The `User` Model
+## 🧠 Conceptual Overview
 
-All authentication revolves around the `User` model. Eden provides a `BaseUser` that includes standard security fields, which you can extend.
+Security in Eden is built on a "Three Pillars" architecture. Each layer is independent yet works in harmony to provide end-to-end protection.
+
+### The Security Lifecycle
+
+```mermaid
+graph TD
+    A["Incoming Request"] --> B[AuthenticationMiddleware]
+    B --> C{"Detect Backend"}
+    C --  "Authorization: Bearer" --> D[JWTBackend]
+    C --  "Cookie: session" --> E[SessionBackend]
+    C -- X-API-Key --> F[APIKeyBackend]
+    
+    D & E & F --> G["Identity Resolution: User Model"]
+    G --> H["Request Context: request.user"]
+    H --> I["Authorization Guards"]
+    
+    I -- "@login_required"--> J{"Is Authenticated?"}
+    I -- "@require_permission"--> K{"Has Role/Perm?"}
+    
+    J & K -- "Success"--> L["Route Handler"]
+    J & K -- "Failure"--> M["401 Unauthorized / 403 Forbidden"]
+```
+
+### Core Philosophy
+1.  **Identity is Pluggable**: Use the default `User` model or roll your own by extending `BaseUser`.
+2.  **Multi-Backend Support**: Protect your API with JWT and your admin panel with Sessions simultaneously.
+3.  **Hierarchical Authorization**: Roles inherit permissions from parents, reducing boilerplate in complex RBAC systems.
+
+---
+
+## 👤 Identity: The `User` Model
+
+All security revolves around the `User` model. Eden provides a standard implementation using SQLAlchemy, but you can customize it easily.
 
 ```python
 from eden.auth import User
 
-# Check status easily
+# In your view
 if request.user.is_authenticated:
-    print(f"Hello, {request.user.name}")
+    print(f"User ID: {request.user.id}")
+    print(f"Roles: {request.user.roles}")
+```
+
+### High-Level Convenience Functions
+Instead of manual ORM queries, use the `complete` module for standard identity tasks.
+
+```python
+from eden.auth import create_user, authenticate, login
+
+# Create a new user with hashed password
+user = await create_user(email="alice@example.com", password="secure_password_123")
+
+# Verify credentials
+authenticated_user = await authenticate(email="alice@example.com", password="password_123")
+
+# Bind to the current request (Session/JWT)
+if authenticated_user:
+    await login(request, authenticated_user)
 ```
 
 ---
 
-## Authorization Decorators
+## 🔑 Authentication Backends
 
-Eden offers a comprehensive set of decorators for protecting routes. All decorators work with both **function-based views** and **Class-Based Views (CBVs)**.
+Eden supports multiple concurrent authentication methods.
 
-### `@login_required`
+| Backend | Logic | Use Case |
+| :--- | :--- | :--- |
+| **`JWTBackend`** | Stateless tokens (Bearer) | Mobile apps, SPA, Public APIs. |
+| **`SessionBackend`** | Stateful cookies | Traditional Web Apps, Admin Panels. |
+| **`APIKeyBackend`** | Header-based keys | Server-to-server communication, Webhooks. |
 
-The simplest guard — requires an authenticated user.
-
+### Configuring JWT
 ```python
-from eden.auth import login_required
+from eden.auth import JWTBackend
 
-@app.get("/dashboard")
-@login_required
-async def dashboard(request):
-    return request.render("dashboard.html")
+jwt_backend = JWTBackend(
+    secret="top-secret-key",
+    access_token_expire_minutes=60
+)
+
+# Create a token manually
+token = jwt_backend.encode({"sub": user.id})
 ```
 
-### `@roles_required`
+---
 
-Restrict access to users with specific roles. All listed roles must be present.
+## 🛡️ Authorization & RBAC
 
+Eden's Role-Based Access Control (RBAC) supports **inheritance**. If a `manager` inherits from `employee`, they automatically gain all `employee` permissions.
+
+### Defining Hierarchy
 ```python
-from eden.auth import roles_required
+from eden.auth import default_rbac as rbac
 
-@app.get("/admin")
-@roles_required(["admin"])
-async def admin_panel(request):
-    return {"panel": "admin"}
+# Build the hierarchy
+rbac.add_role("employee")
+rbac.add_role("manager", parents=["employee"])
+rbac.add_role("admin", parents=["manager"])
+
+# Assign permissions
+rbac.add_permission("employee", "post:view")
+rbac.add_permission("manager", "post:edit")
+rbac.add_permission("admin", "post:delete")
+
+# 'admin' now has all 3 permissions
 ```
 
-### `@permissions_required`
-
-Restrict access to users with specific permissions. All listed permissions must be present.
-
-```python
-from eden.auth import permissions_required
-
-@app.delete("/posts/{id}")
-@permissions_required(["delete_posts"])
-async def delete_post(request, id: int):
-    ...
-```
-
-### `@require_any_role` / `@require_any_permission`
-
-Match if the user has **at least one** of the specified roles or permissions.
-
-```python
-from eden.auth import require_any_role, require_any_permission
-
-@app.get("/reports")
-@require_any_role(["admin", "analyst"])
-async def view_reports(request):
-    ...
-
-@app.post("/content")
-@require_any_permission(["create_posts", "edit_posts"])
-async def manage_content(request):
-    ...
-```
-
-### `@require_permission` / `@require_role`
-
-Single-permission or single-role shorthand decorators.
+### Protecting Routes (Decorators)
+Use decorators to enforce your RBAC rules at the entry point.
 
 ```python
 from eden.auth import require_permission, require_role
 
-@app.get("/admin")
-@require_role("admin")
-async def admin_only(request):
+@app.get("/analytics")
+@require_role("manager")
+async def view_analytics(request):
+    return {"data": "..."}
+
+@app.delete("/posts/{id}")
+@require_permission("post:delete")
+async def delete_post(request, id: int):
     ...
-
-@app.delete("/users/{id}")
-@require_permission("delete_users")
-async def delete_user(request, id: int):
-    ...
 ```
 
-### `@view_decorator` — Applying Decorators to CBVs
+---
 
-For Class-Based Views, use `view_decorator` to apply auth decorators to all HTTP methods on the view.
+## 🏗️ Audit & Security Middleware
+
+Enable automatic protection across your entire application.
 
 ```python
-from eden.auth import login_required, view_decorator
-from eden.routing import View
-
-@view_decorator(login_required)
-class ProfileView(View):
-    async def get(self, request):
-        return {"user": request.user.name}
-
-    async def post(self, request):
-        # Also protected by login_required
-        data = await request.form()
-        ...
+# In your app configuration
+app.add_middleware("security")  # Sets CSP, X-Frame-Options, HSTS
+app.add_middleware("csrf")      # Automatic CSRF protection for forms
+app.add_middleware("ratelimit") # Protect against brute force
 ```
 
-### Superuser Bypass
+---
 
-All role and permission decorators automatically grant access to users where `user.is_superuser` is `True`. This prevents lockout of admin accounts and simplifies development.
+## 📖 API Reference
 
-### Tenant-Aware RBAC
+### Core Functions (`eden.auth`)
 
-When working in a multi-tenant application, role and permission checks automatically consider the **current tenant context**. If your `User` model provides a `get_roles_for_tenant()` or `get_permissions_for_tenant()` method, Eden will use those to resolve tenant-scoped access.
+| Function | Parameters | Return Type | Description |
+| :--- | :--- | :--- | :--- |
+| `authenticate` | `email, password` | `User \| None` | Validates credentials against the DB. |
+| `login` | `request, user, backend` | `None` | Binds user identity to the request. |
+| `logout` | `request` | `None` | Clears all identity indicators. |
+| `create_user` | `email, password, **kw` | `User` | Creates and hashes password for a new user. |
+
+### Authorization Guards
+
+| Decorator | Argument | Description |
+| :--- | :--- | :--- |
+| `@login_required` | - | Requires any authenticated user. |
+| `@require_role` | `role: str` | Requires user to have specific role (or child). |
+| `@require_permission`| `perm: str` | Requires specific functional permission. |
+| `@staff_required` | - | Shorthand for users with `is_staff=True`. |
+
+### `EdenRBAC` (Role Manager)
+
+| Method | Parameters | Description |
+| :--- | :--- | :--- |
+| `add_role` | `name, parents` | Register a role and its inheritance tree. |
+| `add_permission` | `role, permission` | Bind a permission to a specific role. |
+| `has_permission` | `user_roles, perm` | Deep-check permissions across hierarchy. |
+
+---
+
+## ⚡ Elite Pattern: Query-Level Protection
+
+Instead of checking permissions in the controller, filter the data at the database level based on the user's role.
 
 ```python
-class CustomUser(User):
-    async def get_roles_for_tenant(self, tenant_id):
-        """Return roles specific to this tenant."""
-        return await TenantRole.filter(user_id=self.id, tenant_id=tenant_id)
+from eden.auth import apply_rbac_filter
+
+@app.get("/documents")
+@login_required
+async def list_documents(request):
+    # This automatically adds WHERE clauses to restrict access based on user roles
+    query = apply_rbac_filter(Document.query(), request.user)
+    return await query.all()
 ```
 
 ---
 
-## Security Middleware Suite 🧱
+## 💡 Best Practices
 
-Eden protects your app automatically when you enable the security suite.
-
-```python
-app.add_middleware("security")  # CSP, HSTS, X-Frame-Options
-app.add_middleware("csrf")      # Cross-Site Request Forgery
-app.add_middleware("ratelimit") # Bruteforce protection
-```
+1.  **Use Hierarchy**: Don't manually add 50 permissions to an `admin` role. Add them to sub-roles and have `admin` inherit them.
+2.  **Stateless First**: Use `JWTBackend` for your API to ensure global scalability.
+3.  **Always Secure Cookies**: In production, ensure `SESSION_COOKIE_SECURE=True` is enabled.
 
 ---
 
-## Template Authorization Directives
-
-Eden integrates RBAC directly into your templates via the `@can` / `@cannot` directives:
-
-```html
-@can("delete_users") {
-    <button class="btn-danger">Delete User</button>
-}
-
-@cannot("view_admin") {
-    <p>You do not have access to the admin panel.</p>
-}
-```
-
-These check `request.user.has_permission()` under the hood — the same permission system used by backend decorators.
-
----
-
-## Technical Guides
-
-Explore specialized guides for each part of the security system:
-
-### 1. [Session Management](sessions.md)
-
-Learn about secure cookies, session lifecycles, and how Eden remembers users.
-
-### 2. [Role-Based Access (RBAC)](auth-rbac.md)
-
-Define roles like `admin` and `editor` and protect routes using decorators like `@roles_required`.
-
-### 3. [Social Login (OAuth)](auth-oauth.md)
-
-Integrate Google, GitHub, and other providers with zero-friction onboarding.
-
-### 4. [Multi-Tenancy Patterns](tenancy.md)
-
-Learn how `TenantMixin` ensures data isolation in shared database environments.
-
----
-
-## Security Checklist
-
-Before going to production, ensure:
-
-- [ ] `DEBUG` is set to `False`.
-- [ ] `SECRET_KEY` is a long, random string (minimum 32 characters for JWT).
-- [ ] All forms use the `@csrf` directive.
-- [ ] `SESSION_COOKIE_SECURE` is `True` (requires HTTPS).
-- [ ] Rate limits are applied to sensitive routes (Login, Signup).
-- [ ] Role and permission decorators protect all admin and destructive endpoints.
-- [ ] Tenant isolation is verified if running a multi-tenant deployment.
-
----
-
----
-
-## Administrative Access 👑
-
-Eden includes built-in support for administrative users who bypass standard permission checks (`is_superuser`).
-
-### Creating an Admin Account
-
-Once you have initialized and migrated your database, use the CLI to create your first administrative user:
-
-```bash
-eden auth createsuperuser
-```
-
-The command will interactively prompt you for:
-- **Email**: Used as the primary login identifier.
-- **Full Name**: The display name for the user.
-- **Password**: Securely hashed using Eden's performance-optimized hashers.
-
-> [!NOTE]
-> Superusers automatically pass all `@roles_required` and `@permissions_required` guards, making them ideal for initial setup and system maintenance.
-
----
-
-**Next Steps**: [Templating System](templating.md)
+**Next Steps**: [Database & ORM](orm.md)

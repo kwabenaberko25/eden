@@ -1,140 +1,146 @@
-# File Storage & Assets 📁
+# 📁 File Storage & Object Persistence
 
-Eden provides a unified file storage abstraction that allows you to swap between local storage and cloud providers seamlessly.
-
-## Overview
-
-The storage system is built around **Backends**. You can configure a default backend for your application and use it via the standard API.
-
-### Features
-- Unified API: `save()`, `url()`, `delete()`.
-- Multi-backend support: Local disk, S3, Supabase.
-- Secure URLs: Automatic generation of public or presigned private URLs.
-- Orphan handling: Automatic cleanup of files on model deletion.
+**Eden provides a unified, industrial-grade storage abstraction. Whether you are serving local media or managing petabytes in AWS S3, Eden ensures your file operations are atomic, secure, and developer-friendly.**
 
 ---
 
-## Installation
+## 🧠 Conceptual Overview
 
-Storage backends beyond the local filesystem are available as an optional extra:
+The storage system is built around a **Pluggable Backend** architecture. Your application interacts with a standard `StorageManager` that routes operations to the active provider (Local, S3, or Supabase).
 
-```bash
-pip install eden-framework[storage]
-```
+### The Storage Lifecycle
 
----
-
-## Configuration
-
-### Local Storage
-Great for development or single-server deployments.
-
-```python
-from eden.storage import LocalStorageBackend
-
-storage = LocalStorageBackend(path="/var/uploads")
-```
-
-### Amazon S3
-The industry standard for scalable object storage.
-
-```python
-from eden.storage import S3StorageBackend
-
-storage = S3StorageBackend(
-    bucket="my-app-bucket",
-    region="us-east-1",
-    # Uses AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY from environment
-)
-```
-
-### Supabase Storage
-Perfect for applications already using the Supabase ecosystem.
-
-```python
-from eden.storage import SupabaseStorageBackend
-
-storage = SupabaseStorageBackend(
-    url="https://xxxx.supabase.co",
-    key="anon-key",
-    bucket="my-bucket"
-)
+```mermaid
+graph TD
+    A["Incoming Upload"] --> B[FileUploadValidator]
+    B -- "Size/MIME Check" --> C{"Atomic Transaction?"}
+    C -- "Yes" --> D["Upload to Backend"]
+    D --> E["Update Database"]
+    E -- "Failure" --> F["Rollback: Delete File"]
+    E -- "Success" --> G["Return URL/Key"]
+    C -- "No" --> H["Direct Upload"]
 ```
 
 ---
 
-## Basic Usage
+## 🏗️ Storage Backends
 
-### Saving Files
-You can save raw content or file-like objects (e.g., from an HTMX upload).
+Eden supports multiple backends out of the box. You can register multiple backends and switch between them dynamically.
 
-```python
-# From a request file
-key = await storage.save(
-    content=request.files['upload'],
-    name="profile.jpg",
-    folder="users"
-)
-# Returns: "users/profile_a1b2c3de.jpg"
-```
+| Backend | Typical Use | Configuration |
+| :--- | :--- | :--- |
+| **`LocalStorage`** | Dev / Single Server | Base path on disk. |
+| **`S3Storage`** | Production / Scalable | AWS S3 or MinIO. |
+| **`SupabaseStorage`**| Serverless / Mobile | Supabase Storage API. |
 
-### Retrieving URLs
-Eden handles the differences between public and private bucket URLs for you.
+### Registering Backends
+Register your backends during app initialization (usually in `app.py`).
 
 ```python
-# Get a public URL
-url = storage.url(key) 
-# https://bucket.s3.amazonaws.com/users/profile.jpg
-```
+from eden.storage import storage, LocalStorageBackend, S3StorageBackend
 
-### Private Files & Presigned URLs
-For sensitive documents, use presigned URLs that expire after a set time.
+# Register Local for development
+storage.register("local", LocalStorageBackend(path="./media"), default=True)
 
-```python
-presigned_url = await storage.get_presigned_url(
-    key="private/contract.pdf",
-    expires_in=3600  # 1 hour
-)
-```
-
-### Deleting Files
-```python
-await storage.delete(key)
+# Register S3 for production
+if app.env == "production":
+    storage.register("s3", S3StorageBackend(
+        bucket="my-app-uploads",
+        region="us-east-1"
+    ), default=True)
 ```
 
 ---
 
-## ORM Integration
+## 🛡️ Industrial Security: `FileUploadValidator`
 
-Eden models can automatically manage file fields using the `File` type.
+Never trust user-supplied files. Eden's validator provides deep inspection before a single byte hits your storage.
 
 ```python
-from eden.db import Model, f
-from typing import Optional
+from eden.storage import FileUploadValidator
 
-class User(Model):
-    name: str = f()
-    avatar_key: Optional[str] = f()  # Store the storage key
+validator = FileUploadValidator(
+    max_size_bytes=10 * 1024 * 1024,  # 10MB
+    allowed_types={"image/jpeg", "image/png", "application/pdf"},
+    enable_virus_scan=True  # Optional ClamAV integration
+)
+
+# Usage in a view
+await storage.save(request.files['avatar'], validator=validator)
+```
+
+---
+
+## ⚡ Elite Patterns
+
+### 1. Atomic Storage Transactions (`AtomicStorageTransaction`)
+A common "Gotcha" in web apps: a file is uploaded to S3, but the database saves fails, leaving an orphaned file. Eden solves this with atomic transactions.
+
+```python
+async with storage.transaction() as txn:
+    # 1. Upload file (tracked by transaction)
+    file_key = await txn.save(upload_file, folder="invoices")
     
-    @property
-    def avatar_url(self):
-        if not self.avatar_key:
-            return "/static/default-avatar.png"
-        return app.storage.url(self.avatar_key)
+    # 2. Save to Database
+    invoice = await Invoice.create(file_path=file_key, ...)
+    
+    # If any exception occurs here, file_key is automatically 
+    # deleted from the storage backend!
+```
+
+### 2. Large File Progress Tracking
+Provide real-time feedback for large uploads using the `ProgressCallback` protocol.
+
+```python
+async def on_progress(bytes_written: int, total_bytes: int | None):
+    if total_bytes:
+        percent = (bytes_written / total_bytes) * 100
+        print(f"Uploaded: {percent:.1f}%")
+
+await storage.save(large_file, progress=on_progress)
+```
+
+### 3. Private Files & Presigned URLs
+Keep sensitive data secure by storing files in private buckets and generating time-limited access URLs.
+
+```python
+# Generate a URL that expires in 1 hour
+secure_url = await storage.get().get_presigned_url(
+    "contracts/signed_123.pdf", 
+    expires_in=3600
+)
 ```
 
 ---
 
-## Asset Pipeline
+## 📄 API Reference
 
-Eden manages static assets (CSS, JS, Images) separately from user-uploaded content.
+### `StorageManager` (`eden.storage.storage`)
 
-### Static Files
-Place your static assets in the `static/` directory. They are automatically served by Eden during development.
+| Method | Parameters | Description |
+| :--- | :--- | :--- |
+| `save` | `content, name, folder` | Saves a file to the default backend. Returns the file key. |
+| `url` | `key` | Returns the public URL for a given key. |
+| `delete` | `key` | Permanently removes a file from storage. |
+| `transaction` | `backend_name` | Context manager for atomic storage operations. |
 
-### Asset Manifest
-In production, use the `eden assets build` command to bundle and version your assets for optimal performance.
+### `FileUploadValidator`
+
+| Init Parameter | Default | Description |
+| :--- | :--- | :--- |
+| `max_size_bytes` | `50MB` | Reject files larger than this size. |
+| `allowed_types` | `Common Media` | Set of allowed MIME types. |
+| `enable_virus_scan`| `False` | Scan files using connected ClamAV daemon. |
 
 ---
 
-**Next Steps**: [Background Tasks](background-tasks.md)
+## 💡 Best Practices
+
+1.  **Unique Keys**: Eden automatically generates unique filenames by default to prevent collisions. Always rely on these rather than user-provided names.
+2.  **CDN Integration**: For public assets, point your CDN to the `base_url` of your storage backend for optimal performance.
+3.  **Cleanup**: Use `AtomicStorageTransaction` for any upload tied to a database record.
+4.  **Folder Partitioning**: Use the `folder` parameter in `.save()` to organize files (e.g., `users/123/avatars/`).
+
+---
+
+**Next Steps**: [Background Tasks & Task Queues](background-tasks.md)

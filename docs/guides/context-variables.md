@@ -585,6 +585,6 @@ class ContextProxy:
 ## Next Steps
 
 - [Authentication Middleware](../guides/security.md#authentication) - Multi-backend auth
-- [Dependency Injection](../guides/dependencies.md) - Automatic context resolution
+- [Dependency Injection](../guides/dependency-injection.md) - Automatic context resolution
 - [Tenancy Context](tenancy.md) - Tenant-scoped operations
 - [Testing & Mocking](../guides/testing.md) - Context in tests

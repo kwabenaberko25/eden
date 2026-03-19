@@ -31,7 +31,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
     ) -> StarletteResponse:
         # Get or create Eden request for backends
         eden_request = Request.from_scope(request.scope, request.receive, request._send)
-
+        
         # 1. Set request in context
         req_token = set_request(eden_request)
         user_token = None

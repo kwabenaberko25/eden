@@ -1,96 +1,141 @@
-# CLI Suite: Elite Forge & Scaffolding 🛠️
+# 🛠️ CLI Suite: High-Speed Scaffolding
 
-Eden provides a high-performance command-line interface designed to accelerate your development workflow from initial scaffolding to production deployment.
-
----
-
-## 🌿 Project Scaffolding: `eden new`
-
-Start every project with the interactive project wizard.
-
-```bash
-eden new my-awesome-project
-```
-
-The wizard will guide you through:
-
-1. **Scale**: Choose between **Minimal (one file)** for small services or **Complete (modular)** for enterprise applications.
-2. **Database**: Automatic configuration for **SQLite** or **Postgres**.
-3. **Extras**: Instant integration for **Admin UI**, **Stripe Payments**, **WebSockets**, and **Email**.
+**Accelerate your development cycle with the Eden CLI—a professional command-line suite designed for rapid prototyping and enterprise-grade code generation. From initial project architecture to complex multi-tenant migrations, Eden provides an "Elite Forge" to handle the boilerplate for you.**
 
 ---
 
-## 🔨 Elite Forge: `eden generate`
+## 🧠 Conceptual Overview
 
-Eden Forge is the framework's code generation engine. It doesn't just create files; it understands your project layout and **auto-registers** code into your application.
+The Eden CLI is more than just a task runner; it's a **Project Lifecycle Manager**. It interacts directly with the Eden application context to understand your models, routes, and configuration, ensuring that all generated code is automatically registered and follows the framework's strict architectural patterns.
 
-### `eden generate model`
+### The CLI Architecture
 
-Scaffolds a new database model with rich metadata support.
-
-```bash
-eden generate model Task
-```
-
-### `eden generate route`
-
-Creates a modular router and connects it to your main application.
-
-```bash
-eden generate route billing
+```mermaid
+graph TD
+    A[Developer] --> B["Eden CLI: Entry Point"]
+    B --> C["Forge Engine: Code Generation"]
+    B --> D["DB Manager: Migration Suite"]
+    B --> E["Identity: Auth & Superuser"]
+    C --> F["Auto-Registration: main.py Injection"]
+    D --> G["Multi-Schema Strategy: Postgres/SQLite"]
+    F --> H["Project: models / routes / templates"]
 ```
 
 ---
 
-## 🗄️ Database Management: `eden db`
+## 🌿 Project Initiation: `eden new`
 
-Manage your schema evolution with integrated migrations.
+Start every high-fidelity project with the interactive project wizard.
 
-| Command | Description |
+```bash
+eden new my-enterprise-app
+```
+
+The wizard allows you to select your **Scale** and **Features** upfront:
+-   **Scale**: `Minimal` (Single-file) for microservices or `Complete` (Modular) for SaaS.
+-   **Database**: Automatic setup for `SQLite` (Local) or `Postgres` (Production).
+-   **Elite Features**: Pre-configure **Stripe**, **Redis Caching**, and **Social Auth** with zero manual wiring.
+
+---
+
+## 🔨 The Elite Forge: `eden generate`
+
+The "Forge" is the crown jewel of the Eden CLI. It doesn't just create files; it understands your project structure and **auto-registers** your new code into the main application.
+
+### 1. Generating Models
+Scaffold a new ORM model with full Pydantic validation and Admin UI support.
+
+```bash
+eden generate model Task --tenant-aware --audit
+```
+*Creates `models/task.py` and registers it with the database registry.*
+
+### 2. Generating Routes & Routers
+Create a modular router and automatically mount it to your main `Eden` instance.
+
+```bash
+eden generate router billing --path /api/v1/billing
+```
+*Creates `routes/billing.py` and injects the `app.include_router()` call into your main application.*
+
+### 3. Class-Based Views
+Scaffold complex logic with standard Eden patterns for CRUD or Custom Actions.
+
+```bash
+eden generate view ProfileView --template profile.html
+```
+
+---
+
+## 🗄️ Database & Multi-Tenancy: `eden db`
+
+Manage your schema evolution with integrated migrations that support multi-schema SaaS strategies out of the box.
+
+| Command | Elite Capability |
 | :--- | :--- |
-| `eden db init` | Initialize the migration environment. |
-| `eden db generate -m "..."` | Create a new migration script from model changes. |
-| `eden db migrate` | Apply all pending migrations. |
-| `eden db rollback` | Revert the last applied migration. |
-| `eden db check` | Scan for schema drift. |
+| `eden db init` | Initializes the `alembic` environment for async migrations. |
+| `eden db generate -m "..."` | Auto-detects model changes and generates a revision script. |
+| `eden db migrate` | Applies pending migrations (Handles multiple schemas for Postgres). |
+| `eden db check` | Verifies the physical database matches your ORM definitions. |
 
 ---
 
-## 🛡️ Authentication: `eden auth`
+## 🛡️ Identity Management: `eden auth`
 
 Manage users and security from the terminal.
 
 ### `eden auth createsuperuser`
-
-Create an administrative account with full permissions.
+Create an administrative account with full shell permissions.
 
 ```bash
-eden auth createsuperuser --email "admin@example.com" --full-name "Admin"
+eden auth createsuperuser --email "ops@eden.sh" --full-name "DevOps Admin"
 ```
 
 ---
 
-## 🚀 Execution & Management
+## 🏢 SaaS Operations (Tenant Management)
 
-### `eden run`
-
-Launch your development server with auto-reload.
+Provision and manage tenants directly from the terminal without manual SQL.
 
 ```bash
-eden run --port 8080
+# Provision a new tenant for a client
+eden tenant provision --name "Initech Corp" --plan "enterprise"
+
+# List active tenants and their storage usage
+eden tenant list --stats
+```
+
+---
+
+## 🚀 Execution & Monitoring
+
+### `eden run`
+Launch your development server with high-fidelity logging and auto-reload.
+
+```bash
+eden run --port 8000 --workers 4
 ```
 
 ### `eden tasks`
-
-Manage and monitor background task queues.
+Manage and monitor background task queues and periodic schedulers.
 
 ```bash
+# Start a task worker
 eden tasks worker
+
+# Start the periodic task scheduler (Cron)
+eden tasks scheduler
 ```
 
 ---
 
-> [!TIP]
-> Use `eden --help` to see a full list of commands and options. Most groups support `--help` for subcommand details, such as `eden db --help`.
+## 💡 Best Practices
 
-**Next Steps**: [Deployment Guide](deployment.md)
+1.  **Forge First**: Never create a model or route from scratch. Use the `forge` to ensure all boilerplate (imports, registrations) is handled correctly.
+2.  **Migration Safety**: Always run `eden db check` before committing code to ensure your local schema is in sync with your models.
+3.  **Tenant Provisioning**: Use the `eden tenant` commands for local testing of multi-tenant isolation before deploying to production.
+4.  **Audit Your Schema**: Regularly use `eden db check --drift` in CI/CD to prevent manual DB changes from breaking the ORM.
+
+---
+
+**Next Steps**: [Deployment & Scaling](deployment.md)

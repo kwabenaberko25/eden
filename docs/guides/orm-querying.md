@@ -1,238 +1,167 @@
-# Querying & Lookups 🔍
+# 🔍 Querying & High-Fidelity Lookups
 
-Eden provides a powerful, Django-inspired QuerySet API that makes retrieving data intuitive and expressive.
-
-## The QuerySet Interface
-
-Every Eden model has a `.query()` method (or you can use the model class directly for shortcuts like `.filter()`) that returns a `QuerySet`. QuerySets are **lazy**: they don't hit the database until you iterate over them or call a terminating method.
-
-### Terminating Methods
-
-These methods trigger the execution of the SQL query:
-
-- `.all()`: Returns a list of all matching records.
-- `.first()`: Returns the first matching record or `None`.
-- `.count()`: Returns the number of matching records as an integer.
-- `.exists()`: Returns `True` if any records match the query.
-- `.get(id)`: Fetches a single record by its primary key.
+**Eden provides a powerful, Django-inspired QuerySet API that allows you to express complex database logic in clean, readable Python code.**
 
 ---
 
-## Filtering Data
+## 🧠 Conceptual Overview
 
-### Basic Filtering
+The `QuerySet` is the core engine of Eden's data retrieval. It acts as a **lazy** proxy to your database, allowing you to chain filters, orders, and limits without executing SQL until the very last moment.
 
-Pass keyword arguments to match fields exactly.
+### The Query Lifecycle
 
-```python
-# Exact match
-users = await User.filter(username="jdoe")
-
-# Multiple conditions (AND)
-active_admins = await User.filter(is_active=True, role="admin")
+```mermaid
+graph TD
+    A["Model.filter"] --> B["Initial QuerySet"]
+    B --> C[".order_by"]
+    C --> D[".limit / .offset"]
+    D --> E["Refined QuerySet"]
+    E --> F{"Terminating Method?"}
+    F -- ".all / .first"--> G["Execute SQL via AsyncSession"]
+    F -- ".count / .exists"--> H["Execute Optimized SQL"]
+    G & H --> I["Hydrated Models / Results"]
 ```
 
-### Django-Style Lookups
-
-Eden supports `field__lookup` syntax for advanced filtering.
-
-| Lookup | Description | Example |
-| :--- | :--- | :--- |
-| `exact` | Exact match (case sensitive) | `name__exact="Eden"` |
-| `iexact` | Case-insensitive exact match | `name__iexact="eden"` |
-| `contains` | Substring match | `bio__contains="python"` |
-| `icontains` | Case-insensitive substring match | `bio__icontains="PYTHON"` |
-| `gt` / `gte` | Greater than (or equal to) | `age__gt=18` |
-| `lt` / `lte` | Less than (or equal to) | `price__lte=100.0` |
-| `in` | Match any in a list | `status__in=["draft", "published"]` |
-| `isnull` | Check for NULL values | `deleted_at__isnull=True` |
-| `range` | Between two values | `created_at__range=(start, end)` |
+### Key Pillars
+1.  **Lazy Execution**: Database hits only occur when you explicitly request data (e.g., via `.all()`).
+2.  **Chaining Architecture**: Methods like `.filter()` and `.order_by()` return a *new* QuerySet, allowing for functional-style composition.
+3.  **Type Safety**: Query results are automatically hydrated into typed Model instances with support for Pydantic serialization.
 
 ---
 
-## Complex Logic with `Q` Objects
+## 🏗️ The QuerySet Interface
 
-For `OR` queries or complex nested logic, use `Q` objects.
+### Terminating Methods
+These methods trigger the actual database communication.
+
+| Method | Return Type | Description |
+| :--- | :--- | :--- |
+| `.all()` | `list[Model]` | Returns all matching records as model instances. |
+| `.first()` | `Model \| None` | Returns the first result or `None` if empty. |
+| `.get(id)` | `Model` | High-performance primary key lookup (raises `LookupError` if missing). |
+| `.count()` | `int` | Executes a `SELECT COUNT(*)` on the current filters. |
+| `.exists()` | `bool` | Optimized check for the existence of any match. |
+| `.paginate()` | `Page` | Returns a paginated result set with metadata and links. |
+
+---
+
+## 🎯 Filtering with Lookups
+
+Eden uses the `field__lookup` syntax for expressive filtering.
+
+```python
+# Case-insensitive substring match
+search = await Product.filter(title__icontains="Eden").all()
+
+# Date range filtering
+recent = await Order.filter(created_at__gte=datetime.now() - timedelta(days=7)).all()
+
+# Membership check
+status_filter = await User.filter(status__in=["active", "pending"]).all()
+```
+
+### Supported Lookups
+
+| Lookup | SQL Equivalent | Description |
+| :--- | :--- | :--- |
+| `exact` | `=` | Exact match (case-sensitive). |
+| `iexact` | `ILIKE` | Case-insensitive exact match. |
+| `contains` | `LIKE %...%` | Substring match. |
+| `icontains` | `ILIKE %...%` | Case-insensitive substring match. |
+| `gt` / `gte` | `>` / `>=` | Greater than (or equal to). |
+| `lt` / `lte` | `<` / `<=` | Less than (or equal to). |
+| `in` | `IN (...)` | Value exists in the provided list/tuple. |
+| `isnull` | `IS NULL` | Check for null values (True/False). |
+
+---
+
+## 🧩 Complex Logic with `Q` and `F`
+
+### `Q` Objects: Advanced Logic
+Use `Q` to handle `OR` conditions and complex nested filters.
 
 ```python
 from eden.db import Q
 
-# OR Condition: Users named 'Alice' OR 'Bob'
-users = await User.filter(Q(name="Alice") | Q(name="Bob"))
-
-# Complex Nesting: (Active AND (Admin OR Staff))
-query = Q(is_active=True) & (Q(role="admin") | Q(role="staff"))
-users = await User.filter(query)
+# Logic: (Category is 'pro') OR (Status is 'active' AND Points > 100)
+query = Q(category="pro") | (Q(status="active") & Q(points__gt=100))
+users = await User.filter(query).all()
 ```
 
----
-
-## Field-Level Operations with `F` Expressions
-
-`F` expressions allow you to reference model fields directly in the query, performing calculations on the database side.
+### `F` Expressions: Field Math
+Reference other fields in the same record for comparison or database-side updates.
 
 ```python
 from eden.db import F
 
-# 1. Atomic Field-Level Updates
-await Product.all().update(stock=F("stock") + 10)
-
-# 2. Cross-Field Comparisons
 # Find products where current stock is below safety threshold
 danger_zone = await Product.filter(stock__lt=F("min_stock")).all()
 
-# 3. Dynamic Field Math
-expensive_items = await Product.filter(price__gt=F("cost") * 2).all()
+# Atomic increment on the DB side (no race conditions)
+await User.filter(id=1).update(points=F("points") + 10)
 ```
 
 ---
 
-## Aggregations & Annotations
+## 📈 Aggregations & Annotations
 
-### Aggregations
-
-Calculate summaries across the entire QuerySet.
+### Aggregates: Summary Data
+Calculate totals across a result set.
 
 ```python
-from eden.db import Sum, Avg, Max
+from eden.db import Sum, Avg, Count
 
 stats = await Order.filter(status="paid").aggregate(
-    total_revenue=Sum("total_amount"),
-    average_order=Avg("total_amount")
+    revenue=Sum("total_amount"),
+    avg_order=Avg("total_amount"),
+    count=Count("id")
 )
-# Returns: {"total_revenue": 5000.50, "average_order": 125.00}
+# Returns: {"revenue": 10500.25, "avg_order": 125.00, "count": 84}
 ```
 
-### Annotations
-
-Add virtual fields to each record in the resulting list.
+### Annotations: Virtual Fields
+Inject calculated values into each record in a list.
 
 ```python
 from eden.db import Count
 
-# Fetch authors and count their posts
-authors = await Author.all().annotate(
-    post_count=Count("posts"),
-    premium_post_count=Count("posts", filter=Q(posts__is_premium=True))
-).all()
+# Fetch users and include their post count as a virtual field
+users = await User.all().annotate(post_count=Count("posts")).all()
 
-print(authors[0].post_count) 
-print(authors[0].premium_post_count)
+print(f"User {users[0].name} has {users[0].post_count} posts")
 ```
 
 ---
 
-## Advanced Query Optimization
+## ⚡ Performance Optimization
 
-### Partial Loading (`values`)
-
-Load only specific columns to save memory and bandwidth.
+### 1. Partial Loading (`values`)
+When you only need a few columns, use `.values()` to skip full model hydration.
 
 ```python
-# Returns a list of dicts instead of model instances
+# Returns a list of dicts: [{"id": 1, "email": "..."}, ...]
 emails = await User.all().values("id", "email")
 ```
 
-### Pagination
-
-Always paginate large datasets for performance.
+### 2. Relationship Loading
+Avoid N+1 problems by explicitly declaring which relationships to load.
 
 ```python
-# Page 2 with 20 items per page
-users = await User.all().limit(20).offset(20)
+# selectinload (default) for fast async relation fetching
+posts = await Post.all().selectinload("author", "comments").all()
 
-# Using the built-in .paginate helper
-page = await User.all().paginate(page=2, per_page=20)
-print(page.items, page.total, page.has_next)
+# joinedload for one-to-one relations in a single SQL query
+profiles = await User.all().joinedload("profile").all()
 ```
 
 ---
 
-## Grouping & Advanced Filtering (HAVING)
+## 💡 Best Practices
 
-When performing aggregations, you often need to group results by a specific field or filter the results *after* the calculation has been performed (using `HAVING`).
-
-### Grouping Results
-Use `.group_by()` to segment your aggregations across categories.
-
-```python
-from eden.db import Sum, Count
-
-# Get total sales and order count per category
-category_stats = await Order.all() \
-    .values("category") \
-    .annotate(
-        revenue=Sum("total_price"),
-        orders=Count("id")
-    ) \
-    .group_by("category") \
-    .all()
-
-# Returns a list of dicts:
-# [{"category": "Electronics", "revenue": 1500.0, "orders": 12}, ...]
-```
-
-### Filtering Aggregates with `HAVING`
-The `.having()` method allows you to filter the results of your aggregations. This is essential for queries like "Categories with more than 10 orders".
-
-```python
-# Only get categories generating more than $1,000 in revenue
-high_value_categories = await Order.all() \
-    .values("category") \
-    .annotate(revenue=Sum("total_price")) \
-    .group_by("category") \
-    .having(revenue__gt=1000) \
-    .all()
-```
-
-### Advanced: Filtering Aggregates with Q
-
-You can even use Q objects inside your `having` clauses for complex logic.
-
-```python
-# Categories with either huge revenue OR huge volume
-trending = await Order.all() \
-    .values("category") \
-    .annotate(revenue=Sum("total_price"), volume=Count("id")) \
-    .group_by("category") \
-    .having(Q(revenue__gt=5000) | Q(volume__gt=100)) \
-    .all()
-```
+1.  **Prefer `icontains`**: For search inputs, `icontains` is almost always better than `contains`.
+2.  **Index Your Filter Fields**: Any field used frequently in `.filter()` should be marked as `index=True` in your model.
+3.  **Atomic Updates**: Always use `F()` expressions for increments (`points = F("points") + 1`) to prevent data corruption from concurrent requests.
 
 ---
 
-## The Escape Hatch: Raw SQLAlchemy Integration
-
-While Eden's ORM handles 95% of web development needs, sometimes you need the full specialized power of **SQLAlchemy** (e.g., Window Functions, Recursive CTEs, or complex Set operations like `UNION`).
-
-### Using the `.statement` Property
-Every `QuerySet` has a `.statement` property that returns the underlying SQLAlchemy `Select` object. You can modify this object using the standard SQLAlchemy API and then execute it using Eden's session.
-
-```python
-from sqlalchemy import func
-from eden.db import get_session
-
-# Example: Using a Window Function for a 'running total'
-# 1. Build the base query in Eden
-qs = Order.filter(status="paid").order_by("created_at")
-
-# 2. Drop down to SQLAlchemy to add a Window Function
-running_total = func.sum(Order.total_price).over(
-    order_by=Order.created_at.asc()
-).label("running_total")
-
-# 3. Add the window column to the statement
-stmt = qs.statement.add_columns(running_total)
-
-# 4. Execute using Eden's session
-db = await get_session()
-results = await db.execute(stmt)
-
-for row in results:
-    # row is a SQLAlchemy Row object containing the Model instance and extra columns
-    print(f"Order {row.Order.id}: Cumulative Revenue {row.running_total}")
-```
-
----
-
-**Next Steps**: [Authentication & Security](auth.md)
+**Next Steps**: [Relationship Patterns](orm-relationships.md)

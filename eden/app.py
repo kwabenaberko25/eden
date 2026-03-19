@@ -81,7 +81,7 @@ class Eden:
         debug: bool = False,
         description: str | None = None,
         secret_key: str | None = None,
-        config: dict[str, Any] | None = None,
+        config: dict[str, Any] | Config | None = None,
         static_dir: str = "static",
         static_url: str = "/static",
         templates_dir: str = "templates",
@@ -92,23 +92,29 @@ class Eden:
 
         # Precedence: Explicit constructor arguments > config object values
         # Load configuration if not provided
+        from eden.config import Config, get_config
         if config is None:
-            from eden.config import get_config
-            config = get_config()
-        
-        self.config = config
+            self.config = get_config()
+        elif isinstance(config, dict):
+            self.config = Config(**config)
+        else:
+            self.config = config
         
         # Configure with explicit overrides
-        self.title = title or getattr(config, "title", "Eden App")
-        self.version = version or getattr(config, "version", "0.1.0")
-        self.description = description or getattr(config, "description", None)
-        self.secret_key = secret_key or getattr(config, "secret_key", None)
+        self.title = title or self.config.title or "Eden App"
+        self.version = version or self.config.version or "0.1.0"
+        self.description = description or getattr(self.config, "description", None)
+        self.secret_key = secret_key or self.config.secret_key or "eden-insecure-secret-key"
         
         # debug is special as it's a bool
         # Priority: Explicit True > Config > Default False
-        self.debug = debug or getattr(config, "debug", False)
+        self.debug = debug or self.config.debug or False
         
-        self.browser_reload = os.getenv("EDEN_BROWSER_RELOAD", "true").lower() == "true"
+        # Apply config to state for bootstrappers and other components
+        self.state = State()
+        self._apply_config()
+        
+        self.browser_reload = self.config.browser_reload
         self.template_dir = "templates"
         self.media_dir = "media"
         self.static_dir = "static"
@@ -128,20 +134,11 @@ class Eden:
         # Task Queue with safety fallback
         try:
             # In test mode, we default to InMemoryBroker unless redis_url is explicitly set
-            import sys
-            is_test = (
-                os.getenv("EDEN_ENV") == "test" or 
-                getattr(config, "env", "") == "test" or
-                (hasattr(config, "is_test") and config.is_test() if callable(getattr(config, "is_test", None)) else getattr(config, "is_test", False)) or
-                "pytest" in sys.modules
-            )
+            is_test = self.is_test()
             
             redis_url = None
             if not is_test:
-                redis_url = getattr(config, "redis_url", None)
-                if not redis_url and hasattr(config, "get"):
-                    # Handle dict config
-                    redis_url = config.get("redis_url")
+                redis_url = self.config.redis_url
                 
             self._raw_broker = create_broker(redis_url)
         except Exception as e:
@@ -186,7 +183,6 @@ class Eden:
         self._build_lock = asyncio.Lock()
 
         # Health checks
-        self.state = State()
         self._health_checks: list[tuple[str, Callable]] = []
         self._health_enabled: bool = False
 
@@ -201,6 +197,33 @@ class Eden:
 
         # Caching
         self.cache: Optional["CacheBackend"] = None
+        
+        self.setup_defaults()
+
+    def _apply_config(self) -> None:
+        """Sync configuration values to internal attributes and app state."""
+        # Sync core attributes - only if not already set by constructor
+        if not getattr(self, "title", None):
+            self.title = getattr(self.config, "title", "Eden App")
+        if not getattr(self, "version", None):
+            self.version = getattr(self.config, "version", "0.1.0")
+        if self.debug is None:
+            self.debug = getattr(self.config, "debug", False)
+        if not getattr(self, "secret_key", None):
+            self.secret_key = getattr(self.config, "secret_key", None)
+
+        # Sync key URLs and settings to state for bootstrappers
+        self.state.database_url = getattr(self.config, "database_url", None)
+        self.state.redis_url = getattr(self.config, "redis_url", None)
+        self.state.env = getattr(self.config, "env", "dev")
+        self.state.debug = self.debug
+
+        # Populate extra config into state for general access
+        if hasattr(self.config, "model_dump"):
+            config_dict = self.config.model_dump()
+            for key, value in config_dict.items():
+                if not hasattr(self.state, key):
+                    setattr(self.state, key, value)
 
     def setup_tasks(self) -> None:
         """Hook for initializing/configuring task lifecycle and dependencies."""
@@ -531,7 +554,13 @@ class Eden:
             get_logger("eden").warning("secret_key not set. Session, CSRF, and Messages middleware disabled.")
         
         # 4. Standard App Middleware
-        self.add_middleware("auth", priority=self.PRIORITY_HIGH)
+        auth_backends = None
+        if self.secret_key:
+            from eden.auth.backends.session import SessionBackend
+            from eden.auth.backends.jwt import JWTBackend
+            auth_backends = [SessionBackend(), JWTBackend(secret_key=self.secret_key)]
+        
+        self.add_middleware("auth", priority=self.PRIORITY_HIGH, backends=auth_backends)
         self.add_middleware("gzip", priority=self.PRIORITY_LOW)
         
         # 5. CORS (Secure by default: block all unless configured)
@@ -577,7 +606,14 @@ class Eden:
         """
         self._exception_handlers[exc_class] = handler
 
-    # ── ASGI Interface ───────────────────────────────────────────────────
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        """ASGI interface for the application."""
+        if self._app is None:
+            await self.build()
+        
+        # At this point self._app is definitely not None
+        assert self._app is not None
+        await self._app(scope, receive, send)
 
     def _build_websockets(self, routes: list) -> None:
         if self.debug and self.browser_reload:
@@ -776,6 +812,15 @@ class Eden:
         reload = kwargs.pop("reload", self.debug)
         uvicorn.run(self, host=host, port=port, reload=reload, lifespan="on", **kwargs)
 
-    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        app = await self.build()
-        await app(scope, receive, send)
+def create_app(**kwargs: Any) -> Eden:
+    """
+    Factory function to create and configure an Eden application.
+    Convenience helper for main.py and testing.
+    
+    Args:
+        **kwargs: Arguments passed to the Eden constructor
+        
+    Returns:
+        Configured Eden instance
+    """
+    return Eden(**kwargs)

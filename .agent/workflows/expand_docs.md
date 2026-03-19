@@ -2,29 +2,38 @@
 description: Standardized steps for expanding Eden framework documentation phases.
 ---
 
-# Workflow: Expand Documentation
+# Workflow: Expand Documentation (Elite Protocol)
 
-Use this workflow when expanding the Eden 10-phase documentation roadmap to ensure "Elite" quality.
+Use this workflow to ensure every new or updated documentation file meets the "Premium" standard of excellence for the Eden framework.
 
-## Steps
+## 🌿 Phase 1: Pure Source Discovery
 
-1. **Audit Existing Content**:
-    - Identify target phase file (e.g., `docs/source/phase3.md`).
-    - Review existing content for depth and accuracy.
-
-2. **Sync with Source**:
-    - Identify the corresponding `eden/` module (e.g., `router.py` for Phase 3).
-    - Analyze the source for any undocumented features or changes.
-
-3. **Technical Deep-Dive**:
-    - Document internal mechanics, hooks, and advanced configuration options.
-    - Ensure code examples are correct and follow current framework patterns.
-
-4. **Premium Polish**:
-    - Add structured alerts (`[!NOTE]`, `[!WARNING]`).
-    - Standardize headings and link formatting.
-
-5. **Verify and Build**:
+1.  **Identify Target**: Choose the framework feature (e.g., `orm`, `auth`, `routing`) and its corresponding source file in `eden/`.
+2.  **Extract Extraction**: 
     // turbo
-    - Run `mkdocs build` to check for syntax errors.
-    - Preview the generated HTML to ensure premium rendering.
+    - Run the metadata extractor: `python .agent/skills/doc_generator/scripts/doc_extractor.py c:/PROJECTS/eden-framework/eden/<target_file>.py`.
+    - Review the generated "API Data Sheet" to identify all classes, methods, and docstrings.
+3.  **Cross-Reference**: Use `grep_search` to find real-world usage of these features in the `tests/` or `app/` directories to inform usage examples.
+
+## ✍️ Phase 2: Structural Drafting
+
+1.  **Select Template**: Use `.agent/skills/doc_generator/examples/guide_template.md` as the blueprint.
+2.  **Theory to Prose**: Rewrite the extracted technical facts into a "Premium" narrative. Explain *why* a developer should use this feature and what problem it solves.
+3.  **Synthesis**: Ensure every mandatory section is present (Quick Start, Conceptual Overview, API Reference).
+
+## 💡 Phase 3: Usage Example Proliferation
+
+1.  **Generate 'The Three'**: Create exactly three examples for every major feature:
+    - **Basic**: Minimal setup for immediate success.
+    - **Intermediate**: A common SaaS use case (e.g., "Filtering users by tenant").
+    - **Advanced**: A complex "power-user" scenario (e.g., "Manual session management with transaction isolation").
+2.  **Verify Code Accuracy**: Double-check that all provided code snippets actually match the framework's current API (use `grep` to verify).
+
+## ✨ Phase 4: Aesthetic Polish & Verification
+
+1.  **Apply Admonitions**: Add `[!TIP]`, `[!NOTE]`, or `[!IMPORTANT]` blocks to emphasize critical knowledge.
+2.  **Visual Flow**: If logic is non-trivial, add a **Mermaid diagram** to visualize it.
+3.  **Final Build**: 
+    // turbo
+    - Run `mkdocs build` to ensure zero syntax errors and clean cross-links.
+    - Review the final Markdown structure for accessible, descriptive headings.

@@ -1,93 +1,115 @@
-# Database Migrations 🏗️
+# 🏗️ Database Migrations
 
-Eden uses **Alembic** under the hood to provide a robust, version-controlled migration system that evolves your schema as your models change.
-
-## The Workflow
-
-The standard cycle for database changes in Eden consists of three mandatory steps:
-
-1.  **Initialize**: Set up the migration environment (first time only).
-2.  **Generate**: Detect model changes and create a migration file.
-3.  **Apply**: Execute the migration to update the physical database.
-
-> [!IMPORTANT]
-> You **must** generate and apply a migration before you can perform administrative tasks (like creating a superuser). Creating the migration environment with `init` does not create the database tables.
+**Eden uses Alembic under the hood to provide a robust, version-controlled migration system that evolves your schema as your models change.**
 
 ---
 
-## CLI Reference
+## 🧠 Conceptual Overview
+
+Database migrations are the bridge between your **Python Models** and your **Physical Database**. Eden manages this bridge automatically by inspecting your models and generating the necessary SQL revision scripts.
+
+### The Migration Lifecycle
+
+```mermaid
+graph TD
+    A["Model Changes"] --> B["eden db generate"]
+    B --> C["Revision Script: versions/xxxx.py"]
+    C --> D["Review Code: upgrade/downgrade"]
+    D --> E["eden db migrate"]
+    E --> F["SQL Executed: ALTER TABLE..."]
+    F --> G["Physical Schema Updated"]
+```
+
+### Core Philosophy
+1.  **Automation First**: Eden automatically detects additions, moves, and deletions in your `Model` fields.
+2.  **Version Controlled**: Every schema change is captured in a Python script that should be committed to your repository.
+3.  **Atomic Upgrades**: Migrations are executed within transactions (where supported), ensuring a fail-safe schema evolution.
+
+---
+
+## 🏗️ CLI Reference
+
+Eden provides a unified CLI for all database management tasks.
 
 | Command | Description |
 | :--- | :--- |
-| `eden db init` | Create the `migrations/` directory and `alembic.ini`. |
-| `eden db generate -m "description"` | Auto-detect model changes and create a revision script. |
-| `eden db migrate` | Apply all pending migrations (shorthand for `upgrade head`). |
-| `eden db upgrade head` | Apply all pending migrations to the database. |
-| `eden db upgrade +1` | Apply only the next migration. |
-| `eden db downgrade -1` | Revert the last applied migration. |
-| `eden db history` | List all available and applied migrations. |
-| `eden db check` | Scan for schema drift across all tenants. |
+| **`eden db init`** | Initializes the `migrations/` directory and `alembic.ini`. |
+| **`eden db generate -m "..."`** | Auto-detects model changes and creates a new revision script. |
+| **`eden db migrate`** | Shorthand for `upgrade head`. Applies all pending migrations. |
+| **`eden db upgrade head`** | Upgrades the database to the latest available version. |
+| **`eden db downgrade -1`** | Reverts the last applied migration. |
+| **`eden db history`** | Lists all versions and their application status. |
+| **`eden db check`** | Scans for "schema drift" between your models and the DB. |
 
 ---
 
-## Detailed Example: Initial Setup
+## 🚀 Scenario: Initial Setup
 
-When starting a new Eden project, follow this exact sequence to prepare your database:
+When starting a new project, follow this exact sequence to prepare your database environment:
 
-### 1. Initialize
+### 1. Initialize the Environment
+This command creates the `migrations/` folder and configures your connection strings from your `.env`.
 ```bash
 eden db init
 ```
-This creates your `migrations/` structure. By default, Eden auto-imports core models (Auth, Tenancy) in `migrations/env.py`.
 
-### 2. Generate Initial Migration
+### 2. Generate the Base Migration
+Eden scans its internal models (Users, Tenancy) and your project models to create the initial tables.
 ```bash
 eden db generate -m "initial setup"
 ```
-Eden will scan `eden.auth.models` and your local models to create `/migrations/versions/xxxx_initial_setup.py`.
 
 ### 3. Apply the Migration
+Physically create the tables in your database (PostgreSQL, SQLite, etc.).
 ```bash
 eden db migrate
-```
-Your database tables (including `eden_users`) are now physically created.
-
-### 4. Create Superuser (Next Step)
-Now that the tables exist, you can safely create your administrator:
-```bash
-eden auth createsuperuser
 ```
 
 ---
 
-## Detailed Example: Adding a New Field
+## 🧬 Scenario: Adding a New Field
 
-### 1. Update your Model
+### 1. Update the Model
+Add your new field using the `f()` helper.
 ```python
-class User(Model):
-    name: str = f()
-    phone_number: str = f(nullable=True) # New field
+class Post(Model):
+    title: Mapped[str] = f()
+    views: Mapped[int] = f(default=0) # New field
 ```
 
-### 2. Generate Migration
+### 2. Generate & Review
+Generate the script and review the `upgrade()` and `downgrade()` functions inside `migrations/versions/`.
 ```bash
-eden db generate -m "Add phone to user"
+eden db generate -m "add views to post"
 ```
 
-### 3. Apply
+### 3. Deploy
+Apply the change to your database.
 ```bash
 eden db migrate
 ```
 
 ---
 
-## Best Practices
+## 🌩️ Multi-Tenancy Migrations
 
-- **Never Delete Migrations**: If you made a mistake, create a new "fix" migration rather than editing an old one.
-- **Check-in Scripts**: Always commit the `migrations/` directory to your version control system.
-- **Schema Drift**: Periodically run `eden db check` to ensure your physical database matches your model definitions.
-- **Constraints**: Be careful when adding `NOT NULL` constraints to existing tables with data; either provide a default or do it in two steps.
+In a multi-tenant environment (using schemas or separate databases), Eden's migration system can be configured to execute across all environments.
+
+| Task | Command |
+| :--- | :--- |
+| **Global Upgrade** | `eden db migrate --all-tenants` |
+| **Tenant Specific** | `eden db migrate --tenant=customer_a` |
+| **Sync Check** | `eden db check --all-tenants` |
 
 ---
 
-**Next Steps**: [Authentication Overview](auth.md)
+## 💡 Best Practices
+
+1.  **Never Edit History**: If a migration is flawed, don't delete the file. Generate a new "Fix" migration to revert or amend the change.
+2.  **Commit Your Scripts**: Always commit the `migrations/` directory to Git. This ensures all team members and production servers are in sync.
+3.  **Default Values**: When adding a `NOT NULL` column to an existing table, always provide a `default` or `server_default` to prevent errors during the upgrade of existing data.
+4.  **Schema Drift**: Run `eden db check` in your CI/CD pipeline to ensure your database hasn't been manually altered outside of migrations.
+
+---
+
+**Next Steps**: [Relationship Patterns](orm-relationships.md)

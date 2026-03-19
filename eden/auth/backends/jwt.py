@@ -69,6 +69,15 @@ class JWTBackend(AuthBackend[User]):
             # For now, let's assume the user info could be in the payload or we fetch it.
             # Real-world apps might use a cache or a quick DB lookup.
 
+            # Special handling for EdenTestClient mock users
+            if payload.get("test") is True:
+                return User(
+                    id=payload.get("sub"),
+                    email=payload.get("email"),
+                    is_staff=payload.get("is_staff", False),
+                    is_superuser=payload.get("is_superuser", False)
+                )
+
             # Get session from request state if available (set by db middleware)
             session = getattr(request.state, "db", None)
             if not session:
