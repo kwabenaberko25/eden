@@ -1,5 +1,5 @@
 import pytest
-from eden.auth.rbac import EdenRBAC
+from eden.auth.access import RoleHierarchy as EdenRBAC
 from eden.exceptions import Forbidden, Unauthorized
 from eden.auth.decorators import require_permission
 from eden.auth.models import BaseUser
@@ -64,7 +64,7 @@ async def test_require_permission_decorator(monkeypatch):
     monkeypatch.setattr(eden.auth.decorators, "get_current_user", mock_get_current_user)
     
     # Setup global RBAC
-    from eden.auth.rbac import default_rbac
+    from eden.auth.access import default_rbac
     default_rbac._hierarchy.clear()
     default_rbac._permissions.clear()
     

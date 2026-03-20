@@ -156,14 +156,16 @@ from eden.auth import (
     APIKey,
     APIKeyBackend,
     login_required,
+    role_required,
     roles_required,
+    permission_required,
+    permissions_required,
     require_permission,
     staff_required,
     check_permission,
     authenticate,
     create_user,
 )
-from eden.auth.complete import permission_required
 from eden.middleware.rate_limit import rate_limit
 
 # ── Tenancy (Multi-tenant row-level security, built-in) ───────────────────

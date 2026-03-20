@@ -662,7 +662,7 @@ def f(
             kw["info"] = meta
 
     # If it looks like a relationship (one-liner support)
-    if back_populates:
+    if back_populates or "backref" in kwargs:
         # If it's a relationship, we flag it as a reference so Model auto-creates the _id column.
         # This allows: organization: Mapped["Organization"] = f(back_populates="members")
         meta["is_reference"] = True

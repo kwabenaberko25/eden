@@ -8,7 +8,7 @@ from sqlalchemy import JSON, Integer
 from sqlalchemy.orm import mapped_column, Mapped, declared_attr
 
 from eden.auth.hashers import check_password, hash_password
-from eden.auth.complete import BaseUser as AuthBaseUser
+from eden.auth.base import BaseUser as AuthBaseUser
 from eden.db import Model, f, Relationship, Reference
 
 

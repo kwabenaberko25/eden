@@ -1,15 +1,14 @@
-
-from __future__ import annotations
-import typing
 import re
-from typing import Any, Dict, List, Optional, Type, TypeVar, Union, get_type_hints, Annotated
+from typing import Any, Dict, List, Optional, Type, Union, get_type_hints, Annotated, get_origin, get_args
 from datetime import datetime
 import uuid
+from decimal import Decimal
 
 from sqlalchemy import (
     Column,
     ForeignKey,
     Table,
+    MetaData,
     String,
     Integer,
     Float,
@@ -17,27 +16,46 @@ from sqlalchemy import (
     DateTime,
     Uuid,
     JSON,
-    func,
-    Enum,
     Numeric,
-    Text,
-    Date,
-    Time,
+    inspect,
 )
 from sqlalchemy.orm import (
     Mapped,
-    mapped_column,
     relationship,
+    mapped_column,
     declared_attr,
+    backref
 )
 
-if typing.TYPE_CHECKING:
-    from eden.db.base import Model
-    import pydantic
+# Avoid circular imports by importing Model inside methods if needed
+Model = Any
 
-from sqlalchemy.ext.mutable import MutableDict, MutableList
+def _camel_to_snake(name: str) -> str:
+    """Convert CamelCase to snake_case."""
+    # Handle abbreviations like SQLModel -> sql_model
+    name = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
+    return re.sub('([a-z0-9])([A-Z])', r'\1_\2', name).lower()
 
-# Helper to map Python types to SQLAlchemy types for Annotated inference
+def _resolve_table_name(target_name: str, model_cls: Type[Model]) -> str:
+    """Resolves a model name to its likely table name."""
+    print(f"RESOLVING {target_name} for {model_cls.__name__}")
+    # 1. Try to find target_name in registry FIRST to get its actual __tablename__
+    try:
+        from eden.db.base import Base
+        if hasattr(Base, "registry"):
+            target_cls = Base.registry._class_registry.get(target_name)
+            if target_cls and hasattr(target_cls, "__tablename__"):
+                return target_cls.__tablename__
+    except (ImportError, AttributeError):
+        pass
+
+    # 2. Fallbacks for built-in models (if class not yet in registry)
+    if target_name == "User":
+        return "eden_users"
+    
+    # 3. Default to pluralized snake_case
+    return _camel_to_snake(target_name) + "s"
+
 _PYTHON_TO_SA = {
     str: String,
     int: Integer,
@@ -45,117 +63,206 @@ _PYTHON_TO_SA = {
     bool: Boolean,
     datetime: DateTime,
     uuid.UUID: Uuid,
-    dict: MutableDict.as_mutable(JSON),
-    list: MutableList.as_mutable(JSON),
+    dict: JSON,
+    list: JSON,
+    Decimal: Numeric,
 }
-
-_MISSING = object()
-
-def _camel_to_snake(name: str) -> str:
-    """Helper to convert CamelCase to snake_case."""
-    name = re.sub("(.)([A-Z][a-z]+)", r"\1_\2", name)
-    return re.sub("([a-z0-9])([A-Z])", r"\1_\2", name).lower()
-
-def _resolve_table_name(target_name: str, model_cls: Type[Model]) -> str:
-    """Safely resolve table name for a target class name."""
-    try:
-        from eden.db.base import Base, Model
-        reg = Base.registry._class_registry
-        if target_name in reg:
-            target_cls = reg[target_name]
-            if hasattr(target_cls, "__tablename__"):
-                return target_cls.__tablename__
-            
-        for sub in Model.__subclasses__():
-            if sub.__name__ == target_name:
-                if hasattr(sub, "__tablename__"):
-                    return sub.__tablename__
-                break
-    except (KeyError, AttributeError, NameError):
-        pass
-
-    return _camel_to_snake(target_name) + "s"
 
 class SchemaInferenceEngine:
     """
-    Handles automatic schema inference from type hints and metadata.
-    Reduces complexity in Model.__init_subclass__.
+    Introspects Python type hints to generate SQLAlchemy model configuration.
+    This enables a Django-like declarative experience but built on SA 2.0+ Mapped types.
     """
     
+    # Registry to detect reciprocal relationships for back_populates and 1:1 inference
+    # (SourceClassName, AttrName) -> (TargetName, IsList)
+    _relationship_memo: Dict[Any, Any] = {}
+
+
     @classmethod
-    def process_class(cls, model_cls: Type[Model]) -> List[str]:
-        """
-        Process the given model class to infer columns and relationships.
-        Returns a list of relationship names that should be excluded from regular column mapping.
-        """
-        # 1. Infer relationships first
-        rel_names = cls.infer_relationships(model_cls)
+    def process_class(cls, model_cls: Type[Model]) -> None:
+        """Entry point for model processing during __init_subclass__."""
+        # 1. Infer basic columns from type hints if not explicitly defined
+        cls.infer_columns(model_cls)
+        # 2. Infer relationships from type hints
+        cls._pre_scan_relationships(model_cls)
+        cls.infer_relationships(model_cls)
+
+
+    @classmethod
+    def _analyze_type_hint(cls, hint: Any) -> tuple[List[Any], Any, bool, bool, Optional[str]]:
+        """Extracts metadata, type, and relationship info from a type hint."""
+        metadata = []
+        final_type = hint
+        is_list = False
+        is_union = False
+        target_name = None
+
+        # Iteratively unwrap Annotated and Mapped
+        while True:
+            # Handle Annotated
+            if hasattr(final_type, "__metadata__"):
+                metadata.extend(list(getattr(final_type, "__metadata__", [])))
+                args = get_args(final_type)
+                if args:
+                    final_type = args[0]
+                else:
+                    # Fallback for older versions or edge cases
+                    final_type = getattr(final_type, "__origin__", None)
+                continue
+
+            
+            # Unwrap Mapped[...]
+            origin = get_origin(final_type)
+            if origin is not None and getattr(origin, "__name__", "") == "Mapped":
+                args = get_args(final_type)
+                if args:
+                    final_type = args[0]
+                    # We continue because the inner type could be Annotated
+                    continue
+            
+            # If we didn't unwrap anything, break
+            break
+
+
+        # Re-fetch origin after unwrapping everything
+        origin = get_origin(final_type)
+
+        # Handle List/list for relationships
+        if origin in (list, List):
+            is_list = True
+            args = get_args(final_type)
+            if args:
+                item_type = args[0]
+                # In case of List[Annotated[...]] or List[Mapped[...]]
+                _, _, _, _, sub_target = cls._analyze_type_hint(item_type)
+                target_name = sub_target
+            return metadata, final_type, is_list, is_union, target_name
         
-        # 2. Process Annotated Column Metadata (Modern Schema)
+        # Handle Union/Optional for relationships
+        elif origin is Union:
+            is_union = True
+            args = get_args(final_type)
+            # Extract non-None types
+            real_types = [a for a in args if a is not type(None)]
+            if real_types:
+                main_type = real_types[0]
+                # Recurse for the actual type inside Union
+                _, _, sub_is_list, _, sub_target = cls._analyze_type_hint(main_type)
+                is_list = sub_is_list
+                target_name = sub_target
+            return metadata, final_type, is_list, is_union, target_name
+
+        # Handle Forward Reference strings or directly passed classes
+        basic_type_names = {"str", "int", "float", "bool", "dict", "list", "datetime", "uuid", "decimal", "any", "none", "uuid.uuid", "union", "annotated", "list"}
+
+        
+        if isinstance(final_type, str):
+            lowered = final_type.lower()
+            if lowered in basic_type_names:
+                target_name = None
+            elif "Mapped[" in final_type:
+                match = re.search(r"Mapped\[['\"]?([^'\"\]]+)['\"]?\]", final_type)
+                if match: target_name = match.group(1)
+                else: target_name = final_type
+            else:
+                target_name = final_type
+        elif hasattr(final_type, "__forward_arg__"):
+            # This is a typing.ForwardRef
+            target_name = getattr(final_type, "__forward_arg__")
+            if target_name and target_name.lower() in basic_type_names:
+                target_name = None
+        elif hasattr(final_type, "__name__"):
+            name = getattr(final_type, "__name__", "")
+            if name.lower() not in basic_type_names and len(name) > 0 and name[0].isupper():
+                target_name = name
+
+        return metadata, final_type, is_list, is_union, target_name
+
+
+
+
+    @classmethod
+    def infer_columns(cls, model_cls: Type[Model]) -> List[str]:
+        """Automatically defines SQLAlchemy columns for type-hinted attributes."""
         from .metadata import parse_metadata
         
+        inferred_names = []
         try:
+            # include_extras=True to get Annotated metadata
             hints = get_type_hints(model_cls, include_extras=True)
         except Exception:
+            # Fallback if get_type_hints fails (e.g. forward refs not yet defined)
             hints = getattr(model_cls, "__annotations__", {})
 
         for name, hint in hints.items():
-            if name.startswith("_") or name in rel_names:
+            # Skip private or reserved attributes
+            if name.startswith("_") or name in ("registry", "metadata", "type_annotation_map"):
                 continue
-                
-            raw_hint = getattr(model_cls, "__annotations__", {}).get(name, hint)
-            is_annotated = typing.get_origin(hint) is typing.Annotated or typing.get_origin(raw_hint) is typing.Annotated
-            
-            if is_annotated:
-                effective_hint = hint if typing.get_origin(hint) is typing.Annotated else raw_hint
-                metadata = getattr(effective_hint, "__metadata__", ())
+
+            # Check if already explicitly defined in the class or parents
+            if cls._is_already_defined(model_cls, name):
+                continue
+
+            metadata, final_type, is_list, is_union, target_name = cls._analyze_type_hint(hint)
+
+            # If it's a model relationship, infer_relationships will handle it
+            if target_name:
+                continue
+
+            # Map Python type to SQLAlchemy type
+            # Check origin if it's a generic (like Optional[str])
+            origin = getattr(final_type, "__origin__", None)
+            base_type = final_type
+            if origin is Union:
+                args = getattr(final_type, "__args__", ())
+                # If it's Optional (Union[T, None]), extract T
+                if type(None) in args:
+                    base_type = next(a for a in args if a is not type(None))
+
+            sa_type = _PYTHON_TO_SA.get(base_type)
+            if sa_type:
+                # Merge Annotated metadata and generate column
                 sa_kwargs, sa_args, info = parse_metadata(metadata)
                 
-                if sa_kwargs or sa_args or info:
-                    if cls._is_already_defined(model_cls, name):
-                        continue
+                # Special handling: if sa_type is String and we have MaxLength (info["max"])
+                # we need to instantiate String(length)
+                actual_sa_type = sa_type
+                if sa_type is String and "max" in info:
+                    actual_sa_type = String(info["max"])
 
-                    # Auto-create mapped_column
-                    args = typing.get_args(effective_hint)
-                    if not args:
-                        continue
-                    
-                    base_type = args[0]
-                    if typing.get_origin(base_type) is Mapped:
-                        base_type = typing.get_args(base_type)[0]
-                    
-                    # Unwrap Optional/Union
-                    while typing.get_origin(base_type) in (typing.Union, getattr(typing, "UnionType", None)):
-                        u_args = [a for a in typing.get_args(base_type) if a is not type(None)]
-                        if u_args:
-                            base_type = u_args[0]
-                        else:
-                            break
+                # Default nullable based on type hint (Optional)
+                if origin is Union and type(None) in getattr(final_type, "__args__", ()):
+                    sa_kwargs.setdefault("nullable", True)
+                elif sa_type is not JSON:
+                    # In SA 2.0, explicit columns are nullable by default, 
+                    # but we want to honor our Mapped types later.
+                    pass
 
-                    sa_type = _PYTHON_TO_SA.get(base_type, base_type)
-                    if not isinstance(sa_type, type) and not hasattr(sa_type, "__visit_name__"):
-                        continue
-
-                    # Apply constraints
-                    if sa_type is String and "max" in info and not sa_args:
-                        sa_type = String(info["max"])
-                    elif isinstance(sa_type, type) and issubclass(sa_type, String) and "max" in info and not sa_args:
-                        sa_type = sa_type(info["max"])
-
-                    if sa_type is Uuid:
-                        sa_type = Uuid(native_uuid=False)
-
-                    # Manage default value
-                    default_val = model_cls.__dict__.get(name, _MISSING)
-                    if default_val is not _MISSING and not hasattr(default_val, "__visit_name__"):
+                # Handle default values if provided at class level
+                if name in model_cls.__dict__:
+                    default_val = model_cls.__dict__[name]
+                    # Don't use our own Column/Field objects as defaults here
+                    if default_val is not None and not hasattr(default_val, "__visit_name__"):
                         sa_kwargs.setdefault("default", default_val)
 
-                    setattr(model_cls, name, mapped_column(sa_type, *sa_args, info=info, **sa_kwargs))
+                setattr(model_cls, name, mapped_column(actual_sa_type, *sa_args, info=info, **sa_kwargs))
+                inferred_names.append(name)
         
-        return rel_names
+        return inferred_names
+
+    @classmethod
+    def _pre_scan_relationships(cls, model_cls: Type[Model]) -> None:
+        """Scan annotations and record relationship intent without building yet."""
+        annotations = getattr(model_cls, "__annotations__", {})
+        for name, hint in annotations.items():
+            _, _, is_list, _, target_name = cls._analyze_type_hint(hint)
+            if target_name:
+                cls._relationship_memo[(model_cls.__name__, name)] = (target_name, is_list)
 
     @classmethod
     def infer_relationships(cls, model_cls: Type[Model]) -> List[str]:
+
         """Introspect type hints to automatically define SQLAlchemy relationships."""
         from .metadata import parse_metadata
         inferred_names = []
@@ -180,6 +287,11 @@ class SchemaInferenceEngine:
 
             sa_kwargs, sa_args, info = parse_metadata(metadata)
             should_skip, is_reference, is_m2m_explicit = cls._is_already_mapped(model_cls, name, info)
+
+            # Important: Ensure FK column exists for references even if skipping relationship creation
+            if is_reference and not is_list:
+                cls._ensure_fk_column(model_cls, name, target_name, info, sa_kwargs)
+
             if should_skip:
                 continue
 
@@ -206,170 +318,30 @@ class SchemaInferenceEngine:
                     pass
 
     @classmethod
-    def generate_pydantic_schema(
-        cls,
-        model_cls: Type[Model],
-        include: Optional[List[str]] = None,
-        exclude: Optional[set] = None,
-        only_columns: bool = False,
-    ) -> Type[pydantic.BaseModel]:
-        """Automatically generate a Pydantic schema from the model definition."""
-        from pydantic import create_model, ConfigDict, Field
-        from eden.forms import Schema as EdenSchema
-
-        # Check cache for efficiency
-        if "_schema_cache" not in model_cls.__dict__:
-            model_cls._schema_cache = {}
-        
-        cache_key = f"{model_cls.__name__}:{include}:{exclude}:{only_columns}"
-        if cache_key in model_cls._schema_cache:
-            return model_cls._schema_cache[cache_key]
-
-        exclude = exclude or set()
-        fields = {}
-        try:
-            annotations = get_type_hints(model_cls)
-        # Removed silent pass to debug
-        except Exception:
-            annotations = getattr(model_cls, "__annotations__", {})
-
-        for name, hint in annotations.items():
-            if name.startswith("_") or name in ("registry", "metadata") or name in exclude:
-                continue
-
-            if include is not None and name not in include:
-                continue
-
-            col = model_cls.__table__.columns.get(name)
-
-            if only_columns and col is None:
-                continue
-
-            # Handle Mapped types
-            origin = getattr(hint, "__origin__", None)
-            if origin is Mapped:
-                hint = hint.__args__[0] if hasattr(hint, "__args__") and hint.__args__ else hint
-
-            is_nullable = col is not None and getattr(col, "nullable", False)
-            has_default = col is not None and (
-                getattr(col, "default", None) is not None
-                or getattr(col, "server_default", None) is not None
-            )
-
-            field_kwargs = {}
-            if col is not None:
-                # Extract constraints
-                if isinstance(col.type, String) and col.type.length:
-                    field_kwargs["max_length"] = col.type.length
-
-                # Propagate Eden metadata (label, widget, etc.)
-                info = dict(col.info) if col.info else {}
-
-                # Auto-infer choices from Enum
-                if isinstance(col.type, Enum) and "choices" not in info:
-                    info["choices"] = [(v, v.title()) for v in col.type.enums]
-                    if "widget" not in info:
-                        info["widget"] = "select"
-
-                # Numeric constraints
-                if isinstance(col.type, (Integer, Float, Numeric)):
-                    if "min" in info: field_kwargs["ge"] = info["min"]
-                    if "max" in info: field_kwargs["le"] = info["max"]
-
-                if "widget" not in info:
-                    if isinstance(col.type, Text): info["widget"] = "textarea"
-                    elif isinstance(col.type, Boolean): info["widget"] = "checkbox"
-                    elif isinstance(col.type, Date): info["widget"] = "date"
-                    elif isinstance(col.type, DateTime): info["widget"] = "datetime-local"
-                    elif isinstance(col.type, Time): info["widget"] = "time"
-                    elif isinstance(col.type, (Integer, Float, Numeric)):
-                        info["widget"] = "number"
-                        if "step" not in info and isinstance(col.type, (Float, Numeric)):
-                            info["step"] = "any"
-
-                if info:
-                    field_kwargs["json_schema_extra"] = info
-
-            # Defaults and optionality
-            is_internal = name in ("id", "created_at", "updated_at", "deleted_at")
-            if is_internal and include is None:
-                continue
-
-            if col is None or is_internal or is_nullable or has_default:
-                default_val = None
-            else:
-                default_val = ...
-
-            fields[name] = (hint, Field(default_val, **field_kwargs))
-
-        config = ConfigDict(arbitrary_types_allowed=True)
-        dynamic_model = create_model(
-            f"{model_cls.__name__}Schema", __config__=config, __base__=EdenSchema, **fields
-        )
-        model_cls._schema_cache[cache_key] = dynamic_model
-        return dynamic_model
-
-    @classmethod
-    def _analyze_type_hint(cls, hint: Any) -> tuple:
-        """Analyzes a type hint to extract metadata and target information."""
-        metadata = []
-        final_type = hint
-        
-        if typing.get_origin(hint) is typing.Annotated:
-            metadata = getattr(hint, "__metadata__", ())
-            final_type = typing.get_args(hint)[0]
-
-        if typing.get_origin(final_type) is Mapped:
-            final_type = typing.get_args(final_type)[0]
-
-        is_list = False
-        origin = typing.get_origin(final_type)
-        if origin in (list, List, typing.Sequence, typing.Collection):
-            is_list = True
-            final_type = typing.get_args(final_type)[0]
-
-        is_union = False
-        origin = typing.get_origin(final_type)
-        if origin in (typing.Union, getattr(typing, "UnionType", None)):
-            is_union = True
-            args = [a for a in typing.get_args(final_type) if a is not type(None)]
-            if args:
-                final_type = args[0]
-
-        target_name = None
-        if isinstance(final_type, str):
-            target_name = final_type
-            if "[" in target_name:
-                target_name = target_name.split("[")[-1].split("]")[0]
-            target_name = target_name.strip("'\" ")
-        elif hasattr(final_type, "__name__"):
-            target_name = final_type.__name__
-        elif hasattr(final_type, "__forward_arg__"):
-            target_name = final_type.__forward_arg__
-
-        return metadata, final_type, is_list, is_union, target_name
-
-    @classmethod
     def _is_already_mapped(cls, model_cls: Type[Model], name: str, info: dict) -> tuple[bool, bool, bool]:
         """Checks if a field is already mapped explicitly or in a base class."""
         existing = model_cls.__dict__.get(name)
+        
+        # Check annotations as well
+        has_annotation = name in getattr(model_cls, "__annotations__", {})
+
         if existing is None:
             # Check for inheritance of columns
             for base in model_cls.mro()[1:]:
-                if base.__name__ in ("Model", "Base", "object"):
+                if base.__name__ in ("Base", "object"):
                     continue
                 if name in base.__dict__:
-                    # If it's already in a base class, we skip auto-mapping it here
                     return True, False, False
             return False, False, False
 
         is_reference = bool(hasattr(existing, "info") and existing.info.get("is_reference", False))
         is_m2m_explicit = bool(hasattr(existing, "info") and existing.info.get("is_m2m", False))
         
-        if not is_reference and not is_m2m_explicit:
-            if hasattr(existing, "column") or isinstance(existing, (property, declared_attr)) or hasattr(existing, "direction"):
-                return True, is_reference, is_m2m_explicit
-            if hasattr(existing, "argument") or hasattr(existing, "mapper") or hasattr(existing, "direction"):
+        # If it's already a relationship or column, skip auto-mapping it
+        # BUT: don't skip if it's a 'reference' or 'm2m' helper that hasn't been finished yet.
+        is_sa_rel = (hasattr(existing, "argument") or hasattr(existing, "mapper") or hasattr(existing, "direction"))
+        if hasattr(existing, "column") or isinstance(existing, (property, declared_attr)) or is_sa_rel:
+            if not is_reference and not is_m2m_explicit:
                 return True, is_reference, is_m2m_explicit
 
         # Merge existing info if present
@@ -394,31 +366,68 @@ class SchemaInferenceEngine:
         if is_m2m_explicit:
             cls._setup_m2m(model_cls, name, target_name)
         else:
-            backref_name = _camel_to_snake(model_cls.__name__) + "s"
+            backref_name = _camel_to_snake(model_cls.__name__)
+            
+            # Check for reciprocal in memo
+            reciprocal_attr = None
+            for (t_cls, t_attr), (src_cls, is_list) in cls._relationship_memo.items():
+                if t_cls == target_name and src_cls == model_cls.__name__:
+                    reciprocal_attr = t_attr
+                    break
+            
+            # Retroactive sync: Check if someone already pointed to us
+            for (src_name, src_attr), (t_name, is_list) in cls._relationship_memo.items():
+                if t_name == model_cls.__name__ and src_name == target_name:
+                    # We are the target of an already defined relationship
+                    reciprocal_attr = src_attr
+                    # Update other side to back_populates to us
+                    other_cls = cls._get_target_class(model_cls, target_name)
+                    if other_cls:
+                        other_rel = getattr(other_cls, src_attr, None)
+                        if other_rel and hasattr(other_rel, "prop"):
+                            other_rel.prop.back_populates = name
+                            other_rel.prop.backref = None
+
             kwargs = {
                 "lazy": info.get("lazy", "selectin"),
                 "overlaps": "*",
-                "back_populates": info.get("back_populates"),
+                "back_populates": info.get("back_populates") or reciprocal_attr,
             }
+            
             if not kwargs["back_populates"]:
-                kwargs["backref"] = backref_name
+                # Fallback to backref if target doesn't explicitly define it
+                target_cls = cls._get_target_class(model_cls, target_name)
+                if target_cls and hasattr(target_cls, backref_name):
+                    pass # Avoid collision
+                else:
+                    kwargs["backref"] = backref_name
+            
             setattr(model_cls, name, relationship(target_name, **kwargs))
+
+
 
     @classmethod
     def _setup_m2m(cls, model_cls: Type[Model], name: str, target_name: str) -> None:
-        """Sets up a many-to-many relationship with an implicit join table."""
-        cls_snake = _camel_to_snake(model_cls.__name__)
-        names = sorted([cls_snake, _camel_to_snake(target_name)])
-        table_name = f"rel_{names[0]}_{names[1]}"
+        """Configures many-to-many relationship and creates through table."""
+        # Check if we already did this for this model
+        if not hasattr(model_cls, "__m2m_registry__"):
+            model_cls.__m2m_registry__ = {}
 
-        # Track M2M tables to avoid duplicates
+        target_table_name = _resolve_table_name(target_name, model_cls)
+        # Alphabetical sort to ensure stable join table names
+        table_parts = sorted([model_cls.__tablename__, target_table_name])
+        table_name = f"{table_parts[0]}_{table_parts[1]}"
+        
+        # Check if table already created in this process
         metadata = model_cls.metadata
         if table_name not in metadata.tables:
-            cls._create_m2m_table(model_cls, {
-                "table_name": table_name,
-                "target_name": target_name,
-                "cls_snake": cls_snake,
-            })
+            if table_name not in model_cls.__m2m_registry__:
+                cls._create_m2m_table(model_cls, {
+                    "table_name": table_name,
+                    "target_name": target_name,
+                    "target_table": target_table_name,
+                    "cls_snake": _camel_to_snake(model_cls.__name__)
+                })
             model_cls.__m2m_registry__[table_name] = True
 
         table_obj = metadata.tables.get(table_name)
@@ -462,8 +471,6 @@ class SchemaInferenceEngine:
             source_table_name = model_cls.__tablename__
             
             # Default to Uuid for now, as Eden models use Uuid.
-            # We avoid accessing model_cls.id.type directly because it might be a MappedColumn
-            # that doesn't have the type attribute yet during initialization.
             pk_type = Uuid(native_uuid=True)
             
             metadata = model_cls.metadata
@@ -487,10 +494,18 @@ class SchemaInferenceEngine:
             raise RuntimeError(f"Failed inside _create_m2m_table for {table_name}: {e}") from e
 
     @classmethod
-    def _build_many_to_one(cls, model_cls: Type[Model], name: str, target_name: str, info: dict, sa_kwargs: dict, is_reference: bool) -> None:
-        """Sets up a many-to-one relationship and its corresponding foreign key."""
+    def _get_target_class(cls, model_cls: Type[Model], target_name: str) -> Optional[Type[Model]]:
+        """Resolves target_name string to a model class."""
+        from eden.db.base import Base
+        if hasattr(Base, "registry"):
+            return Base.registry._class_registry.get(target_name)
+        return None
+
+    @classmethod
+    def _ensure_fk_column(cls, model_cls: Type[Model], name: str, target_name: str, info: dict, sa_kwargs: dict) -> str:
+        """Ensures the foreign key column exists for a many-to-one relationship."""
         fk_col = f"{name}_id"
-        if not hasattr(model_cls, fk_col):
+        if not cls._is_already_defined(model_cls, fk_col):
             target_table = _resolve_table_name(target_name, model_cls)
             is_legacy = target_name in ("Role", "Permission")
             fk_type = Uuid(native_uuid=True) if not is_legacy else Integer
@@ -507,36 +522,180 @@ class SchemaInferenceEngine:
                 info=fk_info
             )
             setattr(model_cls, fk_col, col)
+        return fk_col
 
-        backref_name = _camel_to_snake(model_cls.__name__)
+    @classmethod
+    def _build_many_to_one(cls, model_cls: Type[Model], name: str, target_name: str, info: dict, sa_kwargs: dict, is_reference: bool) -> None:
+        """Sets up a many-to-one relationship."""
+        fk_col = cls._ensure_fk_column(model_cls, name, target_name, info, sa_kwargs)
+
+        # Check for reciprocal in memo to detect 1:1 vs N:1 and sync back_populates
+        reciprocal_attr = None
+        reciprocal_is_list = True # Default to many
+        
+        # 1. Normal reciprocal check (forward)
+        for (t_cls, t_attr), (src_cls, is_list) in cls._relationship_memo.items():
+            if t_cls == target_name and src_cls == model_cls.__name__:
+                reciprocal_attr = t_attr
+                reciprocal_is_list = is_list
+                break
+        
+        # 2. Retroactive sync (backward)
+        for (src_name, src_attr), (t_name, is_list) in cls._relationship_memo.items():
+            if t_name == model_cls.__name__ and src_name == target_name:
+                reciprocal_attr = src_attr
+                reciprocal_is_list = is_list
+                # Update other side
+                other_cls = cls._get_target_class(model_cls, target_name)
+                if other_cls:
+                    other_rel = getattr(other_cls, src_attr, None)
+                    if other_rel and hasattr(other_rel, "prop"):
+                        other_rel.prop.back_populates = name
+                        other_rel.prop.backref = None
+
+        # If it's 1:1 (singular on both sides), backref should also be singular and uselist=False
+        is_o2o = not reciprocal_is_list
+        default_backref = _camel_to_snake(model_cls.__name__)
+        if not is_o2o:
+             default_backref += "s" # Plural for many side
+        
+        backref_name = info.get("backref") or default_backref
+        
         kwargs = {
             "overlaps": "*",
             "uselist": False,
             "foreign_keys": f"{model_cls.__name__}.{fk_col}",
-            "back_populates": info.get("back_populates"),
+            "back_populates": info.get("back_populates") or reciprocal_attr,
+            "lazy": info.get("lazy", "selectin"),
         }
+        
         if not kwargs["back_populates"]:
-            kwargs["backref"] = backref_name
-
-        # Always update/set the relationship to ensure it has the correct foreign_keys and overlaps
+            # Fallback to backref
+            target_cls = cls._get_target_class(model_cls, target_name)
+            if target_cls and hasattr(target_cls, backref_name):
+                pass # Avoid collision
+            else:
+                if is_o2o:
+                    kwargs["backref"] = backref(backref_name, uselist=False, overlaps="*")
+                else:
+                    kwargs["backref"] = backref(backref_name, overlaps="*")
+        
         setattr(model_cls, name, relationship(target_name, **kwargs))
+
+
 
     @classmethod
     def _is_already_defined(cls, model_cls: Type[Model], name: str) -> bool:
         """Check if attribute is already mapped in current class or parents."""
+        # Check current class
         if name in model_cls.__dict__:
             val = model_cls.__dict__[name]
-            if hasattr(val, "column") or hasattr(val, "__visit_name__") or isinstance(val, (property, declared_attr)):
+            if hasattr(val, "column") or hasattr(val, "mapper") or hasattr(val, "direction") or isinstance(val, (property, declared_attr)):
+                return True
+            # Also skip if it's one of our relationship helpers
+            if hasattr(val, "info") and (val.info.get("is_reference") or val.info.get("is_m2m")):
                 return True
         
+        # Check parents (including Model)
         for base in model_cls.mro()[1:]:
-            if base.__name__ in ("Model", "Base", "object"):
+            if base.__name__ in ("Base", "object"):
                 continue
             if name in base.__dict__:
                 val = base.__dict__[name]
-                if hasattr(val, "column") or hasattr(val, "__visit_name__") or isinstance(val, (property, declared_attr)):
+                if hasattr(val, "column") or hasattr(val, "mapper") or hasattr(val, "direction") or isinstance(val, (property, declared_attr)):
                     return True
         return False
+
+
+    @classmethod
+    def generate_pydantic_schema(
+        cls, 
+        model_cls: Type[Model], 
+        include: Optional[List[str]] = None, 
+        exclude: Optional[List[str]] = None, 
+        only_columns: bool = False
+    ) -> Type[Any]:
+        """
+        Generates a Pydantic model (Schema) from an Eden Model's type hints and metadata.
+        This provides the bridge between the ORM and the form/API layers.
+        """
+        from pydantic import create_model, Field
+        from .metadata import parse_metadata
+        
+        fields = {}
+        include_set = set(include) if include else None
+        exclude_set = set(exclude) if exclude else set()
+        
+        # 1. Gather all annotations from the model class and its parents
+        try:
+            hints = get_type_hints(model_cls, include_extras=True)
+        except Exception:
+            hints = getattr(model_cls, "__annotations__", {})
+            
+        for name, hint in hints.items():
+            if name.startswith("_") or name in ("registry", "metadata", "type_annotation_map"):
+                continue
+                
+            if include_set and name not in include_set:
+                continue
+            if name in exclude_set:
+                continue
+                
+            metadata, final_type, is_list, is_union, target_name = cls._analyze_type_hint(hint)
+            
+            # If only_columns is true, skip relationships
+            if only_columns and target_name:
+                continue
+                
+            # If it's a relationship, we treat references as UUIDs in the schema unless they are lists
+            field_type = final_type
+            if target_name and not is_list:
+                # Many-to-one or one-to-one: usually we want the ID here for forms
+                field_type = Optional[uuid.UUID]
+            elif target_name and is_list:
+                 # One-to-many: usually skip for flat schemas or use List[UUID]
+                 # For now, skip to match simple forms
+                 continue
+
+            _, _, info = parse_metadata(metadata)
+            
+            # Map Eden metadata to Pydantic field kwargs
+            pydantic_kwargs = {}
+            if "label" in info:
+                pydantic_kwargs["description"] = info["label"]
+            
+            # pydantic uses json_schema_extra in v2
+            pydantic_kwargs["json_schema_extra"] = info.copy()
+            
+            if "max" in info:
+                if isinstance(final_type, type) and issubclass(final_type, str):
+                    pydantic_kwargs["max_length"] = info["max"]
+                else:
+                    pydantic_kwargs["le"] = info["max"]
+            if "min" in info:
+                if isinstance(final_type, type) and issubclass(final_type, str):
+                    pydantic_kwargs["min_length"] = info["min"]
+                else:
+                    pydantic_kwargs["ge"] = info["min"]
+            
+            # Default value
+            default = ...
+            if name in model_cls.__dict__:
+                val = model_cls.__dict__[name]
+                # If it's a mapped_column or similar, don't use it as default
+                if not hasattr(val, "column") and not hasattr(val, "mapper"):
+                    default = val
+            
+            # Required status
+            if info.get("required") is False or is_union:
+                if default is ...:
+                    default = None
+            
+            fields[name] = (field_type, Field(default=default, **pydantic_kwargs))
+            
+        # Create the dynamic Pydantic model
+        schema_name = f"{model_cls.__name__}Schema"
+        return create_model(schema_name, **fields)
 
 
 class ValidationScanner:
@@ -545,7 +704,6 @@ class ValidationScanner:
     @classmethod
     def _is_numeric_attr(cls, attr: Any) -> bool:
         """Check if attribute represents a numeric field."""
-        # Check SQLAlchemy type if available
         if hasattr(attr, "prop"):  # InstrumentedAttribute
             try:
                 col = attr.prop.columns[0]
@@ -565,7 +723,6 @@ class ValidationScanner:
         """Scans model and its base classes for validation metadata."""
         discovered_rules = []
 
-        # Iterate through MRO to collect rules from base classes
         for base in model_cls.__mro__:
             if base.__name__ in ("Base", "object"):
                 continue

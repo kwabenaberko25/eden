@@ -7,7 +7,13 @@ class Task(Model):
     title: str = f(max_length=100)
     is_done: bool = f(default=False)
 
-@pytest.mark.asyncio
+@pytest.fixture(autouse=True)
+async def setup_db(db, db_transaction):
+    """Ensure tables are created for models in this file."""
+    async with db.engine.begin() as conn:
+        await conn.run_sync(Model.metadata.create_all)
+    yield
+
 async def test_orm_basic_crud(db):
     # 1. Create
     task = await Task.create(title="Finish Audit", is_done=False)

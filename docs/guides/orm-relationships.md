@@ -30,6 +30,24 @@ graph LR
 
 ---
 
+## 🏗️ Core Relationship Helpers
+
+Eden provides high-level helpers that simplify the standard SQLAlchemy boilerplate.
+
+### Reference vs. Relationship: What's the difference?
+
+While they look similar, they have two distinct responsibilities:
+
+1.  **`Reference` (The One-Liner)**: This is the "heavy lifter." It **creates the Database Column** (the Foreign Key) and the ORM link in one go. Use this on the side that "belongs to" the other (e.g., `Teacher` belongs to `User`).
+2.  **`Relationship` (The Navigator)**: This does **not** create any database columns. it simply tells Eden how to navigate to the other model. Use this on the side that doesn't have the ID.
+
+| Helper | Action | Where to use? |
+| :--- | :--- | :--- |
+| **`Reference`** | **Creates FK Column** + ORM Link | The "Child" side (has the ID). |
+| **`Relationship`**| Just Navigates | The "Parent" side (no ID). |
+
+---
+
 ## 🏗️ Core Relationship Types
 
 ### 1. One-to-Many (1:N)
@@ -46,13 +64,26 @@ class Company(Model):
 
 class Employee(Model):
     name: Mapped[str] = f()
-    # Foreign Key defines the link
-    company_id: Mapped[int] = f(foreign_key="companies.id")
-    # Reference back to Parent
-    company: Mapped["Company"] = relationship(back_populates="employees")
+    # 🌟 The Eden Way: Reference() handles the company_id for you!
+    company: Mapped["Company"] = Reference(back_populates="employees")
 ```
 
-### 2. Many-to-Many (N:M)
+### 2. One-to-One (1:1)
+Required when one record is strictly linked to exactly one other record (e.g., a `User` and their `Teacher` profile).
+
+```python
+class User(Model):
+    name: Mapped[str] = f()
+    # Relationship points back; uselist=False makes it 1:1
+    teacher: Mapped["Teacher"] = relationship("Teacher", back_populates="user", uselist=False)
+
+class Teacher(Model):
+    staff_id: Mapped[str] = f(unique=True)
+    # Reference creates the user_id column + link
+    user: Mapped["User"] = Reference(back_populates="teacher")
+```
+
+### 3. Many-to-Many (N:M)
 Requires an intermediate **Association Table**. Eden manages this link transparently.
 
 ```python
@@ -74,9 +105,29 @@ class User(Model):
 
 class Group(Model):
     name: Mapped[str] = f()
-    users: Mapped[List["User"]] = relationship(
+    users: Mapped[List["User"]] = Relationship(
         secondary=user_groups, back_populates="groups"
     )
+
+---
+
+## ⚙️ Key Configuration Attributes
+
+Understanding these two attributes is critical for mastering Eden's data layer.
+
+### 1. `back_populates` (The Sync Manager)
+This links two relationships together so they stay in sync at runtime. Without it, assigning a `User` to a `Teacher` wouldn't instantly update the `User.teacher` attribute in memory.
+
+*   **Rule**: Must be on **both** sides.
+*   **Target**: Must point to the attribute name on the *other* model.
+
+### 2. `uselist` (The List Control)
+Decides if an attribute returns a single object or a collection.
+
+*   **`uselist=True` (Default)**: Returns a `list`. Used for 1:N and N:M.
+*   **`uselist=False`**: Returns a **single object**. Used for 1:1.
+
+---
 ```
 
 ---

@@ -1,0 +1,27 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.12.12, pytest-9.0.2, pluggy-1.6.0
+rootdir: C:\PROJECTS\eden-framework
+configfile: pyproject.toml
+plugins: anyio-4.12.1, asyncio-1.3.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 1 item
+
+tests\test_orm_hooks_and_m2m.py F                                        [100%]
+
+================================== FAILURES ===================================
+_______________________________ test_orm_hooks ________________________________
+
+db = <eden.db.session.Database object at 0x0000013FE7728FB0>
+
+>   ???
+E   AttributeError: 'NoneType' object has no attribute 'hook_triggered'
+
+/home/kb/projects/eden/tests/test_orm_hooks_and_m2m.py:27: AttributeError
+------------------------------ Captured log call ------------------------------
+WARNING  eden.db.lifecycle:lifecycle.py:227 Audit logging failed for LifecycleModel: (sqlite3.OperationalError) no such table: eden_audit_logs
+[SQL: INSERT INTO eden_audit_logs (id, user_id, action, model_name, record_id, changes, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING created_at, updated_at]
+[parameters: ('222ffe56ef184bb18ede637a670c3743', None, 'create', 'LifecycleModel', '4ada7d53-60cc-4ee7-b378-9f9800ffaf6a', '{"name": {"old": null, "new": "Test Hooks"}, "hook_triggered": {"old": null, "new": true}, "id": {"old": null, "new": "4ada7d53-60cc-4ee7-b378-9f9800ffaf6a"}, "created_at": {"old": null, "new": "2026-03-19T23:12:28"}, "updated_at": {"old": null, "new": "2026-03-19T23:12:28"}}', '2026-03-19 23:12:28.987681')]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+=========================== short test summary info ===========================
+FAILED tests/test_orm_hooks_and_m2m.py::test_orm_hooks - AttributeError: 'Non...
+============================== 1 failed in 0.40s ==============================

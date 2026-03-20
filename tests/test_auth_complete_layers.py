@@ -395,9 +395,9 @@ async def test_is_authorized_decorator():
 
 def test_rbac_hierarchy():
     """Verify RBAC role hierarchy."""
-    from eden.auth.rbac import EdenRBAC
+    from eden.auth.access import RoleHierarchy
     
-    rbac = EdenRBAC()
+    rbac = RoleHierarchy()
     
     # Create role hierarchy
     rbac.add_role("user")
@@ -480,4 +480,9 @@ def test_auth_module_exports():
     
     # RBAC
     assert hasattr(auth, "default_rbac")
-    assert hasattr(auth, "EdenRBAC")
+    assert hasattr(auth, "RoleHierarchy")
+    assert hasattr(auth, "staff_required")
+    assert hasattr(auth, "authenticate")
+    assert hasattr(auth, "login")
+    assert hasattr(auth, "logout")
+    assert hasattr(auth, "create_user")

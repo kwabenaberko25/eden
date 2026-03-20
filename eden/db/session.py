@@ -163,7 +163,9 @@ class Database:
                 reset_session(token)
 
     @contextlib.asynccontextmanager
-    async def savepoint(self, session: Optional[AsyncSession] = None) -> AsyncIterator[AsyncSession]:
+    async def savepoint(
+        self, name: Optional[str] = None, session: Optional[AsyncSession] = None
+    ) -> AsyncIterator[AsyncSession]:
         """
         Creates a savepoint within the current transaction.
         

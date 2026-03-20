@@ -65,7 +65,14 @@ from eden.auth.oauth import OAuthManager, OAuthProvider, GoogleProvider, GitHubP
 
 # ── RBAC & Authorization ────────────────────────────────────────────────
 
-from eden.auth.rbac import default_rbac, EdenRBAC
+from eden.auth.access import (
+    default_rbac, 
+    RoleHierarchy, 
+    RoleHierarchy as EdenRBAC,  # Legacy alias
+    check_permission, 
+    require_permission as access_require_permission,
+    RoleManager,
+)
 from eden.auth.decorators import (
     login_required,
     roles_required,
@@ -76,6 +83,9 @@ from eden.auth.decorators import (
     require_role,
     require_any_permission,
     require_any_role,
+    staff_required,
+    require_permission as permission_required, # Alias
+    require_role as role_required, # Alias
 )
 
 # ── Middleware ───────────────────────────────────────────────────────────
@@ -109,21 +119,20 @@ from eden.auth.query_filtering import (
     user_has_any_permission,
     user_has_any_role,
 )
-# ── New Complete Auth System Functions ───────────────────────────────────
-# These provide high-level auth convenience functions
-# Note: authenticate, create_user, check_permission are unique to complete.py
-# require_permission and login_required already imported from decorators above
+# ── Unified Auth System Functions ────────────────────────────────────────
+# These provide high-level auth convenience functions migrated from complete.py
 
-from eden.auth.complete import (
+from eden.auth.actions import (
     authenticate,
     login,
     logout,
     create_user,
-    check_permission,
-    staff_required,
-    permission_required as complete_permission_required,
+)
+
+from eden.auth.access import (
     RoleManager,
 )
+
 __all__ = [
     # Models & Utils
     "User",
@@ -157,6 +166,7 @@ __all__ = [
     
     # RBAC & Authorization
     "default_rbac",
+    "RoleHierarchy",
     "EdenRBAC",
     "login_required",
     "roles_required",
@@ -167,6 +177,9 @@ __all__ = [
     "require_any_role",
     "is_authorized",
     "bind_user_principal",
+    "staff_required",
+    "permission_required",
+    "role_required",
     
     # Query-Level RBAC
     "apply_rbac_filter",
@@ -175,14 +188,12 @@ __all__ = [
     "user_has_any_permission",
     "user_has_any_role",
     
-    # High-level convenience functions (from complete module)
+    # High-level convenience functions
     "authenticate",
     "login",
     "logout",
     "create_user",
     "check_permission",
-    "staff_required",
-    "complete_permission_required",
     "RoleManager",
     
     # Middleware

@@ -25,6 +25,13 @@ class Product(Model):
 
 Category.products = Relationship(Product, back_populates="category")
 
+@pytest.fixture(autouse=True)
+async def setup_db(db, db_transaction):
+    """Ensure tables are created for models in this file."""
+    async with db.engine.begin() as conn:
+        await conn.run_sync(Model.metadata.create_all)
+    yield
+
 @pytest.mark.asyncio
 async def test_form_metadata_propagation():
     """Verify that ORM metadata flows seamlessly into forms."""
@@ -66,7 +73,7 @@ async def test_schema_declarative_integration():
     assert form["title"].label == "Product Title"
 
 @pytest.mark.asyncio
-async def test_model_form_saving(db):
+async def test_model_form_saving(db, db_transaction):
     """Verify that ModelForm saves data correctly to the database."""
     
     class ProductCreateForm(ModelForm):
@@ -93,7 +100,7 @@ async def test_model_form_saving(db):
     assert fetched.price == 299
 
 @pytest.mark.asyncio
-async def test_complex_query_integration(db):
+async def test_complex_query_integration(db, db_transaction):
     """Verify that we can use streamlined lookups with joined data."""
     cat = await Category.create(name="Electronics")
     await Product.create(title="Laptop", price=1000, category_id=cat.id, status="published")

@@ -175,14 +175,14 @@ async def test_app() -> Eden:
     
     config = Config()
     config.env = Environment.TEST
-    config.DATABASE_URL = "sqlite+aiosqlite:///:memory:"
-    config.DEBUG = True
-    config.SECRET_KEY = "test-secret-key-for-eden-tests"
+    config.database_url = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
+    config.debug = True
+    config.secret_key = "test-secret-key-for-eden-tests"
     set_config(config)
     
     app = create_app()
     # Initialize app state so db is available
-    app.state.db = Database(config.DATABASE_URL)
+    app.state.db = Database(config.get_database_url())
     await app.state.db.connect(create_tables=True)
     
     return app

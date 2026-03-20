@@ -35,18 +35,6 @@ from eden.exceptions import Forbidden, Unauthorized, PermissionDenied
 def _find_request(args: Sequence[Any], kwargs: dict[str, Any]) -> Any:
     """
     Safely find the request object in args or kwargs, supporting CBVs.
-
-    Search order:
-        1. kwargs["request"]
-        2. Positional args with scope/receive/send (duck-typed Request)
-        3. ContextVar fallback via eden.context.get_request
-
-    Args:
-        args: Positional arguments from the decorated function call.
-        kwargs: Keyword arguments from the decorated function call.
-
-    Returns:
-        The Request object, or None if not found.
     """
     request = kwargs.get("request")
     if request:
@@ -65,12 +53,6 @@ def _find_request(args: Sequence[Any], kwargs: dict[str, Any]) -> Any:
 def _get_user_from_request(request: Any) -> Any:
     """
     Extract the user from a request object, checking multiple locations.
-
-    Args:
-        request: The request object.
-
-    Returns:
-        The user object, or None if not found.
     """
     user = getattr(request, "user", None)
     if user is not None:
@@ -85,15 +67,6 @@ def _get_user_from_request(request: Any) -> Any:
 def _get_tenant_roles(user: Any) -> list[str]:
     """
     Get effective roles for the user in the current tenant context.
-
-    First checks for tenant-scoped roles (user.tenant_roles or a
-    get_roles_for_tenant method). Falls back to user.roles.
-
-    Args:
-        user: The authenticated user object.
-
-    Returns:
-        List of role strings for the current tenant context.
     """
     # 1. Check for a method that resolves tenant-scoped roles
     get_tenant_roles_fn = getattr(user, "get_roles_for_tenant", None)
@@ -123,17 +96,11 @@ def _get_tenant_roles(user: Any) -> list[str]:
 def _get_tenant_permissions(user: Any) -> list[str]:
     """
     Get effective permissions for the user in the current tenant context.
-
-    First checks for tenant-scoped permissions (user.tenant_permissions or a
-    get_permissions_for_tenant method). Falls back to user.permissions.
-
-    Args:
-        user: The authenticated user object.
-
-    Returns:
-        List of permission strings for the current tenant context.
+    Combines direct permissions and permissions inherited via roles from default_rbac.
     """
-    # 1. Check for a method that resolves tenant-scoped permissions
+    all_perms = set()
+
+    # 1. Resolve direct permissions from user model (tenant-aware)
     get_tenant_perms_fn = getattr(user, "get_permissions_for_tenant", None)
     if callable(get_tenant_perms_fn) and not _is_mock(get_tenant_perms_fn):
         try:
@@ -142,20 +109,27 @@ def _get_tenant_permissions(user: Any) -> list[str]:
             if tenant_id is not None:
                 result = get_tenant_perms_fn(tenant_id)
                 if isinstance(result, (list, tuple, set)):
-                    return list(result)
+                    all_perms.update(result)
         except Exception:
             pass
+    else:
+        # Fallback to pre-resolved or flat permissions
+        tenant_perms = getattr(user, "tenant_permissions", None)
+        if isinstance(tenant_perms, (list, tuple, set)):
+            all_perms.update(tenant_perms)
+        else:
+            perms = getattr(user, "permissions", [])
+            if isinstance(perms, (list, tuple, set)):
+                all_perms.update(perms)
 
-    # 2. Check for pre-resolved tenant_permissions attribute
-    tenant_perms = getattr(user, "tenant_permissions", None)
-    if isinstance(tenant_perms, (list, tuple, set)):
-        return list(tenant_perms)
+    # 2. Add permissions from roles (using default_rbac)
+    user_roles = _get_tenant_roles(user)
+    if user_roles:
+        from eden.auth.access import default_rbac
+        for role in user_roles:
+            all_perms.update(default_rbac.get_all_permissions(role))
 
-    # 3. Fallback: flat permissions list on user model
-    perms = getattr(user, "permissions", [])
-    if isinstance(perms, (list, tuple, set)):
-        return list(perms)
-    return []
+    return list(all_perms)
 
 
 def _is_mock(value: Any) -> bool:
@@ -170,15 +144,6 @@ def _is_mock(value: Any) -> bool:
 def _is_true(value: Any) -> bool:
     """
     Safely check if a value is True, handling Mock objects in tests.
-
-    Mock objects are truthy but not actually True. This function
-    explicitly checks for boolean True to avoid false positives.
-
-    Args:
-        value: The value to check.
-
-    Returns:
-        True only if the value is boolean True.
     """
     return value is True or (isinstance(value, bool) and value)
 
@@ -186,14 +151,6 @@ def _is_true(value: Any) -> bool:
 def _is_none_or_mock(value: Any) -> bool:
     """
     Check if a value is None or a Mock/MagicMock object.
-
-    Used to guard against test mock objects being treated as valid users.
-
-    Args:
-        value: The value to check.
-
-    Returns:
-        True if value is None or a unittest.mock object.
     """
     if value is None:
         return True
@@ -209,21 +166,6 @@ def _is_none_or_mock(value: Any) -> bool:
 def view_decorator(decorator: Callable) -> Callable:
     """
     Apply a decorator to all HTTP method handlers of a View class.
-
-    Iterates over standard HTTP method names (get, post, put, patch, delete, any)
-    and wraps each found method with the provided decorator.
-
-    Args:
-        decorator: The decorator function to apply (e.g., login_required).
-
-    Returns:
-        A class decorator that wraps all HTTP methods.
-
-    Usage:
-        @view_decorator(login_required)
-        class MyView(View):
-            async def get(self, request): ...
-            async def post(self, request): ...
     """
     def wrapper(cls: type) -> type:
         for attr in ("get", "post", "put", "patch", "delete", "any"):
@@ -238,14 +180,6 @@ def view_decorator(decorator: Callable) -> Callable:
 def login_required(func: Callable) -> Callable:
     """
     Decorator to ensure the user is authenticated.
-
-    Raises Unauthorized (401) if no user is found on the request.
-    Works with function-based handlers and CBVs.
-
-    Usage:
-        @login_required
-        async def dashboard(request):
-            return {"user": request.user.email}
     """
     setattr(func, "_login_required", True)
 
@@ -275,15 +209,6 @@ def is_authorized(func: Callable) -> Callable:
 def bind_user_principal(func: Callable) -> Callable:
     """
     Decorator to bind the current user to the request context.
-
-    Sets request.user and request.principal from the auth backend.
-    Does not raise if no user is found — it simply doesn't bind.
-
-    Usage:
-        @bind_user_principal
-        async def handler(request):
-            if request.user:  # may be None
-                ...
     """
     @functools.wraps(func)
     async def wrapper(*args: Any, **kwargs: Any) -> Any:
@@ -305,20 +230,6 @@ def bind_user_principal(func: Callable) -> Callable:
 def roles_required(roles: Sequence[str]) -> Callable:
     """
     Decorator to ensure the user has at least one of the specified roles.
-
-    Tenant-aware: uses _get_tenant_roles to resolve roles scoped to the
-    current tenant. Superusers bypass role checks.
-
-    Args:
-        roles: List of role names. User must have at least one.
-
-    Raises:
-        Unauthorized: If user is not authenticated.
-        PermissionDenied: If user lacks all specified roles.
-
-    Usage:
-        @roles_required(["admin", "manager"])
-        async def admin_panel(request): ...
     """
     def decorator(func: Callable) -> Callable:
         setattr(func, "_required_roles", roles)
@@ -351,15 +262,6 @@ def roles_required(roles: Sequence[str]) -> Callable:
 def require_role(role: str) -> Callable:
     """
     Decorator to ensure the user has a specific single role.
-
-    Tenant-aware: uses _get_tenant_roles. Superusers bypass.
-
-    Args:
-        role: The required role name.
-
-    Usage:
-        @require_role("editor")
-        async def edit_post(request): ...
     """
     def decorator(func: Callable) -> Callable:
         setattr(func, "_required_role", role)
@@ -390,16 +292,6 @@ def require_role(role: str) -> Callable:
 def require_any_role(roles: Sequence[str]) -> Callable:
     """
     Decorator to ensure the user has at least one of the specified roles.
-
-    Functionally identical to roles_required but with a more explicit name.
-    Tenant-aware. Superusers bypass.
-
-    Args:
-        roles: List of acceptable role names.
-
-    Usage:
-        @require_any_role(["admin", "moderator"])
-        async def moderate(request): ...
     """
     def decorator(func: Callable) -> Callable:
         setattr(func, "_required_any_roles", roles)
@@ -434,15 +326,6 @@ def require_any_role(roles: Sequence[str]) -> Callable:
 def permissions_required(permissions: Sequence[str]) -> Callable:
     """
     Decorator to ensure the user has ALL the specified permissions.
-
-    Tenant-aware: uses _get_tenant_permissions. Superusers bypass.
-
-    Args:
-        permissions: List of permission strings. User must have all of them.
-
-    Usage:
-        @permissions_required(["posts.read", "posts.write"])
-        async def manage_posts(request): ...
     """
     def decorator(func: Callable) -> Callable:
         setattr(func, "_required_permissions", permissions)
@@ -461,9 +344,17 @@ def permissions_required(permissions: Sequence[str]) -> Callable:
                 return await func(*args, **kwargs)
 
             user_permissions = _get_tenant_permissions(user)
-            if not all(perm in user_permissions for perm in permissions):
+            user_roles = _get_tenant_roles(user)
+            from eden.auth.access import default_rbac
+            
+            missing = []
+            for perm in permissions:
+                if perm not in user_permissions and not default_rbac.has_permission(user_roles, perm):
+                    missing.append(perm)
+                    
+            if missing:
                 raise PermissionDenied(
-                    detail=f"Missing required permissions: {', '.join(permissions)}"
+                    detail=f"Missing required permissions: {', '.join(missing)}"
                 )
 
             return await func(*args, **kwargs)
@@ -475,18 +366,6 @@ def permissions_required(permissions: Sequence[str]) -> Callable:
 def require_permission(permission: str) -> Callable:
     """
     Decorator to ensure the user has a specific permission.
-
-    Checks in order:
-        1. Superuser bypass
-        2. Direct user permissions (tenant-aware)
-        3. RBAC role hierarchy via default_rbac
-
-    Args:
-        permission: The required permission string.
-
-    Usage:
-        @require_permission("posts.delete")
-        async def delete_post(request): ...
     """
     def decorator(func: Callable) -> Callable:
         setattr(func, "_required_permission", permission)
@@ -511,7 +390,7 @@ def require_permission(permission: str) -> Callable:
                 return await func(*args, **kwargs)
 
             # 3. RBAC hierarchy check (tenant-aware roles)
-            from eden.auth.rbac import default_rbac
+            from eden.auth.access import default_rbac
             user_roles = _get_tenant_roles(user)
             if default_rbac.has_permission(user_roles, permission):
                 return await func(*args, **kwargs)
@@ -525,15 +404,6 @@ def require_permission(permission: str) -> Callable:
 def require_any_permission(permissions: Sequence[str]) -> Callable:
     """
     Decorator to ensure the user has at least one of the specified permissions.
-
-    Tenant-aware: uses _get_tenant_permissions. Superusers bypass.
-
-    Args:
-        permissions: List of permission strings. User must have at least one.
-
-    Usage:
-        @require_any_permission(["posts.read", "posts.list"])
-        async def view_posts(request): ...
     """
     def decorator(func: Callable) -> Callable:
         setattr(func, "_required_any_permissions", permissions)
@@ -552,7 +422,14 @@ def require_any_permission(permissions: Sequence[str]) -> Callable:
                 return await func(*args, **kwargs)
 
             user_permissions = _get_tenant_permissions(user)
-            if not any(perm in user_permissions for perm in permissions):
+            user_roles = _get_tenant_roles(user)
+            from eden.auth.access import default_rbac
+            
+            has_any = any(perm in user_permissions for perm in permissions)
+            if not has_any:
+                has_any = any(default_rbac.has_permission(user_roles, perm) for perm in permissions)
+
+            if not has_any:
                 raise PermissionDenied(
                     detail=f"Missing at least one of the required permissions: {', '.join(permissions)}"
                 )
@@ -561,3 +438,25 @@ def require_any_permission(permissions: Sequence[str]) -> Callable:
 
         return wrapper
     return decorator
+
+
+def staff_required(func: Callable) -> Callable:
+    """
+    Decorator to ensure the user is staff.
+    """
+    setattr(func, "_staff_required", True)
+
+    @functools.wraps(func)
+    async def wrapper(*args: Any, **kwargs: Any) -> Any:
+        request = _find_request(args, kwargs)
+        if not request:
+            raise RuntimeError("Request object not found in view arguments or context.")
+
+        user = _get_user_from_request(request) or await get_current_user(request)
+        if not user or not getattr(user, "is_staff", False):
+            if not getattr(user, "is_superuser", False):
+                raise PermissionDenied(detail="Staff access required.")
+
+        return await func(*args, **kwargs)
+
+    return wrapper

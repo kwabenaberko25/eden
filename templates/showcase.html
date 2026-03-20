@@ -1,0 +1,152 @@
+@extends("eden/base.html")
+
+@block("title") { Eden Premium Showcase }
+
+@block("head") {
+    <!-- Material Symbols for Icons -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+    <style>
+        /* Extra high-fidelity button classes */
+        .eden-btn-primary {
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            background-color: #a3e635; /* lime-400 */
+            color: #020617; /* slate-950 */
+            font-weight: 700;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 15px -3px rgba(163, 230, 53, 0.2);
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        .eden-btn-primary:hover {
+            background-color: #bef264; /* lime-300 */
+            box-shadow: 0 10px 15px -3px rgba(190, 242, 100, 0.4);
+            transform: translateY(-2px);
+        }
+    </style>
+}
+
+@block("content") {
+    <div class="space-y-12">
+        <!-- Header -->
+        <header class="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-white/5 pb-10">
+            <div>
+                <span class="text-lime-400 font-bold text-sm uppercase tracking-widest bg-lime-400/10 px-3 py-1 rounded-full border border-lime-400/20">
+                    2026 Developer Experience
+                </span>
+                <h1 class="text-5xl font-black text-white mt-4 tracking-tight">Component System</h1>
+                <p class="text-lg text-slate-400 mt-2 max-w-2xl">
+                    Experience the synergy of server-side power and client-side fidelity. 
+                    Built with <span class="text-white font-medium">Eden Templating</span> and 
+                    <span class="text-white font-medium">Alpine.js</span>.
+                </p>
+            </div>
+            
+            <div class="flex items-center gap-4">
+                @component("modal", id="config-modal", title="Server Configuration") {
+                    @slot("trigger") {
+                        <button class="eden-btn-primary">Provision Node</button>
+                    }
+                    <p class="text-slate-400">Specify the resource limits for your new deployment node.</p>
+                    <div class="mt-6 space-y-4">
+                        <div>
+                            <label class="text-xs font-bold text-slate-500 uppercase">Memory Allocation</label>
+                            <input type="range" class="w-full mt-2 accent-lime-400">
+                        </div>
+                    </div>
+                }
+            </div>
+        </header>
+
+        <!-- Stats Grid -->
+        <section>
+            <div class="flex items-center gap-3 mb-6">
+                <span class="w-2 h-8 bg-lime-400 rounded-full"></span>
+                <h2 class="text-2xl font-bold text-white">Live Probes</h2>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                @for (stat in stats) {
+                    @component("stat", 
+                        label=stat.label, 
+                        value=stat.value, 
+                        change=stat.change, 
+                        icon=stat.icon, 
+                        progress=stat.progress
+                    )
+                }
+            </div>
+        </section>
+
+        <!-- Interactive Layout -->
+        <section class="grid grid-cols-1 lg:grid-cols-3 gap-10">
+            <!-- Left: Tabbed Activity -->
+            <div class="lg:col-span-2 space-y-6">
+                <div class="flex items-center gap-3 mb-2">
+                    <span class="w-2 h-8 bg-emerald-400 rounded-full"></span>
+                    <h2 class="text-2xl font-bold text-white">Project Lifecycle</h2>
+                </div>
+                
+                @component("tabs", active=0, tabs=[
+                    {"id": "table", "label": "Recent Events"},
+                    {"id": "details", "label": "Architecture Details"},
+                    {"id": "logs", "label": "System Logs"}
+                ]) {
+                    @slot("tab_table") {
+                        <div class="bg-slate-900/40 backdrop-blur-md rounded-2xl border border-white/5 overflow-hidden">
+                            <table class="w-full text-left">
+                                <thead class="bg-white/5 text-slate-500 text-xs font-bold uppercase tracking-widest">
+                                    <tr>
+                                        <th class="px-6 py-4">User</th>
+                                        <th class="px-6 py-4">Action</th>
+                                        <th class="px-6 py-4 text-right">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-white/5">
+                                    @for (row in activity) {
+                                    <tr class="hover:bg-white/[0.02] transition-colors">
+                                        <td class="px-6 py-4 font-medium text-white">{{ row.user }}</td>
+                                        <td class="px-6 py-4 text-slate-400 text-sm">
+                                            {{ row.action }}<br/>
+                                            <span class="text-xs opacity-50">{{ row.time }}</span>
+                                        </td>
+                                        <td class="px-6 py-4 text-right">
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-lime-400/10 text-lime-400 border border-lime-400/20">
+                                                {{ row.status }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    
+                    @slot("tab_details") {
+                        <div class="p-8 bg-slate-950/40 rounded-2xl border border-dashed border-white/10 text-center">
+                            <span class="material-symbols-outlined text-slate-600 text-5xl mb-4">architecture</span>
+                            <p class="text-slate-500">Node topology data will appear here during boot.</p>
+                        </div>
+                    }
+                }
+            </div>
+
+            <!-- Right: Accordion Info -->
+            <div class="space-y-6">
+                 <div class="flex items-center gap-3 mb-2">
+                    <span class="w-2 h-8 bg-blue-400 rounded-full"></span>
+                    <h2 class="text-2xl font-bold text-white">Internal States</h2>
+                </div>
+                
+                @component("accordion", items=[
+                    {"title": "Security Protocol", "content": "All requests are verified via AES-256 encrypted sessions and CSRF tokens by default."},
+                    {"title": "Performance Tuning", "content": "Jinja2 templates are pre-compiled into optimized bytecode for sub-10ms response times."},
+                    {"title": "HTMX Orchestration", "content": "Fragments allow for selective DOM updates without full-page reloads."}
+                ])
+                
+                @component("alert", type="warning", icon="bolt") {
+                    <strong>Edge Warning</strong>: Latency detected in Northern nodes. Eden is automatically rerouting traffic.
+                }
+            </div>
+        </section>
+    </div>
+}

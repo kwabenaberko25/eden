@@ -709,6 +709,7 @@ MIDDLEWARE_REGISTRY: dict[str, type | str] = {
     "redis_ratelimit": "eden.middleware.rate_limit:RedisRateLimitMiddleware",
     "logging": "eden.logging:RequestLoggingMiddleware",
     "auth": "eden.auth.middleware:AuthenticationMiddleware",
+    "authorization": "eden.auth.middleware:AuthorizationMiddleware",
     "browser_reload": BrowserReloadMiddleware,
     "tenant": "eden.tenancy.middleware:TenantMiddleware",
     "telemetry": PerformanceTelemetryMiddleware,

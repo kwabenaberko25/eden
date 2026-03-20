@@ -1,26 +1,36 @@
-<div x-data="{ activeTab: {{ active }} }">
+<div x-data="{ activeTab: {{ active }} }" class="w-full">
   <!-- Tab headers -->
-  <div class="flex border-b border-gray-700 gap-1" role="tablist">
+  <div class="flex items-center space-x-1 p-1 bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl w-fit" role="tablist">
     @for (tab in tabs) {
-    <button @click="activeTab = {{ loop.index0 }}"
-            :class="activeTab === {{ loop.index0 }}
-              ? 'border-blue-500 text-blue-400'
-              : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-500'"
-            class="px-4 py-2.5 text-sm font-medium border-b-2 transition-all duration-200 -mb-px cursor-pointer"
-            role="tab">
+    <button 
+        x-on:click="activeTab = {{ loop.index0 }}"
+        x-bind:class="activeTab === {{ loop.index0 }}
+            ? 'bg-lime-400/10 text-lime-400 shadow-sm'
+            : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'"
+        class="px-5 py-2 text-sm font-semibold rounded-xl transition-all duration-300 cursor-pointer outline-none focus:ring-2 focus:ring-lime-400/20"
+        role="tab"
+    >
       {{ tab.label }}
     </button>
     }
   </div>
+
   <!-- Tab panels -->
-  @for (tab in tabs) {
-  <div x-show="activeTab === {{ loop.index0 }}"
-       x-transition:enter="transition-opacity duration-200"
-       x-transition:enter-start="opacity-0"
-       x-transition:enter-end="opacity-100"
-       class="py-4 text-slate-300"
-       role="tabpanel">
-    @if (slots['tab_' ~ tab.id]) { {{ slots['tab_' ~ tab.id] }} }
+  <div class="mt-4 relative overflow-hidden">
+    @for (tab in tabs) {
+    <div 
+        x-show="activeTab === {{ loop.index0 }}"
+        x-transition:enter="transition-all duration-500 ease-out"
+        x-transition:enter-start="opacity-0 translate-x-4"
+        x-transition:enter-end="opacity-100 translate-x-0"
+        x-transition:leave="transition-all duration-300 ease-in absolute top-0 left-0 w-full"
+        x-transition:leave-start="opacity-100 translate-x-0"
+        x-transition:leave-end="opacity-0 -translate-x-4"
+        class="text-slate-300 leading-relaxed"
+        role="tabpanel"
+    >
+      @if (slots['tab_' ~ tab.id]) { {{ slots['tab_' ~ tab.id] }} }
+    </div>
+    }
   </div>
-  }
 </div>

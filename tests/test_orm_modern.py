@@ -33,7 +33,7 @@ class ModernPost(Model):
     author: Mapped[ModernUser] = relationship(back_populates="posts")
 
 @pytest.fixture(autouse=True)
-async def setup_db_tables(db):
+async def setup_db_tables(db, db_transaction):
     """Ensure tables are created for these specific models."""
     async with db.engine.begin() as conn:
         await conn.run_sync(Model.metadata.create_all)

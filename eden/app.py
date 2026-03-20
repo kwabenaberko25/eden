@@ -576,6 +576,7 @@ class Eden:
             auth_backends = [SessionBackend(), JWTBackend(secret_key=self.secret_key)]
         
         self.add_middleware("auth", priority=self.PRIORITY_HIGH, backends=auth_backends)
+        self.add_middleware("authorization", priority=self.PRIORITY_HIGH + 1) # Added authorization middleware
         self.add_middleware("gzip", priority=self.PRIORITY_LOW)
         
         # 5. CORS (Secure by default: block all unless configured)

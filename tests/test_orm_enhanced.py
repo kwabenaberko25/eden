@@ -1,10 +1,13 @@
-import pytest
-from uuid import uuid4
-from datetime import datetime
-from eden.db import Model, f, QuerySet, Sum, Avg, Max, Q
-from sqlalchemy import func
-from sqlalchemy.orm import Mapped
+from __future__ import annotations
 
+from typing import List, Optional
+from uuid import UUID
+import pytest
+from sqlalchemy.orm import Mapped
+from eden.db import Model, f, Relationship, Reference, Database, QuerySet, Sum, Avg, Max, Q
+from sqlalchemy import func
+
+# Premium bidirectional relationship definitions
 class EnhancedUser(Model):
     name: str = f(max_length=50)
     data: dict = f(json=True, default={})
@@ -13,12 +16,11 @@ class EnhancedUser(Model):
 
 class EnhancedParent(Model):
     name: str = f()
-    children: Mapped[list["EnhancedChild"]] = f(back_populates="parent")
+    children: Mapped[List["EnhancedChild"]] = Relationship(back_populates="parent")
 
 class EnhancedChild(Model):
     name: str = f()
-    # One-liner relationship with auto-FK (parent_id)
-    parent: Mapped["EnhancedParent"] = f(back_populates="children")
+    parent: Mapped["EnhancedParent"] = Reference(back_populates="children")
 
 @pytest.fixture(autouse=True)
 async def setup_db(db):

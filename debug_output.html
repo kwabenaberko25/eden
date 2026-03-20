@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <title> Eden Premium Showcase </title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700&display=swap">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+    <style>
+        :root {
+            --eden-obsidian: #0F172A;
+        }
+        body {
+            background-color: var(--eden-obsidian);
+            color: #F1F5F9; /* slate-100 */
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            margin: 0;
+            transition: background-color 0.3s ease;
+        }
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Outfit', sans-serif;
+        }
+        .glass {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #0F172A; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+        
+        /* Micro-animations */
+        .hover-lift { transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        .hover-lift:hover { transform: translateY(-2px) scale(1.02); }
+
+        /* Messaging (Toasts) */
+        .eden-toast-container {
+            position: fixed; top: 1.5rem; right: 1.5rem; z-index: 9999;
+            display: flex; flex-direction: column; gap: 0.75rem; pointer-events: none;
+        }
+        .eden-toast {
+            pointer-events: auto; width: 22rem; padding: 1rem; border-radius: 0.75rem;
+            display: flex; align-items: start; gap: 0.85rem;
+            animation: eden-toast-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        @keyframes eden-toast-in {
+            from { opacity: 0; transform: translateX(2rem) scale(0.9); }
+            to { opacity: 1; transform: translateX(0) scale(1); }
+        }
+        .eden-toast-success { border-left: 4px solid #10B981; }
+        .eden-toast-error { border-left: 4px solid #EF4444; }
+        .eden-toast-warning { border-left: 4px solid #F59E0B; }
+        .eden-toast-info { border-left: 4px solid #3B82F6; }
+        .eden-toast-debug { border-left: 4px solid #6366F1; }
+        
+        .eden-toast-close {
+            background: transparent; border: none; padding: 0.25rem; cursor: pointer;
+            color: #94A3B8; transition: color 0.2s;
+        }
+        .eden-toast-close:hover { color: white; }
+    </style>
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.9/dist/cdn.min.js"></script>
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        h1, h2, h3, h4, h5, h6 { font-family: 'Outfit', 'Plus Jakarta Sans', sans-serif; }
+        [x-cloak] { display: none !important; }
+    </style>
+    
+    <!-- Material Symbols for Icons -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+    <style>
+        /* Extra high-fidelity button classes */
+        .eden-btn-primary {
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            background-color: #a3e635; /* lime-400 */
+            color: #020617; /* slate-950 */
+            font-weight: 700;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 15px -3px rgba(163, 230, 53, 0.2);
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        .eden-btn-primary:hover {
+            background-color: #bef264; /* lime-300 */
+            box-shadow: 0 10px 15px -3px rgba(190, 242, 100, 0.4);
+            transform: translateY(-2px);
+        }
+    </style>
+
+</head>
+<body class="bg-[#0F172A] text-slate-200 min-h-screen antialiased"
+      hx-boost="true">
+
+    
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+    <div class="space-y-12">
+        <!-- Header -->
+        <header class="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-white/5 pb-10">
+            <div>
+                <span class="text-lime-400 font-bold text-sm uppercase tracking-widest bg-lime-400/10 px-3 py-1 rounded-full border border-lime-400/20">
+                    2026 Developer Experience
+                </span>
+                <h1 class="text-5xl font-black text-white mt-4 tracking-tight">Component System</h1>
+                <p class="text-lg text-slate-400 mt-2 max-w-2xl">
+                    Experience the synergy of server-side power and client-side fidelity. 
+                    Built with <span class="text-white font-medium">Eden Templating</span> and 
+                    <span class="text-white font-medium">Alpine.js</span>.
+                </p>
+            </div>
+            
+            <div class="flex items-center gap-4">
+                <div 
+  x-data="{ open: false }" 
+  x-on:eden:modal-open.window="if ($event.detail.id === 'config-modal') open = true"
+  x-on:eden:modal-close.window="if ($event.detail.id === 'config-modal') open = false"
+  x-on:keydown.escape.window="open = false"
+  class="relative z-[100]"
+>
+    <!-- Trigger -->
+    
+    <div x-on:click="open = true" class="inline-block">
+        
+                        <button class="eden-btn-primary">Provision Node</button>
+                    
+    </div>
+    
+
+    <!-- Modal Portal -->
+    <template x-teleport="body">
+        <div 
+            x-show="open" 
+            class="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6"
+            x-cloak
+        >
+            <!-- Backdrop -->
+            <div 
+                x-show="open"
+                x-transition:enter="ease-out duration-300"
+                x-transition:enter-start="opacity-0"
+                x-transition:enter-end="opacity-100"
+                x-transition:leave="ease-in duration-200"
+                x-transition:leave-start="opacity-100"
+                x-transition:leave-end="opacity-0"
+                class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm transition-opacity" 
+                x-on:click="open = false"
+            ></div>
+
+            <!-- Panel -->
+            <div 
+                x-show="open"
+                x-transition:enter="ease-out duration-300"
+                x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
+                x-transition:leave="ease-in duration-200"
+                x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100"
+                x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                class="relative max-w-lg w-full transform overflow-hidden rounded-2xl bg-slate-900/80 backdrop-blur-xl border border-white/10 shadow-2xl shadow-black/50 transition-all"
+            >
+                
+                <div class="flex items-center justify-between px-6 py-4 border-b border-white/5">
+                    <h2 class="text-xl font-bold bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
+                        Server Configuration
+                    </h2>
+                    <button x-on:click="open = false" class="text-slate-400 hover:text-white transition-colors p-1">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+                
+
+                <div class="px-6 py-6 text-slate-300">
+                    
+                    
+                    <p class="text-slate-400">Specify the resource limits for your new deployment node.</p>
+                    <div class="mt-6 space-y-4">
+                        <div>
+                            <label class="text-xs font-bold text-slate-500 uppercase">Memory Allocation</label>
+                            <input type="range" class="w-full mt-2 accent-lime-400">
+                        </div>
+                    </div>
+                
+                </div>
+
+                
+            </div>
+        </div>
+    </template>
+</div>
+            </div>
+        </header>
+
+        <!-- Stats Grid -->
+        <section>
+            <div class="flex items-center gap-3 mb-6">
+                <span class="w-2 h-8 bg-lime-400 rounded-full"></span>
+                <h2 class="text-2xl font-bold text-white">Live Probes</h2>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                
+                    
+<div class="bg-slate-900/60 backdrop-blur-xl border border-white/5 rounded-2xl p-6
+            hover:border-lime-400/30 hover:shadow-2xl hover:shadow-lime-400/5 
+            hover:-translate-y-1 transition-all duration-500 group">
+
+  <div class="flex items-start justify-between">
+
+    
+    <div class="flex-1 min-w-0">
+      <p class="text-xs font-bold text-slate-500 uppercase tracking-[0.2em] truncate">Total Revenue</p>
+      <div class="mt-2 flex items-baseline gap-2">
+        <p class="text-4xl font-black text-white tracking-tight">$124,500</p>
+        
+            <span class="text-xs font-bold px-1.5 py-0.5 rounded bg-lime-400/10 text-lime-400">
+                ↑ +14.2%
+            </span>
+        
+      </div>
+
+      
+    </div>
+
+    
+    
+    <div class="ml-4 flex-shrink-0 w-14 h-14 rounded-2xl bg-gradient-to-br from-lime-400/20 to-emerald-400/5 
+                border border-lime-400/20 flex items-center justify-center text-3xl 
+                group-hover:scale-110 group-hover:rotate-3 transition-transform duration-500 shadow-inner">
+      <span class="material-symbols-outlined text-lime-400 drop-shadow-[0_0_10px_rgba(163,230,53,0.3)]">payments</span>
+    </div>
+    
+
+  </div>
+
+  
+  
+  <div class="mt-6 w-full h-1 bg-white/5 rounded-full overflow-hidden">
+      <div class="h-full bg-gradient-to-r from-lime-400 to-emerald-400" style="width: 75%"></div>
+  </div>
+  
+
+</div>
+                
+                    
+<div class="bg-slate-900/60 backdrop-blur-xl border border-white/5 rounded-2xl p-6
+            hover:border-lime-400/30 hover:shadow-2xl hover:shadow-lime-400/5 
+            hover:-translate-y-1 transition-all duration-500 group">
+
+  <div class="flex items-start justify-between">
+
+    
+    <div class="flex-1 min-w-0">
+      <p class="text-xs font-bold text-slate-500 uppercase tracking-[0.2em] truncate">Active Users</p>
+      <div class="mt-2 flex items-baseline gap-2">
+        <p class="text-4xl font-black text-white tracking-tight">12,402</p>
+        
+            <span class="text-xs font-bold px-1.5 py-0.5 rounded bg-lime-400/10 text-lime-400">
+                ↑ +5.1%
+            </span>
+        
+      </div>
+
+      
+    </div>
+
+    
+    
+    <div class="ml-4 flex-shrink-0 w-14 h-14 rounded-2xl bg-gradient-to-br from-lime-400/20 to-emerald-400/5 
+                border border-lime-400/20 flex items-center justify-center text-3xl 
+                group-hover:scale-110 group-hover:rotate-3 transition-transform duration-500 shadow-inner">
+      <span class="material-symbols-outlined text-lime-400 drop-shadow-[0_0_10px_rgba(163,230,53,0.3)]">group</span>
+    </div>
+    
+
+  </div>
+
+  
+  
+  <div class="mt-6 w-full h-1 bg-white/5 rounded-full overflow-hidden">
+      <div class="h-full bg-gradient-to-r from-lime-400 to-emerald-400" style="width: 40%"></div>
+  </div>
+  
+
+</div>
+                
+                    
+<div class="bg-slate-900/60 backdrop-blur-xl border border-white/5 rounded-2xl p-6
+            hover:border-lime-400/30 hover:shadow-2xl hover:shadow-lime-400/5 
+            hover:-translate-y-1 transition-all duration-500 group">
+
+  <div class="flex items-start justify-between">
+
+    
+    <div class="flex-1 min-w-0">
+      <p class="text-xs font-bold text-slate-500 uppercase tracking-[0.2em] truncate">Server Load</p>
+      <div class="mt-2 flex items-baseline gap-2">
+        <p class="text-4xl font-black text-white tracking-tight">24%</p>
+        
+            <span class="text-xs font-bold px-1.5 py-0.5 rounded bg-lime-400/10 text-lime-400">
+                ↑ -2.0%
+            </span>
+        
+      </div>
+
+      
+    </div>
+
+    
+    
+    <div class="ml-4 flex-shrink-0 w-14 h-14 rounded-2xl bg-gradient-to-br from-lime-400/20 to-emerald-400/5 
+                border border-lime-400/20 flex items-center justify-center text-3xl 
+                group-hover:scale-110 group-hover:rotate-3 transition-transform duration-500 shadow-inner">
+      <span class="material-symbols-outlined text-lime-400 drop-shadow-[0_0_10px_rgba(163,230,53,0.3)]">speed</span>
+    </div>
+    
+
+  </div>
+
+  
+  
+  <div class="mt-6 w-full h-1 bg-white/5 rounded-full overflow-hidden">
+      <div class="h-full bg-gradient-to-r from-lime-400 to-emerald-400" style="width: 24%"></div>
+  </div>
+  
+
+</div>
+                
+            </div>
+        </section>
+
+        <!-- Interactive Layout -->
+        <section class="grid grid-cols-1 lg:grid-cols-3 gap-10">
+            <!-- Left: Tabbed Activity -->
+            <div class="lg:col-span-2 space-y-6">
+                <div class="flex items-center gap-3 mb-2">
+                    <span class="w-2 h-8 bg-emerald-400 rounded-full"></span>
+                    <h2 class="text-2xl font-bold text-white">Project Lifecycle</h2>
+                </div>
+                
+                <div x-data="{ activeTab: 0 }" class="w-full">
+  <!-- Tab headers -->
+  <div class="flex items-center space-x-1 p-1 bg-slate-900/50 backdrop-blur-md border border-white/5 rounded-2xl w-fit" role="tablist">
+    
+    <button 
+        x-on:click="activeTab = 0"
+        x-bind:class="activeTab === 0
+            ? 'bg-lime-400/10 text-lime-400 shadow-sm'
+            : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'"
+        class="px-5 py-2 text-sm font-semibold rounded-xl transition-all duration-300 cursor-pointer outline-none focus:ring-2 focus:ring-lime-400/20"
+        role="tab"
+    >
+      Recent Events
+    </button>
+    
+    <button 
+        x-on:click="activeTab = 1"
+        x-bind:class="activeTab === 1
+            ? 'bg-lime-400/10 text-lime-400 shadow-sm'
+            : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'"
+        class="px-5 py-2 text-sm font-semibold rounded-xl transition-all duration-300 cursor-pointer outline-none focus:ring-2 focus:ring-lime-400/20"
+        role="tab"
+    >
+      Architecture Details
+    </button>
+    
+    <button 
+        x-on:click="activeTab = 2"
+        x-bind:class="activeTab === 2
+            ? 'bg-lime-400/10 text-lime-400 shadow-sm'
+            : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'"
+        class="px-5 py-2 text-sm font-semibold rounded-xl transition-all duration-300 cursor-pointer outline-none focus:ring-2 focus:ring-lime-400/20"
+        role="tab"
+    >
+      System Logs
+    </button>
+    
+  </div>
+
+  <!-- Tab panels -->
+  <div class="mt-4 relative overflow-hidden">
+    
+    <div 
+        x-show="activeTab === 0"
+        x-transition:enter="transition-all duration-500 ease-out"
+        x-transition:enter-start="opacity-0 translate-x-4"
+        x-transition:enter-end="opacity-100 translate-x-0"
+        x-transition:leave="transition-all duration-300 ease-in absolute top-0 left-0 w-full"
+        x-transition:leave-start="opacity-100 translate-x-0"
+        x-transition:leave-end="opacity-0 -translate-x-4"
+        class="text-slate-300 leading-relaxed"
+        role="tabpanel"
+    >
+       
+                        <div class="bg-slate-900/40 backdrop-blur-md rounded-2xl border border-white/5 overflow-hidden">
+                            <table class="w-full text-left">
+                                <thead class="bg-white/5 text-slate-500 text-xs font-bold uppercase tracking-widest">
+                                    <tr>
+                                        <th class="px-6 py-4">User</th>
+                                        <th class="px-6 py-4">Action</th>
+                                        <th class="px-6 py-4 text-right">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-white/5">
+                                    
+                                    <tr class="hover:bg-white/[0.02] transition-colors">
+                                        <td class="px-6 py-4 font-medium text-white">Alex Rivers</td>
+                                        <td class="px-6 py-4 text-slate-400 text-sm">
+                                            Created Project<br/>
+                                            <span class="text-xs opacity-50">2 mins ago</span>
+                                        </td>
+                                        <td class="px-6 py-4 text-right">
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-lime-400/10 text-lime-400 border border-lime-400/20">
+                                                Finalizing
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    
+                                    <tr class="hover:bg-white/[0.02] transition-colors">
+                                        <td class="px-6 py-4 font-medium text-white">Sarah Chen</td>
+                                        <td class="px-6 py-4 text-slate-400 text-sm">
+                                            Updated Billing<br/>
+                                            <span class="text-xs opacity-50">15 mins ago</span>
+                                        </td>
+                                        <td class="px-6 py-4 text-right">
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-lime-400/10 text-lime-400 border border-lime-400/20">
+                                                Complete
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    
+                                    <tr class="hover:bg-white/[0.02] transition-colors">
+                                        <td class="px-6 py-4 font-medium text-white">Mike Vance</td>
+                                        <td class="px-6 py-4 text-slate-400 text-sm">
+                                            Deployed App<br/>
+                                            <span class="text-xs opacity-50">1 hour ago</span>
+                                        </td>
+                                        <td class="px-6 py-4 text-right">
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-lime-400/10 text-lime-400 border border-lime-400/20">
+                                                In Progress
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    
+                                </tbody>
+                            </table>
+                        </div>
+                     
+    </div>
+    
+    <div 
+        x-show="activeTab === 1"
+        x-transition:enter="transition-all duration-500 ease-out"
+        x-transition:enter-start="opacity-0 translate-x-4"
+        x-transition:enter-end="opacity-100 translate-x-0"
+        x-transition:leave="transition-all duration-300 ease-in absolute top-0 left-0 w-full"
+        x-transition:leave-start="opacity-100 translate-x-0"
+        x-transition:leave-end="opacity-0 -translate-x-4"
+        class="text-slate-300 leading-relaxed"
+        role="tabpanel"
+    >
+       
+                        <div class="p-8 bg-slate-950/40 rounded-2xl border border-dashed border-white/10 text-center">
+                            <span class="material-symbols-outlined text-slate-600 text-5xl mb-4">architecture</span>
+                            <p class="text-slate-500">Node topology data will appear here during boot.</p>
+                        </div>
+                     
+    </div>
+    
+    <div 
+        x-show="activeTab === 2"
+        x-transition:enter="transition-all duration-500 ease-out"
+        x-transition:enter-start="opacity-0 translate-x-4"
+        x-transition:enter-end="opacity-100 translate-x-0"
+        x-transition:leave="transition-all duration-300 ease-in absolute top-0 left-0 w-full"
+        x-transition:leave-start="opacity-100 translate-x-0"
+        x-transition:leave-end="opacity-0 -translate-x-4"
+        class="text-slate-300 leading-relaxed"
+        role="tabpanel"
+    >
+      
+    </div>
+    
+  </div>
+</div>
+            </div>
+
+            <!-- Right: Accordion Info -->
+            <div class="space-y-6">
+                 <div class="flex items-center gap-3 mb-2">
+                    <span class="w-2 h-8 bg-blue-400 rounded-full"></span>
+                    <h2 class="text-2xl font-bold text-white">Internal States</h2>
+                </div>
+                
+                <div class="divide-y divide-gray-700 border border-gray-700 rounded-xl overflow-hidden"
+     x-data="{ open:  null  }">
+  
+  <div>
+    <button
+      x-on:click=" open = open === 0 ? null : 0 "
+      class="w-full flex items-center justify-between px-5 py-4 text-left text-slate-200 hover:bg-gray-800/60
+             transition-all duration-200 cursor-pointer">
+      <span class="font-medium">Security Protocol</span>
+      <svg x-bind:class=" open === 0  ? 'rotate-180' : ''"
+           class="w-4 h-4 text-slate-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+      </svg>
+    </button>
+    <div x-show=" open === 0 "
+         x-collapse
+         class="px-5 pb-4 text-slate-400 text-sm">
+      All requests are verified via AES-256 encrypted sessions and CSRF tokens by default.
+      
+    </div>
+  </div>
+  
+  <div>
+    <button
+      x-on:click=" open = open === 1 ? null : 1 "
+      class="w-full flex items-center justify-between px-5 py-4 text-left text-slate-200 hover:bg-gray-800/60
+             transition-all duration-200 cursor-pointer">
+      <span class="font-medium">Performance Tuning</span>
+      <svg x-bind:class=" open === 1  ? 'rotate-180' : ''"
+           class="w-4 h-4 text-slate-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+      </svg>
+    </button>
+    <div x-show=" open === 1 "
+         x-collapse
+         class="px-5 pb-4 text-slate-400 text-sm">
+      Jinja2 templates are pre-compiled into optimized bytecode for sub-10ms response times.
+      
+    </div>
+  </div>
+  
+  <div>
+    <button
+      x-on:click=" open = open === 2 ? null : 2 "
+      class="w-full flex items-center justify-between px-5 py-4 text-left text-slate-200 hover:bg-gray-800/60
+             transition-all duration-200 cursor-pointer">
+      <span class="font-medium">HTMX Orchestration</span>
+      <svg x-bind:class=" open === 2  ? 'rotate-180' : ''"
+           class="w-4 h-4 text-slate-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+      </svg>
+    </button>
+    <div x-show=" open === 2 "
+         x-collapse
+         class="px-5 pb-4 text-slate-400 text-sm">
+      Fragments allow for selective DOM updates without full-page reloads.
+      
+    </div>
+  </div>
+  
+</div>
+                
+                <div class="bg-blue-900/40 border-blue-500/50 text-blue-300 border rounded-lg p-4 transition-all duration-300"
+     role="alert"
+     
+>
+  <div class="flex items-center gap-3">
+    <span class="text-lg flex-shrink-0">bolt</span>
+    <div class="flex-1">
+                    <strong>Edge Warning</strong>: Latency detected in Northern nodes. Eden is automatically rerouting traffic.
+                </div>
+    
+  </div>
+</div>
+            </div>
+        </section>
+    </div>
+
+    </main>
+    
+
+    <!-- Eden Scripts -->
+<script>
+  (function() {
+    // Eden framework runtime
+    document.documentElement.classList.add('eden-ready');
+
+    // Auto-inject CSRF token into HTMX requests
+    document.addEventListener('htmx:configRequest', (event) => {
+      const csrfToken = document.cookie.split('; ')
+        .find(row => row.startsWith('csrftoken='))
+        ?.split('=')[1];
+      if (csrfToken) {
+        event.detail.headers['X-CSRF-Token'] = csrfToken;
+      }
+    });
+
+    // --- eden-sync HTMX Extension ---
+    let socket = null;
+    const subscriptions = new Set();
+    
+    function connect() {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const url = `${protocol}//${window.location.host}/_eden/sync`;
+      socket = new WebSocket(url);
+      
+      socket.onopen = () => {
+        console.log('[Eden] Real-time sync connected');
+        // Resubscribe on reconnect
+        subscriptions.forEach(channel => {
+          socket.send(JSON.stringify({action: 'subscribe', channel}));
+        });
+      };
+      
+      socket.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.event) {
+          // Dispatch event globally and to specific elements
+          document.dispatchEvent(new CustomEvent(data.event, { detail: data.data }));
+          const channel = data.event.split(':')[0];
+          const elements = document.querySelectorAll(`[hx-sync="${channel}"]`);
+          elements.forEach(el => {
+            htmx.trigger(el, data.event, data.data);
+          });
+        }
+      };
+      
+      socket.onclose = () => {
+        console.log('[Eden] Real-time sync disconnected, retrying in 2s...');
+        setTimeout(connect, 2000);
+      };
+    }
+
+    htmx.defineExtension('eden-sync', {
+      onEvent: function(name, evt) {
+        if (name === 'htmx:afterProcessNode') {
+          const el = evt.target;
+          const channel = el.getAttribute('hx-sync');
+          if (channel && !subscriptions.has(channel)) {
+            subscriptions.add(channel);
+            if (socket && socket.readyState === WebSocket.OPEN) {
+              socket.send(JSON.stringify({action: 'subscribe', channel}));
+            }
+          }
+        }
+      }
+    });
+    
+    // Force HTMX to use the extension globally
+    document.body.setAttribute('hx-ext', 'eden-sync');
+    connect();
+
+    // --- Messaging (Toasts) ---
+    function showToast(msg, level = 'info') {
+      let container = document.querySelector('.eden-toast-container');
+      if (!container) {
+        container = document.createElement('div');
+        container.className = 'eden-toast-container';
+        document.body.appendChild(container);
+      }
+      const toast = document.createElement('div');
+      toast.className = `eden-toast glass eden-toast-${level}`;
+      toast.innerHTML = `
+        <div style="flex-grow: 1;">
+          <p style="margin: 0; font-size: 0.875rem; font-weight: 500; color: #F1F5F9;">${msg}</p>
+        </div>
+        <button class="eden-toast-close" onclick="this.parentElement.remove()">
+          <svg style="width: 1rem; height: 1rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      `;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(2rem)';
+        toast.style.transition = 'all 0.4s ease';
+        setTimeout(() => toast.remove(), 400);
+      }, 5000);
+    }
+    
+    document.addEventListener('eden:message', (e) => showToast(e.detail.message, e.detail.level_tag));
+  })();
+</script>
+    
+</body>
+</html>

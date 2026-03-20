@@ -338,3 +338,10 @@ __all__ = [
     "VectorField",
 ]
 
+
+# Ensure core admin models are registered for migrations/create_all
+try:
+    from eden.admin import models as _admin_models
+except ImportError:
+    pass
+

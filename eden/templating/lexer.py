@@ -15,6 +15,19 @@ class TokenType(Enum):
     STRING = auto()         # "..." or '...' or `...`
     EOF = auto()
 
+CORE_DIRECTIVES = {
+    "csrf", "csrf_token", "method", "old", "eden_head", "eden_scripts", "eden_toasts",
+    "css", "js", "vite", "yield", "stack", "super", "extends", "include", "includeWhen",
+    "includeUnless", "fragment", "push", "pushOnce", "prepend", "section", "block",
+    "slot", "component", "props", "span", "json", "dump", "status", "let", "url",
+    "route", "active_link", "class", "verbatim", "checked", "selected", "disabled",
+    "readonly", "if", "unless", "elif", "elseif", "else_if", "else", "empty", "for",
+    "foreach", "while", "switch", "case", "default", "auth", "can", "role",
+    "permission", "cannot", "guest", "htmx", "non_htmx", "render_field", "error",
+    "messages", "even", "odd", "first", "last", "break", "continue", "php", "inject",
+    "form", "field", "input", "button"
+}
+
 @dataclass
 class Token:
     type: TokenType
@@ -33,6 +46,7 @@ class TemplateLexer:
         self.line = 1
         self.column = 1
         self.tokens = []
+        self.brace_stack: list[bool] = []
 
     def peek(self, n=1):
         return self.source[self.pos : self.pos + n]
@@ -139,7 +153,7 @@ class TemplateLexer:
                 
                 if can_be_directive:
                     # Check if it's a valid directive name prefix
-                    m = re.match(r'@([a-zA-Z_]\w*)', self.source[self.pos:])
+                    m = re.match(r'@([a-zA-Z_]\w*)(?![=.:])', self.source[self.pos:])
                     if m:
                         name = m.group(1)
                         full_match = m.group(0)
@@ -166,6 +180,22 @@ class TemplateLexer:
                             name = "elif"
                             full_match += m_elif.group(0)
 
+                    # --- HARDENING: Safety Whitelist Check ---
+                    # A directive is only valid if it's in our core list OR
+                    # it is followed by a parenthesis (indicating a call).
+                    # This prevents @symbol in emails or content from being eaten.
+                    is_valid = (name in CORE_DIRECTIVES)
+                    if not is_valid:
+                        after_pos = self.pos + len(full_match)
+                        while after_pos < len(self.source) and self.source[after_pos] in (' ', '\t'):
+                            after_pos += 1
+                        if after_pos < len(self.source) and self.source[after_pos] == '(':
+                            is_valid = True
+                    
+                    if not is_valid:
+                        can_be_directive = False
+
+                if can_be_directive and m:
                     token_line, token_col = self.line, self.column
                     self.advance(len(full_match))
                     self.tokens.append(Token(TokenType.DIRECTIVE, name, token_line, token_col))
@@ -205,6 +235,7 @@ class TemplateLexer:
                     
                     if self.peek() == '{':
                         if ws: self.tokens.append(Token(TokenType.TEXT, ws, saved_line, saved_col))
+                        self.brace_stack.append(True)
                         self.tokens.append(Token(TokenType.BLOCK_OPEN, self.advance(), self.line, self.column))
                     else:
                         self.pos = saved_pos
@@ -214,11 +245,19 @@ class TemplateLexer:
 
             # 5. Braces (for blocks)
             if char == '}':
-                self.tokens.append(Token(TokenType.BLOCK_CLOSE, self.advance(), self.line, self.column))
+                is_block = False
+                if self.brace_stack:
+                    is_block = self.brace_stack.pop()
+                
+                if is_block:
+                    self.tokens.append(Token(TokenType.BLOCK_CLOSE, self.advance(), self.line, self.column))
+                else:
+                    self.tokens.append(Token(TokenType.TEXT, self.advance(), self.line, self.column))
                 continue
             
             if char == '{':
-                self.tokens.append(Token(TokenType.BLOCK_OPEN, self.advance(), self.line, self.column))
+                self.brace_stack.append(False)
+                self.tokens.append(Token(TokenType.TEXT, self.advance(), self.line, self.column))
                 continue
 
             # 6. Fallback (Text) - Collect until something interesting happens

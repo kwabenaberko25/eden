@@ -29,9 +29,9 @@ graph TD
 
 ### Core Philosophy
 
-1.  **Async-First**: Every database interaction (`.all()`, `.first()`, `.save()`) is natively `async`.
-2.  **Single Source of Truth**: Define your schema once; use it for migrations, validation, and UI generation.
-3.  **Elite Productivity**: Common tasks like soft deletes, slug generation, and pagination are handled by built-in Mixins.
+1. **Async-First**: Every database interaction (`.all()`, `.first()`, `.save()`) is natively `async`.
+2. **Single Source of Truth**: Define your schema once; use it for migrations, validation, and UI generation.
+3. **Elite Productivity**: Common tasks like soft deletes, slug generation, and pagination are handled by built-in Mixins.
 
 ---
 
@@ -71,9 +71,9 @@ class Product(Model):
     title: Mapped[str] = f(max_length=255, placeholder="Enter product title...")
     price: Mapped[float] = f(min=0.0)
     
-    # Relationships & References
-    brand_id: Mapped[int] = f(foreign_key="brands.id")
-    brand: Mapped[Brand] = relationship(back_populates="products")
+    # 🌟 The Relationship & Reference helpers (The Eden Way)
+    # Reference() creates the FK column (brand_id) + the relationship link in one line.
+    brand: Mapped[Brand] = Reference(back_populates="products")
 ```
 
 ### Field Helpers: The `f()` Shorthand
@@ -125,26 +125,29 @@ posts = await Post.filter(Q(featured=True) | Q(views__gt=1000)).all()
 low_stock = await Product.filter(stock__lt=F("threshold")).all()
 ```
 
----
-
 ## 🛡️ Row-Level Security: `AccessControl`
 
 The `AccessControl` mixin allows you to define who can see or modify specific records directly on the model.
 
 ```python
-from eden.db import AccessControl, AllowOwner, AllowPublic, AllowRoles
+from eden.auth import (
+    AccessControl, 
+    AllowOwner, 
+    AllowPublic, 
+    RoleRequired
+)
 
 class Document(Model, AccessControl):
     owner_id: Mapped[int] = f(foreign_key="users.id")
     
     __rbac__ = {
+        # Permission rules applied automatically at the query level
         "read": AllowPublic(),
         "update": AllowOwner(field="owner_id"),
-        "delete": AllowRoles("admin")
+        "delete": RoleRequired("admin")
     }
 
-# In your view, security is applied automatically
-
+# In your view, security is enforced natively in the database query
 docs = await Document.filter_for_user(request.user).all()
 ```
 
@@ -223,9 +226,9 @@ links = page.generate_links("/api/products")
 
 ## 💡 Best Practices
 
-1.  **Use `f()` for Everything**: It keeps your models clean and ensures your UI layer stays in sync with your DB layer.
-2.  **Explicit Transactions**: Use the `@atomic` decorator for any operation involving multiple write steps.
-3.  **Default Selectin Loading**: Eden uses `selectinload` for relationships by default to avoid N+1 issues in async environments.
+1. **Use `f()` for Everything**: It keeps your models clean and ensures your UI layer stays in sync with your DB layer.
+2. **Explicit Transactions**: Use the `@atomic` decorator for any operation involving multiple write steps.
+3. **Default Selectin Loading**: Eden uses `selectinload` for relationships by default to avoid N+1 issues in async environments.
 
 ---
 

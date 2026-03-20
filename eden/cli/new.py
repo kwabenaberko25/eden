@@ -62,11 +62,11 @@ app = Eden(
 # 2. Database Configuration
 app.state.database_url = os.getenv("DATABASE_URL", "{db_config['url']}")
 
-# 3. Middleware (Auto-activated by default)
-app.add_middleware("security")
-app.add_middleware("session", secret_key=app.secret_key)
-app.add_middleware("cors", allow_origins=["*"])
-app.add_middleware("rate_limit", default_limit="60/minute")
+# 3. Middleware (Auto-activated by default in Eden)
+# app.add_middleware("security")
+# app.add_middleware("session", secret_key=app.secret_key)
+# app.add_middleware("cors", allow_origins=["*"])
+# app.add_middleware("rate_limit", default_limit="60/minute")
 '''
 
     if "Payments (Stripe)" in extras:
@@ -129,11 +129,11 @@ def create_app():
     
     app.state.database_url = os.getenv("DATABASE_URL", "{db_config['url']}")
     
-    # Middleware
-    app.add_middleware("security")
-    app.add_middleware("session", secret_key=app.secret_key)
-    app.add_middleware("cors", allow_origins=["*"])
-    app.add_middleware("rate_limit", default_limit="60/minute")
+    # Core middleware is registered automatically by Eden()
+    if "Authentication & RBAC" in extras:
+        # Auth and Authorization are core-integrated in Eden,
+        # but you can customize them here if needed.
+        pass
 
 '''
     if "Payments (Stripe)" in extras:
@@ -254,6 +254,7 @@ def create_new_project(project_name: str, target_path: Optional[Path] = None):
         "Select additional features to include:",
         choices=[
             "Admin UI",
+            "Authentication & RBAC",
             "Payments (Stripe)",
             "Chats/Websockets",
             "Mail Support"

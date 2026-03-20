@@ -31,21 +31,23 @@ graph TD
 Define your domain-specific roles and their inheritance relationships. Inheritance simplifies management by allowing higher roles to naturally perform the actions of lower ones.
 
 ```python
-from eden.auth import EdenRBAC
+from eden.auth import RoleHierarchy
 
-rbac = EdenRBAC()
+# 1. Initialize the Hierarchy Handler
+rbac = RoleHierarchy()
 
-# 1. Define Hierarchy (Role, Parents - roles it inherits FROM)
+# 2. Define Hierarchy (Role, Parents - roles it inherits FROM)
+# Inheritance simplifies management: higher roles 'are' also their parents.
 rbac.add_role("user")
 rbac.add_role("editor", parents=["user"])
 rbac.add_role("admin", parents=["editor", "user"])
 
-# 2. Assign Atomic Permissions
+# 3. Assign Atomic Permissions to Roles
 rbac.add_permission("user", "view_posts")
 rbac.add_permission("editor", "create_posts")
 rbac.add_permission("admin", "delete_posts")
 
-# 'admin' now has all 3 permissions
+# 'admin' now automatically resolves all 3 permissions via deep inheritance
 ```
 
 ---
@@ -152,12 +154,12 @@ Eden’s templating engine provides semantic directives for controlling your UI 
 
 | Decorator | Description |
 | :--- | :--- |
-| `@require_role` | User must have a specific role (or hierarchical parent). |
+| `@require_role` | User must have a specific role (supports hierarchical parents). |
 | `@require_permission` | User must have a specific functional permission. |
-| `@roles_required` | User must have **at least one** of the listed roles. |
-| `@permissions_required` | User must have **all** listed permissions. |
-| `@require_any_role` | Alias for `@roles_required`. |
-| `@require_any_permission` | User must have **at least one** listed permission. |
+| `@roles_required` | User must possess **ALL** of the listed roles. |
+| `@permissions_required` | User must possess **ALL** listed permissions. |
+| `@require_any_role` | Access granted if user has **AT LEAST ONE** listed role. |
+| `@require_any_permission` | Access granted if user has **AT LEAST ONE** listed permission. |
 
 ### Superuser Bypass
 

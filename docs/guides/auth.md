@@ -68,11 +68,15 @@ All security revolves around the `User` model. Eden provides a standard implemen
 from eden.auth import BaseUser, User
 from eden.db import Model, f, Mapped
 
-# Example: Custom User with extra fields
+# Example: Custom User extending the framework's identity base
 
 class MyUser(BaseUser, Model):
     __tablename__ = "users"
     phone: Mapped[str] = f(nullable=True)
+    
+    # Custom role resolution logic
+    async def get_roles(self):
+        return ["member"]
 ```
 
 ### Accessing the Current User
@@ -95,18 +99,15 @@ Eden provides a unified set of actions for identity tasks in `eden.auth`. These 
 ```python
 from eden.auth import create_user, authenticate, login
 
-# Create a new user with hashed password
-
+# Create a new user with hashed password (validates email & password strength)
 user = await create_user(email="alice@example.com", password="secure_password_123")
 
-# Verify credentials
+# Verify credentials against the registered User model
+user = await authenticate(email="alice@example.com", password="password_123")
 
-authenticated_user = await authenticate(email="alice@example.com", password="password_123")
-
-# Bind to the current request (Session/JWT)
-
-if authenticated_user:
-    await login(request, authenticated_user)
+# Bind to the current request (Session/JWT) and set global context
+if user:
+    await login(request, user)
 ```
 
 ---
@@ -214,27 +215,27 @@ app.add_middleware("ratelimit") # Protect against brute force
 
 | Function | Parameters | Return Type | Description |
 | :--- | :--- | :--- | :--- |
-| `authenticate` | `email, password` | `User \| None` | Validates credentials against the DB. |
-| `login` | `request, user, backend` | `None` | Binds user identity to the request. |
-| `logout` | `request` | `None` | Clears all identity indicators. |
-| `create_user` | `email, password, **kw` | `User` | Creates and hashes password for a new user. |
+| `authenticate` | `email, password, user_model=None` | `User \| None` | Validates credentials. Auto-detects custom User models. |
+| `login` | `request, user` | `None` | Binds user to request and setting global context. |
+| `logout` | `request` | `None` | Clears request, context, and session identity. |
+| `create_user` | `email, password, **kwargs` | `User` | Creates user, hashes password, and persists to DB. |
 
 ### Authorization Guards
 
 | Decorator | Argument | Description |
 | :--- | :--- | :--- |
 | `@login_required` | - | Requires any authenticated user. |
-| `@require_role` | `role: str` | Requires user to have specific role (or child). |
-| `@require_permission` | `perm: str` | Requires specific functional permission. |
+| `@require_role` | `role: str` | Requires user to have specific role (supports hierarchy). |
+| `@require_permission` | `perm: str` | Requires specific functional permission (e.g. "user:read"). |
 | `@staff_required` | - | Shorthand for users with `is_staff=True`. |
 
 ### `EdenRBAC` (Role Manager)
 
 | Method | Parameters | Description |
 | :--- | :--- | :--- |
-| `add_role` | `name, parents` | Register a role and its inheritance tree. |
-| `add_permission` | `role, permission` | Bind a permission to a specific role. |
-| `has_permission` | `user_roles, perm` | Deep-check permissions across hierarchy. |
+| `add_role` | `name, parents=None` | Register a role and its inheritance tree. |
+| `add_permission` | `role, permission` | Bind an atomic permission to a specific role. |
+| `has_permission` | `user_roles, perm` | Recursively check permissions across hierarchy. |
 
 ---
 

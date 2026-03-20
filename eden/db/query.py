@@ -63,6 +63,13 @@ class QuerySet(Generic[T]):
         """Checks if a session is currently available without triggering acquisition."""
         return self._session is not None
 
+    async def _resolve_session(self) -> AsyncSession | None:
+        """
+        Backward-compatible async alias for session resolution.
+        (Used by legacy tests like test_orm_critical_fixes.py)
+        """
+        return self._resolve_session_sync()
+
     def _resolve_session_sync(self) -> "AsyncSession" | None:
         """
         Pure lookup for an existing session in current context.
@@ -747,7 +754,7 @@ class QuerySet(Generic[T]):
             raise RuntimeError(f"Model {self._model_cls.__name__} is not bound to a database.")
 
         # Use transaction layer (will join existing or start new)
-        async with db.transaction() as session:
+        async with db.transaction(session=self._session) as session:
             from eden.db.lookups import F, _FExpr
             
             # Resolve F-expressions

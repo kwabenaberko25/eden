@@ -36,14 +36,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 # ── Test Database Setup ──────────────────────────────────────────────────
 
-@pytest.fixture
-async def test_db():
-    """Create an in-memory SQLite database for testing."""
-    url = "sqlite+aiosqlite:///:memory:"
-    db = Database(url)
-    await db.connect(create_tables=True)
-    yield db
-    await db.disconnect()
+from eden.testing import test_app, db as test_db
 
 # ── Test Models ──────────────────────────────────────────────────────────
 
@@ -204,12 +197,10 @@ async def test_relationships_inferred_in_init_subclass():
 
 
 @pytest.mark.asyncio
-async def test_deferred_relationships_work_in_queries():
+async def test_deferred_relationships_work_in_queries(test_db: Database):
     """Test that deferred relationships can be used in actual queries."""
-    async with create_async_engine(
-        "sqlite+aiosqlite:///:memory:",
-        poolclass=StaticPool,
-    ).begin() as conn:
+    # Use the test_db's connection for manual metadata creation if needed
+    async with test_db.engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     
     # If relationships were properly inferred, this shouldn't raise

@@ -74,6 +74,7 @@ class Environment(str, Enum):
     """Supported environment modes."""
     DEV = "dev"
     TEST = "test"
+    TESTING = "testing"
     PROD = "prod"
 
 

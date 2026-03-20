@@ -77,7 +77,7 @@ class Base(DeclarativeBase):
     type_annotation_map = {
         dict: JSON,
         list: JSON,
-        uuid.UUID: Uuid(native_uuid=True),
+        uuid.UUID: Uuid,
         datetime: DateTime,
     }
 
@@ -116,7 +116,6 @@ class Model(Base, AccessControl, ValidatorMixin, LifecycleMixin, SerializationMi
     id: Mapped[uuid.UUID] = mapped_column(
         Uuid(native_uuid=True),
         primary_key=True,
-        server_default=None,
         default=uuid.uuid4,
     )
 

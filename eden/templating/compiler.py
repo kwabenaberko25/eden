@@ -27,7 +27,9 @@ class TemplateCompiler:
         if handler:
             return handler(self, node, expr)
             
-        return f"<!-- Unknown @{name} -->"
+        # HARDENING: If unknown, revert to literal text instead of a comment
+        # This makes the engine "unbreakable" when encountering unknown @ symbols
+        return f"@{name}" + (f"({expr})" if expr else "")
 
     def handle_props(self, props_val: str) -> str:
         """
