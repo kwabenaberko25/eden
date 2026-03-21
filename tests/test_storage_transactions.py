@@ -164,6 +164,10 @@ class TestStorageManagerTransaction:
 class TestSupabaseAsyncInitialization:
     """Tests for Supabase async-compatible initialization (Layer 4)."""
 
+    @pytest.fixture(autouse=True)
+    def skip_if_no_supabase(self):
+        pytest.importorskip("supabase")
+
     @pytest.mark.asyncio
     async def test_supabase_client_lazy_initialization(self):
         """Test that Supabase client is initialized lazily."""

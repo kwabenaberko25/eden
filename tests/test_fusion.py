@@ -25,14 +25,10 @@ class FusionTask(TenantModel):
 import pytest
 
 @pytest.fixture(autouse=True)
-async def setup_db(db):
+async def setup_db(db, db_transaction):
     async with db.engine.begin() as conn:
-        # We need to drop first to avoid conflicts if previously failed
-        await conn.run_sync(Model.metadata.drop_all)
         await conn.run_sync(Model.metadata.create_all)
     yield
-    async with db.engine.begin() as conn:
-        await conn.run_sync(Model.metadata.drop_all)
 
 class MockUser:
     def __init__(self, org_id):

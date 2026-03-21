@@ -129,6 +129,7 @@ class Model(Base, AccessControl, ValidatorMixin, LifecycleMixin, SerializationMi
         """Standard Eden model initialization."""
         if "__tablename__" not in cls.__dict__ and not cls.__dict__.get("__abstract__", False):
             cls.__tablename__ = _camel_to_snake(cls.__name__) + "s"
+        print(f"DEBUG: Initializing model subclass: {cls.__name__} (table: {getattr(cls, '__tablename__', 'N/A')})")
 
         if not cls.__dict__.get("__abstract__", False):
             from eden.db.schema import SchemaInferenceEngine, ValidationScanner

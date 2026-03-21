@@ -80,6 +80,7 @@ class TestTasksAdvanced:
         async def cron_task():
             execution_log.append(datetime.now())
 
+        pytest.importorskip("croniter")
         from croniter import croniter
         now = datetime.now()
         it = croniter("* * * * *", now)

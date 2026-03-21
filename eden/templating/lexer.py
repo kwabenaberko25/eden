@@ -25,7 +25,7 @@ CORE_DIRECTIVES = {
     "foreach", "while", "switch", "case", "default", "auth", "can", "role",
     "permission", "cannot", "guest", "htmx", "non_htmx", "render_field", "error",
     "messages", "even", "odd", "first", "last", "break", "continue", "php", "inject",
-    "form", "field", "input", "button"
+    "form", "field", "input", "button", "admin"
 }
 
 @dataclass

@@ -310,7 +310,8 @@ async def test_mock_middleware_context_setting():
     # Create mock request
     mock_request = MagicMock()
     mock_request.headers = {}
-    mock_request.state = MagicMock()
+    from starlette.datastructures import State
+    mock_request.state = State()
     
     # Track if handler was called with context set
     handler_called_with_context = []

@@ -10,6 +10,9 @@ from unittest.mock import MagicMock, AsyncMock, patch
 from eden.storage_backends.s3 import S3StorageBackend
 
 
+pytest.importorskip("aioboto3")
+
+
 class TestS3StorageBackend:
     """Tests for S3StorageBackend."""
 

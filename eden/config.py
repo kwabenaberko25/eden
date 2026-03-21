@@ -372,27 +372,32 @@ class ConfigManager:
         Returns:
             Loaded Config instance
         """
-        # Load .env file if it exists
+        # Detect environment first to load correct .env file
+        current_env = os.getenv("EDEN_ENV", "dev").lower()
+        
+        # Determine files to load
         env_file = env_file or Path.cwd() / ".env"
         if isinstance(env_file, str):
             env_file = Path(env_file)
-        
-        if env_file.exists():
-            try:
-                from dotenv import load_dotenv
-                load_dotenv(env_file)
-            except ImportError:
-                pass
-        
-        # Load environment-specific .env file
-        current_env = os.getenv("EDEN_ENV", "dev").lower()
+            
         env_specific_file = env_file.parent / f".env.{current_env}"
-        if env_specific_file.exists():
-            try:
-                from dotenv import load_dotenv
-                load_dotenv(env_specific_file, override=True)
-            except ImportError:
-                pass
+        
+        # Load order (precedence from high to low):
+        # 1. os.environ (always honored by load_dotenv(override=False))
+        # 2. .env.{env}
+        # 3. .env
+        
+        try:
+            from dotenv import load_dotenv
+            
+            # Load env-specific first, then generic
+            if env_specific_file.exists():
+                load_dotenv(env_specific_file, override=False)
+                
+            if env_file.exists():
+                load_dotenv(env_file, override=False)
+        except ImportError:
+            pass
         
         # Create config from environment variables
         # We allow Pydantic to handle more complex types downstream if needed

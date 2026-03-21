@@ -319,6 +319,7 @@ class QuerySet(Generic[T]):
         # 1. Use existing session lookup (explicit or context-aware)
         session = self._resolve_session_sync()
         if session:
+            # print(f"DEBUG: Using session from context for {self._model_cls.__name__}")
             yield session
             return
 
@@ -540,20 +541,27 @@ class QuerySet(Generic[T]):
         if not self._prefetch_paths:
             return stmt
 
+        from sqlalchemy.orm import selectinload
         for rel_path in self._prefetch_paths:
             parts = rel_path.split(".")
             current_model = self._model_cls
             loader = None
             
             for part in parts:
-                attr = getattr(current_model, part)
+                attr = getattr(current_model, part, None)
+                if attr is None:
+                    break
+                
                 if loader is None:
                     loader = selectinload(attr)
                 else:
                     loader = loader.selectinload(attr)
                 
                 # Move to the target model for the next segment
-                current_model = attr.property.mapper.class_
+                if hasattr(attr, "property") and hasattr(attr.property, "mapper"):
+                    current_model = attr.property.mapper.class_
+                else:
+                    break
                 
             if loader:
                 stmt = stmt.options(loader)
@@ -610,6 +618,10 @@ class QuerySet(Generic[T]):
         """
         Executes a statement with exponential backoff retries for reliability.
         """
+        sql = str(stmt.compile(compile_kwargs={"literal_binds": True}))
+        with open("sql.log", "a") as f:
+            f.write(f"MODEL: {self._model_cls.__name__}\nSQL: {sql}\n\n")
+        
         max_retries = 3
         base_delay = 0.1  # 100ms
         
@@ -637,6 +649,7 @@ class QuerySet(Generic[T]):
         
         # Check cache if enabled
         cache_key = None
+        app = None # Initialize app to None
         if qs._cache_ttl is not None:
             from eden.context import get_app
             app = get_app()
@@ -649,6 +662,7 @@ class QuerySet(Generic[T]):
         async with qs._provide_session() as session:
             stmt = qs._apply_prefetch(qs._stmt)
             stmt = qs._apply_select_related(stmt)
+            
             result = await self._execute(stmt, session)
             result = result.unique()
             
@@ -676,27 +690,8 @@ class QuerySet(Generic[T]):
 
     async def first(self) -> T | None:
         """Execute query and return the first result, or None."""
-        qs = self._apply_rbac("read")
-        async with qs._provide_session() as session:
-            stmt = qs._apply_prefetch(qs._stmt)
-            stmt = qs._apply_select_related(stmt)
-            result = await self._execute(stmt, session)
-            result = result.unique()
-            
-            if getattr(self, "_return_dicts", False):
-                row = result.first()
-                if not row: return None
-                
-                obj = row[0]
-                if isinstance(obj, self._model_cls):
-                    if hasattr(obj, "to_dict"):
-                        return obj.to_dict()
-                    return obj
-                else:
-                    return dict(row._mapping)
-            
-            # Default: return model instance
-            return result.scalars().first()
+        results = await self.all()
+        return results[0] if results else None
 
     async def last(self) -> T | None:
         """Execute query and return the last result."""

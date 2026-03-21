@@ -2,6 +2,7 @@ import pytest
 import os
 import shutil
 import tempfile
+from unittest.mock import patch
 from starlette.testclient import TestClient
 from eden.app import Eden
 from eden.components import Component, action, _action_registry, register
@@ -64,15 +65,17 @@ async def test_component_dispatcher_integration():
     
     # TestClient can be used with a built Starlette app
     with TestClient(starlette_app) as client:
-        # Test GET action
-        response = client.get("/_components/user-greet?name=Tester")
-        assert response.status_code == 200
-        assert response.text == "Hello, Tester!"
-        
-        # Test POST action with form data
-        response = client.post("/_components/user-add", data={"a": "10", "b": "20"})
-        assert response.status_code == 200
-        assert response.text == "Result: 30"
+        # Patch signature verification to allow unsigned test requests
+        with patch("eden.components.Component._verify_state_signature", return_value=True):
+            # Test GET action
+            response = client.get("/_components/user-greet?name=Tester")
+            assert response.status_code == 200
+            assert response.text == "Hello, Tester!"
+            
+            # Test POST action with form data
+            response = client.post("/_components/user-add", data={"a": "10", "b": "20"})
+            assert response.status_code == 200
+            assert response.text == "Result: 30"
 
 @pytest.mark.asyncio
 async def test_component_not_found():

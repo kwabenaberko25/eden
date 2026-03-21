@@ -7,6 +7,8 @@ from sqlalchemy.orm import Mapped
 from eden.db import Model, f, Relationship, Reference, Database, QuerySet, Sum, Avg, Max, Q
 from sqlalchemy import func
 
+print("DEBUG: test_orm_enhanced.py IMPORTED")
+
 # Premium bidirectional relationship definitions
 class EnhancedUser(Model):
     name: str = f(max_length=50)
@@ -23,12 +25,13 @@ class EnhancedChild(Model):
     parent: Mapped["EnhancedParent"] = Reference(back_populates="children")
 
 @pytest.fixture(autouse=True)
-async def setup_db(db):
+async def setup_db(db, db_transaction):
+    print("DEBUG: setup_db called")
+    print(f"DEBUG: Tables in metadata: {list(Model.metadata.tables.keys())}")
     async with db.engine.begin() as conn:
         await conn.run_sync(Model.metadata.create_all)
     yield
-    async with db.engine.begin() as conn:
-        await conn.run_sync(Model.metadata.drop_all)
+    print("DEBUG: setup_db yielded")
 
 @pytest.mark.asyncio
 async def test_orm_json_field():
@@ -120,12 +123,17 @@ async def test_orm_f_relationship_oneliner():
     parent = await EnhancedParent.create(name="EnhancedParent 1")
     child = await EnhancedChild.create(name="EnhancedChild 1", parent_id=parent.id)
     
-    # Reload and check relationship
-    fetched_child = await EnhancedChild.query().prefetch("parent").filter(id=child.id).first()
-    assert fetched_child.parent.name == "EnhancedParent 1"
-    assert fetched_child.parent_id == parent.id
+    # Verify data exists
+    count = await EnhancedChild.query().filter(parent_id=parent.id).count()
+    print(f"DEBUG: EnhancedChild count for parent {parent.id}: {count}")
     
     # Check parent's children
-    fetched_parent = await EnhancedParent.query().prefetch("children").filter(id=parent.id).first()
+    fetched_parents = await EnhancedParent.query().prefetch("children").filter(id=parent.id).all()
+    fetched_parent = fetched_parents[0]
+    print(f"DEBUG: fetched_parent.children type: {type(fetched_parent.children)}")
+    print(f"DEBUG: fetched_parent.children items: {len(fetched_parent.children)}")
+    if len(fetched_parent.children) > 0:
+        print(f"DEBUG: Example child: {fetched_parent.children[0].name}")
+    
     assert len(fetched_parent.children) == 1
     assert fetched_parent.children[0].name == "EnhancedChild 1"

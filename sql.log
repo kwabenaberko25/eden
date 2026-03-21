@@ -1,0 +1,637 @@
+MODEL: EnhancedChild
+SQL: SELECT enhanced_childs.name, enhanced_childs.parent_id, enhanced_childs.id, enhanced_childs.created_at, enhanced_childs.updated_at 
+FROM enhanced_childs 
+WHERE enhanced_childs.id = '2712e32f7c194fe8a7a56deb27bb816d'
+
+MODEL: EnhancedChild
+SQL: SELECT enhanced_childs.name, enhanced_childs.parent_id, enhanced_childs.id, enhanced_childs.created_at, enhanced_childs.updated_at 
+FROM enhanced_childs 
+WHERE enhanced_childs.id = '5feac4af629247588fbe655ce6622e7c'
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents 
+WHERE enhanced_parents.id = '429b23e395c84b20a0d5d9256d347442'
+
+MODEL: EnhancedChild
+SQL: SELECT enhanced_childs.name, enhanced_childs.parent_id, enhanced_childs.id, enhanced_childs.created_at, enhanced_childs.updated_at 
+FROM enhanced_childs 
+WHERE enhanced_childs.id = 'eed63a5f4ad242249413c59cde07bde7'
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents 
+WHERE enhanced_parents.id = '541236df7ad64c198bb3f1d84c35437e'
+
+MODEL: EnhancedChild
+SQL: SELECT enhanced_childs.name, enhanced_childs.parent_id, enhanced_childs.id, enhanced_childs.created_at, enhanced_childs.updated_at 
+FROM enhanced_childs 
+WHERE enhanced_childs.id = '7020148c7e084d7aa398023d7fce0ded'
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents 
+WHERE enhanced_parents.id = 'a10a1390209340a6a15ff07400b7f8db'
+
+MODEL: EnhancedChild
+SQL: SELECT enhanced_childs.name, enhanced_childs.parent_id, enhanced_childs.id, enhanced_childs.created_at, enhanced_childs.updated_at 
+FROM enhanced_childs 
+WHERE enhanced_childs.id = '83802e7a3e4d49938a36e2f95d1d3736'
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents 
+WHERE enhanced_parents.id = 'b4cf08dcd5e74543b1fe041f9b952980'
+
+MODEL: EnhancedChild
+SQL: SELECT enhanced_childs.name, enhanced_childs.parent_id, enhanced_childs.id, enhanced_childs.created_at, enhanced_childs.updated_at 
+FROM enhanced_childs 
+WHERE enhanced_childs.id = '02c81da3b6604603ba3d7b5ee2cf86d1'
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents 
+WHERE enhanced_parents.id = 'f73ab53df04b4776b2862135b25cce9d'
+
+MODEL: Task
+SQL: SELECT tasks.title, tasks.is_done, tasks.id, tasks.created_at, tasks.updated_at 
+FROM tasks 
+WHERE tasks.id = '5634ef7d03414cf7aff5facc4ccc18b7'
+
+MODEL: Task
+SQL: SELECT tasks.title, tasks.is_done, tasks.id, tasks.created_at, tasks.updated_at 
+FROM tasks 
+WHERE tasks.id = '5634ef7d03414cf7aff5facc4ccc18b7'
+
+MODEL: FileReference
+SQL: SELECT file_references.model_class_name, file_references.model_instance_id, file_references.file_path, file_references.storage_backend, file_references.deleted_at, file_references.id, file_references.created_at, file_references.updated_at 
+FROM file_references 
+WHERE file_references.model_class_name = 'Task' AND file_references.model_instance_id = '5634ef7d03414cf7aff5facc4ccc18b7' AND file_references.deleted_at IS NULL
+
+MODEL: Task
+SQL: SELECT tasks.title, tasks.is_done, tasks.id, tasks.created_at, tasks.updated_at 
+FROM tasks 
+WHERE tasks.id = '5634ef7d03414cf7aff5facc4ccc18b7'
+
+MODEL: Task
+SQL: SELECT tasks.title, tasks.is_done, tasks.id, tasks.created_at, tasks.updated_at 
+FROM tasks
+
+MODEL: Task
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT tasks.title AS title, tasks.is_done AS is_done, tasks.id AS id, tasks.created_at AS created_at, tasks.updated_at AS updated_at 
+FROM tasks) AS anon_1
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE enhanced_users.id = 'f0658fb0cb25487fb8b3561dbb42ee30'
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE enhanced_users.id = 'f0658fb0cb25487fb8b3561dbb42ee30'
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.score > 50 AS is_high_score 
+FROM enhanced_users ORDER BY enhanced_users.name ASC
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE (enhanced_users.name = 'Alice' OR enhanced_users.name = 'Bob') AND enhanced_users.score < 25
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE enhanced_users.name = 'Ghost'
+
+MODEL: EnhancedUser
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT enhanced_users.name AS name, enhanced_users.data AS data, enhanced_users.score AS score, enhanced_users.tags AS tags, enhanced_users.id AS id, enhanced_users.created_at AS created_at, enhanced_users.updated_at AS updated_at 
+FROM enhanced_users) AS anon_1
+
+MODEL: EnhancedUser
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT enhanced_users.name AS name, enhanced_users.data AS data, enhanced_users.score AS score, enhanced_users.tags AS tags, enhanced_users.id AS id, enhanced_users.created_at AS created_at, enhanced_users.updated_at AS updated_at 
+FROM enhanced_users) AS anon_1
+
+MODEL: EnhancedChild
+SQL: SELECT enhanced_childs.name, enhanced_childs.parent_id, enhanced_childs.id, enhanced_childs.created_at, enhanced_childs.updated_at 
+FROM enhanced_childs 
+WHERE enhanced_childs.id = '1323df62caa147f0bfb8dc64494474de'
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents 
+WHERE enhanced_parents.id = 'e83d0d92c7784ae885c50ef641c40246'
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents 
+WHERE enhanced_parents.id = '70345b941f974adab639e6b3076d1ed8'
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE enhanced_users.id = 'fe0218cf3d594f6e9a5b4fdbb8c4ff48'
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE enhanced_users.id = 'fe0218cf3d594f6e9a5b4fdbb8c4ff48'
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.score > 50 AS is_high_score 
+FROM enhanced_users ORDER BY enhanced_users.name ASC
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE (enhanced_users.name = 'Alice' OR enhanced_users.name = 'Bob') AND enhanced_users.score < 25
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE enhanced_users.name = 'Ghost'
+
+MODEL: EnhancedUser
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT enhanced_users.name AS name, enhanced_users.data AS data, enhanced_users.score AS score, enhanced_users.tags AS tags, enhanced_users.id AS id, enhanced_users.created_at AS created_at, enhanced_users.updated_at AS updated_at 
+FROM enhanced_users) AS anon_1
+
+MODEL: EnhancedUser
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT enhanced_users.name AS name, enhanced_users.data AS data, enhanced_users.score AS score, enhanced_users.tags AS tags, enhanced_users.id AS id, enhanced_users.created_at AS created_at, enhanced_users.updated_at AS updated_at 
+FROM enhanced_users) AS anon_1
+
+MODEL: EnhancedChild
+SQL: SELECT enhanced_childs.name, enhanced_childs.parent_id, enhanced_childs.id, enhanced_childs.created_at, enhanced_childs.updated_at 
+FROM enhanced_childs 
+WHERE enhanced_childs.id = '5cb5ef9956b84b52a97244cc0fb88cab'
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents 
+WHERE enhanced_parents.id = '4a1e8a9f92fd455d91837b89713ee218'
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE enhanced_users.id = '175e6663482f401f94b3d4b95fb658e4'
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE enhanced_users.id = '175e6663482f401f94b3d4b95fb658e4'
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.score > 50 AS is_high_score 
+FROM enhanced_users ORDER BY enhanced_users.name ASC
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE (enhanced_users.name = 'Alice' OR enhanced_users.name = 'Bob') AND enhanced_users.score < 25
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE enhanced_users.name = 'Ghost'
+
+MODEL: EnhancedUser
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT enhanced_users.name AS name, enhanced_users.data AS data, enhanced_users.score AS score, enhanced_users.tags AS tags, enhanced_users.id AS id, enhanced_users.created_at AS created_at, enhanced_users.updated_at AS updated_at 
+FROM enhanced_users) AS anon_1
+
+MODEL: EnhancedUser
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT enhanced_users.name AS name, enhanced_users.data AS data, enhanced_users.score AS score, enhanced_users.tags AS tags, enhanced_users.id AS id, enhanced_users.created_at AS created_at, enhanced_users.updated_at AS updated_at 
+FROM enhanced_users) AS anon_1
+
+MODEL: EnhancedChild
+SQL: SELECT enhanced_childs.name, enhanced_childs.parent_id, enhanced_childs.id, enhanced_childs.created_at, enhanced_childs.updated_at 
+FROM enhanced_childs 
+WHERE enhanced_childs.id = 'ea17dc8f22d54ee79c8fa0ee1b9f1c3d'
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents 
+WHERE enhanced_parents.id = '550405052f5c4448b6b06e4716792877'
+
+MODEL: EnhancedChild
+SQL: SELECT enhanced_childs.name, enhanced_childs.parent_id, enhanced_childs.id, enhanced_childs.created_at, enhanced_childs.updated_at 
+FROM enhanced_childs
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents 
+WHERE enhanced_parents.id = '29d102c58d2b442ebf47b6f7ac332861'
+
+MODEL: EnhancedChild
+SQL: SELECT enhanced_childs.name, enhanced_childs.parent_id, enhanced_childs.id, enhanced_childs.created_at, enhanced_childs.updated_at 
+FROM enhanced_childs
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents 
+WHERE enhanced_parents.id = '9eaf5107307049c69f46a48454e97b46'
+
+MODEL: EnhancedChild
+SQL: SELECT enhanced_childs.name, enhanced_childs.parent_id, enhanced_childs.id, enhanced_childs.created_at, enhanced_childs.updated_at 
+FROM enhanced_childs 
+WHERE enhanced_childs.id = '4e0ff9e182a94c26ba04bd0a8b2e802c'
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents 
+WHERE enhanced_parents.id = 'c55701b563054958ac9ad8c2e33b03f8'
+
+MODEL: EnhancedChild
+SQL: SELECT enhanced_childs.name, enhanced_childs.parent_id, enhanced_childs.id, enhanced_childs.created_at, enhanced_childs.updated_at 
+FROM enhanced_childs 
+WHERE enhanced_childs.id = '10b6ad8f968f4884855f997cc6fbff28'
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents 
+WHERE enhanced_parents.id = 'de299030c24446a0ae73195c3dea66be'
+
+MODEL: EnhancedChild
+SQL: SELECT enhanced_childs.name, enhanced_childs.parent_id, enhanced_childs.id, enhanced_childs.created_at, enhanced_childs.updated_at 
+FROM enhanced_childs 
+WHERE enhanced_childs.id = '78e5afa5fc674da7b9ee1c164a8200ab'
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents 
+WHERE enhanced_parents.id = '3a72b029592d443aada86bdb39eadd8a'
+
+MODEL: EnhancedChild
+SQL: SELECT enhanced_childs.name, enhanced_childs.parent_id, enhanced_childs.id, enhanced_childs.created_at, enhanced_childs.updated_at 
+FROM enhanced_childs 
+WHERE enhanced_childs.id = '83e3c2b14c934f57a40998a87f15aed5'
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents 
+WHERE enhanced_parents.id = '11fcea0ff5b1438498dba34feb7875cd'
+
+MODEL: EnhancedChild
+SQL: SELECT enhanced_childs.name, enhanced_childs.parent_id, enhanced_childs.id, enhanced_childs.created_at, enhanced_childs.updated_at 
+FROM enhanced_childs 
+WHERE enhanced_childs.id = 'efb8059e5c6a405ba410acb2a57fc185'
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents 
+WHERE enhanced_parents.id = 'fb4a8c04215b4cf887da6c1f04a29974'
+
+MODEL: EnhancedChild
+SQL: SELECT enhanced_childs.name, enhanced_childs.parent_id, enhanced_childs.id, enhanced_childs.created_at, enhanced_childs.updated_at 
+FROM enhanced_childs 
+WHERE enhanced_childs.id = '90eb4ba374b64298ad840e5790251902'
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents 
+WHERE enhanced_parents.id = 'b7f0243657aa4e929fc709bf22655fc2'
+
+MODEL: EnhancedChild
+SQL: SELECT enhanced_childs.name, enhanced_childs.parent_id, enhanced_childs.id, enhanced_childs.created_at, enhanced_childs.updated_at 
+FROM enhanced_childs 
+WHERE enhanced_childs.id = 'a95c788111474f548a0241dad7f3138e'
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents 
+WHERE enhanced_parents.id = 'd58dc00882254b6781a8e122c4da12ca'
+
+MODEL: EnhancedChild
+SQL: SELECT enhanced_childs.name, enhanced_childs.parent_id, enhanced_childs.id, enhanced_childs.created_at, enhanced_childs.updated_at 
+FROM enhanced_childs
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents 
+WHERE enhanced_parents.id = 'f28c8f48a0c94eed8463c7c40ce64380'
+
+MODEL: EnhancedChild
+SQL: SELECT enhanced_childs.name, enhanced_childs.parent_id, enhanced_childs.id, enhanced_childs.created_at, enhanced_childs.updated_at 
+FROM enhanced_childs 
+WHERE enhanced_childs.id = '56a07aa610da4b29992fe619a9852e94'
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents 
+WHERE enhanced_parents.id = '6e700323452b4744bcb8231c8a659a3f'
+
+MODEL: EnhancedChild
+SQL: SELECT enhanced_childs.name, enhanced_childs.parent_id, enhanced_childs.id, enhanced_childs.created_at, enhanced_childs.updated_at 
+FROM enhanced_childs 
+WHERE enhanced_childs.id = '47fc8252b49d47088c08a9ecb97f6f6c'
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents 
+WHERE enhanced_parents.id = '274c734d9c4d47218bc8f70f7bf77149'
+
+MODEL: EnhancedChild
+SQL: SELECT enhanced_childs.name, enhanced_childs.parent_id, enhanced_childs.id, enhanced_childs.created_at, enhanced_childs.updated_at 
+FROM enhanced_childs 
+WHERE enhanced_childs.id = 'c26c545346f44020a7d818f275cd64ef'
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents 
+WHERE enhanced_parents.id = 'd43e8d2d11dc43b4a72725e7b700702f'
+
+MODEL: EnhancedChild
+SQL: SELECT enhanced_childs.name, enhanced_childs.parent_id, enhanced_childs.id, enhanced_childs.created_at, enhanced_childs.updated_at 
+FROM enhanced_childs 
+WHERE enhanced_childs.id = 'bdcbc5a3b7b146cd8199074117190fa9'
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents 
+WHERE enhanced_parents.id = 'e8c18fa9579b45acaf130ca7cc097a14'
+
+MODEL: EnhancedChild
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT enhanced_childs.name AS name, enhanced_childs.parent_id AS parent_id, enhanced_childs.id AS id, enhanced_childs.created_at AS created_at, enhanced_childs.updated_at AS updated_at 
+FROM enhanced_childs 
+WHERE enhanced_childs.parent_id = '2fb32376367540149a4f2ed2bfd0f3a8') AS anon_1
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents 
+WHERE enhanced_parents.id = '2fb32376367540149a4f2ed2bfd0f3a8'
+
+MODEL: EnhancedChild
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT enhanced_childs.name AS name, enhanced_childs.parent_id AS parent_id, enhanced_childs.id AS id, enhanced_childs.created_at AS created_at, enhanced_childs.updated_at AS updated_at 
+FROM enhanced_childs 
+WHERE enhanced_childs.parent_id = '357d872f80524ba8aae1c130e800360d') AS anon_1
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents 
+WHERE enhanced_parents.id = '357d872f80524ba8aae1c130e800360d'
+
+MODEL: EnhancedChild
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT enhanced_childs.name AS name, enhanced_childs.parent_id AS parent_id, enhanced_childs.id AS id, enhanced_childs.created_at AS created_at, enhanced_childs.updated_at AS updated_at 
+FROM enhanced_childs 
+WHERE enhanced_childs.parent_id = '6eda7cd0c32d444086e296b519ed47f5') AS anon_1
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents 
+WHERE enhanced_parents.id = '6eda7cd0c32d444086e296b519ed47f5'
+
+MODEL: EnhancedChild
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT enhanced_childs.name AS name, enhanced_childs.parent_id AS parent_id, enhanced_childs.id AS id, enhanced_childs.created_at AS created_at, enhanced_childs.updated_at AS updated_at 
+FROM enhanced_childs 
+WHERE enhanced_childs.parent_id = 'afe46deec84e4b8fa0c0669dbe799513') AS anon_1
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents 
+WHERE enhanced_parents.id = 'afe46deec84e4b8fa0c0669dbe799513'
+
+MODEL: EnhancedChild
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT enhanced_childs.name AS name, enhanced_childs.parent_id AS parent_id, enhanced_childs.id AS id, enhanced_childs.created_at AS created_at, enhanced_childs.updated_at AS updated_at 
+FROM enhanced_childs 
+WHERE enhanced_childs.parent_id = '64cab323852d4bb3beaf5617ebb861df') AS anon_1
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents 
+WHERE enhanced_parents.id = '64cab323852d4bb3beaf5617ebb861df'
+
+MODEL: EnhancedChild
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT enhanced_childs.name AS name, enhanced_childs.parent_id AS parent_id, enhanced_childs.id AS id, enhanced_childs.created_at AS created_at, enhanced_childs.updated_at AS updated_at 
+FROM enhanced_childs 
+WHERE enhanced_childs.parent_id = 'acf696bcf7e84e33ab24691f233abca0') AS anon_1
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents 
+WHERE enhanced_parents.id = 'acf696bcf7e84e33ab24691f233abca0'
+
+MODEL: EnhancedChild
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT enhanced_childs.name AS name, enhanced_childs.parent_id AS parent_id, enhanced_childs.id AS id, enhanced_childs.created_at AS created_at, enhanced_childs.updated_at AS updated_at 
+FROM enhanced_childs 
+WHERE enhanced_childs.parent_id = '6839e4be78d24d9999b4ea1e435723fd') AS anon_1
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents 
+WHERE enhanced_parents.id = '6839e4be78d24d9999b4ea1e435723fd'
+
+MODEL: EnhancedChild
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT enhanced_childs.name AS name, enhanced_childs.parent_id AS parent_id, enhanced_childs.id AS id, enhanced_childs.created_at AS created_at, enhanced_childs.updated_at AS updated_at 
+FROM enhanced_childs 
+WHERE enhanced_childs.parent_id = 'ca7857958ff4412fbfb600f19bbc1d88') AS anon_1
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents 
+WHERE enhanced_parents.id = 'ca7857958ff4412fbfb600f19bbc1d88'
+
+MODEL: EnhancedChild
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT enhanced_childs.name AS name, enhanced_childs.parent_id AS parent_id, enhanced_childs.id AS id, enhanced_childs.created_at AS created_at, enhanced_childs.updated_at AS updated_at 
+FROM enhanced_childs 
+WHERE enhanced_childs.parent_id = '12c35134575f4609a3c209cc5bc62106') AS anon_1
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents 
+WHERE enhanced_parents.id = '12c35134575f4609a3c209cc5bc62106'
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents
+
+MODEL: EnhancedChild
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT enhanced_childs.name AS name, enhanced_childs.parent_id AS parent_id, enhanced_childs.id AS id, enhanced_childs.created_at AS created_at, enhanced_childs.updated_at AS updated_at 
+FROM enhanced_childs 
+WHERE enhanced_childs.parent_id = '241b29b3fbc9424580a1c255d774fe8c') AS anon_1
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents 
+WHERE enhanced_parents.id = '241b29b3fbc9424580a1c255d774fe8c'
+
+MODEL: EnhancedChild
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT enhanced_childs.name AS name, enhanced_childs.parent_id AS parent_id, enhanced_childs.id AS id, enhanced_childs.created_at AS created_at, enhanced_childs.updated_at AS updated_at 
+FROM enhanced_childs 
+WHERE enhanced_childs.parent_id = '0ae7b41f2f06402591c18c18d19a8eb5') AS anon_1
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents 
+WHERE enhanced_parents.id = '0ae7b41f2f06402591c18c18d19a8eb5'
+
+MODEL: EnhancedChild
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT enhanced_childs.name AS name, enhanced_childs.parent_id AS parent_id, enhanced_childs.id AS id, enhanced_childs.created_at AS created_at, enhanced_childs.updated_at AS updated_at 
+FROM enhanced_childs 
+WHERE enhanced_childs.parent_id = '31032bac0f7a4e9c922428394ef032e6') AS anon_1
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents 
+WHERE enhanced_parents.id = '31032bac0f7a4e9c922428394ef032e6'
+
+MODEL: EnhancedChild
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT enhanced_childs.name AS name, enhanced_childs.parent_id AS parent_id, enhanced_childs.id AS id, enhanced_childs.created_at AS created_at, enhanced_childs.updated_at AS updated_at 
+FROM enhanced_childs 
+WHERE enhanced_childs.parent_id = 'b0129fe25d7a4d72bfb500044fc2d49c') AS anon_1
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents 
+WHERE enhanced_parents.id = 'b0129fe25d7a4d72bfb500044fc2d49c'
+
+MODEL: EnhancedChild
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT enhanced_childs.name AS name, enhanced_childs.parent_id AS parent_id, enhanced_childs.id AS id, enhanced_childs.created_at AS created_at, enhanced_childs.updated_at AS updated_at 
+FROM enhanced_childs 
+WHERE enhanced_childs.parent_id = '8a80188b1de0485282c0773ad8506641') AS anon_1
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents 
+WHERE enhanced_parents.id = '8a80188b1de0485282c0773ad8506641'
+
+MODEL: EnhancedChild
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT enhanced_childs.name AS name, enhanced_childs.parent_id AS parent_id, enhanced_childs.id AS id, enhanced_childs.created_at AS created_at, enhanced_childs.updated_at AS updated_at 
+FROM enhanced_childs 
+WHERE enhanced_childs.parent_id = '7e4fc37a14564fbc9b436249ece625bb') AS anon_1
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents 
+WHERE enhanced_parents.id = '7e4fc37a14564fbc9b436249ece625bb'
+
+MODEL: EnhancedChild
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT enhanced_childs.name AS name, enhanced_childs.parent_id AS parent_id, enhanced_childs.id AS id, enhanced_childs.created_at AS created_at, enhanced_childs.updated_at AS updated_at 
+FROM enhanced_childs 
+WHERE enhanced_childs.parent_id = 'ae7d979238ea4f7480d91ddb93cea89b') AS anon_1
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents 
+WHERE enhanced_parents.id = 'ae7d979238ea4f7480d91ddb93cea89b'
+
+MODEL: EnhancedChild
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT enhanced_childs.name AS name, enhanced_childs.parent_id AS parent_id, enhanced_childs.id AS id, enhanced_childs.created_at AS created_at, enhanced_childs.updated_at AS updated_at 
+FROM enhanced_childs 
+WHERE enhanced_childs.parent_id = 'a7d022b2dee74f5e8cea0172fb3173e3') AS anon_1
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents 
+WHERE enhanced_parents.id = 'a7d022b2dee74f5e8cea0172fb3173e3'
+
+MODEL: EnhancedChild
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT enhanced_childs.name AS name, enhanced_childs.parent_id AS parent_id, enhanced_childs.id AS id, enhanced_childs.created_at AS created_at, enhanced_childs.updated_at AS updated_at 
+FROM enhanced_childs 
+WHERE enhanced_childs.parent_id = 'f61842ad20e3401b934dedbc86c61fec') AS anon_1
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents 
+WHERE enhanced_parents.id = 'f61842ad20e3401b934dedbc86c61fec'
+
+MODEL: EnhancedChild
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT enhanced_childs.name AS name, enhanced_childs.parent_id AS parent_id, enhanced_childs.id AS id, enhanced_childs.created_at AS created_at, enhanced_childs.updated_at AS updated_at 
+FROM enhanced_childs 
+WHERE enhanced_childs.parent_id = 'fa73f7b201534bfd89e439e169e2bad6') AS anon_1
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents 
+WHERE enhanced_parents.id = 'fa73f7b201534bfd89e439e169e2bad6'
+
+MODEL: EnhancedChild
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT enhanced_childs.name AS name, enhanced_childs.parent_id AS parent_id, enhanced_childs.id AS id, enhanced_childs.created_at AS created_at, enhanced_childs.updated_at AS updated_at 
+FROM enhanced_childs 
+WHERE enhanced_childs.parent_id = '3d470966ecba4100bd769879f20226fd') AS anon_1
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents 
+WHERE enhanced_parents.id = '3d470966ecba4100bd769879f20226fd'
+
+MODEL: EnhancedChild
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT enhanced_childs.name AS name, enhanced_childs.parent_id AS parent_id, enhanced_childs.id AS id, enhanced_childs.created_at AS created_at, enhanced_childs.updated_at AS updated_at 
+FROM enhanced_childs 
+WHERE enhanced_childs.parent_id = 'a4fc612f24f648ecabb1e6b52ced511c') AS anon_1
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents 
+WHERE enhanced_parents.id = 'a4fc612f24f648ecabb1e6b52ced511c'
+
+MODEL: EnhancedChild
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT enhanced_childs.name AS name, enhanced_childs.parent_id AS parent_id, enhanced_childs.id AS id, enhanced_childs.created_at AS created_at, enhanced_childs.updated_at AS updated_at 
+FROM enhanced_childs 
+WHERE enhanced_childs.parent_id = 'cd8433dbf0b64eb38f06fed11677a107') AS anon_1
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents 
+WHERE enhanced_parents.id = 'cd8433dbf0b64eb38f06fed11677a107'
+
+MODEL: EnhancedChild
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT enhanced_childs.name AS name, enhanced_childs.parent_id AS parent_id, enhanced_childs.id AS id, enhanced_childs.created_at AS created_at, enhanced_childs.updated_at AS updated_at 
+FROM enhanced_childs 
+WHERE enhanced_childs.parent_id = '97d10a1885e34fc2ac6797b6fcbb2a06') AS anon_1
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents 
+WHERE enhanced_parents.id = '97d10a1885e34fc2ac6797b6fcbb2a06'
+
+MODEL: EnhancedChild
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT enhanced_childs.name AS name, enhanced_childs.parent_id AS parent_id, enhanced_childs.id AS id, enhanced_childs.created_at AS created_at, enhanced_childs.updated_at AS updated_at 
+FROM enhanced_childs 
+WHERE enhanced_childs.parent_id = '3d6f9e6eb21642f1b1b3c4cddedc0727') AS anon_1
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents 
+WHERE enhanced_parents.id = '3d6f9e6eb21642f1b1b3c4cddedc0727'
+
+MODEL: EnhancedChild
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT enhanced_childs.name AS name, enhanced_childs.parent_id AS parent_id, enhanced_childs.id AS id, enhanced_childs.created_at AS created_at, enhanced_childs.updated_at AS updated_at 
+FROM enhanced_childs 
+WHERE enhanced_childs.parent_id = '0fa325e5e74b4234a641f7e82846b809') AS anon_1
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents 
+WHERE enhanced_parents.id = '0fa325e5e74b4234a641f7e82846b809'
+

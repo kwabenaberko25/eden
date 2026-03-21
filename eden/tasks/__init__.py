@@ -425,8 +425,12 @@ class EdenBroker:
         if len(args) == 1 and callable(args[0]):
             return self.task()(args[0])
 
-        target_retries = max_retries if max_retries is not None else self.max_retries
-        target_delays = retry_delays if retry_delays is not None else self.retry_delays
+        # Check for aliases in kwargs (common in older tests or other frameworks)
+        mr = max_retries if max_retries is not None else kwargs.pop("retries", None)
+        rd = retry_delays if retry_delays is not None else kwargs.pop("delays", None)
+
+        target_retries = mr if mr is not None else self.max_retries
+        target_delays = rd if rd is not None else self.retry_delays
 
         def decorator(func: Callable[..., Any]) -> Any:
             # Wrap the function to inject Eden dependencies and handle retries
@@ -436,6 +440,7 @@ class EdenBroker:
                 target_delays,
                 exponential_backoff=exponential_backoff
             )
+            print(f"DEBUG TASK REGISTER: registering {func.__name__} (was: {func})")
             return self.broker.task(*args, **kwargs)(handler)
 
         return decorator
@@ -521,6 +526,7 @@ class EdenBroker:
                 try:
                     # Record start for this attempt if first attempt
                     logger.debug("Executing task '%s' (attempt %d, ID %s)", func.__name__, attempt, task_id)
+                    print(f"DEBUG TASK: executing {func.__name__} attempt {attempt}")
 
                     if asyncio.iscoroutinefunction(func):
                         res = await func(*args, **final_kwargs)
@@ -544,6 +550,7 @@ class EdenBroker:
                     return res
 
                 except Exception as e:
+                    print(f"DEBUG TASK ERROR: {func.__name__} attempt {attempt} error: {e}")
                     attempt += 1
                     if attempt > max_retries:
                         logger.error(

@@ -317,9 +317,18 @@ class Eden:
                         result = await check_fn()
                     else:
                         result = check_fn()
-                    results[name] = result or "ok"
+                    
+                    is_ok = result is not False and result is not None
+                    results[name] = {
+                        "status": "ok" if is_ok else "fail"
+                    }
+                    if not is_ok:
+                        all_ok = False
                 except Exception as e:
-                    results[name] = f"failed: {str(e)}"
+                    results[name] = {
+                        "status": "fail",
+                        "error": str(e)
+                    }
                     all_ok = False
             
             # Update overall health metric
@@ -327,9 +336,9 @@ class Eden:
             self.metrics.set_gauge("app_health_status", status_val)
 
             return {
-                "status": "ready" if all_ok else "unready",
+                "status": "ready" if all_ok else "not_ready",
                 "probes": probes,
-                "custom_checks": results
+                "checks": results
             }
 
     def add_readiness_check(self, name: str, check_fn: Callable | None = None) -> Callable | None:

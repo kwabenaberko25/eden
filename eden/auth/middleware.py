@@ -101,9 +101,9 @@ class AuthorizationMiddleware(BaseHTTPMiddleware):
                 raise Unauthorized(detail="Login required.")
             
             from eden.auth.access import check_permission
-            if not check_permission(user, f"can_{required_permission}", None):
+            if not await check_permission(user, f"can_{required_permission}", None):
                 # Note: f"can_{required_permission}" is to match typical Eden naming
-                if not check_permission(user, required_permission, None):
+                if not await check_permission(user, required_permission, None):
                     raise Forbidden(detail=f"Missing required permission: {required_permission}")
 
         # 5. Check required roles

@@ -1,0 +1,435 @@
+﻿
+DEBUG: Initializing model subclass: FileReference (table: 
+file_references)
+DEBUG: Processing FileReference
+DEBUG: FileReference.model_class_name -> hasattr(col)=True, 
+hasattr(info)=False
+DEBUG: FileReference.model_instance_id -> hasattr(col)=True, 
+hasattr(info)=False
+DEBUG: FileReference.file_path -> hasattr(col)=True, 
+hasattr(info)=False
+DEBUG: FileReference.storage_backend -> hasattr(col)=True, 
+hasattr(info)=False
+DEBUG: FileReference.deleted_at -> hasattr(col)=True, 
+hasattr(info)=False
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[str] (type: <class 
+'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[uuid.UUID] (type: 
+<class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[str] (type: <class 
+'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[str] (type: <class 
+'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime 
+| None] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: <class 'datetime.datetime'> (type: <class 
+'type'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[uuid.UUID] (type: 
+<class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] 
+(type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] 
+(type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[str] (type: <class 
+'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[uuid.UUID] (type: 
+<class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[str] (type: <class 
+'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[str] (type: <class 
+'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime 
+| None] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: <class 'datetime.datetime'> (type: <class 
+'type'>)
+DEBUG: Initializing model subclass: VectorModel (table: N/A)
+DEBUG: Initializing model subclass: AuditLog (table: eden_audit_logs)
+DEBUG: Processing AuditLog
+DEBUG: AuditLog.id -> hasattr(col)=True, hasattr(info)=False
+DEBUG: AuditLog.user_id -> hasattr(col)=True, hasattr(info)=False
+DEBUG: AuditLog.action -> hasattr(col)=True, hasattr(info)=False
+DEBUG: AuditLog.model_name -> hasattr(col)=True, hasattr(info)=False
+DEBUG: AuditLog.record_id -> hasattr(col)=True, hasattr(info)=False
+DEBUG: AuditLog.changes -> hasattr(col)=True, hasattr(info)=False
+DEBUG: AuditLog.timestamp -> hasattr(col)=True, hasattr(info)=False
+DEBUG: Analyzing hint: <class 'uuid.UUID'> (type: <class 'type'>)
+DEBUG: Analyzing hint: str | None (type: <class 'typing.Union'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: dict | None (type: <class 'typing.Union'>)
+DEBUG: Analyzing hint: <class 'dict'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'datetime.datetime'> (type: <class 
+'type'>)
+DEBUG: Analyzing hint: <class 'uuid.UUID'> (type: <class 'type'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] 
+(type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] 
+(type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: str | None (type: <class 'typing.Union'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: dict | None (type: <class 'typing.Union'>)
+DEBUG: Analyzing hint: <class 'dict'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'datetime.datetime'> (type: <class 
+'type'>)
+DEBUG: Initializing model subclass: Customer (table: eden_customers)
+DEBUG: Processing Customer
+DEBUG: Customer.user_id -> hasattr(col)=True, hasattr(info)=False
+DEBUG: Customer.provider_customer_id -> hasattr(col)=True, 
+hasattr(info)=False
+DEBUG: Customer.provider -> hasattr(col)=True, hasattr(info)=False
+DEBUG: Analyzing hint: <class 'uuid.UUID'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[uuid.UUID] (type: 
+<class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] 
+(type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] 
+(type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: <class 'uuid.UUID'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Initializing model subclass: Subscription (table: 
+eden_subscriptions)
+DEBUG: Processing Subscription
+DEBUG: Subscription.customer_id -> hasattr(col)=True, 
+hasattr(info)=False
+DEBUG: Subscription.provider_subscription_id -> hasattr(col)=True, 
+hasattr(info)=False
+DEBUG: Subscription.status -> hasattr(col)=True, hasattr(info)=False
+DEBUG: Subscription.price_id -> hasattr(col)=True, 
+hasattr(info)=False
+DEBUG: Subscription.current_period_end -> hasattr(col)=True, 
+hasattr(info)=False
+DEBUG: Subscription.cancel_at_period_end -> hasattr(col)=True, 
+hasattr(info)=False
+DEBUG: Analyzing hint: <class 'uuid.UUID'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: str | None (type: <class 'typing.Union'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: datetime.datetime | None (type: <class 
+'typing.Union'>)
+DEBUG: Analyzing hint: <class 'datetime.datetime'> (type: <class 
+'type'>)
+DEBUG: Analyzing hint: <class 'bool'> (type: <class 'type'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[uuid.UUID] (type: 
+<class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] 
+(type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] 
+(type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: <class 'uuid.UUID'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: str | None (type: <class 'typing.Union'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: datetime.datetime | None (type: <class 
+'typing.Union'>)
+DEBUG: Analyzing hint: <class 'datetime.datetime'> (type: <class 
+'type'>)
+DEBUG: Analyzing hint: <class 'bool'> (type: <class 'type'>)
+DEBUG: Initializing model subclass: PaymentEvent (table: 
+eden_payment_events)
+DEBUG: Processing PaymentEvent
+DEBUG: PaymentEvent.provider_event_id -> hasattr(col)=True, 
+hasattr(info)=False
+DEBUG: PaymentEvent.event_type -> hasattr(col)=True, 
+hasattr(info)=False
+DEBUG: PaymentEvent.payload -> hasattr(col)=True, hasattr(info)=False
+DEBUG: PaymentEvent.processed -> hasattr(col)=True, 
+hasattr(info)=False
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'dict'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'bool'> (type: <class 'type'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[uuid.UUID] (type: 
+<class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] 
+(type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] 
+(type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'dict'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'bool'> (type: <class 'type'>)
+DEBUG: Initializing model subclass: User (table: eden_users)
+DEBUG: Processing User
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[str | None] (type: 
+<class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[uuid.UUID] (type: 
+<class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[str] (type: <class 
+'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[str] (type: <class 
+'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[bool] (type: 
+<class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[bool] (type: 
+<class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[bool] (type: 
+<class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[str | None] (type: 
+<class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[str | None] (type: 
+<class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[list[str]] (type: 
+<class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[list[str]] (type: 
+<class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] 
+(type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] 
+(type: <class 'typing._GenericAlias'>)
+DEBUG: Initializing model subclass: SocialAccount (table: 
+eden_social_accounts)
+DEBUG: Processing SocialAccount
+DEBUG: SocialAccount.provider -> hasattr(col)=True, 
+hasattr(info)=False
+DEBUG: SocialAccount.provider_user_id -> hasattr(col)=True, 
+hasattr(info)=False
+DEBUG: SocialAccount.provider_metadata -> hasattr(col)=True, 
+hasattr(info)=False
+DEBUG: SocialAccount.user -> hasattr(col)=False, hasattr(info)=True
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[str] (type: <class 
+'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[str] (type: <class 
+'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[dict] (type: 
+<class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: 
+sqlalchemy.orm.base.Mapped[ForwardRef('User')] (type: <class 
+'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[uuid.UUID] (type: 
+<class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] 
+(type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] 
+(type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[str] (type: <class 
+'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[str] (type: <class 
+'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[dict] (type: 
+<class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: 
+sqlalchemy.orm.base.Mapped[eden.auth.models.User] (type: <class 
+'typing._GenericAlias'>)
+DEBUG: infer field: SocialAccount.user, is_list=False, 
+target_name=User, is_reference=True
+DEBUG: Building N:1 for SocialAccount.user -> User
+DEBUG: Checking FK column user_id for SocialAccount, 
+already_defined=False
+DEBUG: Creating FK for SocialAccount.user_id -> eden_users.id
+DEBUG: _build_many_to_one for SocialAccount.user -> User
+DEBUG: Initializing model subclass: PasswordResetToken (table: 
+password_reset_tokens)
+DEBUG: Processing PasswordResetToken
+DEBUG: PasswordResetToken.user_id -> hasattr(col)=True, 
+hasattr(info)=False
+DEBUG: PasswordResetToken.token -> hasattr(col)=True, 
+hasattr(info)=False
+DEBUG: PasswordResetToken.expires_at -> hasattr(col)=True, 
+hasattr(info)=False
+DEBUG: PasswordResetToken.used_at -> hasattr(col)=True, 
+hasattr(info)=False
+DEBUG: Analyzing hint: <class 'uuid.UUID'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'datetime.datetime'> (type: <class 
+'type'>)
+DEBUG: Analyzing hint: datetime.datetime | None (type: <class 
+'typing.Union'>)
+DEBUG: Analyzing hint: <class 'datetime.datetime'> (type: <class 
+'type'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[uuid.UUID] (type: 
+<class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] 
+(type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] 
+(type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: <class 'uuid.UUID'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'datetime.datetime'> (type: <class 
+'type'>)
+DEBUG: Analyzing hint: datetime.datetime | None (type: <class 
+'typing.Union'>)
+DEBUG: Analyzing hint: <class 'datetime.datetime'> (type: <class 
+'type'>)
+DEBUG: Initializing model subclass: APIKey (table: eden_api_keys)
+DEBUG: Processing APIKey
+DEBUG: APIKey.name -> hasattr(col)=True, hasattr(info)=False
+DEBUG: APIKey.prefix -> hasattr(col)=True, hasattr(info)=False
+DEBUG: APIKey.key_hash -> hasattr(col)=True, hasattr(info)=False
+DEBUG: APIKey.user_id -> hasattr(col)=True, hasattr(info)=False
+DEBUG: APIKey.scopes -> hasattr(col)=True, hasattr(info)=False
+DEBUG: APIKey.expires_at -> hasattr(col)=True, hasattr(info)=False
+DEBUG: APIKey.last_used_at -> hasattr(col)=True, hasattr(info)=False
+DEBUG: APIKey.is_active -> hasattr(col)=True, hasattr(info)=False
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'uuid.UUID'> (type: <class 'type'>)
+DEBUG: Analyzing hint: list[str] (type: <class 'types.GenericAlias'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: datetime.datetime | None (type: <class 
+'typing.Union'>)
+DEBUG: Analyzing hint: <class 'datetime.datetime'> (type: <class 
+'type'>)
+DEBUG: Analyzing hint: datetime.datetime | None (type: <class 
+'typing.Union'>)
+DEBUG: Analyzing hint: <class 'datetime.datetime'> (type: <class 
+'type'>)
+DEBUG: Analyzing hint: <class 'bool'> (type: <class 'type'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[uuid.UUID] (type: 
+<class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] 
+(type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] 
+(type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'uuid.UUID'> (type: <class 'type'>)
+DEBUG: Analyzing hint: list[str] (type: <class 'types.GenericAlias'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: datetime.datetime | None (type: <class 
+'typing.Union'>)
+DEBUG: Analyzing hint: <class 'datetime.datetime'> (type: <class 
+'type'>)
+DEBUG: Analyzing hint: datetime.datetime | None (type: <class 
+'typing.Union'>)
+DEBUG: Analyzing hint: <class 'datetime.datetime'> (type: <class 
+'type'>)
+DEBUG: Analyzing hint: <class 'bool'> (type: <class 'type'>)
+DEBUG: Initializing model subclass: Tenant (table: eden_tenants)
+DEBUG: Processing Tenant
+DEBUG: Tenant.name -> hasattr(col)=True, hasattr(info)=False
+DEBUG: Tenant.slug -> hasattr(col)=True, hasattr(info)=False
+DEBUG: Tenant.is_active -> hasattr(col)=True, hasattr(info)=False
+DEBUG: Tenant.plan -> hasattr(col)=True, hasattr(info)=False
+DEBUG: Tenant.schema_name -> hasattr(col)=True, hasattr(info)=False
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'bool'> (type: <class 'type'>)
+DEBUG: Analyzing hint: str | None (type: <class 'typing.Union'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: str | None (type: <class 'typing.Union'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[uuid.UUID] (type: 
+<class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] 
+(type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] 
+(type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'bool'> (type: <class 'type'>)
+DEBUG: Analyzing hint: str | None (type: <class 'typing.Union'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: str | None (type: <class 'typing.Union'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+asyncio: mode=Mode.AUTO, debug=False, 
+asyncio_default_fixture_loop_scope=None, 
+asyncio_default_test_loop_scope=function
+collecting ... DEBUG: test_orm_enhanced.py IMPORTED
+DEBUG: Initializing model subclass: EnhancedUser (table: 
+enhanced_users)
+DEBUG: Processing EnhancedUser
+DEBUG: EnhancedUser.name -> hasattr(col)=True, hasattr(info)=False
+DEBUG: EnhancedUser.data -> hasattr(col)=True, hasattr(info)=False
+DEBUG: EnhancedUser.score -> hasattr(col)=True, hasattr(info)=False
+DEBUG: EnhancedUser.tags -> hasattr(col)=True, hasattr(info)=False
+DEBUG: Analyzing hint: str (type: <class 'str'>)
+DEBUG: Analyzing hint: dict (type: <class 'str'>)
+DEBUG: Analyzing hint: int (type: <class 'str'>)
+DEBUG: Analyzing hint: list (type: <class 'str'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[uuid.UUID] (type: 
+<class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] 
+(type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] 
+(type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'dict'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'int'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'list'> (type: <class 'type'>)
+DEBUG: Initializing model subclass: EnhancedParent (table: 
+enhanced_parents)
+DEBUG: Processing EnhancedParent
+DEBUG: EnhancedParent.name -> hasattr(col)=True, hasattr(info)=False
+DEBUG: EnhancedParent.children -> hasattr(col)=False, 
+hasattr(info)=True
+DEBUG: Analyzing hint: Mapped[List['EnhancedChild']] (type: <class 
+'str'>)
+DEBUG: Analyzing hint: str (type: <class 'str'>)
+DEBUG: Analyzing hint: Mapped[List['EnhancedChild']] (type: <class 
+'str'>)
+DEBUG: Analyzing hint: str (type: <class 'str'>)
+DEBUG: Analyzing hint: Mapped[List['EnhancedChild']] (type: <class 
+'str'>)
+DEBUG: infer field: EnhancedParent.children, is_list=True, 
+target_name=EnhancedChild, is_reference=False
+DEBUG: Building 1:N for EnhancedParent.children -> EnhancedChild
+DEBUG: _build_one_to_many for EnhancedParent.children -> 
+EnhancedChild, kwargs={'lazy': 'selectin', 'overlaps': '*', 
+'back_populates': 'parent'}
+DEBUG: Initializing model subclass: EnhancedChild (table: 
+enhanced_childs)
+DEBUG: Processing EnhancedChild
+DEBUG: EnhancedChild.name -> hasattr(col)=True, hasattr(info)=False
+DEBUG: EnhancedChild.parent -> hasattr(col)=False, hasattr(info)=True
+DEBUG: Analyzing hint: str (type: <class 'str'>)
+DEBUG: Analyzing hint: Mapped['EnhancedParent'] (type: <class 'str'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[uuid.UUID] (type: 
+<class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] 
+(type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] 
+(type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: 
+sqlalchemy.orm.base.Mapped[tests.test_orm_enhanced.EnhancedParent] 
+(type: <class 'typing._GenericAlias'>)
+DEBUG: infer field: EnhancedChild.parent, is_list=False, 
+target_name=EnhancedParent, is_reference=True
+DEBUG: Building N:1 for EnhancedChild.parent -> EnhancedParent
+DEBUG: Checking FK column parent_id for EnhancedChild, 
+already_defined=False
+DEBUG: Creating FK for EnhancedChild.parent_id -> enhanced_parents.id
+DEBUG: _build_many_to_one for EnhancedChild.parent -> EnhancedParent
+collected 7 items / 6 deselected / 1 selected
+tests/test_orm_enhanced.py::test_orm_f_relationship_oneliner DEBUG: 
+setup_db called
+DEBUG: Tables in metadata: ['file_references', 'eden_audit_logs', 
+'eden_customers', 'eden_subscriptions', 'eden_payment_events', 
+'eden_users', 'eden_social_accounts', 'password_reset_tokens', 
+'eden_api_keys', 'eden_tenants', 'enhanced_users', 
+'enhanced_parents', 'enhanced_childs']
+DEBUG: EnhancedChild count for parent 
+a4fc612f-24f6-48ec-abb1-e6b52ced511c: 1
+DEBUG: fetched_parent.children type: <class 
+'sqlalchemy.orm.collections.InstrumentedList'>
+DEBUG: fetched_parent.children items: 0
+FAILEDDEBUG: setup_db yielded
+        print(f"DEBUG: EnhancedChild count for parent {parent.id}: 
+{count}")
+        print(f"DEBUG: fetched_parent.children type: 
+{type(fetched_parent.children)}")
+        print(f"DEBUG: fetched_parent.children items: 
+{len(fetched_parent.children)}")
+            print(f"DEBUG: Example child: 
+{fetched_parent.children[0].name}")
+======================= 1 failed, 6 deselected in 0.48s 
+=======================
+
+

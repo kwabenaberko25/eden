@@ -39,8 +39,20 @@ class TestPost(Model):
     user_id: Mapped[UUID] = f()
 
 
+@pytest.fixture(autouse=True)
+def mock_db():
+    """Mock database connection for models."""
+    mock_db = MagicMock()
+    # Mock transaction context manager
+    mock_session = AsyncMock()
+    mock_db.transaction.return_value.__aenter__.return_value = mock_session
+    
+    with patch.object(Model, '_get_db', return_value=mock_db):
+        yield mock_db
+
+
 @pytest.fixture
-def test_user():
+def test_user(mock_db):
     """Create a test user."""
     user = TestUser(name="Alice", email="alice@example.com")
     user.id = uuid4()
@@ -48,7 +60,7 @@ def test_user():
 
 
 @pytest.fixture
-def test_post(test_user):
+def test_post(mock_db, test_user):
     """Create a test post."""
     post = TestPost(title="My Post", user_id=test_user.id)
     post.id = uuid4()
@@ -234,35 +246,37 @@ async def test_model_delete_triggers_file_cleanup(test_user):
 
 
 @pytest.mark.asyncio
-async def test_model_delete_cleanup_before_deletion(test_user):
+async def test_model_delete_cleanup_before_deletion(test_user, mock_db):
     """File cleanup happens BEFORE model is deleted from DB."""
     call_order = []
+    mock_session = mock_db.transaction.return_value.__aenter__.return_value
     
     async def mock_cleanup(*args, **kwargs):
         call_order.append("cleanup")
     
-    async def mock_hard_delete(*args, **kwargs):
-        call_order.append("hard_delete")
+    async def mock_session_delete(*args, **kwargs):
+        call_order.append("db_delete")
     
     with patch.object(FileReference, 'cleanup_by_model', side_effect=mock_cleanup):
-        with patch.object(test_user, 'hard_delete', side_effect=mock_hard_delete):
+        with patch.object(mock_session, 'delete', side_effect=mock_session_delete):
             await test_user.delete()
     
     # Cleanup should happen first
-    assert call_order == ["cleanup", "hard_delete"]
+    assert call_order == ["cleanup", "db_delete"]
 
 
 @pytest.mark.asyncio
-async def test_model_delete_continues_if_cleanup_fails(test_user):
+async def test_model_delete_continues_if_cleanup_fails(test_user, mock_db):
     """Model deletion continues even if file cleanup raises error."""
+    mock_session = mock_db.transaction.return_value.__aenter__.return_value
+    
     with patch.object(FileReference, 'cleanup_by_model', new_callable=AsyncMock) as mock_cleanup:
         mock_cleanup.side_effect = IOError("Storage error")
         
-        with patch.object(test_user, 'hard_delete', new_callable=AsyncMock) as mock_hard_delete:
+        with patch.object(mock_session, 'delete', new_callable=AsyncMock) as mock_delete:
             # Should not raise, should still delete model
             await test_user.delete()
-    
-    mock_hard_delete.assert_called_once()
+            mock_delete.assert_called_once()
 
 
 # ============================================================================

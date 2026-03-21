@@ -84,8 +84,11 @@ async def test_authorization_middleware():
     request = Request(scope, receive=None)
     request.state.user = None
     
+    from unittest.mock import AsyncMock
+    mock_call_next = AsyncMock(return_value=MagicMock())
+
     try:
-        await middleware.dispatch(request, None)
+        await middleware.dispatch(request, mock_call_next)
         assert False, "Should have raised Unauthorized"
     except Unauthorized:
         print("✓ Middleware Unauthorized detection OK")
@@ -95,13 +98,15 @@ async def test_authorization_middleware():
     async def admin_view(request): return "ok"
     
     scope["endpoint"] = admin_view
+    from unittest.mock import AsyncMock
     user = MagicMock()
+    user.has_permission = AsyncMock(return_value=False)
     user.permissions = []
     user.is_superuser = False
     request.state.user = user
     
     try:
-        await middleware.dispatch(request, None)
+        await middleware.dispatch(request, mock_call_next)
         assert False, "Should have raised Forbidden"
     except Forbidden:
         print("✓ Middleware Forbidden detection OK")

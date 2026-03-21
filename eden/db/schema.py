@@ -1,6 +1,6 @@
 import re
 from typing import Any, Dict, List, Optional, Type, Union, get_type_hints, Annotated, get_origin, get_args
-from datetime import datetime
+from datetime import datetime, date
 import uuid
 from decimal import Decimal
 
@@ -82,6 +82,7 @@ class SchemaInferenceEngine:
     @classmethod
     def process_class(cls, model_cls: Type[Model]) -> None:
         """Entry point for model processing during __init_subclass__."""
+        print(f"DEBUG: Processing {model_cls.__name__}")
         # 1. Infer basic columns from type hints if not explicitly defined
         cls.infer_columns(model_cls)
         # 2. Infer relationships from type hints
@@ -92,6 +93,7 @@ class SchemaInferenceEngine:
     @classmethod
     def _analyze_type_hint(cls, hint: Any) -> tuple[List[Any], Any, bool, bool, Optional[str]]:
         """Extracts metadata, type, and relationship info from a type hint."""
+        print(f"DEBUG: Analyzing hint: {hint} (type: {type(hint)})")
         metadata = []
         final_type = hint
         is_list = False
@@ -158,15 +160,38 @@ class SchemaInferenceEngine:
 
         
         if isinstance(final_type, str):
+            # Iteratively strip generic wrappers from stringified hints
+            # e.g. "Mapped[List['EnhancedChild']]" -> "List['EnhancedChild']" -> "'EnhancedChild'" -> "EnhancedChild"
+            while True:
+                original = final_type
+                if final_type.startswith("Mapped[") and final_type.endswith("]"):
+                    final_type = final_type[7:-1]
+                if final_type.startswith("Optional[") and final_type.endswith("]"):
+                    is_union = True
+                    final_type = final_type[9:-1]
+                if (final_type.startswith("List[") or final_type.startswith("list[")) and final_type.endswith("]"):
+                    is_list = True
+                    final_type = final_type[5:-1]
+                if final_type.startswith("Union[") and final_type.endswith("]"):
+                    is_union = True
+                    # Take first non-None type
+                    inner = final_type[6:-1]
+                    parts = [p.strip() for p in inner.split(",")]
+                    for p in parts:
+                        if p != "None":
+                            final_type = p
+                            break
+                final_type = final_type.strip("'\" \t")
+                if final_type == original:
+                    break
+
             lowered = final_type.lower()
             if lowered in basic_type_names:
                 target_name = None
-            elif "Mapped[" in final_type:
-                match = re.search(r"Mapped\[['\"]?([^'\"\]]+)['\"]?\]", final_type)
-                if match: target_name = match.group(1)
-                else: target_name = final_type
-            else:
+            elif len(final_type) > 0 and final_type[0].isupper():
                 target_name = final_type
+            else:
+                target_name = None
         elif hasattr(final_type, "__forward_arg__"):
             # This is a typing.ForwardRef
             target_name = getattr(final_type, "__forward_arg__")
@@ -288,18 +313,19 @@ class SchemaInferenceEngine:
             sa_kwargs, sa_args, info = parse_metadata(metadata)
             should_skip, is_reference, is_m2m_explicit = cls._is_already_mapped(model_cls, name, info)
 
-            # Important: Ensure FK column exists for references even if skipping relationship creation
-            if is_reference and not is_list:
-                cls._ensure_fk_column(model_cls, name, target_name, info, sa_kwargs)
+            print(f"DEBUG: infer field: {model_cls.__name__}.{name}, is_list={is_list}, target_name={target_name}, is_reference={is_reference}")
 
             if should_skip:
+                print(f"DEBUG: Skipping {model_cls.__name__}.{name} (already mapped)")
                 continue
 
             inferred_names.append(name)
 
             if is_list:
+                print(f"DEBUG: Building 1:N for {model_cls.__name__}.{name} -> {target_name}")
                 cls._build_one_to_many(model_cls, name, target_name, info, is_m2m_explicit)
             else:
+                print(f"DEBUG: Building N:1 for {model_cls.__name__}.{name} -> {target_name}")
                 cls._build_many_to_one(model_cls, name, target_name, info, sa_kwargs, is_reference)
 
         return inferred_names
@@ -338,11 +364,16 @@ class SchemaInferenceEngine:
         is_m2m_explicit = bool(hasattr(existing, "info") and existing.info.get("is_m2m", False))
         
         # If it's already a relationship or column, skip auto-mapping it
-        # BUT: don't skip if it's a 'reference' or 'm2m' helper that hasn't been finished yet.
+        # BUT: don't skip if it's a 'reference' or 'm2m' helper that hasn't been finished yet,
+        # OR if it's a relationship without a target argument yet (to be inferred)
         is_sa_rel = (hasattr(existing, "argument") or hasattr(existing, "mapper") or hasattr(existing, "direction"))
         if hasattr(existing, "column") or isinstance(existing, (property, declared_attr)) or is_sa_rel:
             if not is_reference and not is_m2m_explicit:
-                return True, is_reference, is_m2m_explicit
+                # If it's an sa_relationship and has an argument, it's already complete
+                if is_sa_rel and getattr(existing, "argument", None) is not None:
+                    return True, is_reference, is_m2m_explicit
+                elif not is_sa_rel:
+                    return True, is_reference, is_m2m_explicit
 
         # Merge existing info if present
         existing_info = getattr(existing, "info", {})
@@ -350,11 +381,20 @@ class SchemaInferenceEngine:
             if k not in info:
                 info[k] = v
         
-        if is_reference or is_m2m_explicit:
+        if is_reference or is_m2m_explicit or is_sa_rel:
             # Try to grab back_populates/lazy/secondary from the existing property if not in info
             for attr in ("back_populates", "lazy", "secondary"):
                 if not info.get(attr):
-                    val = getattr(existing, attr, None)
+                    # We use __dict__.get to avoid triggering property evaluations 
+                    # that might result in AttributeError (e.g. for back_populates early evaluation)
+                    val = getattr(existing, "__dict__", {}).get(attr)
+                    if val is None:
+                        # Fallback for some SA versions that store them elsewhere
+                        init_args = getattr(existing, "_init_args", {})
+                        if isinstance(init_args, dict):
+                            val = init_args.get(attr)
+                        elif hasattr(init_args, attr):
+                            val = getattr(init_args, attr, None)
                     if val:
                         info[attr] = val
 
@@ -388,20 +428,22 @@ class SchemaInferenceEngine:
                             other_rel.prop.back_populates = name
                             other_rel.prop.backref = None
 
+            # Enhanced one-liner backref
+            effective_back_populates = info.get("back_populates") or reciprocal_attr
+            
             kwargs = {
                 "lazy": info.get("lazy", "selectin"),
                 "overlaps": "*",
-                "back_populates": info.get("back_populates") or reciprocal_attr,
+                "back_populates": effective_back_populates,
             }
             
-            if not kwargs["back_populates"]:
-                # Fallback to backref if target doesn't explicitly define it
-                target_cls = cls._get_target_class(model_cls, target_name)
-                if target_cls and hasattr(target_cls, backref_name):
-                    pass # Avoid collision
-                else:
+            if not effective_back_populates:
+                if backref_name:
                     kwargs["backref"] = backref_name
+                else:
+                    kwargs["backref"] = _camel_to_snake(model_cls.__name__)
             
+            print(f"DEBUG: _build_one_to_many for {model_cls.__name__}.{name} -> {target_name}, kwargs={kwargs}")
             setattr(model_cls, name, relationship(target_name, **kwargs))
 
 
@@ -505,7 +547,9 @@ class SchemaInferenceEngine:
     def _ensure_fk_column(cls, model_cls: Type[Model], name: str, target_name: str, info: dict, sa_kwargs: dict) -> str:
         """Ensures the foreign key column exists for a many-to-one relationship."""
         fk_col = f"{name}_id"
-        if not cls._is_already_defined(model_cls, fk_col):
+        already_defined = cls._is_already_defined(model_cls, fk_col)
+        print(f"DEBUG: Checking FK column {fk_col} for {model_cls.__name__}, already_defined={already_defined}")
+        if not already_defined:
             target_table = _resolve_table_name(target_name, model_cls)
             is_legacy = target_name in ("Role", "Permission")
             fk_type = Uuid(native_uuid=True) if not is_legacy else Integer
@@ -514,9 +558,11 @@ class SchemaInferenceEngine:
             fk_info.pop("is_reference", None)
             fk_info.pop("is_m2m", None)
 
+            target_fk = f"{target_table}.id"
+            print(f"DEBUG: Creating FK for {model_cls.__name__}.{fk_col} -> {target_fk}")
             col = mapped_column(
                 fk_type,
-                ForeignKey(f"{target_table}.id", ondelete=info.get("on_delete", "CASCADE")),
+                ForeignKey(target_fk, ondelete=info.get("on_delete", "CASCADE")),
                 nullable=sa_kwargs.get("nullable", True),
                 index=sa_kwargs.get("index", True),
                 info=fk_info
@@ -530,28 +576,27 @@ class SchemaInferenceEngine:
         fk_col = cls._ensure_fk_column(model_cls, name, target_name, info, sa_kwargs)
 
         # Check for reciprocal in memo to detect 1:1 vs N:1 and sync back_populates
-        reciprocal_attr = None
+        reciprocal_attr = info.get("back_populates")
         reciprocal_is_list = True # Default to many
         
-        # 1. Normal reciprocal check (forward)
-        for (t_cls, t_attr), (src_cls, is_list) in cls._relationship_memo.items():
-            if t_cls == target_name and src_cls == model_cls.__name__:
-                reciprocal_attr = t_attr
-                reciprocal_is_list = is_list
-                break
-        
-        # 2. Retroactive sync (backward)
-        for (src_name, src_attr), (t_name, is_list) in cls._relationship_memo.items():
-            if t_name == model_cls.__name__ and src_name == target_name:
-                reciprocal_attr = src_attr
-                reciprocal_is_list = is_list
-                # Update other side
-                other_cls = cls._get_target_class(model_cls, target_name)
-                if other_cls:
-                    other_rel = getattr(other_cls, src_attr, None)
-                    if other_rel and hasattr(other_rel, "prop"):
-                        other_rel.prop.back_populates = name
-                        other_rel.prop.backref = None
+        print(f"DEBUG: _build_many_to_one for {model_cls.__name__}.{name} -> {target_name}")
+        if not reciprocal_attr:
+            for (memo_src_cls, memo_attr), (memo_tgt_cls, memo_is_list) in cls._relationship_memo.items():
+                if memo_src_cls == target_name and memo_tgt_cls == model_cls.__name__:
+                    reciprocal_attr = memo_attr
+                    reciprocal_is_list = memo_is_list
+                    
+                    print(f"DEBUG: Found reciprocal {target_name}.{reciprocal_attr} for {model_cls.__name__}.{name}")
+                    # Retroactive sync: if they already built their relationship, update it to point back to us
+                    other_cls = cls._get_target_class(model_cls, target_name)
+                    if other_cls:
+                        other_rel = getattr(other_cls, memo_attr, None)
+                        if other_rel and hasattr(other_rel, "prop"):
+                            print(f"DEBUG: Retroactively syncing {target_name}.{memo_attr} back_populates to {name}")
+                            # This ensures two-way binding even if the other side was defined first
+                            other_rel.prop.back_populates = name
+                            other_rel.prop.backref = None
+                    break
 
         # If it's 1:1 (singular on both sides), backref should also be singular and uselist=False
         is_o2o = not reciprocal_is_list
@@ -590,6 +635,7 @@ class SchemaInferenceEngine:
         # Check current class
         if name in model_cls.__dict__:
             val = model_cls.__dict__[name]
+            print(f"DEBUG: {model_cls.__name__}.{name} -> hasattr(col)={hasattr(val, 'column')}, hasattr(info)={hasattr(val, 'info')}")
             if hasattr(val, "column") or hasattr(val, "mapper") or hasattr(val, "direction") or isinstance(val, (property, declared_attr)):
                 return True
             # Also skip if it's one of our relationship helpers
@@ -643,11 +689,24 @@ class SchemaInferenceEngine:
                 
             metadata, final_type, is_list, is_union, target_name = cls._analyze_type_hint(hint)
             
-            # If only_columns is true, skip relationships
+            # 2. Extract info from type hint metadata
+            _, _, info = parse_metadata(metadata)
+            
+            # 3. Extract info from class attribute if it's a mapped_column-like object
+            attr_val = getattr(model_cls, name, None)
+            if attr_val is not None:
+                 # mapped_column objects in SA 2.0 have .column.info
+                 if hasattr(attr_val, "column") and hasattr(attr_val.column, "info"):
+                     # Merge attribute info (priority to attribute info)
+                     info.update(attr_val.column.info)
+                 elif hasattr(attr_val, "info"):
+                     # Relationship objects might have .info
+                     info.update(attr_val.info)
+
+            # 4. Handle relationships and field types
             if only_columns and target_name:
                 continue
                 
-            # If it's a relationship, we treat references as UUIDs in the schema unless they are lists
             field_type = final_type
             if target_name and not is_list:
                 # Many-to-one or one-to-one: usually we want the ID here for forms
@@ -656,9 +715,20 @@ class SchemaInferenceEngine:
                  # One-to-many: usually skip for flat schemas or use List[UUID]
                  # For now, skip to match simple forms
                  continue
-
-            _, _, info = parse_metadata(metadata)
             
+            # Infer widget if not explicitly provided
+            if "widget" not in info:
+                if final_type is int:
+                    info["widget"] = "number"
+                elif final_type is float:
+                    info["widget"] = "number"
+                elif final_type is bool:
+                    info["widget"] = "checkbox"
+                elif final_type is datetime:
+                    info["widget"] = "datetime-local"
+                elif final_type is date:
+                    info["widget"] = "date"
+
             # Map Eden metadata to Pydantic field kwargs
             pydantic_kwargs = {}
             if "label" in info:

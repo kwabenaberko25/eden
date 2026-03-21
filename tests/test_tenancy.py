@@ -10,12 +10,10 @@ class TenantTask(TenantMixin, Model):
     title: str = f(max_length=100)
 
 @pytest.fixture(autouse=True)
-async def setup_db(db):
+async def setup_db(db, db_transaction):
     async with db.engine.begin() as conn:
         await conn.run_sync(Model.metadata.create_all)
     yield
-    async with db.engine.begin() as conn:
-        await conn.run_sync(Model.metadata.drop_all)
 
 @pytest.fixture
 async def tenant_a():

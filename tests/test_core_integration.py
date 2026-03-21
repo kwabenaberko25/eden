@@ -58,6 +58,6 @@ async def test_client_authentication(client):
     token = client.headers["Authorization"].split(" ")[1]
     import jwt
     from eden.config import get_config
-    payload = jwt.decode(token, get_config().SECRET_KEY, algorithms=["HS256"])
+    payload = jwt.decode(token, get_config().secret_key, algorithms=["HS256"])
     assert payload["sub"] == "99"
     assert payload["email"] == "auth-test@example.com"
