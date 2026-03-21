@@ -57,9 +57,11 @@ class EdenTemplates(StarletteJinja2Templates):
                 if not target_fragment:
                     target_fragment = hx_target(request)
                 
-                # Normalize fragment name (remove # if present)
-                if target_fragment and target_fragment.startswith("#"):
-                    target_fragment = target_fragment[1:]
+                if target_fragment:
+                    if target_fragment.startswith("#"):
+                        target_fragment = target_fragment[1:]
+                    # Normalize hyphens to underscores for Jinja2 block names
+                    target_fragment = target_fragment.replace("-", "_")
                 
                 if target_fragment:
                     try:
