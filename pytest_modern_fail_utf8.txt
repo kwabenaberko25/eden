@@ -1,0 +1,335 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.12.12, pytest-9.0.2, pluggy-1.6.0
+rootdir: C:\PROJECTS\eden-framework
+configfile: pyproject.toml
+plugins: anyio-4.12.1, asyncio-1.3.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=session, asyncio_default_test_loop_scope=session
+collected 3 items
+
+tests\test_orm_modern.py .F.                                             [100%]
+
+================================== FAILURES ===================================
+_________________________ test_modern_crud_operations _________________________
+
+self = <sqlalchemy.dialects.postgresql.asyncpg.AsyncAdapt_asyncpg_cursor object at 0x0000029083601F00>
+operation = 'INSERT INTO modern_posts (content, title, author_id, id) VALUES ($1::VARCHAR, $2::VARCHAR, $3::UUID, $4::UUID) RETURNING modern_posts.created_at, modern_posts.updated_at'
+parameters = ('', 'Modern Post', UUID('2983eb69-0eef-4685-b4e1-032aac5f5ca9'), UUID('4669c33d-4006-4738-bf21-7627ad777a4a'))
+
+    async def _prepare_and_execute(self, operation, parameters):
+        adapt_connection = self._adapt_connection
+    
+        async with adapt_connection._execute_mutex:
+            if not adapt_connection._started:
+                await adapt_connection._start_transaction()
+    
+            if parameters is None:
+                parameters = ()
+    
+            try:
+>               prepared_stmt, attributes = await adapt_connection._prepare(
+                    operation, self._invalidate_schema_cache_asof
+                )
+
+.venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:526: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+.venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:773: in _prepare
+    prepared_stmt = await self._connection.prepare(
+.venv\Lib\site-packages\asyncpg\connection.py:638: in prepare
+    return await self._prepare(
+.venv\Lib\site-packages\asyncpg\connection.py:657: in _prepare
+    stmt = await self._get_statement(
+.venv\Lib\site-packages\asyncpg\connection.py:443: in _get_statement
+    statement = await self._protocol.prepare(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+>   ???
+E   asyncpg.exceptions.UndefinedColumnError: column "content" of relation "modern_posts" does not exist
+
+asyncpg/protocol/protocol.pyx:165: UndefinedColumnError
+
+The above exception was the direct cause of the following exception:
+
+self = <sqlalchemy.engine.base.Connection object at 0x00000290833B7B60>
+dialect = <sqlalchemy.dialects.postgresql.asyncpg.PGDialect_asyncpg object at 0x00000290833A9550>
+context = <sqlalchemy.dialects.postgresql.asyncpg.PGExecutionContext_asyncpg object at 0x000002908361E1E0>
+statement = <sqlalchemy.dialects.postgresql.asyncpg.PGCompiler_asyncpg object at 0x000002908361DC40>
+parameters = [('', 'Modern Post', UUID('2983eb69-0eef-4685-b4e1-032aac5f5ca9'), UUID('4669c33d-4006-4738-bf21-7627ad777a4a'))]
+
+    def _exec_single_context(
+        self,
+        dialect: Dialect,
+        context: ExecutionContext,
+        statement: Union[str, Compiled],
+        parameters: Optional[_AnyMultiExecuteParams],
+    ) -> CursorResult[Any]:
+        """continue the _execute_context() method for a single DBAPI
+        cursor.execute() or cursor.executemany() call.
+    
+        """
+        if dialect.bind_typing is BindTyping.SETINPUTSIZES:
+            generic_setinputsizes = context._prepare_set_input_sizes()
+    
+            if generic_setinputsizes:
+                try:
+                    dialect.do_set_input_sizes(
+                        context.cursor, generic_setinputsizes, context
+                    )
+                except BaseException as e:
+                    self._handle_dbapi_exception(
+                        e, str(statement), parameters, None, context
+                    )
+    
+        cursor, str_statement, parameters = (
+            context.cursor,
+            context.statement,
+            context.parameters,
+        )
+    
+        effective_parameters: Optional[_AnyExecuteParams]
+    
+        if not context.executemany:
+            effective_parameters = parameters[0]
+        else:
+            effective_parameters = parameters
+    
+        if self._has_events or self.engine._has_events:
+            for fn in self.dispatch.before_cursor_execute:
+                str_statement, effective_parameters = fn(
+                    self,
+                    cursor,
+                    str_statement,
+                    effective_parameters,
+                    context,
+                    context.executemany,
+                )
+    
+        if self._echo:
+            self._log_info(str_statement)
+    
+            stats = context._get_cache_stats()
+    
+            if not self.engine.hide_parameters:
+                self._log_info(
+                    "[%s] %r",
+                    stats,
+                    sql_util._repr_params(
+                        effective_parameters,
+                        batches=10,
+                        ismulti=context.executemany,
+                    ),
+                )
+            else:
+                self._log_info(
+                    "[%s] [SQL parameters hidden due to hide_parameters=True]",
+                    stats,
+                )
+    
+        evt_handled: bool = False
+        try:
+            if context.execute_style is ExecuteStyle.EXECUTEMANY:
+                effective_parameters = cast(
+                    "_CoreMultiExecuteParams", effective_parameters
+                )
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_executemany:
+                        if fn(
+                            cursor,
+                            str_statement,
+                            effective_parameters,
+                            context,
+                        ):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+                    self.dialect.do_executemany(
+                        cursor,
+                        str_statement,
+                        effective_parameters,
+                        context,
+                    )
+            elif not effective_parameters and context.no_parameters:
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_execute_no_params:
+                        if fn(cursor, str_statement, context):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+                    self.dialect.do_execute_no_params(
+                        cursor, str_statement, context
+                    )
+            else:
+                effective_parameters = cast(
+                    "_CoreSingleExecuteParams", effective_parameters
+                )
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_execute:
+                        if fn(
+                            cursor,
+                            str_statement,
+                            effective_parameters,
+                            context,
+                        ):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+>                   self.dialect.do_execute(
+                        cursor, str_statement, effective_parameters, context
+                    )
+
+.venv\Lib\site-packages\sqlalchemy\engine\base.py:1967: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+.venv\Lib\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+.venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:585: in execute
+    self._adapt_connection.await_(
+.venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:132: in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:196: in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+.venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:563: in _prepare_and_execute
+    self._handle_exception(error)
+.venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:513: in _handle_exception
+    self._adapt_connection._handle_exception(error)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <AdaptedConnection <asyncpg.connection.Connection object at 0x000002908357F3E0>>
+error = UndefinedColumnError('column "content" of relation "modern_posts" does not exist')
+
+    def _handle_exception(self, error):
+        if self._connection.is_closed():
+            self._transaction = None
+            self._started = False
+    
+        if not isinstance(error, AsyncAdapt_asyncpg_dbapi.Error):
+            exception_mapping = self.dbapi._asyncpg_error_translate
+    
+            for super_ in type(error).__mro__:
+                if super_ in exception_mapping:
+                    translated_error = exception_mapping[super_](
+                        "%s: %s" % (type(error), error)
+                    )
+                    translated_error.pgcode = translated_error.sqlstate = (
+                        getattr(error, "sqlstate", None)
+                    )
+>                   raise translated_error from error
+E                   sqlalchemy.dialects.postgresql.asyncpg.AsyncAdapt_asyncpg_dbapi.ProgrammingError: <class 'asyncpg.exceptions.UndefinedColumnError'>: column "content" of relation "modern_posts" does not exist
+
+.venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:797: ProgrammingError
+
+The above exception was the direct cause of the following exception:
+
+db = <eden.db.session.Database object at 0x000002908344DDC0>
+
+    @pytest.mark.asyncio
+    async def test_modern_crud_operations(db):
+        """Test CRUD operations with modern models."""
+        print("\n--- RUNNING test_modern_crud_operations ---")
+        # Create
+        user = await ModernUser.create(
+            name="Modern User",
+            email="modern@example.com",
+            bio="I am a modern user."
+        )
+        assert user.id is not None
+        assert user.name == "Modern User"
+    
+        # Create related
+>       post = await ModernPost.create(
+            title="Modern Post",
+            author_id=user.id
+        )
+
+tests\test_orm_modern.py:83: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+eden\db\mixins\crud.py:144: in create
+    await instance.save(session)
+eden\db\mixins\lifecycle.py:91: in save
+    await sess.flush()
+.venv\Lib\site-packages\sqlalchemy\ext\asyncio\session.py:787: in flush
+    await greenlet_spawn(self.sync_session.flush, objects=objects)
+.venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:203: in greenlet_spawn
+    result = context.switch(value)
+             ^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\sqlalchemy\orm\session.py:4331: in flush
+    self._flush(objects)
+.venv\Lib\site-packages\sqlalchemy\orm\session.py:4466: in _flush
+    with util.safe_reraise():
+         ^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\sqlalchemy\util\langhelpers.py:121: in __exit__
+    raise exc_value.with_traceback(exc_tb)
+.venv\Lib\site-packages\sqlalchemy\orm\session.py:4427: in _flush
+    flush_context.execute()
+.venv\Lib\site-packages\sqlalchemy\orm\unitofwork.py:466: in execute
+    rec.execute(self)
+.venv\Lib\site-packages\sqlalchemy\orm\unitofwork.py:642: in execute
+    util.preloaded.orm_persistence.save_obj(
+.venv\Lib\site-packages\sqlalchemy\orm\persistence.py:93: in save_obj
+    _emit_insert_statements(
+.venv\Lib\site-packages\sqlalchemy\orm\persistence.py:1233: in _emit_insert_statements
+    result = connection.execute(
+.venv\Lib\site-packages\sqlalchemy\engine\base.py:1419: in execute
+    return meth(
+.venv\Lib\site-packages\sqlalchemy\sql\elements.py:527: in _execute_on_connection
+    return connection._execute_clauseelement(
+.venv\Lib\site-packages\sqlalchemy\engine\base.py:1641: in _execute_clauseelement
+    ret = self._execute_context(
+.venv\Lib\site-packages\sqlalchemy\engine\base.py:1846: in _execute_context
+    return self._exec_single_context(
+.venv\Lib\site-packages\sqlalchemy\engine\base.py:1986: in _exec_single_context
+    self._handle_dbapi_exception(
+.venv\Lib\site-packages\sqlalchemy\engine\base.py:2363: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+.venv\Lib\site-packages\sqlalchemy\engine\base.py:1967: in _exec_single_context
+    self.dialect.do_execute(
+.venv\Lib\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+.venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:585: in execute
+    self._adapt_connection.await_(
+.venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:132: in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:196: in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+.venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:563: in _prepare_and_execute
+    self._handle_exception(error)
+.venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:513: in _handle_exception
+    self._adapt_connection._handle_exception(error)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <AdaptedConnection <asyncpg.connection.Connection object at 0x000002908357F3E0>>
+error = UndefinedColumnError('column "content" of relation "modern_posts" does not exist')
+
+    def _handle_exception(self, error):
+        if self._connection.is_closed():
+            self._transaction = None
+            self._started = False
+    
+        if not isinstance(error, AsyncAdapt_asyncpg_dbapi.Error):
+            exception_mapping = self.dbapi._asyncpg_error_translate
+    
+            for super_ in type(error).__mro__:
+                if super_ in exception_mapping:
+                    translated_error = exception_mapping[super_](
+                        "%s: %s" % (type(error), error)
+                    )
+                    translated_error.pgcode = translated_error.sqlstate = (
+                        getattr(error, "sqlstate", None)
+                    )
+>                   raise translated_error from error
+E                   sqlalchemy.exc.ProgrammingError: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedColumnError'>: column "content" of relation "modern_posts" does not exist
+E                   [SQL: INSERT INTO modern_posts (content, title, author_id, id) VALUES ($1::VARCHAR, $2::VARCHAR, $3::UUID, $4::UUID) RETURNING modern_posts.created_at, modern_posts.updated_at]
+E                   [parameters: ('', 'Modern Post', UUID('2983eb69-0eef-4685-b4e1-032aac5f5ca9'), UUID('4669c33d-4006-4738-bf21-7627ad777a4a'))]
+E                   (Background on this error at: https://sqlalche.me/e/20/f405)
+
+.venv\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py:797: ProgrammingError
+---------------------------- Captured stdout call -----------------------------
+
+--- RUNNING test_modern_crud_operations ---
+------------------------------ Captured log call ------------------------------
+WARNING  eden.db.lifecycle:lifecycle.py:227 Audit logging failed for ModernUser: greenlet_spawn has not been called; can't call await_only() here. Was IO attempted in an unexpected place? (Background on this error at: https://sqlalche.me/e/20/xd2s)
+=========================== short test summary info ===========================
+FAILED tests/test_orm_modern.py::test_modern_crud_operations - sqlalchemy.exc...
+========================= 1 failed, 2 passed in 2.14s =========================

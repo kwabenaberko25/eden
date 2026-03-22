@@ -307,14 +307,17 @@ class Config(BaseModel):
         
         # Defaults by environment
         if self.env == Environment.TEST:
-            return "sqlite+aiosqlite:///:memory:"
+            default = "sqlite+aiosqlite:///:memory:"
+            return default
         elif self.env == Environment.PROD:
             raise ValueError(
                 "database_url is required in production. "
                 "Set DATABASE_URL environment variable."
             )
         else:  # dev
-            return "sqlite+aiosqlite:///eden.db"
+            default = "sqlite+aiosqlite:///eden.db"
+            print(f"DEBUG: Config.get_database_url default for dev: {default}")
+            return default
     
     def is_prod(self) -> bool:
         """Check if running in production."""

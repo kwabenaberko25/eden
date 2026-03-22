@@ -371,51 +371,51 @@ class TestNationalID:
 
 class TestPydanticTypes:
     def test_eden_email_in_model(self):
-        class EmailModel(BaseModel):
+        class VEmailModel(BaseModel):
             email: EdenEmail
 
-        m = EmailModel(email="test@example.com")
+        m = VEmailModel(email="test@example.com")
         assert m.email == "test@example.com"
 
         with pytest.raises(ValidationError):
-            EmailModel(email="not-an-email")
+            VEmailModel(email="not-an-email")
 
     def test_eden_phone_in_model(self):
-        class PhoneModel(BaseModel):
+        class VPhoneModel(BaseModel):
             phone: EdenPhone
 
-        m = PhoneModel(phone="+233501234567")
+        m = VPhoneModel(phone="+233501234567")
         assert m.phone  # E.164 digits stored
 
         with pytest.raises(ValidationError):
-            PhoneModel(phone="abc")
+            VPhoneModel(phone="abc")
 
     def test_eden_slug_in_model(self):
-        class SlugModel(BaseModel):
+        class VSlugModel(BaseModel):
             slug: EdenSlug
 
-        m = SlugModel(slug="my-post")
+        m = VSlugModel(slug="my-post")
         assert m.slug == "my-post"
 
         with pytest.raises(ValidationError):
-            SlugModel(slug="My Post!")
+            VSlugModel(slug="My Post!")
 
     def test_eden_url_in_model(self):
-        class URLModel(BaseModel):
+        class VURLModel(BaseModel):
             website: EdenURL
 
-        m = URLModel(website="https://eden.dev")
+        m = VURLModel(website="https://eden.dev")
         assert m.website
 
         with pytest.raises(ValidationError):
-            URLModel(website="not-a-url")
+            VURLModel(website="not-a-url")
 
     def test_eden_color_in_model(self):
-        class ColorModel(BaseModel):
+        class VColorModel(BaseModel):
             brand_color: EdenColor
 
-        m = ColorModel(brand_color="#ff5733")
+        m = VColorModel(brand_color="#ff5733")
         assert m.brand_color == "#FF5733"
 
         with pytest.raises(ValidationError):
-            ColorModel(brand_color="red")
+            VColorModel(brand_color="red")

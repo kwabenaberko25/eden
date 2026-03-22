@@ -220,7 +220,7 @@ class TestTaskResultStorage:
             task_name="old",
             status="success",
             completed_at=datetime.now(),
-            ttl_seconds=0,  # Expired immediately
+            ttl_seconds=-1,  # Definitely expired
         )
 
         await backend.store_result("old-task", result)

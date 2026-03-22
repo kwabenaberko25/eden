@@ -1,6 +1,6 @@
 
 import pytest
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock, MagicMock, patch
 from eden.templating.templates import EdenTemplates, render_fragment
 from starlette.requests import Request
 from starlette.datastructures import Headers
@@ -65,10 +65,14 @@ def test_fallback_to_full_render_if_fragment_missing(templates):
     context = {"request": request}
     
     # We need to mock super().TemplateResponse since we are falling back
-    with MagicMock() as mock_super:
-        templates.__class__.__bases__[0].TemplateResponse = mock_super
-        templates.TemplateResponse("index.html", context)
-        assert mock_super.called
+    base_cls = templates.__class__.__bases__[0]
+    original_template_response = base_cls.TemplateResponse
+    try:
+        with patch.object(base_cls, "TemplateResponse", autospec=True) as mock_super:
+            templates.TemplateResponse("index.html", context)
+            assert mock_super.called
+    finally:
+        base_cls.TemplateResponse = original_template_response
 
 def test_no_htmx_full_render(templates):
     """Test that non-HTMX request renders full page."""
@@ -80,7 +84,11 @@ def test_no_htmx_full_render(templates):
     
     context = {"request": request}
     
-    with MagicMock() as mock_super:
-        templates.__class__.__bases__[0].TemplateResponse = mock_super
-        templates.TemplateResponse("index.html", context)
-        assert mock_super.called
+    base_cls = templates.__class__.__bases__[0]
+    original_template_response = base_cls.TemplateResponse
+    try:
+        with patch.object(base_cls, "TemplateResponse", autospec=True) as mock_super:
+            templates.TemplateResponse("index.html", context)
+            assert mock_super.called
+    finally:
+        base_cls.TemplateResponse = original_template_response

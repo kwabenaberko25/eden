@@ -1,0 +1,15 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.12.12, pytest-9.0.2, pluggy-1.6.0 -- C:\PROJECTS\eden-framework\.venv\Scripts\python.exe
+cachedir: .pytest_cache
+rootdir: C:\PROJECTS\eden-framework
+configfile: pyproject.toml
+plugins: anyio-4.12.1, asyncio-1.3.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=session
+collecting ... collected 4 items
+
+tests/test_orm.py::test_orm_basic_crud PASSED                            [ 25%]
+tests/test_orm.py::test_orm_id_generation PASSED                         [ 50%]
+tests/test_orm.py::test_orm_timestamps PASSED                            [ 75%]
+tests/test_orm.py::test_orm_all_and_count PASSED                         [100%]
+
+============================== 4 passed in 1.46s ==============================

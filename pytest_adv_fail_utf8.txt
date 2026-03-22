@@ -1,0 +1,24 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.12.12, pytest-9.0.2, pluggy-1.6.0
+rootdir: C:\PROJECTS\eden-framework
+configfile: pyproject.toml
+plugins: anyio-4.12.1, asyncio-1.3.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=session, asyncio_default_test_loop_scope=session
+collected 3 items
+
+tests\test_orm_advanced.py F..                                           [100%]
+
+================================== FAILURES ===================================
+_________________________ test_orm_relationships_o2m __________________________
+
+db = <eden.db.session.Database object at 0x00000186973612B0>
+
+>   ???
+E   AssertionError: assert UUID('447a3592-7d76-4508-abc7-c55bbb7033d9') == UUID('bc54641e-10c7-4e21-ac8d-4fd5686adc44')
+E    +  where UUID('447a3592-7d76-4508-abc7-c55bbb7033d9') = <tests.test_orm_advanced.AdvPost object at 0x0000018697506000>.author_id
+E    +  and   UUID('bc54641e-10c7-4e21-ac8d-4fd5686adc44') = <tests.test_orm_advanced.AdvUser object at 0x0000018697332C00>.id
+
+/home/kb/projects/eden/tests/test_orm_advanced.py:25: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_orm_advanced.py::test_orm_relationships_o2m - AssertionErro...
+========================= 1 failed, 2 passed in 1.16s =========================

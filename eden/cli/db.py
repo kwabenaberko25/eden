@@ -48,43 +48,55 @@ def db_init(db_url: str | None) -> None:
 @db.command("migrate")
 @click.option("--revision", default="head", help="Target revision.")
 @click.option("--schema", default=None, help="Target specific tenant schema.")
+@click.option("--all-tenants", is_flag=True, help="Apply migrations to ALL active tenant schemas.")
 @click.option(
     "--db-url",
     default=None,
     help="Database URL (defaults to config).",
 )
-def db_migrate(revision: str, schema: str | None, db_url: str | None) -> None:
+def db_migrate(revision: str, schema: str | None, all_tenants: bool, db_url: str | None) -> None:
     """Apply pending migrations."""
-    target = f"schema '{schema}'" if schema else "default schema"
-    click.echo(f"  ⬆️  Applying migrations to {revision} on {target}...")
-    run_upgrade(revision=revision, db_url=db_url, schema=schema)
+    if schema and all_tenants:
+        click.echo("  ❌ Error: Cannot use both --schema and --all-tenants.", err=True)
+        sys.exit(1)
+
+    if all_tenants:
+        click.echo(f"  ⬆️  Applying migrations to {revision} on ALL tenants...")
+        run_upgrade(revision=revision, db_url=db_url, all_tenants=True)
+    else:
+        target = f"schema '{schema}'" if schema else "default schema"
+        click.echo(f"  ⬆️  Applying migrations to {revision} on {target}...")
+        run_upgrade(revision=revision, db_url=db_url, schema=schema)
+    
     click.echo("  ✅ Database migrated.")
 
 
 @db.command("apply")
 @click.option("--revision", default="head", help="Target revision.")
 @click.option("--schema", default=None, help="Target specific tenant schema.")
+@click.option("--all-tenants", is_flag=True, help="Apply migrations to ALL active tenant schemas.")
 @click.option(
     "--db-url",
     default=None,
     help="Database URL (defaults to config).",
 )
-def db_apply(revision: str, schema: str | None, db_url: str | None) -> None:
+def db_apply(revision: str, schema: str | None, all_tenants: bool, db_url: str | None) -> None:
     """Apply pending migrations (alias for migrate)."""
-    db_migrate(revision=revision, schema=schema, db_url=db_url)
+    db_migrate(revision=revision, schema=schema, all_tenants=all_tenants, db_url=db_url)
 
 
 @db.command("upgrade")
 @click.option("--revision", default="head", help="Target revision.")
 @click.option("--schema", default=None, help="Target specific tenant schema.")
+@click.option("--all-tenants", is_flag=True, help="Apply migrations to ALL active tenant schemas.")
 @click.option(
     "--db-url",
     default=None,
     help="Database URL (defaults to config).",
 )
-def db_upgrade(revision: str, schema: str | None, db_url: str | None) -> None:
+def db_upgrade(revision: str, schema: str | None, all_tenants: bool, db_url: str | None) -> None:
     """Apply pending migrations."""
-    db_migrate(revision=revision, schema=schema, db_url=db_url)
+    db_migrate(revision=revision, schema=schema, all_tenants=all_tenants, db_url=db_url)
 
 
 @db.command("downgrade")

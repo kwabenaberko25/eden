@@ -3,6 +3,7 @@ from typing import Any, Dict, List, Optional, Type, Union, get_type_hints, Annot
 from datetime import datetime, date
 import uuid
 from decimal import Decimal
+import sys
 
 from sqlalchemy import (
     Column,
@@ -57,15 +58,15 @@ def _resolve_table_name(target_name: str, model_cls: Type[Model]) -> str:
     return _camel_to_snake(target_name) + "s"
 
 _PYTHON_TO_SA = {
-    str: String,
-    int: Integer,
-    float: Float,
-    bool: Boolean,
-    datetime: DateTime,
-    uuid.UUID: Uuid,
-    dict: JSON,
-    list: JSON,
-    Decimal: Numeric,
+    str: String, "str": String,
+    int: Integer, "int": Integer,
+    float: Float, "float": Float,
+    bool: Boolean, "bool": Boolean,
+    datetime: DateTime, "datetime": DateTime,
+    uuid.UUID: Uuid, "uuid.UUID": Uuid, "uuid": Uuid, "UUID": Uuid,
+    dict: JSON, "dict": JSON,
+    list: JSON, "list": JSON,
+    Decimal: Numeric, "Decimal": Numeric,
 }
 
 class SchemaInferenceEngine:
@@ -82,7 +83,6 @@ class SchemaInferenceEngine:
     @classmethod
     def process_class(cls, model_cls: Type[Model]) -> None:
         """Entry point for model processing during __init_subclass__."""
-        print(f"DEBUG: Processing {model_cls.__name__}")
         # 1. Infer basic columns from type hints if not explicitly defined
         cls.infer_columns(model_cls)
         # 2. Infer relationships from type hints
@@ -93,7 +93,6 @@ class SchemaInferenceEngine:
     @classmethod
     def _analyze_type_hint(cls, hint: Any) -> tuple[List[Any], Any, bool, bool, Optional[str]]:
         """Extracts metadata, type, and relationship info from a type hint."""
-        print(f"DEBUG: Analyzing hint: {hint} (type: {type(hint)})")
         metadata = []
         final_type = hint
         is_list = False
@@ -181,12 +180,17 @@ class SchemaInferenceEngine:
                         if p != "None":
                             final_type = p
                             break
+                if final_type.startswith("Annotated[") and final_type.endswith("]"):
+                    inner = final_type[10:-1]
+                    # Take first arg (the actual type)
+                    final_type = inner.split(",")[0].strip()
+                
                 final_type = final_type.strip("'\" \t")
                 if final_type == original:
                     break
 
             lowered = final_type.lower()
-            if lowered in basic_type_names:
+            if lowered in basic_type_names or lowered == "mapped" or lowered == "annotated":
                 target_name = None
             elif len(final_type) > 0 and final_type[0].isupper():
                 target_name = final_type
@@ -213,14 +217,12 @@ class SchemaInferenceEngine:
         from .metadata import parse_metadata
         
         inferred_names = []
-        try:
-            # include_extras=True to get Annotated metadata
-            hints = get_type_hints(model_cls, include_extras=True)
-        except Exception:
-            # Fallback if get_type_hints fails (e.g. forward refs not yet defined)
-            hints = getattr(model_cls, "__annotations__", {})
+        annotations = getattr(model_cls, "__annotations__", {})
 
-        for name, hint in hints.items():
+        if model_cls.__name__.startswith("Modern"):
+            print(f"INFERRING COLUMNS FOR {model_cls.__name__}")
+
+        for name, hint in annotations.items():
             # Skip private or reserved attributes
             if name.startswith("_") or name in ("registry", "metadata", "type_annotation_map"):
                 continue
@@ -229,6 +231,32 @@ class SchemaInferenceEngine:
             if cls._is_already_defined(model_cls, name):
                 continue
 
+            # Try to resolve hint properly to handle Annotated
+            try:
+                resolved_hints = get_type_hints(model_cls, include_extras=True)
+                attr_hint = resolved_hints.get(name, hint)
+            except Exception:
+                attr_hint = hint
+            
+            # Eval fallback for strings
+            if isinstance(attr_hint, str):
+                try:
+                    mod = sys.modules.get(model_cls.__module__)
+                    if mod:
+                        namespace = mod.__dict__.copy()
+                        import typing
+                        namespace.update({
+                            'Annotated': Annotated, 'Optional': Optional, 'List': List, 
+                            'Dict': Dict, 'Any': Any, 'Union': Union, 'typing': typing,
+                            'Mapped': Mapped, 'relationship': relationship,
+                            'sys': sys, 'uuid': uuid, 'Decimal': Decimal, 
+                            'datetime': datetime, 'date': date
+                        })
+                        attr_hint = eval(attr_hint, namespace)
+                except Exception:
+                    pass
+            
+            hint = attr_hint
             metadata, final_type, is_list, is_union, target_name = cls._analyze_type_hint(hint)
 
             # If it's a model relationship, infer_relationships will handle it
@@ -237,37 +265,40 @@ class SchemaInferenceEngine:
 
             # Map Python type to SQLAlchemy type
             # Check origin if it's a generic (like Optional[str])
-            origin = getattr(final_type, "__origin__", None)
+            origin = get_origin(final_type)
             base_type = final_type
             if origin is Union:
-                args = getattr(final_type, "__args__", ())
+                args = get_args(final_type)
                 # If it's Optional (Union[T, None]), extract T
                 if type(None) in args:
                     base_type = next(a for a in args if a is not type(None))
 
             sa_type = _PYTHON_TO_SA.get(base_type)
+            if not sa_type:
+                # Try string name
+                sa_type_name = getattr(base_type, "__name__", str(base_type))
+                sa_type = _PYTHON_TO_SA.get(sa_type_name)
+
             if sa_type:
                 # Merge Annotated metadata and generate column
                 sa_kwargs, sa_args, info = parse_metadata(metadata)
                 
+                if model_cls.__name__.startswith("Modern"):
+                    print(f"  SETTING {name}: type={sa_type}, info={info}")
+
                 # Special handling: if sa_type is String and we have MaxLength (info["max"])
                 # we need to instantiate String(length)
                 actual_sa_type = sa_type
-                if sa_type is String and "max" in info:
+                if (sa_type is String or sa_type == String) and "max" in info:
                     actual_sa_type = String(info["max"])
 
                 # Default nullable based on type hint (Optional)
-                if origin is Union and type(None) in getattr(final_type, "__args__", ()):
+                if origin is Union and type(None) in get_args(final_type):
                     sa_kwargs.setdefault("nullable", True)
-                elif sa_type is not JSON:
-                    # In SA 2.0, explicit columns are nullable by default, 
-                    # but we want to honor our Mapped types later.
-                    pass
 
                 # Handle default values if provided at class level
                 if name in model_cls.__dict__:
                     default_val = model_cls.__dict__[name]
-                    # Don't use our own Column/Field objects as defaults here
                     if default_val is not None and not hasattr(default_val, "__visit_name__"):
                         sa_kwargs.setdefault("default", default_val)
 
@@ -292,40 +323,81 @@ class SchemaInferenceEngine:
         from .metadata import parse_metadata
         inferred_names = []
         
-        try:
-            hints = get_type_hints(model_cls, include_extras=True)
-        except Exception:
-            hints = getattr(model_cls, "__annotations__", {})
-
-        for name, hint in hints.items():
+        annotations = getattr(model_cls, "__annotations__", {})
+        for name, hint in annotations.items():
             if name.startswith("_") or name in ("registry", "metadata", "type_annotation_map"):
                 continue
 
-            metadata, final_type, is_list, is_union, target_name = cls._analyze_type_hint(hint)
-            if not target_name:
-                continue
+            # Try to resolve hint properly to handle Annotated
+            try:
+                # Use a specific field-focused resolution if possible
+                # NOTE: get_type_hints on the class is still the best way to resolve forward refs
+                # but we want to be resilient.
+                resolved_hints = get_type_hints(model_cls, include_extras=True)
+                attr_hint = resolved_hints.get(name, hint)
+            except Exception:
+                attr_hint = hint
+            
+            # If hint is still a string (due to from __future__ import annotations),
+            # we might need to eval it if we really need the MetadataTokens.
+            if isinstance(attr_hint, str):
+                try:
+                    mod = sys.modules.get(model_cls.__module__)
+                    if mod:
+                        # Add common types to help evaluation
+                        namespace = mod.__dict__.copy()
+                        # Ensure we have essential types in namespace
+                        import typing
+                        namespace.update({
+                            'Annotated': Annotated, 'Optional': Optional, 'List': List, 
+                            'Dict': Dict, 'Any': Any, 'Union': Union, 'typing': typing,
+                            'Mapped': Mapped, 'relationship': relationship,
+                            'sys': sys, 'uuid': uuid, 'Decimal': Decimal, 
+                            'datetime': datetime, 'date': date
+                        })
+                        attr_hint = eval(attr_hint, namespace)
+                        if model_cls.__name__.startswith("Modern"):
+                            print(f"EVALUATED {name} -> {attr_hint} (type: {type(attr_hint)})")
+                    else:
+                        if model_cls.__name__.startswith("Modern"):
+                            print(f"NO MODULE FOUND FOR {model_cls.__name__}")
+                except Exception as e:
+                    if model_cls.__name__.startswith("Modern"):
+                        print(f"EVAL FAILED FOR {name}: {e}")
+                    pass
+            
+            hint = attr_hint
+
+            metadata_tokens, final_type, is_list, is_union, target_name = cls._analyze_type_hint(hint)
+            if model_cls.__name__.startswith("Modern"):
+                print(f"  ANALYZED {name}: tokens={metadata_tokens}, target={target_name}")
 
             # Identify if it's a basic type or a model reference
-            basic_types = ("str", "int", "float", "bool", "uuid.UUID", "UUID", "datetime", "dict", "list", "Any", "None", "Decimal", "bytes")
-            if any(bt.lower() == target_name.lower() for bt in basic_types) or (target_name and target_name[0].islower()):
+            basic_types = ("str", "int", "float", "bool", "uuid.UUID", "UUID", "datetime", "dict", "list", "Any", "None", "Decimal", "bytes", "Optional")
+            
+            # If target_name is None, it might be a basic type
+            current_target = target_name
+            if not current_target:
+                # Get the name of the final_type to check if it's basic
+                current_target = getattr(final_type, "__name__", str(final_type))
+            
+            sa_kwargs, sa_args, info = parse_metadata(metadata_tokens)
+            if model_cls.__name__.startswith("Modern"):
+                print(f"  INFO FOR {name}: {info}")
+            if any(bt.lower() == current_target.lower() for bt in basic_types) or (target_name and target_name[0].islower()):
                 continue
 
-            sa_kwargs, sa_args, info = parse_metadata(metadata)
+            sa_kwargs, sa_args, info = parse_metadata(metadata_tokens)
             should_skip, is_reference, is_m2m_explicit = cls._is_already_mapped(model_cls, name, info)
 
-            print(f"DEBUG: infer field: {model_cls.__name__}.{name}, is_list={is_list}, target_name={target_name}, is_reference={is_reference}")
-
             if should_skip:
-                print(f"DEBUG: Skipping {model_cls.__name__}.{name} (already mapped)")
                 continue
 
             inferred_names.append(name)
 
             if is_list:
-                print(f"DEBUG: Building 1:N for {model_cls.__name__}.{name} -> {target_name}")
                 cls._build_one_to_many(model_cls, name, target_name, info, is_m2m_explicit)
             else:
-                print(f"DEBUG: Building N:1 for {model_cls.__name__}.{name} -> {target_name}")
                 cls._build_many_to_one(model_cls, name, target_name, info, sa_kwargs, is_reference)
 
         return inferred_names
@@ -443,7 +515,6 @@ class SchemaInferenceEngine:
                 else:
                     kwargs["backref"] = _camel_to_snake(model_cls.__name__)
             
-            print(f"DEBUG: _build_one_to_many for {model_cls.__name__}.{name} -> {target_name}, kwargs={kwargs}")
             setattr(model_cls, name, relationship(target_name, **kwargs))
 
 
@@ -542,24 +613,35 @@ class SchemaInferenceEngine:
         if hasattr(Base, "registry"):
             return Base.registry._class_registry.get(target_name)
         return None
-
     @classmethod
     def _ensure_fk_column(cls, model_cls: Type[Model], name: str, target_name: str, info: dict, sa_kwargs: dict) -> str:
         """Ensures the foreign key column exists for a many-to-one relationship."""
         fk_col = f"{name}_id"
-        already_defined = cls._is_already_defined(model_cls, fk_col)
-        print(f"DEBUG: Checking FK column {fk_col} for {model_cls.__name__}, already_defined={already_defined}")
-        if not already_defined:
+        
+        # Check if the column already exists AND has a ForeignKey
+        existing = getattr(model_cls, fk_col, None)
+        has_fk = False
+        if existing:
+            # Check for MappedColumn or Column
+            col_obj = None
+            if hasattr(existing, "column"):
+                col_obj = existing.column
+            
+            if col_obj is not None and hasattr(col_obj, "foreign_keys") and col_obj.foreign_keys:
+                has_fk = True
+
+        if not has_fk:
             target_table = _resolve_table_name(target_name, model_cls)
             is_legacy = target_name in ("Role", "Permission")
-            fk_type = Uuid(native_uuid=True) if not is_legacy else Integer
+            
+            # Use specified fk_type if provided in info, else default to UUID
+            fk_type = info.get("fk_type") or (Uuid(native_uuid=True) if not is_legacy else Integer)
             
             fk_info = info.copy()
             fk_info.pop("is_reference", None)
             fk_info.pop("is_m2m", None)
 
             target_fk = f"{target_table}.id"
-            print(f"DEBUG: Creating FK for {model_cls.__name__}.{fk_col} -> {target_fk}")
             col = mapped_column(
                 fk_type,
                 ForeignKey(target_fk, ondelete=info.get("on_delete", "CASCADE")),
@@ -579,20 +661,17 @@ class SchemaInferenceEngine:
         reciprocal_attr = info.get("back_populates")
         reciprocal_is_list = True # Default to many
         
-        print(f"DEBUG: _build_many_to_one for {model_cls.__name__}.{name} -> {target_name}")
         if not reciprocal_attr:
             for (memo_src_cls, memo_attr), (memo_tgt_cls, memo_is_list) in cls._relationship_memo.items():
                 if memo_src_cls == target_name and memo_tgt_cls == model_cls.__name__:
                     reciprocal_attr = memo_attr
                     reciprocal_is_list = memo_is_list
                     
-                    print(f"DEBUG: Found reciprocal {target_name}.{reciprocal_attr} for {model_cls.__name__}.{name}")
                     # Retroactive sync: if they already built their relationship, update it to point back to us
                     other_cls = cls._get_target_class(model_cls, target_name)
                     if other_cls:
                         other_rel = getattr(other_cls, memo_attr, None)
                         if other_rel and hasattr(other_rel, "prop"):
-                            print(f"DEBUG: Retroactively syncing {target_name}.{memo_attr} back_populates to {name}")
                             # This ensures two-way binding even if the other side was defined first
                             other_rel.prop.back_populates = name
                             other_rel.prop.backref = None
@@ -635,7 +714,6 @@ class SchemaInferenceEngine:
         # Check current class
         if name in model_cls.__dict__:
             val = model_cls.__dict__[name]
-            print(f"DEBUG: {model_cls.__name__}.{name} -> hasattr(col)={hasattr(val, 'column')}, hasattr(info)={hasattr(val, 'info')}")
             if hasattr(val, "column") or hasattr(val, "mapper") or hasattr(val, "direction") or isinstance(val, (property, declared_attr)):
                 return True
             # Also skip if it's one of our relationship helpers
@@ -676,6 +754,7 @@ class SchemaInferenceEngine:
         try:
             hints = get_type_hints(model_cls, include_extras=True)
         except Exception:
+            # Fallback to direct annotations if get_type_hints fails (e.g. forward refs)
             hints = getattr(model_cls, "__annotations__", {})
             
         for name, hint in hints.items():
@@ -791,22 +870,35 @@ class ValidationScanner:
     @classmethod
     def discover_rules(cls, model_cls: Type[Model]) -> List[tuple]:
         """Scans model and its base classes for validation metadata."""
+        print(f"SCANNING RULES FOR {model_cls.__name__}")
         discovered_rules = []
 
         for base in model_cls.__mro__:
-            if base.__name__ in ("Base", "object"):
+            if base.__name__ == "object":
                 continue
 
+            print(f"  SCANNING BASE {base.__name__}")
             for name, attr in base.__dict__.items():
+                if model_cls.__name__.startswith("Modern") and not name.startswith("__"):
+                    print(f"    CHECKING {name}: {type(attr)}")
                 info = None
                 if hasattr(attr, "info"):
                     info = attr.info
+                    if model_cls.__name__.startswith("Modern") and not name.startswith("__"):
+                        print(f"      FOUND ATTR.INFO: {info}")
                 elif hasattr(attr, "column") and hasattr(attr.column, "info"):
                     info = attr.column.info
+                    if model_cls.__name__.startswith("Modern") and not name.startswith("__"):
+                        print(f"      FOUND ATTR.COLUMN.INFO: {info}")
+                elif hasattr(attr, "prop") and hasattr(attr.prop, "columns") and attr.prop.columns:
+                    info = attr.prop.columns[0].info
+                    if model_cls.__name__.startswith("Modern") and not name.startswith("__"):
+                        print(f"      FOUND ATTR.PROP.INFO: {info}")
 
                 if not info:
                     continue
 
+                print(f"DISCOVERED INFO FOR {name}: {info}")
                 is_numeric = cls._is_numeric_attr(attr)
 
                 if "max" in info:

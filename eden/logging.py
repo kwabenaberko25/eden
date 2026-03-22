@@ -90,13 +90,34 @@ class EdenFormatter(logging.Formatter):
         return log_line
 
 
+class RequestIDFilter(logging.Filter):
+    """Logging filter to inject request_id into log records from Eden context."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if not getattr(record, "request_id", None):
+            from eden.context import get_request_id
+
+            request_id = get_request_id()
+            record.request_id = request_id or ""
+
+        return True
+
+
 def setup_logging(
     level: str = "INFO",
     json_format: bool = False,
     loggers: dict[str, str] | None = None,
 ) -> None:
     """
-    Configure Eden's logging system.
+    Configure Eden's logging system with structured logging and request correlation.
+    
+    Args:
+        level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL). Defaults to INFO.
+        json_format: Whether to output logs as JSON. Defaults to False for human-readable output.
+        loggers: Optional dict mapping logger names to their desired log levels.
+    
+    Returns:
+        None
 
     Args:
         level: Default logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL).
@@ -122,6 +143,9 @@ def setup_logging(
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(EdenFormatter(json_format=json_format))
     handler.setLevel(logging.NOTSET)
+    handler.addFilter(RequestIDFilter())
+
+    root_logger.addFilter(RequestIDFilter())
     root_logger.addHandler(handler)
 
     # Prevent propagation to the global root logger to avoid duplicate logs

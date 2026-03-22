@@ -16,6 +16,7 @@ from typing import (
     Annotated,
 )
 from datetime import datetime
+from sqlalchemy import event
 from .access import AccessControl
 from .validation import ValidatorMixin
 from .metadata import MetadataToken
@@ -129,7 +130,6 @@ class Model(Base, AccessControl, ValidatorMixin, LifecycleMixin, SerializationMi
         """Standard Eden model initialization."""
         if "__tablename__" not in cls.__dict__ and not cls.__dict__.get("__abstract__", False):
             cls.__tablename__ = _camel_to_snake(cls.__name__) + "s"
-        print(f"DEBUG: Initializing model subclass: {cls.__name__} (table: {getattr(cls, '__tablename__', 'N/A')})")
 
         if not cls.__dict__.get("__abstract__", False):
             from eden.db.schema import SchemaInferenceEngine, ValidationScanner
@@ -149,6 +149,12 @@ class Model(Base, AccessControl, ValidatorMixin, LifecycleMixin, SerializationMi
 
             # Apply comparators
             SchemaInferenceEngine.apply_comparators(cls)
+            
+            # Register event listeners for timestamp management
+            @event.listens_for(cls, "before_update", propagate=True)
+            def set_updated_at(mapper, connection, target):
+                if hasattr(target, 'updated_at'):
+                    target.updated_at = datetime.now()
         else:
             super().__init_subclass__(**kwargs)
 

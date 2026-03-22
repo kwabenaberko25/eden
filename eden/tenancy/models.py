@@ -87,27 +87,29 @@ class Tenant(Model):
             await session.execute(text(f"CREATE SCHEMA IF NOT EXISTS {safe_schema}"))
             
             # 2. Save original search_path and switch to new schema
-            # This ensures all CREATE TABLE commands target the new schema
             result = await session.execute(text("SHOW search_path"))
             original_schema = result.scalar()
             
-            # Set search_path to the new schema first, then public (for extensions)
-            await session.execute(text(f"SET search_path TO {safe_schema}, public"))
+            # Set search_path to the new schema ONLY initially for table creation.
+            # This prevents SQLAlchemy from thinking tables already exist if they are in 'public'.
+            await session.execute(text(f"SET search_path TO {safe_schema}"))
             
             # 3. Create all framework tables in the new schema
-            # Using run_sync to execute the synchronous metadata.create_all()
             def _create_tables(sync_session):
                 """Create all tables synchronously in the current schema."""
                 Model.metadata.create_all(bind=sync_session.connection())
             
             await session.run_sync(_create_tables)
             
+            # Now add public to the path for any subsequent operations (like extensions)
+            await session.execute(text(f"SET search_path TO {safe_schema}, public"))
+            
             # 4. Stamp the schema with the current migration head
             # This ensures subsequent 'eden db migrate --schema X' calls work correctly.
             from eden.db.migrations import MigrationManager
             manager = MigrationManager()
             # We use stamp() to mark this schema as already being at the current head
-            manager.stamp(revision="head", schema=safe_schema)
+            await manager.stamp(revision="head", schema=safe_schema)
             
             # 5. Commit the schema creation and table setup
             # (Note: Caller will typically commit the overall transaction)

@@ -243,7 +243,7 @@ class EdenRelationshipComparator(RelationshipProperty.Comparator):
         return getattr(target_model, name)
 
 
-def extract_involved_models(expression: Any) -> set[type[T]]:
+def extract_involved_models(expression: Any) -> set[type[Any]]:
     """
     Inspects a SQLAlchemy/Eden expression to identify all involved Model classes.
     Used for automatic joining in QuerySet.filter().
@@ -251,29 +251,41 @@ def extract_involved_models(expression: Any) -> set[type[T]]:
     from sqlalchemy.orm.attributes import InstrumentedAttribute
     from sqlalchemy.sql.visitors import iterate
     from sqlalchemy.sql.schema import Column
+    from sqlalchemy.orm.util import AliasedClass
     
     models = set()
     
+    if expression is None:
+        return models
+
     # Iterate over all elements in the expression tree
-    # Safety check: if it's a primitive or non-SQLAlchemy object, don't iterate
+    # Safety check: if it's a primitive or non-SQLAlchemy object, we can't iterate
     if hasattr(expression, "get_children"):
         for element in iterate(expression):
             # InstrumentedAttribute is what Model.column_name returns
             if isinstance(element, InstrumentedAttribute):
                 if hasattr(element, "class_"):
                     models.add(element.class_)
+            # AliasedClass (used in select_related/prefetch sometimes)
+            elif isinstance(element, AliasedClass):
+                from sqlalchemy import inspect as sa_inspect
+                mapper = sa_inspect(element)
+                if mapper:
+                    models.add(mapper.class_)
             # Sometimes it's a Column bound to a table
-            elif hasattr(element, "table") and hasattr(element.table, "name"):
-                # We need to find the Model class for this table
-                # This is harder, but Eden models are in the registry
-                from .base import Model
-                for sub in Model.__subclasses__():
-                    if getattr(sub, "__tablename__", None) == element.table.name:
-                        models.add(sub)
-                        break
-            # Or it might have a .entity
+            elif isinstance(element, Column) and hasattr(element, "table"):
+                if hasattr(element.table, "name"):
+                    # We need to find the Model class for this table
+                    from .base import Model
+                    for sub in Model.__subclasses__():
+                        if getattr(sub, "__tablename__", None) == element.table.name:
+                            models.add(sub)
+                            break
+            # Handle elements with .entity (SQLAlchemy 2.0 style)
             elif hasattr(element, "entity") and hasattr(element.entity, "class_"):
                 models.add(element.entity.class_)
+    
+    # Handle direct attributes passed to filter
     elif isinstance(expression, InstrumentedAttribute):
         if hasattr(expression, "class_"):
             models.add(expression.class_)
@@ -282,59 +294,32 @@ def extract_involved_models(expression: Any) -> set[type[T]]:
 
 
 def find_relationship_path(
-    source_model: type[T], 
-    target_model: type[T],
-    max_depth: int = 3,
+    source_model: type[Any], 
+    target_model: type[Any],
+    max_depth: int = 5,
 ) -> list[str]:
     """
     Finds the shortest path of relationship names from source_model to target_model
-    using Breadth-First Search (BFS) with cycle detection and depth limiting.
+    using Breadth-First Search (BFS) with depth limiting.
     
-    This function prevents stack overflows from circular relationships by:
-    - Tracking visited models (cycle detection)
-    - Limiting traversal depth (default: 3 levels)
-    - Using BFS to find the shortest path (most efficient)
-    
-    Args:
-        source_model: Starting model class
-        target_model: Target model class to find path to
-        max_depth: Maximum relationship depth to traverse (default: 3, prevents runaway traversal)
-    
-    Returns:
-        List of relationship attribute names forming the path from source to target.
-        Returns empty list if source == target.
-        Returns empty list if no path found within max_depth.
-        
-    Raises:
-        ValueError: If source_model or target_model cannot be inspected.
-    
-    Example:
-        # Assuming: Author.books -> Book.publisher -> Publisher
-        path = find_relationship_path(Author, Publisher)  # Returns ["books", "publisher"]
-        # Then use: Author.books.property.mapper.class_.publisher
+    Handles deep paths (e.g., GrandParent -> Parent -> Child).
     """
     from sqlalchemy import inspect as sa_inspect
     
-    # Early exit if they are the same
     if source_model == target_model:
         return []
     
-    # BFS queue: (current_model, path_list, depth)
-    queue = [(source_model, [], 0)]
+    # BFS queue: (current_model, path_list)
+    import collections
+    queue = collections.deque([(source_model, [])])
     visited = {source_model}
     
     while queue:
-        current_model, path, depth = queue.pop(0)
+        current_model, path = queue.popleft()
         
-        # Check depth limit
-        if depth > max_depth:
+        if len(path) >= max_depth:
             continue
         
-        # Early exit if we found the target
-        if current_model == target_model:
-            return path
-        
-        # Inspect relationships from current model
         try:
             mapper = sa_inspect(current_model)
             if mapper is None:
@@ -343,20 +328,17 @@ def find_relationship_path(
             for rel in mapper.relationships:
                 target = rel.mapper.class_
                 
-                # Skip if already visited (cycle detection)
+                new_path = path + [rel.key]
+                if target == target_model:
+                    return new_path
+                
                 if target not in visited:
                     visited.add(target)
-                    new_path = path + [rel.key]
-                    queue.append((target, new_path, depth + 1))
+                    queue.append((target, new_path))
                     
-        except Exception as e:
-            # Log and skip non-mappable classes
-            import logging
-            logger = logging.getLogger("eden.db.lookups")
-            logger.debug(f"Could not inspect relationships for {current_model.__name__}: {e}")
+        except Exception:
             continue
     
-    # No path found within max_depth
     return []
 
 

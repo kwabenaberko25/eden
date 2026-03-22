@@ -20,7 +20,7 @@ app.add_middleware("cors", allow_origins=["*"])
 # ── Dependencies ─────────────────────────────────────────────────────────
 
 
-async def get_current_user():
+async def get_current_user() -> dict:
     """Simulate a user lookup (replace with real auth in production)."""
     return {"id": 1, "name": "Eden User", "email": "user@eden.dev"}
 
@@ -29,19 +29,19 @@ async def get_current_user():
 
 
 @app.get("/")
-async def index():
+async def index() -> dict:
     """Root endpoint."""
     return {"message": "Hello, Eden! 🌿", "version": app.version}
 
 
 @app.get("/greet/{name}")
-async def greet(name: str):
+async def greet(name: str) -> dict:
     """Greet a user by name (path parameter)."""
     return {"greeting": f"Hello, {name}! Welcome to Eden."}
 
 
 @app.get("/items/{item_id:int}")
-async def get_item(item_id: int, request: Request):
+async def get_item(item_id: int, request: Request) -> dict:
     """Get an item by ID (typed path param + query params)."""
     verbose = request.get_query("verbose", "false")
     return {
@@ -52,7 +52,7 @@ async def get_item(item_id: int, request: Request):
 
 
 @app.get("/me")
-async def get_me(user=Depends(get_current_user)):
+async def get_me(user=Depends(get_current_user)) -> dict:
     """Get current user via dependency injection."""
     return {"user": user}
 
@@ -63,12 +63,12 @@ api = Router(prefix="/api/v1")
 
 
 @api.get("/status")
-async def api_status():
+async def api_status() -> dict:
     return {"api": "v1", "status": "operational"}
 
 
 @api.get("/users/{user_id:int}")
-async def api_get_user(user_id: int):
+async def api_get_user(user_id: int) -> dict:
     if user_id > 100:
         raise NotFound(detail=f"User #{user_id} not found.")
     return {"user_id": user_id, "name": f"User {user_id}"}

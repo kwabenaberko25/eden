@@ -23,6 +23,7 @@ from starlette.types import ASGIApp
 from eden.app import Eden, create_app
 from eden.config import Config, set_config, get_config
 from eden.db.session import Database, set_session, reset_session, get_session
+from eden.db import Model
 from eden.context import (
     set_current_user, 
     set_current_tenant_id, 
@@ -156,38 +157,67 @@ class EdenTestClient(httpx.AsyncClient):
 
 # --- Pytest Fixtures ---
 
-@pytest.fixture(scope="session")
-def event_loop():
-    """Create a session-scoped event loop."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
+# Pytest-asyncio session-scoped event loop is configured in pyproject.toml
 
 @pytest.fixture(scope="session")
-async def test_app() -> Eden:
+async def test_app() -> AsyncGenerator[Eden, None]:
     """
     Create and configure the Eden application for testing.
-    Uses an in-memory SQLite database by default.
+    Ensures environment-specific (.env.test) overrides are applied.
     """
-    from eden.config import Config, set_config, Environment
     import os
+    from eden.config import ConfigManager, set_config
+    
+    # Force environment to test
     os.environ["EDEN_ENV"] = "test"
     
-    config = Config()
-    config.env = Environment.TEST
-    config.database_url = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
+    # Reload configuration to pick up .env.test and OS env overrides
+    ConfigManager.instance().reset()
+    config = ConfigManager.instance().load()
+    
+    # Standardize test database: use in-memory SQLite by default
+    # This prevents Windows PermissionError (file locking) and is much faster.
+    if not config.database_url or config.database_url == "sqlite:///dist/db.sqlite3":
+         config.database_url = "sqlite+aiosqlite:///:memory:"
+
+    # Allow explicit DATABASE_URL overrides in test invocations (e.g. CI testing against Postgres)
+    env_database_url = os.getenv("DATABASE_URL")
+    if env_database_url:
+        config.database_url = env_database_url
+
+    # Apply standard test overrides if not already set by env
+    if not config.secret_key:
+        config.secret_key = "test-secret-key-for-eden-tests"
     config.debug = True
-    config.secret_key = "test-secret-key-for-eden-tests"
+    
     set_config(config)
     
+    # Proactively import models for metadata registration before table creation
+    # This ensures all relationships are properly Bridge-ed.
+    import contextlib
+    with contextlib.suppress(ImportError):
+        import eden.auth.models  # noqa: F401
+    with contextlib.suppress(ImportError):
+        import eden.tenancy.models  # noqa: F401
+    with contextlib.suppress(ImportError):
+        import eden.admin.models  # noqa: F401
+    with contextlib.suppress(ImportError):
+        import eden.payments.models  # noqa: F401
+
     app = create_app()
     # Initialize app state so db is available
-    app.state.db = Database(config.get_database_url())
+    app.state.db = Database(config.get_database_url(), echo=True)
     await app.state.db.connect(create_tables=True)
     
-    return app
+    try:
+        yield app
+    finally:
+        # Layer 1 stability: ensure database disconnect on teardown
+        # This prevents lingering connections from causing issues on Windows.
+        if hasattr(app.state, "db"):
+            await app.state.db.disconnect()
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 async def db(test_app: Eden) -> Database:
     """Provides access to the test database."""
     return test_app.state.db
@@ -218,6 +248,8 @@ async def db_transaction(db: Database) -> AsyncGenerator[None, None]:
             # We also start an initial transaction for the session so that 
             # any code calling session.commit() targets a savepoint.
             await session.begin()
+            
+            # tables already created in test_app fixture
             
             yield
         finally:
@@ -300,8 +332,16 @@ class UserFactory:
         # Use set_password to handle hashing and avoid init errors
         user.set_password(password)
         
-        # save() uses db.transaction() internally
-        await user.save()
+        # Check if we're in a test transaction context
+        from eden.db.session import get_session
+        session = get_session()
+        if session:
+            # We're in a test transaction, add to session without committing
+            session.add(user)
+            await session.flush()
+        else:
+            # Normal operation, commit the save
+            await user.save()
         return user
 
     async def create_admin(self, **kwargs) -> Any:
@@ -339,9 +379,9 @@ class TenantFactory:
         return tenant
 
 @pytest.fixture
-async def user_factory(db: Database) -> UserFactory:
+async def user_factory(db_transaction) -> UserFactory:
     """Provides a user factory for tests."""
-    return UserFactory(db)
+    return UserFactory(db_transaction)
 
 @pytest.fixture
 async def tenant_factory(db: Database) -> TenantFactory:

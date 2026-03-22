@@ -1,16 +1,37 @@
 import contextlib
 import contextvars
 import logging
-from typing import Any, AsyncGenerator, AsyncIterator, Callable, Dict, Optional, Type, Union
+from collections import OrderedDict
+from collections.abc import AsyncGenerator, AsyncIterator, Callable
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    cast,
+)
+
+if TYPE_CHECKING:
+    from starlette.requests import Request
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import StaticPool
+from sqlalchemy.pool import NullPool, StaticPool
 
 logger = logging.getLogger("eden.db")
 
 # Context variable for per-request session storage (async-safe)
-_session_context: contextvars.ContextVar[Optional[AsyncSession]] = contextvars.ContextVar(
+_session_context: contextvars.ContextVar[AsyncSession | None] = contextvars.ContextVar(
     "db_session", default=None
 )
+
+class DatabaseError(Exception):
+    """Base exception for all Eden database errors."""
+    pass
+
+class SessionResolutionError(DatabaseError):
+    """Raised when a database session cannot be resolved for a query."""
+    pass
+
+class TransactionRequiredError(DatabaseError):
+    """Raised when an operation requires an active transaction context."""
+    pass
 
 class Database:
     """
@@ -24,32 +45,44 @@ class Database:
         if url.startswith("sqlite"):
             if ":memory:" in url:
                 kwargs.setdefault("poolclass", StaticPool)
-            
+
             # File or memory SQLite via async needs check_same_thread=False
             if "connect_args" not in kwargs:
                 kwargs["connect_args"] = {}
             kwargs["connect_args"].setdefault("check_same_thread", False)
-        
+
+        # Set safe defaults for connection pooling when not explicitly provided.
+        # This helps prevent resource exhaustion in production.
+        poolclass = kwargs.get("poolclass")
+        if poolclass not in (StaticPool, NullPool):
+            kwargs.setdefault("pool_size", 10)
+            kwargs.setdefault("max_overflow", 20)
+            kwargs.setdefault("pool_recycle", 3600)
+
+        kwargs.setdefault("pool_pre_ping", True)
         kwargs.setdefault("echo", False)
+
         self.engine = create_async_engine(url, **kwargs)
         self.session_factory = async_sessionmaker(
             self.engine, class_=AsyncSession, expire_on_commit=False
         )
         self._connected = False
-        self._engine_cache: Dict[str, Any] = {}
+        # Bound the number of distinct isolation level engines cached to avoid unbounded growth
+        self._engine_cache: OrderedDict[str, Any] = OrderedDict()
+        self._engine_cache_limit = 8
 
     async def connect(self, create_tables: bool = False) -> None:
         """Initialize the database connection and optionally create tables."""
         if self._connected:
             return
 
-        from .base import Model
+        from eden.db.base import Model
         Model._bind_db(self)
 
         if create_tables:
             async with self.engine.begin() as conn:
                 await conn.run_sync(Model.metadata.create_all)
-        
+
         self._connected = True
         logger.info(f"Database connected to {self.url}")
 
@@ -72,13 +105,13 @@ class Database:
             finally:
                 await session.close()
 
-    async def set_schema(self, session: AsyncSession, schema_name: Optional[str]) -> None:
+    async def set_schema(self, session: AsyncSession, schema_name: str | None) -> None:
         """
         Sets the PostgreSQL search_path for the current session.
         If schema_name is None, resets to 'public'.
         """
         if self.engine.dialect.name != "postgresql":
-            # For non-PostgreSQL databases (like SQLite), schema isolation 
+            # For non-PostgreSQL databases (like SQLite), schema isolation
             # is typically not supported via search_path.
             return
 
@@ -86,7 +119,7 @@ class Database:
         target = schema_name or "public"
         # Sanitize schema name: allow only alphanumeric and underscores
         safe_schema = "".join(c for c in target if c.isalnum() or c == "_")
-        
+
         await session.execute(text(f'SET search_path TO "{safe_schema}", public'))
 
     def __getattr__(self, name: str) -> Any:
@@ -95,7 +128,7 @@ class Database:
 
     @contextlib.asynccontextmanager
     async def transaction(
-        self, isolation_level: Optional[str] = None, session: Optional[AsyncSession] = None
+        self, isolation_level: str | None = None, session: AsyncSession | None = None
     ) -> AsyncIterator[AsyncSession]:
         """
         Context manager for database transactions.
@@ -132,13 +165,19 @@ class Database:
         # 2. Handle explicit isolation level (requires separate connection/session)
         if isolation_level:
             if isolation_level not in self._engine_cache:
+                if len(self._engine_cache) >= self._engine_cache_limit:
+                    # Evict oldest entry to keep cache bounded
+                    self._engine_cache.popitem(last=False)
                 self._engine_cache[isolation_level] = self.engine.execution_options(
                     isolation_level=isolation_level
                 )
-            
+            else:
+                # Move to end to mark recently used
+                self._engine_cache.move_to_end(isolation_level)
+
             engine = self._engine_cache[isolation_level]
             new_session = AsyncSession(engine, expire_on_commit=False)
-            
+
             try:
                 async with new_session:
                     yield new_session
@@ -164,7 +203,7 @@ class Database:
 
     @contextlib.asynccontextmanager
     async def savepoint(
-        self, name: Optional[str] = None, session: Optional[AsyncSession] = None
+        self, name: str | None = None, session: AsyncSession | None = None
     ) -> AsyncIterator[AsyncSession]:
         """
         Creates a savepoint within the current transaction.
@@ -178,7 +217,7 @@ class Database:
                 "Savepoint requires an active transaction context. "
                 "Use: async with db.transaction() as session: ... await db.savepoint() ..."
             )
-        
+
         # Explicit begin_nested for savepoints
         async with target_session.begin_nested():
             yield target_session
@@ -221,7 +260,7 @@ def set_session(session: AsyncSession) -> contextvars.Token:
     return _session_context.set(session)
 
 
-def get_session() -> Optional[AsyncSession]:
+def get_session() -> AsyncSession | None:
     """
     Get the current session from async context, if available.
     Returns None if no session is currently set.
@@ -231,7 +270,7 @@ def get_session() -> Optional[AsyncSession]:
     return _session_context.get()
 
 
-def reset_session(token: Optional[contextvars.Token] = None) -> None:
+def reset_session(token: contextvars.Token | None = None) -> None:
     """
     Reset the session context.
     
@@ -248,7 +287,8 @@ def reset_session(token: Optional[contextvars.Token] = None) -> None:
 # ── @atomic Decorator ────────────────────────────────────────────────────
 
 import functools
-from typing import Callable, TypeVar, Any as TypingAny
+from typing import Any as TypingAny
+from typing import TypeVar
 
 F = TypeVar("F", bound=Callable[..., Any])
 
@@ -294,8 +334,8 @@ def atomic(func: F) -> F:
         - The session is removed from context after the handler completes
         - Nested transactions are supported via savepoints
     """
-    @functools.wraps(func)
-    async def wrapper(request: Any, *args: TypingAny, **kwargs: TypingAny) -> TypingAny:
+    @functools.wraps(func)  # type: ignore[misc]
+    async def wrapper(request: "Request", *args: TypingAny, **kwargs: TypingAny) -> TypingAny:
         # Get database from app state
         db = getattr(request.app, "state", None)
         if db is None or not hasattr(db, "db"):
@@ -303,33 +343,33 @@ def atomic(func: F) -> F:
                 "@atomic requires app.state.db to be configured. "
                 "Example: app.state.db = Database(...)"
             )
-        
+
         db_inst = db.db
-        
+
         # Execute handler within a transaction
         async with db_inst.transaction() as session:
             # Set session in context for QuerySet._resolve_session()
             token = set_session(session)
-            
+
             # Also store in request.state for direct access
             request.state.session = session
-            
+
             try:
                 # Inject session into handler if it has a 'session' parameter
-                sig = __inspect_signature(func)
+                sig = __inspect_signature(cast(Callable[..., Any], func))
                 if "session" in sig.parameters and "session" not in kwargs:
-                    result = await func(request, *args, session=session, **kwargs)
+                    result = await cast(Callable[..., Any], func)(request, *args, session=session, **kwargs)
                 else:
-                    result = await func(request, *args, **kwargs)
-                
+                    result = await cast(Callable[..., Any], func)(request, *args, **kwargs)
+
                 return result
             finally:
                 # Always clean up context
                 reset_session(token)
                 if hasattr(request.state, "session"):
                     delattr(request.state, "session")
-    
-    return wrapper  # type: ignore
+
+    return cast(F, wrapper)
 
 
 def __inspect_signature(func: Callable[..., Any]) -> Any:

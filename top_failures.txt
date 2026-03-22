@@ -1,0 +1,154 @@
+﻿
+> full_test_run_utf8.txt:111:================================== 
+FAILURES ===================================
+  full_test_run_utf8.txt:112:_____________________________ 
+test_orm_basic_crud _____________________________
+  full_test_run_utf8.txt:113:
+  full_test_run_utf8.txt:114:self = 
+<sqlalchemy.engine.base.Connection object at 0x000002485D003BC0>
+  full_test_run_utf8.txt:115:dialect = 
+<sqlalchemy.dialects.sqlite.aiosqlite.SQLiteDialect_aiosqlite 
+object at 0x000002485D36C3E0>
+  full_test_run_utf8.txt:116:context = <sqlalchemy.dialects.sqli
+te.aiosqlite.SQLiteExecutionContext_aiosqlite object at 
+0x000002485D003DD0>
+  full_test_run_utf8.txt:117:statement = 
+<sqlalchemy.dialects.sqlite.base.SQLiteCompiler object at 
+0x000002485D002960>
+  full_test_run_utf8.txt:118:parameters = [('Finish Audit', 0, 
+'c6960b6fea99492197df2223a59195a6')]
+  full_test_run_utf8.txt:119:
+  full_test_run_utf8.txt:120:    def _exec_single_context(
+  full_test_run_utf8.txt:121:        self,
+  full_test_run_utf8.txt:122:        dialect: Dialect,
+  full_test_run_utf8.txt:123:        context: ExecutionContext,
+  full_test_run_utf8.txt:124:        statement: Union[str, 
+Compiled],
+  full_test_run_utf8.txt:125:        parameters: 
+Optional[_AnyMultiExecuteParams],
+  full_test_run_utf8.txt:126:    ) -> CursorResult[Any]:
+  full_test_run_utf8.txt:127:        """continue the 
+_execute_context() method for a single DBAPI
+  full_test_run_utf8.txt:128:        cursor.execute() or 
+cursor.executemany() call.
+  full_test_run_utf8.txt:129:    
+  full_test_run_utf8.txt:130:        """
+  full_test_run_utf8.txt:131:        if dialect.bind_typing is 
+BindTyping.SETINPUTSIZES:
+  full_test_run_utf8.txt:132:            generic_setinputsizes 
+= context._prepare_set_input_sizes()
+  full_test_run_utf8.txt:133:    
+  full_test_run_utf8.txt:134:            if 
+generic_setinputsizes:
+  full_test_run_utf8.txt:135:                try:
+  full_test_run_utf8.txt:136:                    
+dialect.do_set_input_sizes(
+  full_test_run_utf8.txt:137:                        
+context.cursor, generic_setinputsizes, context
+  full_test_run_utf8.txt:138:                    )
+  full_test_run_utf8.txt:139:                except 
+BaseException as e:
+  full_test_run_utf8.txt:140:                    
+self._handle_dbapi_exception(
+  full_test_run_utf8.txt:141:                        e, 
+str(statement), parameters, None, context
+  full_test_run_utf8.txt:142:                    )
+  full_test_run_utf8.txt:143:    
+  full_test_run_utf8.txt:144:        cursor, str_statement, 
+parameters = (
+  full_test_run_utf8.txt:145:            context.cursor,
+  full_test_run_utf8.txt:146:            context.statement,
+  full_test_run_utf8.txt:147:            context.parameters,
+  full_test_run_utf8.txt:148:        )
+  full_test_run_utf8.txt:149:    
+  full_test_run_utf8.txt:150:        effective_parameters: 
+Optional[_AnyExecuteParams]
+  full_test_run_utf8.txt:151:    
+  full_test_run_utf8.txt:152:        if not context.executemany:
+  full_test_run_utf8.txt:153:            effective_parameters = 
+parameters[0]
+  full_test_run_utf8.txt:154:        else:
+  full_test_run_utf8.txt:155:            effective_parameters = 
+parameters
+  full_test_run_utf8.txt:156:    
+  full_test_run_utf8.txt:157:        if self._has_events or 
+self.engine._has_events:
+  full_test_run_utf8.txt:158:            for fn in 
+self.dispatch.before_cursor_execute:
+  full_test_run_utf8.txt:159:                str_statement, 
+effective_parameters = fn(
+  full_test_run_utf8.txt:160:                    self,
+  full_test_run_utf8.txt:161:                    cursor,
+  full_test_run_utf8.txt:162:                    str_statement,
+  full_test_run_utf8.txt:163:                    
+effective_parameters,
+  full_test_run_utf8.txt:164:                    context,
+  full_test_run_utf8.txt:165:                    
+context.executemany,
+  full_test_run_utf8.txt:166:                )
+  full_test_run_utf8.txt:167:    
+  full_test_run_utf8.txt:168:        if self._echo:
+  full_test_run_utf8.txt:169:            
+self._log_info(str_statement)
+  full_test_run_utf8.txt:170:    
+  full_test_run_utf8.txt:171:            stats = 
+context._get_cache_stats()
+  full_test_run_utf8.txt:172:    
+  full_test_run_utf8.txt:173:            if not 
+self.engine.hide_parameters:
+  full_test_run_utf8.txt:174:                self._log_info(
+  full_test_run_utf8.txt:175:                    "[%s] %r",
+  full_test_run_utf8.txt:176:                    stats,
+  full_test_run_utf8.txt:177:                    
+sql_util._repr_params(
+  full_test_run_utf8.txt:178:                        
+effective_parameters,
+  full_test_run_utf8.txt:179:                        batches=10,
+  full_test_run_utf8.txt:180:                        
+ismulti=context.executemany,
+  full_test_run_utf8.txt:181:                    ),
+  full_test_run_utf8.txt:182:                )
+  full_test_run_utf8.txt:183:            else:
+  full_test_run_utf8.txt:184:                self._log_info(
+  full_test_run_utf8.txt:185:                    "[%s] [SQL 
+parameters hidden due to hide_parameters=True]",
+  full_test_run_utf8.txt:186:                    stats,
+  full_test_run_utf8.txt:187:                )
+  full_test_run_utf8.txt:188:    
+  full_test_run_utf8.txt:189:        evt_handled: bool = False
+  full_test_run_utf8.txt:190:        try:
+  full_test_run_utf8.txt:191:            if 
+context.execute_style is ExecuteStyle.EXECUTEMANY:
+  full_test_run_utf8.txt:192:                
+effective_parameters = cast(
+  full_test_run_utf8.txt:193:                    
+"_CoreMultiExecuteParams", effective_parameters
+  full_test_run_utf8.txt:194:                )
+  full_test_run_utf8.txt:195:                if 
+self.dialect._has_events:
+  full_test_run_utf8.txt:196:                    for fn in 
+self.dialect.dispatch.do_executemany:
+  full_test_run_utf8.txt:197:                        if fn(
+  full_test_run_utf8.txt:198:                            cursor,
+  full_test_run_utf8.txt:199:                            
+str_statement,
+  full_test_run_utf8.txt:200:                            
+effective_parameters,
+  full_test_run_utf8.txt:201:                            
+context,
+  full_test_run_utf8.txt:202:                        ):
+  full_test_run_utf8.txt:203:                            
+evt_handled = True
+  full_test_run_utf8.txt:204:                            break
+  full_test_run_utf8.txt:205:                if not evt_handled:
+  full_test_run_utf8.txt:206:                    
+self.dialect.do_executemany(
+  full_test_run_utf8.txt:207:                        cursor,
+  full_test_run_utf8.txt:208:                        
+str_statement,
+  full_test_run_utf8.txt:209:                        
+effective_parameters,
+  full_test_run_utf8.txt:210:                        context,
+  full_test_run_utf8.txt:211:                    )
+
+

@@ -129,16 +129,6 @@ class LifecycleMixin:
                     if source_val:
                         setattr(self, column.key, slugify(str(source_val)))
 
-    async def full_clean(self) -> None:
-        """Run comprehensive validation."""
-        if hasattr(self, 'clean'):
-            self.clean()
-
-        errors = await self.validate()
-        if errors:
-            from eden.exceptions import ValidationError
-            formatted_errors = [{"loc": [err.field or "__all__"], "msg": err.message, "type": "validation"} for err in errors]
-            raise ValidationError(detail="Model validation failed", errors=formatted_errors)
 
     async def delete(
         self: Model,

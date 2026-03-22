@@ -34,7 +34,7 @@ from __future__ import annotations
 
 import logging
 from typing import Optional, Dict, Any
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from dataclasses import dataclass, asdict, field
 from starlette.responses import JSONResponse
@@ -93,7 +93,7 @@ class ErrorInfo:
     message: str
     status: int
     path: Optional[str] = None
-    timestamp: str = field(default_factory=lambda: datetime.utcnow().isoformat() + "Z")
+    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat() + "Z")
     details: Dict[str, Any] = field(default_factory=dict)
     validation_errors: list[ErrorDetail] = field(default_factory=list)
     

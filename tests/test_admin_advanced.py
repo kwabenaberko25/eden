@@ -6,24 +6,25 @@ from eden.admin.views import admin_list_view, admin_add_view, admin_edit_view
 import uuid
 
 # Define test models
-class Category(Model):
+class AdminCategory(Model):
     __tablename__ = "test_categories"
     id = IntField(primary_key=True)
     name = StringField(max_length=100)
 
-class Product(Model):
+class AdminProduct(Model):
     __tablename__ = "test_products"
     id = IntField(primary_key=True)
     name = StringField(max_length=100)
     category_id = IntField()
 
-class ProductInline(TabularInline):
-    model = Product
+class AdminProductInline(TabularInline):
+    model = AdminProduct
     extra = 2
 
-class CategoryAdmin(ModelAdmin):
+class AdminCategoryAdmin(ModelAdmin):
     list_display = ["id", "name"]
-    inlines = [ProductInline]
+    inlines = [AdminProductInline]
+    verbose_name = "Category"
 
 @pytest.mark.asyncio
 async def test_admin_add_view():
@@ -40,10 +41,10 @@ async def test_admin_add_view():
     request = Request(scope)
     
     # We need to register the model
-    admin.register(Category, CategoryAdmin)
-    ma = admin._registry[Category]
+    admin.register(AdminCategory, AdminCategoryAdmin)
+    ma = admin._registry[AdminCategory]
     
-    response = await admin_add_view(request, Category, ma)
+    response = await admin_add_view(request, AdminCategory, ma)
     assert response.status_code == 200
     assert b"Add Category" in response.body
 
@@ -51,7 +52,7 @@ async def test_admin_add_view():
 async def test_admin_edit_view_logic():
     """Test the edit view logic (GET)."""
     # Create an instance
-    cat = Category(id=1, name="Electronics")
+    cat = AdminCategory(id=1, name="Electronics")
     # In a real test we'd save it to DB, but let's mock the 'get' method
     
     async def mock_get(session, record_id):
@@ -59,7 +60,7 @@ async def test_admin_edit_view_logic():
             return cat
         return None
     
-    Category.get = mock_get
+    AdminCategory.get = mock_get
     
     scope = {
         "type": "http",
@@ -71,8 +72,8 @@ async def test_admin_edit_view_logic():
     }
     request = Request(scope)
     
-    ma = CategoryAdmin()
-    response = await admin_edit_view(request, Category, ma, "1")
+    ma = AdminCategoryAdmin()
+    response = await admin_edit_view(request, AdminCategory, ma, "1")
     assert response.status_code == 200
     assert b"Edit Category" in response.body
     assert b"Electronics" in response.body

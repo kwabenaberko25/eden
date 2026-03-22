@@ -1,6 +1,8 @@
-import os
+import asyncio
 import logging
-from typing import Any, Optional
+import os
+from typing import Any
+
 from alembic import command
 from alembic.config import Config
 
@@ -21,7 +23,7 @@ class MigrationManager:
     tailored for Eden's metadata and configuration.
     """
 
-    def __init__(self, database_url: Optional[str] = None):
+    def __init__(self, database_url: str | None = None):
         self.database_url = database_url
         self.config = self._get_alembic_config()
 
@@ -34,24 +36,24 @@ class MigrationManager:
             logger.warning("alembic.ini not found. Using default config.")
 
         cfg = Config(ini_path)
-        
+
         # If no URL provided, get from Eden config
         url = self.database_url
         if not url:
             from eden.config import get_config
             url = get_config().get_database_url()
-            
+
         cfg.set_main_option("sqlalchemy.url", url)
         # Ensure script_location is set (usually 'migrations')
         if not cfg.get_main_option("script_location"):
             cfg.set_main_option("script_location", "migrations")
         return cfg
 
-    def init(self) -> None:
+    async def init(self) -> None:
         """Initialize migration directory and configuration files."""
         logger.info("Migrations: Initializing environment...")
         script_location = self.config.get_main_option("script_location") or "migrations"
-        
+
         if not os.path.exists(script_location):
             os.makedirs(script_location, exist_ok=True)
             logger.info(f"Migrations: Created directory '{script_location}'.")
@@ -66,7 +68,7 @@ class MigrationManager:
         if not os.path.exists(env_path):
             self._write_env_py(env_path)
             logger.info(f"Migrations: Created {env_path}")
-        
+
         # 3. Create script.py.mako if not present
         mako_path = os.path.join(script_location, "script.py.mako")
         if not os.path.exists(mako_path):
@@ -134,10 +136,11 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# 3. Load Eden config and set database URL
-from eden.config import get_config
-eden_config = get_config()
-config.set_main_option("sqlalchemy.url", eden_config.get_database_url())
+# 3. Load Eden config and set database URL if not already provided
+if not config.get_main_option("sqlalchemy.url"):
+    from eden.config import get_config
+    eden_config = get_config()
+    config.set_main_option("sqlalchemy.url", eden_config.get_database_url())
 
 # 4. Import Eden models to populate metadata
 from eden.db import Model, discover_models
@@ -202,37 +205,11 @@ async def run_migrations_online() -> None:
 if context.is_offline_mode():
     run_migrations_offline()
 else:
-    # Check if we are already in an event loop
-    try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError:
-        loop = None
-
-    if loop and loop.is_running():
-        # We are inside an active event loop. Alembic is executing synchronously,
-        # which means it's blocking this loop right now. We cannot use asyncio.run().
-        # To safely execute our internal async database calls, we spawn a brief new thread.
-        import threading
-        
-        ex = None
-        def _run_in_thread():
-            global ex
-            try:
-                asyncio.run(run_migrations_online())
-            except Exception as e:
-                ex = e
-                
-        t = threading.Thread(target=_run_in_thread)
-        t.start()
-        t.join()
-        if ex:
-            raise ex
-    else:
-        asyncio.run(run_migrations_online())
+    asyncio.run(run_migrations_online())
 """)
 
-    def _write_mako(self, path: str):
-         with open(path, "w") as f:
+    def _write_mako(self, path: str) -> None:
+        with open(path, "w") as f:
             f.write("""\"\"\"${message}
 
 Revision ID: ${up_revision}
@@ -259,7 +236,58 @@ def downgrade() -> None:
     ${downgrades if downgrades else "pass"}
 """)
 
-    def generate(self, message: str, tenant_isolated: bool = False) -> None:
+    async def upgrade(self, revision: str = "head") -> None:
+        """Apply migrations up to the specified revision."""
+        try:
+            await asyncio.to_thread(command.upgrade, self.config, revision)
+            logger.info("Migrations: upgraded to %s", revision)
+        except Exception as exc:
+            logger.exception("Migration upgrade failed")
+            raise MigrationError("Migration upgrade failed") from exc
+
+    async def downgrade(self, revision: str = "-1", schema: str | None = None) -> None:
+        """Revert migrations down to the specified revision."""
+        target = f"schema '{schema}'" if schema else "default schema"
+        logger.info("Migrations: Reverting to %s on %s...", revision, target)
+
+        config = self._get_alembic_config()
+        if schema:
+            config.set_main_option("tenant_schema", schema)
+
+        try:
+            await asyncio.to_thread(command.downgrade, config, revision)
+            logger.info("Migrations: %s reverted to %s.", target, revision)
+        except Exception as exc:
+            logger.exception("Migration downgrade failed")
+            raise MigrationError("Migration downgrade failed") from exc
+
+    async def current(self) -> str:
+        """Get the current database migration revision."""
+        try:
+            current_revision = await asyncio.to_thread(command.current, self.config, verbose=False)
+            return current_revision or ""
+        except Exception as exc:
+            logger.exception("Unable to get current migration revision")
+            raise MigrationError("Unable to get current migration revision") from exc
+
+    async def stamp(self, revision: str = "head", schema: str | None = None) -> None:
+        """Stamp the database with a specific revision without running migrations."""
+        target = f"schema '{schema}'" if schema else "default schema"
+        logger.info("Migrations: Stamping %s with %s...", target, revision)
+        config = self._get_alembic_config()
+        if schema:
+            config.set_main_option("tenant_schema", schema)
+
+        logger.debug("Migrations: Database URL for stamp: %s", config.get_main_option("sqlalchemy.url"))
+
+        try:
+            await asyncio.to_thread(command.stamp, config, revision)
+            logger.info("Migrations: %s stamped.", target)
+        except Exception as exc:
+            logger.exception("Migration stamp failed")
+            raise MigrationError("Migration stamp failed") from exc
+
+    async def generate(self, message: str, tenant_isolated: bool = False) -> None:
         """
         Detect schema changes and generate a new migration file.
         
@@ -268,23 +296,23 @@ def downgrade() -> None:
         script_location = self.config.get_main_option("script_location") or "migrations"
         if not os.path.exists(script_location):
             raise FileNotFoundError(f"Migrations directory '{script_location}' not found. Run 'eden db init' first.")
-            
+
         label = "Tenant" if tenant_isolated else "Shared"
         logger.info(f"Migrations: Generating {label} revision — '{message}'")
-        
+
         # Pass options via config attributes for env.py to pick up
         self.config.attributes["include_object"] = self._make_include_object(tenant_isolated)
         if tenant_isolated:
             self.config.set_main_option("version_table", "alembic_version_tenant")
-        
+
         try:
-            command.revision(self.config, message=message, autogenerate=True)
+            await asyncio.to_thread(command.revision, self.config, message=message, autogenerate=True)
             logger.info(f"Migrations: {label} revision successfully generated.")
         except Exception as e:
             logger.error(f"Migration Error: {e}")
             raise MigrationError(f"Failed to generate migration: {e}")
 
-    def migrate(self, revision: str = "head", schema: Optional[str] = None) -> None:
+    async def migrate(self, revision: str = "head", schema: str | None = None) -> None:
         """
         Apply pending migrations to the database.
         
@@ -292,14 +320,14 @@ def downgrade() -> None:
         """
         target = f"schema '{schema}'" if schema else "default schema"
         logger.info(f"Migrations: Applying evolutions to {revision} on {target}...")
-        
+
         config = self._get_alembic_config()
         if schema:
             # Tell Alembic to use a specific schema and target the tenant-specific version table
             config.set_main_option("tenant_schema", schema)
-        
+
         try:
-            command.upgrade(config, revision)
+            await asyncio.to_thread(command.upgrade, config, revision)
             logger.info(f"Migrations: {target} is now up-to-date.")
         except Exception as e:
             logger.error(f"Migration Error: {e}")
@@ -317,11 +345,11 @@ def downgrade() -> None:
                     if mapper.persist_selectable.name == name:
                         model = mapper.class_
                         break
-                
+
                 if model:
                     is_isolated = getattr(model, "__eden_tenant_isolated__", False)
                     return is_isolated == tenant_isolated
-                
+
                 # If no model found, default to shared if not explicitly isolation-requested
                 return not tenant_isolated
             return True
@@ -333,17 +361,18 @@ def downgrade() -> None:
         Returns a dictionary mapping schema names to their drift status (or "ok").
         """
         from alembic.script import ScriptDirectory
-        from sqlalchemy import text, select
+        from sqlalchemy import select, text
         from sqlalchemy.ext.asyncio import create_async_engine
         from sqlalchemy.pool import NullPool
+
         from eden.tenancy.models import Tenant
 
         logger.info("Migrations: Checking for schema drift...")
         script = ScriptDirectory.from_config(self.config)
         head_revision = script.get_current_head()
-        
+
         results = {}
-        
+
         # Determine URL
         url_from_config = self.config.get_main_option("sqlalchemy.url")
         if url_from_config:
@@ -351,7 +380,7 @@ def downgrade() -> None:
         else:
             from eden.config import get_db_url
             url = self.database_url or get_db_url()
-            
+
         engine = create_async_engine(url, poolclass=NullPool)
 
         try:
@@ -376,7 +405,7 @@ def downgrade() -> None:
                             version_sql = text(f'SELECT version_num FROM "{schema}".alembic_version_tenant LIMIT 1')
                             res = await conn.execute(version_sql)
                             tenant_version = res.scalar()
-                            
+
                             if tenant_version == head_revision:
                                 results[schema] = "ok"
                             else:
@@ -390,59 +419,26 @@ def downgrade() -> None:
 
         return results
 
-    def downgrade(self, revision: str, schema: Optional[str] = None) -> None:
-        """Revert to a previous migration."""
-        target = f"schema '{schema}'" if schema else "default schema"
-        logger.info(f"Migrations: Reverting to {revision} on {target}...")
-        
-        config = self._get_alembic_config()
-        if schema:
-            config.set_main_option("tenant_schema", schema)
-            
-        try:
-            command.downgrade(config, revision)
-            logger.info(f"Migrations: {target} reverted.")
-        except Exception as e:
-            logger.error(f"Migration Error: {e}")
-            raise MigrationError(f"Failed to revert migrations: {e}")
-
-    def stamp(self, revision: str = "head", schema: Optional[str] = None) -> None:
-        """
-        'Stamp' the database with a specific revision without running any migrations.
-        Useful for syncing existing databases or new tenant schemas.
-        """
-        logger.info(f"Migrations: Stamping schema with {revision}...")
-        config = self._get_alembic_config()
-        if schema:
-            config.set_main_option("tenant_schema", schema)
-        
-        try:
-            command.stamp(config, revision)
-            logger.info(f"Migrations: Schema stamped.")
-        except Exception as e:
-            logger.error(f"Migration Error: {e}")
-            raise MigrationError(f"Failed to stamp schema: {e}")
-
-    def history(self) -> list[dict[str, Any]]:
+    async def history(self) -> list[dict[str, Any]]:
         """
         Show migration history intelligently.
         Returns a list of dictionaries with revision details,
         highlighting which ones are pending vs applied.
         """
+
         from alembic.script import ScriptDirectory
-        from eden.db import Model
-        import asyncio
+
 
         script = ScriptDirectory.from_config(self.config)
         revisions = list(script.walk_revisions())
-        
+
         # Get head from Alembic logic
         head_rev = script.get_current_head()
 
         async def fetch_current():
+            from sqlalchemy import text
             from sqlalchemy.ext.asyncio import create_async_engine
             from sqlalchemy.pool import NullPool
-            from sqlalchemy import text
             url_from_config = self.config.get_main_option("sqlalchemy.url")
             if url_from_config:
                 url = url_from_config
@@ -459,26 +455,7 @@ def downgrade() -> None:
             finally:
                 await engine.dispose()
 
-        # Handle async execution safely
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            loop = None
-            
-        if loop and loop.is_running():
-            import threading
-            current_rev = None
-            def _fetch():
-                nonlocal current_rev
-                try:
-                    current_rev = asyncio.run(fetch_current())
-                except Exception:
-                    pass
-            t = threading.Thread(target=_fetch)
-            t.start()
-            t.join()
-        else:
-            current_rev = asyncio.run(fetch_current())
+        current_rev = await fetch_current()
 
         history_data = []
         # Revisions ordered from head down to base
@@ -487,11 +464,11 @@ def downgrade() -> None:
         is_pending = True
         if current_rev is None:
             is_pending = True
-            
+
         for rev in revisions:
             if rev.revision == current_rev:
                 is_pending = False
-                
+
             history_data.append({
                 "revision": rev.revision,
                 "message": rev.doc,
@@ -499,38 +476,98 @@ def downgrade() -> None:
                 "is_head": rev.revision == head_rev,
                 "is_current": rev.revision == current_rev,
             })
-            
+
         return history_data
+
+
+    async def migrate_tenants(self, revision: str = "head") -> None:
+        """
+        Apply pending migrations to ALL active tenant schemas.
+        """
+        from sqlalchemy import select
+        from sqlalchemy.ext.asyncio import create_async_engine
+        from sqlalchemy.pool import NullPool
+        from eden.tenancy.models import Tenant
+
+        logger.info("Migrations: Starting batch tenant migration...")
+
+        # Get database URL reliably
+        url = self.config.get_main_option("sqlalchemy.url")
+        if not url:
+            from eden.config import get_config
+            url = get_config().get_database_url()
+
+        engine = create_async_engine(url, poolclass=NullPool)
+        
+        try:
+            async with engine.connect() as conn:
+                # 1. Fetch all active tenants with schemas
+                # We select individual columns to ensure compatibility with Core connection
+                result = await conn.execute(select(Tenant.schema_name, Tenant.name).where(
+                    Tenant.schema_name.isnot(None),
+                    Tenant.is_active.is_(True)
+                ))
+                tenants = result.all()
+                
+                if not tenants:
+                    logger.info("Migrations: No active tenants with schemas found.")
+                    return
+
+                logger.info("Migrations: Found %d tenant(s) to migrate.", len(tenants))
+
+                # 2. Iterate and migrate each one
+                for tenant in tenants:
+                    logger.info("Migrations: Migrating schema '%s' (Tenant: %s)...", 
+                                tenant.schema_name, tenant.name)
+                    # We use a fresh config copy to prevent state pollution
+                    try:
+                        await self.migrate(revision=revision, schema=tenant.schema_name)
+                    except Exception as e:
+                        logger.error("Migrations: Failed for tenant %s: %s", tenant.schema_name, e)
+                        # Decide whether to continue or abort. Usually continue for independent tenants.
+                        continue
+        finally:
+            await engine.dispose()
+
+        logger.info("Migrations: Batch tenant migration complete.")
 
 
 # ── Functional Interface ──────────────────────────────────────────────────
 
-def init_migrations(db_url: Optional[str] = None):
+def init_migrations(db_url: str | None = None):
+    import asyncio
     manager = MigrationManager(db_url)
-    manager.init()
+    asyncio.run(manager.init())
 
 
-def create_migration(message: str, db_url: Optional[str] = None):
+def create_migration(message: str, db_url: str | None = None):
+    import asyncio
     manager = MigrationManager(db_url)
-    manager.generate(message)
+    asyncio.run(manager.generate(message))
 
 
-def run_upgrade(revision: str, db_url: Optional[str] = None, schema: Optional[str] = None):
+def run_upgrade(revision: str, db_url: str | None = None, schema: str | None = None, all_tenants: bool = False):
+    import asyncio
     manager = MigrationManager(db_url)
-    manager.migrate(revision, schema=schema)
+    if all_tenants:
+        asyncio.run(manager.migrate_tenants(revision=revision))
+    else:
+        asyncio.run(manager.migrate(revision, schema=schema))
 
 
-def run_downgrade(revision: str, db_url: Optional[str] = None, schema: Optional[str] = None):
+def run_downgrade(revision: str, db_url: str | None = None, schema: str | None = None):
+    import asyncio
     manager = MigrationManager(db_url)
-    manager.downgrade(revision, schema=schema)
+    asyncio.run(manager.downgrade(revision, schema=schema))
 
 
-def show_history(db_url: Optional[str] = None):
+def show_history(db_url: str | None = None):
+    import asyncio
     manager = MigrationManager(db_url)
-    manager.history()
+    return asyncio.run(manager.history())
 
 
-def run_check(db_url: Optional[str] = None) -> dict[str, str]:
+def run_check(db_url: str | None = None) -> dict[str, str]:
     import asyncio
     manager = MigrationManager(db_url)
     return asyncio.run(manager.check())

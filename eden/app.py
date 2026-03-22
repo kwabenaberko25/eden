@@ -527,6 +527,31 @@ class Eden:
             cls = middleware
             middleware_name = getattr(cls, "__name__", str(cls))
 
+        # Validate critical middleware ordering
+        added_middleware_names = set()
+        for cls_item, _, _ in self._middleware_stack:
+            name = getattr(cls_item, "__name__", str(cls_item))
+            added_middleware_names.add(name)
+
+        # SessionMiddleware MUST come before CSRF and Messages
+        if middleware_name.lower() == "csrf" and "SessionMiddleware" not in added_middleware_names:
+            raise RuntimeError(
+                "❌ CRITICAL: CSRFMiddleware requires SessionMiddleware to be added first!\n\n"
+                "Solution: Call add_middleware('session') before add_middleware('csrf')\n\n"
+                "Why: CSRF tokens are stored in the session. Without SessionMiddleware,\n"
+                "     CSRF protection silently fails (major security hole!).\n\n"
+                "Recommended: Use app.setup_defaults() for automatic ordering."
+            )
+
+        if middleware_name == "MessageMiddleware" and "SessionMiddleware" not in added_middleware_names:
+            raise RuntimeError(
+                "❌ CRITICAL: MessageMiddleware requires SessionMiddleware to be added first!\n\n"
+                "Solution: Call add_middleware('session') before using MessageMiddleware\n\n"
+                "Why: Messages are stored in the session. Without SessionMiddleware,\n"
+                "     the messages feature is non-functional.\n\n"
+                "Recommended: Use app.setup_defaults() for automatic ordering."
+            )
+
         # If custom CORS is added, remove the default (empty) CORSMiddleware entry
         try:
             from eden.middleware import CORSMiddleware

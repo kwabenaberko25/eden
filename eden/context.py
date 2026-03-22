@@ -42,11 +42,11 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # Context variables (one per data type, defined centrally)
-_request_ctx = contextvars.ContextVar("eden_request", default=None)
-_user_ctx = contextvars.ContextVar("eden_user", default=None)
-_app_ctx = contextvars.ContextVar("eden_app", default=None)
-_request_id_ctx = contextvars.ContextVar("eden_request_id", default="")
-_tenant_id_ctx = contextvars.ContextVar("eden_tenant_id", default=None)
+_request_ctx: contextvars.ContextVar[Any] = contextvars.ContextVar("eden_request", default=None)
+_user_ctx: contextvars.ContextVar[Any] = contextvars.ContextVar("eden_user", default=None)
+_app_ctx: contextvars.ContextVar[Any] = contextvars.ContextVar("eden_app", default=None)
+_request_id_ctx: contextvars.ContextVar[str] = contextvars.ContextVar("eden_request_id", default="")
+_tenant_id_ctx: contextvars.ContextVar[Any] = contextvars.ContextVar("eden_tenant_id", default=None)
 
 
 class ContextManager:
@@ -251,37 +251,28 @@ class ContextManager:
             ...     my_task, 5, user=current_user
             ... )
         """
-        # Save current context
-        old_app = _app_ctx.get(None)
-        old_request = _request_ctx.get(None)
-        old_user = _user_ctx.get(None)
-        old_tenant_id = _tenant_id_ctx.get(None)
-        old_request_id = _request_id_ctx.get("")
-
+        tokens: list[tuple[contextvars.ContextVar[Any], contextvars.Token[Any]]] = []
         try:
-            # Set new context
+            # Set new context and save tokens for safe reset
             if app is not None:
-                _app_ctx.set(app)
+                tokens.append((_app_ctx, _app_ctx.set(app)))
             if request is not None:
-                _request_ctx.set(request)
+                tokens.append((_request_ctx, _request_ctx.set(request)))
             if user is not None:
-                _user_ctx.set(user)
+                tokens.append((_user_ctx, _user_ctx.set(user)))
             if tenant_id is not None:
-                _tenant_id_ctx.set(tenant_id)
+                tokens.append((_tenant_id_ctx, _tenant_id_ctx.set(tenant_id)))
             
             # Generate a new request_id for the inner context
-            _request_id_ctx.set(str(uuid.uuid4()))
+            tokens.append((_request_id_ctx, _request_id_ctx.set(str(uuid.uuid4()))))
 
             # Run coro with new context
             return await coro(*args, **kwargs)
 
         finally:
-            # Restore old context
-            _app_ctx.set(old_app)
-            _request_ctx.set(old_request)
-            _user_ctx.set(old_user)
-            _tenant_id_ctx.set(old_tenant_id)
-            _request_id_ctx.set(old_request_id)
+            # Safely restore old context to garbage-collect mapping mutations
+            for ctx_var, token in tokens:
+                ctx_var.reset(token)
 
 
 # Global singleton instance
@@ -425,12 +416,12 @@ def is_active(request: Optional[Any], url: str) -> bool:
         
     try:
         current_path = request.url.path.rstrip("/") or "/"
-        target_path = url
+        target_path = str(url)
         
         # 1. Handle wildcard section (e.g., 'admin:*')
         is_wildcard = target_path.endswith("*")
         if is_wildcard:
-            target_path = target_path[:-1].rstrip(":_")
+            target_path = target_path.removesuffix("*").rstrip(":_")
 
         # 2. Try to resolve route name if it doesn't look like a path
         if "/" not in target_path and target_path != "":

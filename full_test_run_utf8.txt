@@ -1,0 +1,2674 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.12.12, pytest-9.0.2, pluggy-1.6.0
+rootdir: C:\PROJECTS\eden-framework
+configfile: pyproject.toml
+plugins: anyio-4.12.1, asyncio-1.3.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=session, asyncio_default_test_loop_scope=session
+collected 1055 items / 1 skipped
+
+tests\audit\test_auth_resilience.py ..                                   [  0%]
+tests\audit\test_orm_isolation.py ..                                     [  0%]
+tests\audit\test_orm_joins.py ..                                         [  0%]
+tests\audit\test_orm_security.py ...                                     [  0%]
+tests\audit\test_rbac_isolation.py ..                                    [  1%]
+tests\audit\test_session_hygiene.py ...                                  [  1%]
+tests\audit\test_telemetry_accuracy.py ...                               [  1%]
+tests\audit\test_tenancy_isolation.py ...                                [  1%]
+tests\test_admin.py ..........                                           [  2%]
+tests\test_admin_advanced.py ..                                          [  3%]
+tests\test_admin_options.py .....                                        [  3%]
+tests\test_audit_integration.py ........................................ [  7%]
+........................................................                 [ 12%]
+tests\test_auth.py .....                                                 [ 13%]
+tests\test_auth_audit.py .....                                           [ 13%]
+tests\test_auth_complete_layers.py ......................                [ 15%]
+tests\test_auth_critical_fixes.py ...................                    [ 17%]
+tests\test_auth_passwords.py ....                                        [ 17%]
+tests\test_auth_rbac.py ...                                              [ 18%]
+tests\test_auth_rbac_ownership.py ..                                     [ 18%]
+tests\test_auth_unlink.py .                                              [ 18%]
+tests\test_background_tasks.py ..                                        [ 18%]
+tests\test_cache.py ..                                                   [ 18%]
+tests\test_component_security.py .                                       [ 18%]
+tests\test_components.py ..........................................      [ 22%]
+tests\test_config_and_testing.py ...................................     [ 26%]
+tests\test_config_bootstrapping.py ..                                    [ 26%]
+tests\test_context_lifecycle.py ...................                      [ 28%]
+tests\test_core_integration.py .....                                     [ 28%]
+tests\test_database.py ..                                                [ 28%]
+tests\test_debug_env.py .                                                [ 28%]
+tests\test_dependencies.py .....                                         [ 29%]
+tests\test_design_system.py ............................................ [ 33%]
+...............................                                          [ 36%]
+tests\test_directives_integration.py ..........................          [ 38%]
+tests\test_discrepancies.py .....                                        [ 39%]
+tests\test_distributed_infrastructure.py ...                             [ 39%]
+tests\test_documentation_examples.py ..............................      [ 42%]
+tests\test_error_handlers.py .....................                       [ 44%]
+tests\test_exceptions.py .......                                         [ 45%]
+tests\test_forms.py .....                                                [ 45%]
+tests\test_forms_security.py .....                                       [ 46%]
+tests\test_fusion.py ...                                                 [ 46%]
+tests\test_htmx_smart_fragments.py ....                                  [ 46%]
+tests\test_is_active_real.py .......                                     [ 47%]
+tests\test_logging.py ..                                                 [ 47%]
+tests\test_mail.py ...............                                       [ 49%]
+tests\test_messages.py .....                                             [ 49%]
+tests\test_messages_enhanced.py .......                                  [ 50%]
+tests\test_middleware.py ...                                             [ 50%]
+tests\test_middleware_cache.py ...                                       [ 50%]
+tests\test_middleware_ratelimit_burst.py .                               [ 50%]
+tests\test_migration_drift.py .                                          [ 50%]
+tests\test_migration_refactor.py ..                                      [ 51%]
+tests\test_model_as_form.py ...                                          [ 51%]
+tests\test_model_maturity.py ........                                    [ 52%]
+tests\test_multitenant_security.py ...................................   [ 55%]
+tests\test_orm.py FFFF                                                   [ 55%]
+tests\test_orm_advanced.py .FF                                           [ 56%]
+tests\test_orm_auto_session.py ...                                       [ 56%]
+tests\test_orm_critical_fixes.py .............                           [ 57%]
+tests\test_orm_enhanced.py .......                                       [ 58%]
+tests\test_orm_fixes_simple.py .....                                     [ 58%]
+tests\test_orm_form_integration.py ....                                  [ 59%]
+tests\test_orm_hooks_and_m2m.py ..                                       [ 59%]
+tests\test_orm_lookups.py .....                                          [ 59%]
+tests\test_orm_modern.py ...                                             [ 60%]
+tests\test_orm_queryset.py ..........                                    [ 61%]
+tests\test_payments.py .......                                           [ 61%]
+tests\test_phase2_security.py ....                                       [ 62%]
+tests\test_phase3_reliability.py .....                                   [ 62%]
+tests\test_port.py .....                                                 [ 63%]
+tests\test_realtime_ui.py ..                                             [ 63%]
+tests\test_requests.py ......                                            [ 63%]
+tests\test_responses.py ........                                         [ 64%]
+tests\test_routing.py ..........                                         [ 65%]
+tests\test_routing_auth_powerup.py .........................             [ 67%]
+tests\test_routing_fixes.py .............................                [ 70%]
+tests\test_routing_modern.py ...                                         [ 70%]
+tests\test_scaffold_refactor.py ....                                     [ 71%]
+tests\test_security_middleware.py ...................                    [ 73%]
+tests\test_ssc.py ....                                                   [ 73%]
+tests\test_storage_cleanup.py ................                           [ 75%]
+tests\test_storage_transactions.py .......sss..                          [ 76%]
+tests\test_tasks.py ...                                                  [ 76%]
+tests\test_tasks_advanced.py ..s.                                        [ 76%]
+tests\test_tasks_comprehensive.py .....                                  [ 77%]
+tests\test_tasks_full.py ...........F.............                       [ 79%]
+tests\test_template_errors.py .FF                                        [ 80%]
+tests\test_templating.py ............                                    [ 81%]
+tests\test_templating_advanced.py ........                               [ 81%]
+tests\test_templating_v2.py ......                                       [ 82%]
+tests\test_tenancy.py FF..F                                              [ 82%]
+tests\test_tenancy_leak.py ..                                            [ 83%]
+tests\test_tier2_cache.py ........................                       [ 85%]
+tests\test_tier2_migrations.py ...................                       [ 87%]
+tests\test_tier2_scheduler.py ...........................                [ 89%]
+tests\test_tier2_websocket.py ...............................            [ 92%]
+tests\test_validators.py ............................................... [ 97%]
+.......................FFFFF                                             [ 99%]
+tests\test_ws_audit.py ..                                                [100%]
+
+================================== FAILURES ===================================
+_____________________________ test_orm_basic_crud _____________________________
+
+self = <sqlalchemy.engine.base.Connection object at 0x000002485D003BC0>
+dialect = <sqlalchemy.dialects.sqlite.aiosqlite.SQLiteDialect_aiosqlite object at 0x000002485D36C3E0>
+context = <sqlalchemy.dialects.sqlite.aiosqlite.SQLiteExecutionContext_aiosqlite object at 0x000002485D003DD0>
+statement = <sqlalchemy.dialects.sqlite.base.SQLiteCompiler object at 0x000002485D002960>
+parameters = [('Finish Audit', 0, 'c6960b6fea99492197df2223a59195a6')]
+
+    def _exec_single_context(
+        self,
+        dialect: Dialect,
+        context: ExecutionContext,
+        statement: Union[str, Compiled],
+        parameters: Optional[_AnyMultiExecuteParams],
+    ) -> CursorResult[Any]:
+        """continue the _execute_context() method for a single DBAPI
+        cursor.execute() or cursor.executemany() call.
+    
+        """
+        if dialect.bind_typing is BindTyping.SETINPUTSIZES:
+            generic_setinputsizes = context._prepare_set_input_sizes()
+    
+            if generic_setinputsizes:
+                try:
+                    dialect.do_set_input_sizes(
+                        context.cursor, generic_setinputsizes, context
+                    )
+                except BaseException as e:
+                    self._handle_dbapi_exception(
+                        e, str(statement), parameters, None, context
+                    )
+    
+        cursor, str_statement, parameters = (
+            context.cursor,
+            context.statement,
+            context.parameters,
+        )
+    
+        effective_parameters: Optional[_AnyExecuteParams]
+    
+        if not context.executemany:
+            effective_parameters = parameters[0]
+        else:
+            effective_parameters = parameters
+    
+        if self._has_events or self.engine._has_events:
+            for fn in self.dispatch.before_cursor_execute:
+                str_statement, effective_parameters = fn(
+                    self,
+                    cursor,
+                    str_statement,
+                    effective_parameters,
+                    context,
+                    context.executemany,
+                )
+    
+        if self._echo:
+            self._log_info(str_statement)
+    
+            stats = context._get_cache_stats()
+    
+            if not self.engine.hide_parameters:
+                self._log_info(
+                    "[%s] %r",
+                    stats,
+                    sql_util._repr_params(
+                        effective_parameters,
+                        batches=10,
+                        ismulti=context.executemany,
+                    ),
+                )
+            else:
+                self._log_info(
+                    "[%s] [SQL parameters hidden due to hide_parameters=True]",
+                    stats,
+                )
+    
+        evt_handled: bool = False
+        try:
+            if context.execute_style is ExecuteStyle.EXECUTEMANY:
+                effective_parameters = cast(
+                    "_CoreMultiExecuteParams", effective_parameters
+                )
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_executemany:
+                        if fn(
+                            cursor,
+                            str_statement,
+                            effective_parameters,
+                            context,
+                        ):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+                    self.dialect.do_executemany(
+                        cursor,
+                        str_statement,
+                        effective_parameters,
+                        context,
+                    )
+            elif not effective_parameters and context.no_parameters:
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_execute_no_params:
+                        if fn(cursor, str_statement, context):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+                    self.dialect.do_execute_no_params(
+                        cursor, str_statement, context
+                    )
+            else:
+                effective_parameters = cast(
+                    "_CoreSingleExecuteParams", effective_parameters
+                )
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_execute:
+                        if fn(
+                            cursor,
+                            str_statement,
+                            effective_parameters,
+                            context,
+                        ):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+>                   self.dialect.do_execute(
+                        cursor, str_statement, effective_parameters, context
+                    )
+
+.venv\Lib\site-packages\sqlalchemy\engine\base.py:1967: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+.venv\Lib\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+.venv\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:182: in execute
+    self._adapt_connection._handle_exception(error)
+.venv\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:342: in _handle_exception
+    raise error
+.venv\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:164: in execute
+    self.await_(_cursor.execute(operation, parameters))
+.venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:132: in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:196: in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+.venv\Lib\site-packages\aiosqlite\cursor.py:40: in execute
+    await self._execute(self._cursor.execute, sql, parameters)
+.venv\Lib\site-packages\aiosqlite\cursor.py:32: in _execute
+    return await self._conn._execute(fn, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\aiosqlite\core.py:160: in _execute
+    return await future
+           ^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+tx = <_queue.SimpleQueue object at 0x000002485D33DFD0>
+
+    def _connection_worker_thread(tx: _TxQueue):
+        """
+        Execute function calls on a separate thread.
+    
+        :meta private:
+        """
+        while True:
+            # Continues running until all queue items are processed,
+            # even after connection is closed (so we can finalize all
+            # futures)
+    
+            future, function = tx.get()
+    
+            try:
+                LOG.debug("executing %s", function)
+>               result = function()
+                         ^^^^^^^^^^
+E               sqlite3.OperationalError: no such table: tasks
+
+.venv\Lib\site-packages\aiosqlite\core.py:63: OperationalError
+
+The above exception was the direct cause of the following exception:
+
+db = <eden.db.session.Database object at 0x000002485CE8E960>
+
+    async def test_orm_basic_crud(db):
+        # 1. Create
+>       task = await Task.create(title="Finish Audit", is_done=False)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_orm.py:19: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+eden\db\mixins\crud.py:144: in create
+    await instance.save(session)
+eden\db\mixins\lifecycle.py:91: in save
+    await sess.flush()
+.venv\Lib\site-packages\sqlalchemy\ext\asyncio\session.py:787: in flush
+    await greenlet_spawn(self.sync_session.flush, objects=objects)
+.venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:203: in greenlet_spawn
+    result = context.switch(value)
+             ^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\sqlalchemy\orm\session.py:4331: in flush
+    self._flush(objects)
+.venv\Lib\site-packages\sqlalchemy\orm\session.py:4466: in _flush
+    with util.safe_reraise():
+         ^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\sqlalchemy\util\langhelpers.py:121: in __exit__
+    raise exc_value.with_traceback(exc_tb)
+.venv\Lib\site-packages\sqlalchemy\orm\session.py:4427: in _flush
+    flush_context.execute()
+.venv\Lib\site-packages\sqlalchemy\orm\unitofwork.py:466: in execute
+    rec.execute(self)
+.venv\Lib\site-packages\sqlalchemy\orm\unitofwork.py:642: in execute
+    util.preloaded.orm_persistence.save_obj(
+.venv\Lib\site-packages\sqlalchemy\orm\persistence.py:93: in save_obj
+    _emit_insert_statements(
+.venv\Lib\site-packages\sqlalchemy\orm\persistence.py:1233: in _emit_insert_statements
+    result = connection.execute(
+.venv\Lib\site-packages\sqlalchemy\engine\base.py:1419: in execute
+    return meth(
+.venv\Lib\site-packages\sqlalchemy\sql\elements.py:527: in _execute_on_connection
+    return connection._execute_clauseelement(
+.venv\Lib\site-packages\sqlalchemy\engine\base.py:1641: in _execute_clauseelement
+    ret = self._execute_context(
+.venv\Lib\site-packages\sqlalchemy\engine\base.py:1846: in _execute_context
+    return self._exec_single_context(
+.venv\Lib\site-packages\sqlalchemy\engine\base.py:1986: in _exec_single_context
+    self._handle_dbapi_exception(
+.venv\Lib\site-packages\sqlalchemy\engine\base.py:2363: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+.venv\Lib\site-packages\sqlalchemy\engine\base.py:1967: in _exec_single_context
+    self.dialect.do_execute(
+.venv\Lib\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+.venv\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:182: in execute
+    self._adapt_connection._handle_exception(error)
+.venv\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:342: in _handle_exception
+    raise error
+.venv\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:164: in execute
+    self.await_(_cursor.execute(operation, parameters))
+.venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:132: in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:196: in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+.venv\Lib\site-packages\aiosqlite\cursor.py:40: in execute
+    await self._execute(self._cursor.execute, sql, parameters)
+.venv\Lib\site-packages\aiosqlite\cursor.py:32: in _execute
+    return await self._conn._execute(fn, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\aiosqlite\core.py:160: in _execute
+    return await future
+           ^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+tx = <_queue.SimpleQueue object at 0x000002485D33DFD0>
+
+    def _connection_worker_thread(tx: _TxQueue):
+        """
+        Execute function calls on a separate thread.
+    
+        :meta private:
+        """
+        while True:
+            # Continues running until all queue items are processed,
+            # even after connection is closed (so we can finalize all
+            # futures)
+    
+            future, function = tx.get()
+    
+            try:
+                LOG.debug("executing %s", function)
+>               result = function()
+                         ^^^^^^^^^^
+E               sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: tasks
+E               [SQL: INSERT INTO tasks (title, is_done, id) VALUES (?, ?, ?) RETURNING created_at, updated_at]
+E               [parameters: ('Finish Audit', 0, 'c6960b6fea99492197df2223a59195a6')]
+E               (Background on this error at: https://sqlalche.me/e/20/e3q8)
+
+.venv\Lib\site-packages\aiosqlite\core.py:63: OperationalError
+___________________________ test_orm_id_generation ____________________________
+
+self = <sqlalchemy.engine.base.Connection object at 0x000002485D34F530>
+dialect = <sqlalchemy.dialects.sqlite.aiosqlite.SQLiteDialect_aiosqlite object at 0x000002485D36C3E0>
+context = <sqlalchemy.dialects.sqlite.aiosqlite.SQLiteExecutionContext_aiosqlite object at 0x000002485D34FD70>
+statement = <sqlalchemy.dialects.sqlite.base.SQLiteCompiler object at 0x000002485D34F8F0>
+parameters = [('Task 1', 0, '67565e3b99254ef894cd7b473de559f0')]
+
+    def _exec_single_context(
+        self,
+        dialect: Dialect,
+        context: ExecutionContext,
+        statement: Union[str, Compiled],
+        parameters: Optional[_AnyMultiExecuteParams],
+    ) -> CursorResult[Any]:
+        """continue the _execute_context() method for a single DBAPI
+        cursor.execute() or cursor.executemany() call.
+    
+        """
+        if dialect.bind_typing is BindTyping.SETINPUTSIZES:
+            generic_setinputsizes = context._prepare_set_input_sizes()
+    
+            if generic_setinputsizes:
+                try:
+                    dialect.do_set_input_sizes(
+                        context.cursor, generic_setinputsizes, context
+                    )
+                except BaseException as e:
+                    self._handle_dbapi_exception(
+                        e, str(statement), parameters, None, context
+                    )
+    
+        cursor, str_statement, parameters = (
+            context.cursor,
+            context.statement,
+            context.parameters,
+        )
+    
+        effective_parameters: Optional[_AnyExecuteParams]
+    
+        if not context.executemany:
+            effective_parameters = parameters[0]
+        else:
+            effective_parameters = parameters
+    
+        if self._has_events or self.engine._has_events:
+            for fn in self.dispatch.before_cursor_execute:
+                str_statement, effective_parameters = fn(
+                    self,
+                    cursor,
+                    str_statement,
+                    effective_parameters,
+                    context,
+                    context.executemany,
+                )
+    
+        if self._echo:
+            self._log_info(str_statement)
+    
+            stats = context._get_cache_stats()
+    
+            if not self.engine.hide_parameters:
+                self._log_info(
+                    "[%s] %r",
+                    stats,
+                    sql_util._repr_params(
+                        effective_parameters,
+                        batches=10,
+                        ismulti=context.executemany,
+                    ),
+                )
+            else:
+                self._log_info(
+                    "[%s] [SQL parameters hidden due to hide_parameters=True]",
+                    stats,
+                )
+    
+        evt_handled: bool = False
+        try:
+            if context.execute_style is ExecuteStyle.EXECUTEMANY:
+                effective_parameters = cast(
+                    "_CoreMultiExecuteParams", effective_parameters
+                )
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_executemany:
+                        if fn(
+                            cursor,
+                            str_statement,
+                            effective_parameters,
+                            context,
+                        ):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+                    self.dialect.do_executemany(
+                        cursor,
+                        str_statement,
+                        effective_parameters,
+                        context,
+                    )
+            elif not effective_parameters and context.no_parameters:
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_execute_no_params:
+                        if fn(cursor, str_statement, context):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+                    self.dialect.do_execute_no_params(
+                        cursor, str_statement, context
+                    )
+            else:
+                effective_parameters = cast(
+                    "_CoreSingleExecuteParams", effective_parameters
+                )
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_execute:
+                        if fn(
+                            cursor,
+                            str_statement,
+                            effective_parameters,
+                            context,
+                        ):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+>                   self.dialect.do_execute(
+                        cursor, str_statement, effective_parameters, context
+                    )
+
+.venv\Lib\site-packages\sqlalchemy\engine\base.py:1967: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+.venv\Lib\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+.venv\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:182: in execute
+    self._adapt_connection._handle_exception(error)
+.venv\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:342: in _handle_exception
+    raise error
+.venv\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:164: in execute
+    self.await_(_cursor.execute(operation, parameters))
+.venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:132: in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:196: in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+.venv\Lib\site-packages\aiosqlite\cursor.py:40: in execute
+    await self._execute(self._cursor.execute, sql, parameters)
+.venv\Lib\site-packages\aiosqlite\cursor.py:32: in _execute
+    return await self._conn._execute(fn, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\aiosqlite\core.py:160: in _execute
+    return await future
+           ^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+tx = <_queue.SimpleQueue object at 0x000002485D33DFD0>
+
+    def _connection_worker_thread(tx: _TxQueue):
+        """
+        Execute function calls on a separate thread.
+    
+        :meta private:
+        """
+        while True:
+            # Continues running until all queue items are processed,
+            # even after connection is closed (so we can finalize all
+            # futures)
+    
+            future, function = tx.get()
+    
+            try:
+                LOG.debug("executing %s", function)
+>               result = function()
+                         ^^^^^^^^^^
+E               sqlite3.OperationalError: no such table: tasks
+
+.venv\Lib\site-packages\aiosqlite\core.py:63: OperationalError
+
+The above exception was the direct cause of the following exception:
+
+db = <eden.db.session.Database object at 0x000002485CE8E960>
+
+    @pytest.mark.asyncio
+    async def test_orm_id_generation(db):
+        # Test that UUIDs are unique and auto-generated
+>       t1 = await Task.create(title="Task 1")
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_orm.py:51: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+eden\db\mixins\crud.py:144: in create
+    await instance.save(session)
+eden\db\mixins\lifecycle.py:91: in save
+    await sess.flush()
+.venv\Lib\site-packages\sqlalchemy\ext\asyncio\session.py:787: in flush
+    await greenlet_spawn(self.sync_session.flush, objects=objects)
+.venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:203: in greenlet_spawn
+    result = context.switch(value)
+             ^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\sqlalchemy\orm\session.py:4331: in flush
+    self._flush(objects)
+.venv\Lib\site-packages\sqlalchemy\orm\session.py:4466: in _flush
+    with util.safe_reraise():
+         ^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\sqlalchemy\util\langhelpers.py:121: in __exit__
+    raise exc_value.with_traceback(exc_tb)
+.venv\Lib\site-packages\sqlalchemy\orm\session.py:4427: in _flush
+    flush_context.execute()
+.venv\Lib\site-packages\sqlalchemy\orm\unitofwork.py:466: in execute
+    rec.execute(self)
+.venv\Lib\site-packages\sqlalchemy\orm\unitofwork.py:642: in execute
+    util.preloaded.orm_persistence.save_obj(
+.venv\Lib\site-packages\sqlalchemy\orm\persistence.py:93: in save_obj
+    _emit_insert_statements(
+.venv\Lib\site-packages\sqlalchemy\orm\persistence.py:1233: in _emit_insert_statements
+    result = connection.execute(
+.venv\Lib\site-packages\sqlalchemy\engine\base.py:1419: in execute
+    return meth(
+.venv\Lib\site-packages\sqlalchemy\sql\elements.py:527: in _execute_on_connection
+    return connection._execute_clauseelement(
+.venv\Lib\site-packages\sqlalchemy\engine\base.py:1641: in _execute_clauseelement
+    ret = self._execute_context(
+.venv\Lib\site-packages\sqlalchemy\engine\base.py:1846: in _execute_context
+    return self._exec_single_context(
+.venv\Lib\site-packages\sqlalchemy\engine\base.py:1986: in _exec_single_context
+    self._handle_dbapi_exception(
+.venv\Lib\site-packages\sqlalchemy\engine\base.py:2363: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+.venv\Lib\site-packages\sqlalchemy\engine\base.py:1967: in _exec_single_context
+    self.dialect.do_execute(
+.venv\Lib\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+.venv\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:182: in execute
+    self._adapt_connection._handle_exception(error)
+.venv\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:342: in _handle_exception
+    raise error
+.venv\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:164: in execute
+    self.await_(_cursor.execute(operation, parameters))
+.venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:132: in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:196: in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+.venv\Lib\site-packages\aiosqlite\cursor.py:40: in execute
+    await self._execute(self._cursor.execute, sql, parameters)
+.venv\Lib\site-packages\aiosqlite\cursor.py:32: in _execute
+    return await self._conn._execute(fn, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\aiosqlite\core.py:160: in _execute
+    return await future
+           ^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+tx = <_queue.SimpleQueue object at 0x000002485D33DFD0>
+
+    def _connection_worker_thread(tx: _TxQueue):
+        """
+        Execute function calls on a separate thread.
+    
+        :meta private:
+        """
+        while True:
+            # Continues running until all queue items are processed,
+            # even after connection is closed (so we can finalize all
+            # futures)
+    
+            future, function = tx.get()
+    
+            try:
+                LOG.debug("executing %s", function)
+>               result = function()
+                         ^^^^^^^^^^
+E               sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: tasks
+E               [SQL: INSERT INTO tasks (title, is_done, id) VALUES (?, ?, ?) RETURNING created_at, updated_at]
+E               [parameters: ('Task 1', 0, '67565e3b99254ef894cd7b473de559f0')]
+E               (Background on this error at: https://sqlalche.me/e/20/e3q8)
+
+.venv\Lib\site-packages\aiosqlite\core.py:63: OperationalError
+_____________________________ test_orm_timestamps _____________________________
+
+self = <sqlalchemy.engine.base.Connection object at 0x000002485D100260>
+dialect = <sqlalchemy.dialects.sqlite.aiosqlite.SQLiteDialect_aiosqlite object at 0x000002485D36C3E0>
+context = <sqlalchemy.dialects.sqlite.aiosqlite.SQLiteExecutionContext_aiosqlite object at 0x000002485D062690>
+statement = <sqlalchemy.dialects.sqlite.base.SQLiteCompiler object at 0x000002485D34F8F0>
+parameters = [('Timestamp Test', 0, '3552f01f44ce43b3ba31a0374865fc56')]
+
+    def _exec_single_context(
+        self,
+        dialect: Dialect,
+        context: ExecutionContext,
+        statement: Union[str, Compiled],
+        parameters: Optional[_AnyMultiExecuteParams],
+    ) -> CursorResult[Any]:
+        """continue the _execute_context() method for a single DBAPI
+        cursor.execute() or cursor.executemany() call.
+    
+        """
+        if dialect.bind_typing is BindTyping.SETINPUTSIZES:
+            generic_setinputsizes = context._prepare_set_input_sizes()
+    
+            if generic_setinputsizes:
+                try:
+                    dialect.do_set_input_sizes(
+                        context.cursor, generic_setinputsizes, context
+                    )
+                except BaseException as e:
+                    self._handle_dbapi_exception(
+                        e, str(statement), parameters, None, context
+                    )
+    
+        cursor, str_statement, parameters = (
+            context.cursor,
+            context.statement,
+            context.parameters,
+        )
+    
+        effective_parameters: Optional[_AnyExecuteParams]
+    
+        if not context.executemany:
+            effective_parameters = parameters[0]
+        else:
+            effective_parameters = parameters
+    
+        if self._has_events or self.engine._has_events:
+            for fn in self.dispatch.before_cursor_execute:
+                str_statement, effective_parameters = fn(
+                    self,
+                    cursor,
+                    str_statement,
+                    effective_parameters,
+                    context,
+                    context.executemany,
+                )
+    
+        if self._echo:
+            self._log_info(str_statement)
+    
+            stats = context._get_cache_stats()
+    
+            if not self.engine.hide_parameters:
+                self._log_info(
+                    "[%s] %r",
+                    stats,
+                    sql_util._repr_params(
+                        effective_parameters,
+                        batches=10,
+                        ismulti=context.executemany,
+                    ),
+                )
+            else:
+                self._log_info(
+                    "[%s] [SQL parameters hidden due to hide_parameters=True]",
+                    stats,
+                )
+    
+        evt_handled: bool = False
+        try:
+            if context.execute_style is ExecuteStyle.EXECUTEMANY:
+                effective_parameters = cast(
+                    "_CoreMultiExecuteParams", effective_parameters
+                )
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_executemany:
+                        if fn(
+                            cursor,
+                            str_statement,
+                            effective_parameters,
+                            context,
+                        ):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+                    self.dialect.do_executemany(
+                        cursor,
+                        str_statement,
+                        effective_parameters,
+                        context,
+                    )
+            elif not effective_parameters and context.no_parameters:
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_execute_no_params:
+                        if fn(cursor, str_statement, context):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+                    self.dialect.do_execute_no_params(
+                        cursor, str_statement, context
+                    )
+            else:
+                effective_parameters = cast(
+                    "_CoreSingleExecuteParams", effective_parameters
+                )
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_execute:
+                        if fn(
+                            cursor,
+                            str_statement,
+                            effective_parameters,
+                            context,
+                        ):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+>                   self.dialect.do_execute(
+                        cursor, str_statement, effective_parameters, context
+                    )
+
+.venv\Lib\site-packages\sqlalchemy\engine\base.py:1967: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+.venv\Lib\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+.venv\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:182: in execute
+    self._adapt_connection._handle_exception(error)
+.venv\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:342: in _handle_exception
+    raise error
+.venv\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:164: in execute
+    self.await_(_cursor.execute(operation, parameters))
+.venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:132: in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:196: in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+.venv\Lib\site-packages\aiosqlite\cursor.py:40: in execute
+    await self._execute(self._cursor.execute, sql, parameters)
+.venv\Lib\site-packages\aiosqlite\cursor.py:32: in _execute
+    return await self._conn._execute(fn, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\aiosqlite\core.py:160: in _execute
+    return await future
+           ^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+tx = <_queue.SimpleQueue object at 0x000002485D33DFD0>
+
+    def _connection_worker_thread(tx: _TxQueue):
+        """
+        Execute function calls on a separate thread.
+    
+        :meta private:
+        """
+        while True:
+            # Continues running until all queue items are processed,
+            # even after connection is closed (so we can finalize all
+            # futures)
+    
+            future, function = tx.get()
+    
+            try:
+                LOG.debug("executing %s", function)
+>               result = function()
+                         ^^^^^^^^^^
+E               sqlite3.OperationalError: no such table: tasks
+
+.venv\Lib\site-packages\aiosqlite\core.py:63: OperationalError
+
+The above exception was the direct cause of the following exception:
+
+db = <eden.db.session.Database object at 0x000002485CE8E960>
+
+    @pytest.mark.asyncio
+    async def test_orm_timestamps(db):
+>       task = await Task.create(title="Timestamp Test")
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_orm.py:58: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+eden\db\mixins\crud.py:144: in create
+    await instance.save(session)
+eden\db\mixins\lifecycle.py:91: in save
+    await sess.flush()
+.venv\Lib\site-packages\sqlalchemy\ext\asyncio\session.py:787: in flush
+    await greenlet_spawn(self.sync_session.flush, objects=objects)
+.venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:203: in greenlet_spawn
+    result = context.switch(value)
+             ^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\sqlalchemy\orm\session.py:4331: in flush
+    self._flush(objects)
+.venv\Lib\site-packages\sqlalchemy\orm\session.py:4466: in _flush
+    with util.safe_reraise():
+         ^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\sqlalchemy\util\langhelpers.py:121: in __exit__
+    raise exc_value.with_traceback(exc_tb)
+.venv\Lib\site-packages\sqlalchemy\orm\session.py:4427: in _flush
+    flush_context.execute()
+.venv\Lib\site-packages\sqlalchemy\orm\unitofwork.py:466: in execute
+    rec.execute(self)
+.venv\Lib\site-packages\sqlalchemy\orm\unitofwork.py:642: in execute
+    util.preloaded.orm_persistence.save_obj(
+.venv\Lib\site-packages\sqlalchemy\orm\persistence.py:93: in save_obj
+    _emit_insert_statements(
+.venv\Lib\site-packages\sqlalchemy\orm\persistence.py:1233: in _emit_insert_statements
+    result = connection.execute(
+.venv\Lib\site-packages\sqlalchemy\engine\base.py:1419: in execute
+    return meth(
+.venv\Lib\site-packages\sqlalchemy\sql\elements.py:527: in _execute_on_connection
+    return connection._execute_clauseelement(
+.venv\Lib\site-packages\sqlalchemy\engine\base.py:1641: in _execute_clauseelement
+    ret = self._execute_context(
+.venv\Lib\site-packages\sqlalchemy\engine\base.py:1846: in _execute_context
+    return self._exec_single_context(
+.venv\Lib\site-packages\sqlalchemy\engine\base.py:1986: in _exec_single_context
+    self._handle_dbapi_exception(
+.venv\Lib\site-packages\sqlalchemy\engine\base.py:2363: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+.venv\Lib\site-packages\sqlalchemy\engine\base.py:1967: in _exec_single_context
+    self.dialect.do_execute(
+.venv\Lib\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+.venv\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:182: in execute
+    self._adapt_connection._handle_exception(error)
+.venv\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:342: in _handle_exception
+    raise error
+.venv\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:164: in execute
+    self.await_(_cursor.execute(operation, parameters))
+.venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:132: in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:196: in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+.venv\Lib\site-packages\aiosqlite\cursor.py:40: in execute
+    await self._execute(self._cursor.execute, sql, parameters)
+.venv\Lib\site-packages\aiosqlite\cursor.py:32: in _execute
+    return await self._conn._execute(fn, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\aiosqlite\core.py:160: in _execute
+    return await future
+           ^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+tx = <_queue.SimpleQueue object at 0x000002485D33DFD0>
+
+    def _connection_worker_thread(tx: _TxQueue):
+        """
+        Execute function calls on a separate thread.
+    
+        :meta private:
+        """
+        while True:
+            # Continues running until all queue items are processed,
+            # even after connection is closed (so we can finalize all
+            # futures)
+    
+            future, function = tx.get()
+    
+            try:
+                LOG.debug("executing %s", function)
+>               result = function()
+                         ^^^^^^^^^^
+E               sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: tasks
+E               [SQL: INSERT INTO tasks (title, is_done, id) VALUES (?, ?, ?) RETURNING created_at, updated_at]
+E               [parameters: ('Timestamp Test', 0, '3552f01f44ce43b3ba31a0374865fc56')]
+E               (Background on this error at: https://sqlalche.me/e/20/e3q8)
+
+.venv\Lib\site-packages\aiosqlite\core.py:63: OperationalError
+___________________________ test_orm_all_and_count ____________________________
+
+self = <sqlalchemy.engine.base.Connection object at 0x000002485D34D190>
+dialect = <sqlalchemy.dialects.sqlite.aiosqlite.SQLiteDialect_aiosqlite object at 0x000002485D36C3E0>
+context = <sqlalchemy.dialects.sqlite.aiosqlite.SQLiteExecutionContext_aiosqlite object at 0x000002485D34E000>
+statement = <sqlalchemy.dialects.sqlite.base.SQLiteCompiler object at 0x000002485D34F8F0>
+parameters = [('A', 0, '04ee1f41dfa74c068b373320f6695c83')]
+
+    def _exec_single_context(
+        self,
+        dialect: Dialect,
+        context: ExecutionContext,
+        statement: Union[str, Compiled],
+        parameters: Optional[_AnyMultiExecuteParams],
+    ) -> CursorResult[Any]:
+        """continue the _execute_context() method for a single DBAPI
+        cursor.execute() or cursor.executemany() call.
+    
+        """
+        if dialect.bind_typing is BindTyping.SETINPUTSIZES:
+            generic_setinputsizes = context._prepare_set_input_sizes()
+    
+            if generic_setinputsizes:
+                try:
+                    dialect.do_set_input_sizes(
+                        context.cursor, generic_setinputsizes, context
+                    )
+                except BaseException as e:
+                    self._handle_dbapi_exception(
+                        e, str(statement), parameters, None, context
+                    )
+    
+        cursor, str_statement, parameters = (
+            context.cursor,
+            context.statement,
+            context.parameters,
+        )
+    
+        effective_parameters: Optional[_AnyExecuteParams]
+    
+        if not context.executemany:
+            effective_parameters = parameters[0]
+        else:
+            effective_parameters = parameters
+    
+        if self._has_events or self.engine._has_events:
+            for fn in self.dispatch.before_cursor_execute:
+                str_statement, effective_parameters = fn(
+                    self,
+                    cursor,
+                    str_statement,
+                    effective_parameters,
+                    context,
+                    context.executemany,
+                )
+    
+        if self._echo:
+            self._log_info(str_statement)
+    
+            stats = context._get_cache_stats()
+    
+            if not self.engine.hide_parameters:
+                self._log_info(
+                    "[%s] %r",
+                    stats,
+                    sql_util._repr_params(
+                        effective_parameters,
+                        batches=10,
+                        ismulti=context.executemany,
+                    ),
+                )
+            else:
+                self._log_info(
+                    "[%s] [SQL parameters hidden due to hide_parameters=True]",
+                    stats,
+                )
+    
+        evt_handled: bool = False
+        try:
+            if context.execute_style is ExecuteStyle.EXECUTEMANY:
+                effective_parameters = cast(
+                    "_CoreMultiExecuteParams", effective_parameters
+                )
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_executemany:
+                        if fn(
+                            cursor,
+                            str_statement,
+                            effective_parameters,
+                            context,
+                        ):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+                    self.dialect.do_executemany(
+                        cursor,
+                        str_statement,
+                        effective_parameters,
+                        context,
+                    )
+            elif not effective_parameters and context.no_parameters:
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_execute_no_params:
+                        if fn(cursor, str_statement, context):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+                    self.dialect.do_execute_no_params(
+                        cursor, str_statement, context
+                    )
+            else:
+                effective_parameters = cast(
+                    "_CoreSingleExecuteParams", effective_parameters
+                )
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_execute:
+                        if fn(
+                            cursor,
+                            str_statement,
+                            effective_parameters,
+                            context,
+                        ):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+>                   self.dialect.do_execute(
+                        cursor, str_statement, effective_parameters, context
+                    )
+
+.venv\Lib\site-packages\sqlalchemy\engine\base.py:1967: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+.venv\Lib\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+.venv\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:182: in execute
+    self._adapt_connection._handle_exception(error)
+.venv\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:342: in _handle_exception
+    raise error
+.venv\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:164: in execute
+    self.await_(_cursor.execute(operation, parameters))
+.venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:132: in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:196: in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+.venv\Lib\site-packages\aiosqlite\cursor.py:40: in execute
+    await self._execute(self._cursor.execute, sql, parameters)
+.venv\Lib\site-packages\aiosqlite\cursor.py:32: in _execute
+    return await self._conn._execute(fn, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\aiosqlite\core.py:160: in _execute
+    return await future
+           ^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+tx = <_queue.SimpleQueue object at 0x000002485D33DFD0>
+
+    def _connection_worker_thread(tx: _TxQueue):
+        """
+        Execute function calls on a separate thread.
+    
+        :meta private:
+        """
+        while True:
+            # Continues running until all queue items are processed,
+            # even after connection is closed (so we can finalize all
+            # futures)
+    
+            future, function = tx.get()
+    
+            try:
+                LOG.debug("executing %s", function)
+>               result = function()
+                         ^^^^^^^^^^
+E               sqlite3.OperationalError: no such table: tasks
+
+.venv\Lib\site-packages\aiosqlite\core.py:63: OperationalError
+
+The above exception was the direct cause of the following exception:
+
+db = <eden.db.session.Database object at 0x000002485CE8E960>
+
+    @pytest.mark.asyncio
+    async def test_orm_all_and_count(db):
+        # Clear and add items
+>       await Task.create(title="A")
+
+tests\test_orm.py:72: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+eden\db\mixins\crud.py:144: in create
+    await instance.save(session)
+eden\db\mixins\lifecycle.py:91: in save
+    await sess.flush()
+.venv\Lib\site-packages\sqlalchemy\ext\asyncio\session.py:787: in flush
+    await greenlet_spawn(self.sync_session.flush, objects=objects)
+.venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:203: in greenlet_spawn
+    result = context.switch(value)
+             ^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\sqlalchemy\orm\session.py:4331: in flush
+    self._flush(objects)
+.venv\Lib\site-packages\sqlalchemy\orm\session.py:4466: in _flush
+    with util.safe_reraise():
+         ^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\sqlalchemy\util\langhelpers.py:121: in __exit__
+    raise exc_value.with_traceback(exc_tb)
+.venv\Lib\site-packages\sqlalchemy\orm\session.py:4427: in _flush
+    flush_context.execute()
+.venv\Lib\site-packages\sqlalchemy\orm\unitofwork.py:466: in execute
+    rec.execute(self)
+.venv\Lib\site-packages\sqlalchemy\orm\unitofwork.py:642: in execute
+    util.preloaded.orm_persistence.save_obj(
+.venv\Lib\site-packages\sqlalchemy\orm\persistence.py:93: in save_obj
+    _emit_insert_statements(
+.venv\Lib\site-packages\sqlalchemy\orm\persistence.py:1233: in _emit_insert_statements
+    result = connection.execute(
+.venv\Lib\site-packages\sqlalchemy\engine\base.py:1419: in execute
+    return meth(
+.venv\Lib\site-packages\sqlalchemy\sql\elements.py:527: in _execute_on_connection
+    return connection._execute_clauseelement(
+.venv\Lib\site-packages\sqlalchemy\engine\base.py:1641: in _execute_clauseelement
+    ret = self._execute_context(
+.venv\Lib\site-packages\sqlalchemy\engine\base.py:1846: in _execute_context
+    return self._exec_single_context(
+.venv\Lib\site-packages\sqlalchemy\engine\base.py:1986: in _exec_single_context
+    self._handle_dbapi_exception(
+.venv\Lib\site-packages\sqlalchemy\engine\base.py:2363: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+.venv\Lib\site-packages\sqlalchemy\engine\base.py:1967: in _exec_single_context
+    self.dialect.do_execute(
+.venv\Lib\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+.venv\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:182: in execute
+    self._adapt_connection._handle_exception(error)
+.venv\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:342: in _handle_exception
+    raise error
+.venv\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:164: in execute
+    self.await_(_cursor.execute(operation, parameters))
+.venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:132: in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:196: in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+.venv\Lib\site-packages\aiosqlite\cursor.py:40: in execute
+    await self._execute(self._cursor.execute, sql, parameters)
+.venv\Lib\site-packages\aiosqlite\cursor.py:32: in _execute
+    return await self._conn._execute(fn, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\aiosqlite\core.py:160: in _execute
+    return await future
+           ^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+tx = <_queue.SimpleQueue object at 0x000002485D33DFD0>
+
+    def _connection_worker_thread(tx: _TxQueue):
+        """
+        Execute function calls on a separate thread.
+    
+        :meta private:
+        """
+        while True:
+            # Continues running until all queue items are processed,
+            # even after connection is closed (so we can finalize all
+            # futures)
+    
+            future, function = tx.get()
+    
+            try:
+                LOG.debug("executing %s", function)
+>               result = function()
+                         ^^^^^^^^^^
+E               sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: tasks
+E               [SQL: INSERT INTO tasks (title, is_done, id) VALUES (?, ?, ?) RETURNING created_at, updated_at]
+E               [parameters: ('A', 0, '04ee1f41dfa74c068b373320f6695c83')]
+E               (Background on this error at: https://sqlalche.me/e/20/e3q8)
+
+.venv\Lib\site-packages\aiosqlite\core.py:63: OperationalError
+___________________________ test_orm_m2o_navigation ___________________________
+
+self = <sqlalchemy.engine.base.Connection object at 0x000002485D103110>
+dialect = <sqlalchemy.dialects.sqlite.aiosqlite.SQLiteDialect_aiosqlite object at 0x000002485D36C3E0>
+context = <sqlalchemy.dialects.sqlite.aiosqlite.SQLiteExecutionContext_aiosqlite object at 0x000002485D100410>
+statement = <sqlalchemy.dialects.sqlite.base.SQLiteCompiler object at 0x000002485D1027B0>
+parameters = [('Author 2', '885d102cf42c4cfc91264be99ea0806f')]
+
+    def _exec_single_context(
+        self,
+        dialect: Dialect,
+        context: ExecutionContext,
+        statement: Union[str, Compiled],
+        parameters: Optional[_AnyMultiExecuteParams],
+    ) -> CursorResult[Any]:
+        """continue the _execute_context() method for a single DBAPI
+        cursor.execute() or cursor.executemany() call.
+    
+        """
+        if dialect.bind_typing is BindTyping.SETINPUTSIZES:
+            generic_setinputsizes = context._prepare_set_input_sizes()
+    
+            if generic_setinputsizes:
+                try:
+                    dialect.do_set_input_sizes(
+                        context.cursor, generic_setinputsizes, context
+                    )
+                except BaseException as e:
+                    self._handle_dbapi_exception(
+                        e, str(statement), parameters, None, context
+                    )
+    
+        cursor, str_statement, parameters = (
+            context.cursor,
+            context.statement,
+            context.parameters,
+        )
+    
+        effective_parameters: Optional[_AnyExecuteParams]
+    
+        if not context.executemany:
+            effective_parameters = parameters[0]
+        else:
+            effective_parameters = parameters
+    
+        if self._has_events or self.engine._has_events:
+            for fn in self.dispatch.before_cursor_execute:
+                str_statement, effective_parameters = fn(
+                    self,
+                    cursor,
+                    str_statement,
+                    effective_parameters,
+                    context,
+                    context.executemany,
+                )
+    
+        if self._echo:
+            self._log_info(str_statement)
+    
+            stats = context._get_cache_stats()
+    
+            if not self.engine.hide_parameters:
+                self._log_info(
+                    "[%s] %r",
+                    stats,
+                    sql_util._repr_params(
+                        effective_parameters,
+                        batches=10,
+                        ismulti=context.executemany,
+                    ),
+                )
+            else:
+                self._log_info(
+                    "[%s] [SQL parameters hidden due to hide_parameters=True]",
+                    stats,
+                )
+    
+        evt_handled: bool = False
+        try:
+            if context.execute_style is ExecuteStyle.EXECUTEMANY:
+                effective_parameters = cast(
+                    "_CoreMultiExecuteParams", effective_parameters
+                )
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_executemany:
+                        if fn(
+                            cursor,
+                            str_statement,
+                            effective_parameters,
+                            context,
+                        ):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+                    self.dialect.do_executemany(
+                        cursor,
+                        str_statement,
+                        effective_parameters,
+                        context,
+                    )
+            elif not effective_parameters and context.no_parameters:
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_execute_no_params:
+                        if fn(cursor, str_statement, context):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+                    self.dialect.do_execute_no_params(
+                        cursor, str_statement, context
+                    )
+            else:
+                effective_parameters = cast(
+                    "_CoreSingleExecuteParams", effective_parameters
+                )
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_execute:
+                        if fn(
+                            cursor,
+                            str_statement,
+                            effective_parameters,
+                            context,
+                        ):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+>                   self.dialect.do_execute(
+                        cursor, str_statement, effective_parameters, context
+                    )
+
+.venv\Lib\site-packages\sqlalchemy\engine\base.py:1967: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+.venv\Lib\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+.venv\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:182: in execute
+    self._adapt_connection._handle_exception(error)
+.venv\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:342: in _handle_exception
+    raise error
+.venv\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:164: in execute
+    self.await_(_cursor.execute(operation, parameters))
+.venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:132: in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:196: in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+.venv\Lib\site-packages\aiosqlite\cursor.py:40: in execute
+    await self._execute(self._cursor.execute, sql, parameters)
+.venv\Lib\site-packages\aiosqlite\cursor.py:32: in _execute
+    return await self._conn._execute(fn, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\aiosqlite\core.py:160: in _execute
+    return await future
+           ^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+tx = <_queue.SimpleQueue object at 0x000002485D33DFD0>
+
+    def _connection_worker_thread(tx: _TxQueue):
+        """
+        Execute function calls on a separate thread.
+    
+        :meta private:
+        """
+        while True:
+            # Continues running until all queue items are processed,
+            # even after connection is closed (so we can finalize all
+            # futures)
+    
+            future, function = tx.get()
+    
+            try:
+                LOG.debug("executing %s", function)
+>               result = function()
+                         ^^^^^^^^^^
+E               sqlite3.OperationalError: no such table: adv_users
+
+.venv\Lib\site-packages\aiosqlite\core.py:63: OperationalError
+
+The above exception was the direct cause of the following exception:
+
+db = <eden.db.session.Database object at 0x000002485CE8E960>
+
+    @pytest.mark.asyncio
+    async def test_orm_m2o_navigation(db):
+>       user = await AdvUser.create(name="Author 2")
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_orm_advanced.py:38: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+eden\db\mixins\crud.py:144: in create
+    await instance.save(session)
+eden\db\mixins\lifecycle.py:91: in save
+    await sess.flush()
+.venv\Lib\site-packages\sqlalchemy\ext\asyncio\session.py:787: in flush
+    await greenlet_spawn(self.sync_session.flush, objects=objects)
+.venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:203: in greenlet_spawn
+    result = context.switch(value)
+             ^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\sqlalchemy\orm\session.py:4331: in flush
+    self._flush(objects)
+.venv\Lib\site-packages\sqlalchemy\orm\session.py:4466: in _flush
+    with util.safe_reraise():
+         ^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\sqlalchemy\util\langhelpers.py:121: in __exit__
+    raise exc_value.with_traceback(exc_tb)
+.venv\Lib\site-packages\sqlalchemy\orm\session.py:4427: in _flush
+    flush_context.execute()
+.venv\Lib\site-packages\sqlalchemy\orm\unitofwork.py:466: in execute
+    rec.execute(self)
+.venv\Lib\site-packages\sqlalchemy\orm\unitofwork.py:642: in execute
+    util.preloaded.orm_persistence.save_obj(
+.venv\Lib\site-packages\sqlalchemy\orm\persistence.py:93: in save_obj
+    _emit_insert_statements(
+.venv\Lib\site-packages\sqlalchemy\orm\persistence.py:1233: in _emit_insert_statements
+    result = connection.execute(
+.venv\Lib\site-packages\sqlalchemy\engine\base.py:1419: in execute
+    return meth(
+.venv\Lib\site-packages\sqlalchemy\sql\elements.py:527: in _execute_on_connection
+    return connection._execute_clauseelement(
+.venv\Lib\site-packages\sqlalchemy\engine\base.py:1641: in _execute_clauseelement
+    ret = self._execute_context(
+.venv\Lib\site-packages\sqlalchemy\engine\base.py:1846: in _execute_context
+    return self._exec_single_context(
+.venv\Lib\site-packages\sqlalchemy\engine\base.py:1986: in _exec_single_context
+    self._handle_dbapi_exception(
+.venv\Lib\site-packages\sqlalchemy\engine\base.py:2363: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+.venv\Lib\site-packages\sqlalchemy\engine\base.py:1967: in _exec_single_context
+    self.dialect.do_execute(
+.venv\Lib\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+.venv\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:182: in execute
+    self._adapt_connection._handle_exception(error)
+.venv\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:342: in _handle_exception
+    raise error
+.venv\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:164: in execute
+    self.await_(_cursor.execute(operation, parameters))
+.venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:132: in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:196: in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+.venv\Lib\site-packages\aiosqlite\cursor.py:40: in execute
+    await self._execute(self._cursor.execute, sql, parameters)
+.venv\Lib\site-packages\aiosqlite\cursor.py:32: in _execute
+    return await self._conn._execute(fn, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\aiosqlite\core.py:160: in _execute
+    return await future
+           ^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+tx = <_queue.SimpleQueue object at 0x000002485D33DFD0>
+
+    def _connection_worker_thread(tx: _TxQueue):
+        """
+        Execute function calls on a separate thread.
+    
+        :meta private:
+        """
+        while True:
+            # Continues running until all queue items are processed,
+            # even after connection is closed (so we can finalize all
+            # futures)
+    
+            future, function = tx.get()
+    
+            try:
+                LOG.debug("executing %s", function)
+>               result = function()
+                         ^^^^^^^^^^
+E               sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: adv_users
+E               [SQL: INSERT INTO adv_users (name, id) VALUES (?, ?) RETURNING created_at, updated_at]
+E               [parameters: ('Author 2', '885d102cf42c4cfc91264be99ea0806f')]
+E               (Background on this error at: https://sqlalche.me/e/20/e3q8)
+
+.venv\Lib\site-packages\aiosqlite\core.py:63: OperationalError
+__________________________ test_orm_prefetch_syntax ___________________________
+
+self = <sqlalchemy.engine.base.Connection object at 0x000002485D21FD40>
+dialect = <sqlalchemy.dialects.sqlite.aiosqlite.SQLiteDialect_aiosqlite object at 0x000002485D36C3E0>
+context = <sqlalchemy.dialects.sqlite.aiosqlite.SQLiteExecutionContext_aiosqlite object at 0x000002485D0B0290>
+statement = <sqlalchemy.dialects.sqlite.base.SQLiteCompiler object at 0x000002485D1027B0>
+parameters = [('Prefetch User', 'c88ee60227df463fb51473e4703b3671')]
+
+    def _exec_single_context(
+        self,
+        dialect: Dialect,
+        context: ExecutionContext,
+        statement: Union[str, Compiled],
+        parameters: Optional[_AnyMultiExecuteParams],
+    ) -> CursorResult[Any]:
+        """continue the _execute_context() method for a single DBAPI
+        cursor.execute() or cursor.executemany() call.
+    
+        """
+        if dialect.bind_typing is BindTyping.SETINPUTSIZES:
+            generic_setinputsizes = context._prepare_set_input_sizes()
+    
+            if generic_setinputsizes:
+                try:
+                    dialect.do_set_input_sizes(
+                        context.cursor, generic_setinputsizes, context
+                    )
+                except BaseException as e:
+                    self._handle_dbapi_exception(
+                        e, str(statement), parameters, None, context
+                    )
+    
+        cursor, str_statement, parameters = (
+            context.cursor,
+            context.statement,
+            context.parameters,
+        )
+    
+        effective_parameters: Optional[_AnyExecuteParams]
+    
+        if not context.executemany:
+            effective_parameters = parameters[0]
+        else:
+            effective_parameters = parameters
+    
+        if self._has_events or self.engine._has_events:
+            for fn in self.dispatch.before_cursor_execute:
+                str_statement, effective_parameters = fn(
+                    self,
+                    cursor,
+                    str_statement,
+                    effective_parameters,
+                    context,
+                    context.executemany,
+                )
+    
+        if self._echo:
+            self._log_info(str_statement)
+    
+            stats = context._get_cache_stats()
+    
+            if not self.engine.hide_parameters:
+                self._log_info(
+                    "[%s] %r",
+                    stats,
+                    sql_util._repr_params(
+                        effective_parameters,
+                        batches=10,
+                        ismulti=context.executemany,
+                    ),
+                )
+            else:
+                self._log_info(
+                    "[%s] [SQL parameters hidden due to hide_parameters=True]",
+                    stats,
+                )
+    
+        evt_handled: bool = False
+        try:
+            if context.execute_style is ExecuteStyle.EXECUTEMANY:
+                effective_parameters = cast(
+                    "_CoreMultiExecuteParams", effective_parameters
+                )
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_executemany:
+                        if fn(
+                            cursor,
+                            str_statement,
+                            effective_parameters,
+                            context,
+                        ):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+                    self.dialect.do_executemany(
+                        cursor,
+                        str_statement,
+                        effective_parameters,
+                        context,
+                    )
+            elif not effective_parameters and context.no_parameters:
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_execute_no_params:
+                        if fn(cursor, str_statement, context):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+                    self.dialect.do_execute_no_params(
+                        cursor, str_statement, context
+                    )
+            else:
+                effective_parameters = cast(
+                    "_CoreSingleExecuteParams", effective_parameters
+                )
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_execute:
+                        if fn(
+                            cursor,
+                            str_statement,
+                            effective_parameters,
+                            context,
+                        ):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+>                   self.dialect.do_execute(
+                        cursor, str_statement, effective_parameters, context
+                    )
+
+.venv\Lib\site-packages\sqlalchemy\engine\base.py:1967: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+.venv\Lib\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+.venv\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:182: in execute
+    self._adapt_connection._handle_exception(error)
+.venv\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:342: in _handle_exception
+    raise error
+.venv\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:164: in execute
+    self.await_(_cursor.execute(operation, parameters))
+.venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:132: in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:196: in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+.venv\Lib\site-packages\aiosqlite\cursor.py:40: in execute
+    await self._execute(self._cursor.execute, sql, parameters)
+.venv\Lib\site-packages\aiosqlite\cursor.py:32: in _execute
+    return await self._conn._execute(fn, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\aiosqlite\core.py:160: in _execute
+    return await future
+           ^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+tx = <_queue.SimpleQueue object at 0x000002485D33DFD0>
+
+    def _connection_worker_thread(tx: _TxQueue):
+        """
+        Execute function calls on a separate thread.
+    
+        :meta private:
+        """
+        while True:
+            # Continues running until all queue items are processed,
+            # even after connection is closed (so we can finalize all
+            # futures)
+    
+            future, function = tx.get()
+    
+            try:
+                LOG.debug("executing %s", function)
+>               result = function()
+                         ^^^^^^^^^^
+E               sqlite3.OperationalError: no such table: adv_users
+
+.venv\Lib\site-packages\aiosqlite\core.py:63: OperationalError
+
+The above exception was the direct cause of the following exception:
+
+db = <eden.db.session.Database object at 0x000002485CE8E960>
+
+    @pytest.mark.asyncio
+    async def test_orm_prefetch_syntax(db):
+        # Test multiple prefetch formats
+>       await AdvUser.create(name="Prefetch User")
+
+tests\test_orm_advanced.py:48: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+eden\db\mixins\crud.py:144: in create
+    await instance.save(session)
+eden\db\mixins\lifecycle.py:91: in save
+    await sess.flush()
+.venv\Lib\site-packages\sqlalchemy\ext\asyncio\session.py:787: in flush
+    await greenlet_spawn(self.sync_session.flush, objects=objects)
+.venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:203: in greenlet_spawn
+    result = context.switch(value)
+             ^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\sqlalchemy\orm\session.py:4331: in flush
+    self._flush(objects)
+.venv\Lib\site-packages\sqlalchemy\orm\session.py:4466: in _flush
+    with util.safe_reraise():
+         ^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\sqlalchemy\util\langhelpers.py:121: in __exit__
+    raise exc_value.with_traceback(exc_tb)
+.venv\Lib\site-packages\sqlalchemy\orm\session.py:4427: in _flush
+    flush_context.execute()
+.venv\Lib\site-packages\sqlalchemy\orm\unitofwork.py:466: in execute
+    rec.execute(self)
+.venv\Lib\site-packages\sqlalchemy\orm\unitofwork.py:642: in execute
+    util.preloaded.orm_persistence.save_obj(
+.venv\Lib\site-packages\sqlalchemy\orm\persistence.py:93: in save_obj
+    _emit_insert_statements(
+.venv\Lib\site-packages\sqlalchemy\orm\persistence.py:1233: in _emit_insert_statements
+    result = connection.execute(
+.venv\Lib\site-packages\sqlalchemy\engine\base.py:1419: in execute
+    return meth(
+.venv\Lib\site-packages\sqlalchemy\sql\elements.py:527: in _execute_on_connection
+    return connection._execute_clauseelement(
+.venv\Lib\site-packages\sqlalchemy\engine\base.py:1641: in _execute_clauseelement
+    ret = self._execute_context(
+.venv\Lib\site-packages\sqlalchemy\engine\base.py:1846: in _execute_context
+    return self._exec_single_context(
+.venv\Lib\site-packages\sqlalchemy\engine\base.py:1986: in _exec_single_context
+    self._handle_dbapi_exception(
+.venv\Lib\site-packages\sqlalchemy\engine\base.py:2363: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+.venv\Lib\site-packages\sqlalchemy\engine\base.py:1967: in _exec_single_context
+    self.dialect.do_execute(
+.venv\Lib\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+.venv\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:182: in execute
+    self._adapt_connection._handle_exception(error)
+.venv\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:342: in _handle_exception
+    raise error
+.venv\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:164: in execute
+    self.await_(_cursor.execute(operation, parameters))
+.venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:132: in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:196: in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+.venv\Lib\site-packages\aiosqlite\cursor.py:40: in execute
+    await self._execute(self._cursor.execute, sql, parameters)
+.venv\Lib\site-packages\aiosqlite\cursor.py:32: in _execute
+    return await self._conn._execute(fn, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\aiosqlite\core.py:160: in _execute
+    return await future
+           ^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+tx = <_queue.SimpleQueue object at 0x000002485D33DFD0>
+
+    def _connection_worker_thread(tx: _TxQueue):
+        """
+        Execute function calls on a separate thread.
+    
+        :meta private:
+        """
+        while True:
+            # Continues running until all queue items are processed,
+            # even after connection is closed (so we can finalize all
+            # futures)
+    
+            future, function = tx.get()
+    
+            try:
+                LOG.debug("executing %s", function)
+>               result = function()
+                         ^^^^^^^^^^
+E               sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: adv_users
+E               [SQL: INSERT INTO adv_users (name, id) VALUES (?, ?) RETURNING created_at, updated_at]
+E               [parameters: ('Prefetch User', 'c88ee60227df463fb51473e4703b3671')]
+E               (Background on this error at: https://sqlalche.me/e/20/e3q8)
+
+.venv\Lib\site-packages\aiosqlite\core.py:63: OperationalError
+_____________ TestTaskResultStorage.test_cleanup_expired_results ______________
+
+self = <tests.test_tasks_full.TestTaskResultStorage object at 0x000002485C94D9D0>
+
+>   ???
+E   assert 0 == 1
+
+/home/kb/projects/eden/tests/test_tasks_full.py:230: AssertionError
+_________________________ test_syntax_error_rendering _________________________
+
+tmp_path = WindowsPath('C:/Users/COBBY/AppData/Local/Temp/pytest-of-COBBY/pytest-231/test_syntax_error_rendering0')
+
+>   ???
+E   assert 'Template Error' in '{"error":true,"status_code":500,"detail":"Internal server error."}'
+E    +  where '{"error":true,"status_code":500,"detail":"Internal server error."}' = <Response [500 Internal Server Error]>.text
+
+/home/kb/projects/eden/tests/test_template_errors.py:44: AssertionError
+---------------------------- Captured stdout call -----------------------------
+[32m18:35:17 INFO    [0m eden.storage ù Registered storage backend 'local' (default=True)
+DEBUG: ContextMiddleware for GET /
+[31m18:35:17 ERROR   [0m [413227f6] eden.error_middleware ù TypeError in GET /: object MagicMock can't be used in 'await' expression
+  + Exception Group Traceback (most recent call last):
+  |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\_utils.py", line 81, in collapse_excgroups
+  |     yield
+  |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 192, in __call__
+  |     async with anyio.create_task_group() as task_group:
+  |                ^^^^^^^^^^^^^^^^^^^^^^^^^
+  |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\anyio\_backends\_asyncio.py", line 783, in __aexit__
+  |     raise BaseExceptionGroup(
+  | ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)
+  +-+---------------- 1 ----------------
+    | Traceback (most recent call last):
+    |   File "C:\PROJECTS\eden-framework\eden\error_middleware.py", line 72, in dispatch
+    |     response = await call_next(request)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    |     raise app_exc from app_exc.__cause__ or app_exc.__context__
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "C:\PROJECTS\eden-framework\eden\middleware\__init__.py", line 334, in __call__
+    |     await self.app(scope, receive, send_with_headers)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    |     with recv_stream, send_stream, collapse_excgroups():
+    |                                    ^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\COBBY\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\contextlib.py", line 158, in __exit__
+    |     self.gen.throw(value)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\_utils.py", line 87, in collapse_excgroups
+    |     raise exc
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 193, in __call__
+    |     response = await self.dispatch_func(request, call_next)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\PROJECTS\eden-framework\eden\auth\middleware.py", line 66, in dispatch
+    |     response = await call_next(request)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    |     raise app_exc from app_exc.__cause__ or app_exc.__context__
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    |     with recv_stream, send_stream, collapse_excgroups():
+    |                                    ^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\COBBY\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\contextlib.py", line 158, in __exit__
+    |     self.gen.throw(value)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\_utils.py", line 87, in collapse_excgroups
+    |     raise exc
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 193, in __call__
+    |     response = await self.dispatch_func(request, call_next)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\PROJECTS\eden-framework\eden\auth\middleware.py", line 88, in dispatch
+    |     return await call_next(request)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    |     raise app_exc from app_exc.__cause__ or app_exc.__context__
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\cors.py", line 87, in __call__
+    |     await self.app(scope, receive, send)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\gzip.py", line 29, in __call__
+    |     await responder(scope, receive, send)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\gzip.py", line 130, in __call__
+    |     await super().__call__(scope, receive, send)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\gzip.py", line 46, in __call__
+    |     await self.app(scope, receive, self.send_with_compression)
+    |   File "C:\PROJECTS\eden-framework\eden\middleware\__init__.py", line 451, in __call__
+    |     await self.app(scope, receive, send_wrapper)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    |     await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    |     raise exc
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    |     await app(scope, receive, sender)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\routing.py", line 716, in __call__
+    |     await self.middleware_stack(scope, receive, send)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\routing.py", line 736, in app
+    |     await route.handle(scope, receive, send)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\routing.py", line 290, in handle
+    |     await self.app(scope, receive, send)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\routing.py", line 78, in app
+    |     await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    |     raise exc
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    |     await app(scope, receive, sender)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\routing.py", line 76, in app
+    |     await response(scope, receive, send)
+    | TypeError: object MagicMock can't be used in 'await' expression
+    +------------------------------------
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\PROJECTS\eden-framework\eden\error_middleware.py", line 72, in dispatch
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "C:\PROJECTS\eden-framework\eden\middleware\__init__.py", line 334, in __call__
+    await self.app(scope, receive, send_with_headers)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+                                   ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\COBBY\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\contextlib.py", line 158, in __exit__
+    self.gen.throw(value)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\_utils.py", line 87, in collapse_excgroups
+    raise exc
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 193, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\eden\auth\middleware.py", line 66, in dispatch
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+                                   ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\COBBY\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\contextlib.py", line 158, in __exit__
+    self.gen.throw(value)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\_utils.py", line 87, in collapse_excgroups
+    raise exc
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 193, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\eden\auth\middleware.py", line 88, in dispatch
+    return await call_next(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\cors.py", line 87, in __call__
+    await self.app(scope, receive, send)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\gzip.py", line 29, in __call__
+    await responder(scope, receive, send)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\gzip.py", line 130, in __call__
+    await super().__call__(scope, receive, send)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\gzip.py", line 46, in __call__
+    await self.app(scope, receive, self.send_with_compression)
+  File "C:\PROJECTS\eden-framework\eden\middleware\__init__.py", line 451, in __call__
+    await self.app(scope, receive, send_wrapper)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\routing.py", line 716, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\routing.py", line 736, in app
+    await route.handle(scope, receive, send)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\routing.py", line 290, in handle
+    await self.app(scope, receive, send)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\routing.py", line 78, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\routing.py", line 76, in app
+    await response(scope, receive, send)
+TypeError: object MagicMock can't be used in 'await' expression
+[31m18:35:17 ERROR   [0m [413227f6] eden.exceptions ù Unhandled non-Eden exception: TypeError: object MagicMock can't be used in 'await' expression
+  + Exception Group Traceback (most recent call last):
+  |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\_utils.py", line 81, in collapse_excgroups
+  |     yield
+  |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 192, in __call__
+  |     async with anyio.create_task_group() as task_group:
+  |                ^^^^^^^^^^^^^^^^^^^^^^^^^
+  |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\anyio\_backends\_asyncio.py", line 783, in __aexit__
+  |     raise BaseExceptionGroup(
+  | ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)
+  +-+---------------- 1 ----------------
+    | Traceback (most recent call last):
+    |   File "C:\PROJECTS\eden-framework\eden\error_middleware.py", line 72, in dispatch
+    |     response = await call_next(request)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    |     raise app_exc from app_exc.__cause__ or app_exc.__context__
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "C:\PROJECTS\eden-framework\eden\middleware\__init__.py", line 334, in __call__
+    |     await self.app(scope, receive, send_with_headers)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    |     with recv_stream, send_stream, collapse_excgroups():
+    |                                    ^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\COBBY\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\contextlib.py", line 158, in __exit__
+    |     self.gen.throw(value)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\_utils.py", line 87, in collapse_excgroups
+    |     raise exc
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 193, in __call__
+    |     response = await self.dispatch_func(request, call_next)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\PROJECTS\eden-framework\eden\auth\middleware.py", line 66, in dispatch
+    |     response = await call_next(request)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    |     raise app_exc from app_exc.__cause__ or app_exc.__context__
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    |     with recv_stream, send_stream, collapse_excgroups():
+    |                                    ^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\COBBY\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\contextlib.py", line 158, in __exit__
+    |     self.gen.throw(value)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\_utils.py", line 87, in collapse_excgroups
+    |     raise exc
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 193, in __call__
+    |     response = await self.dispatch_func(request, call_next)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\PROJECTS\eden-framework\eden\auth\middleware.py", line 88, in dispatch
+    |     return await call_next(request)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    |     raise app_exc from app_exc.__cause__ or app_exc.__context__
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\cors.py", line 87, in __call__
+    |     await self.app(scope, receive, send)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\gzip.py", line 29, in __call__
+    |     await responder(scope, receive, send)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\gzip.py", line 130, in __call__
+    |     await super().__call__(scope, receive, send)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\gzip.py", line 46, in __call__
+    |     await self.app(scope, receive, self.send_with_compression)
+    |   File "C:\PROJECTS\eden-framework\eden\middleware\__init__.py", line 451, in __call__
+    |     await self.app(scope, receive, send_wrapper)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    |     await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    |     raise exc
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    |     await app(scope, receive, sender)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\routing.py", line 716, in __call__
+    |     await self.middleware_stack(scope, receive, send)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\routing.py", line 736, in app
+    |     await route.handle(scope, receive, send)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\routing.py", line 290, in handle
+    |     await self.app(scope, receive, send)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\routing.py", line 78, in app
+    |     await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    |     raise exc
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    |     await app(scope, receive, sender)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\routing.py", line 76, in app
+    |     await response(scope, receive, send)
+    | TypeError: object MagicMock can't be used in 'await' expression
+    +------------------------------------
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\PROJECTS\eden-framework\eden\error_middleware.py", line 72, in dispatch
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "C:\PROJECTS\eden-framework\eden\middleware\__init__.py", line 334, in __call__
+    await self.app(scope, receive, send_with_headers)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+                                   ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\COBBY\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\contextlib.py", line 158, in __exit__
+    self.gen.throw(value)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\_utils.py", line 87, in collapse_excgroups
+    raise exc
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 193, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\eden\auth\middleware.py", line 66, in dispatch
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+                                   ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\COBBY\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\contextlib.py", line 158, in __exit__
+    self.gen.throw(value)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\_utils.py", line 87, in collapse_excgroups
+    raise exc
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 193, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\eden\auth\middleware.py", line 88, in dispatch
+    return await call_next(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\cors.py", line 87, in __call__
+    await self.app(scope, receive, send)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\gzip.py", line 29, in __call__
+    await responder(scope, receive, send)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\gzip.py", line 130, in __call__
+    await super().__call__(scope, receive, send)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\gzip.py", line 46, in __call__
+    await self.app(scope, receive, self.send_with_compression)
+  File "C:\PROJECTS\eden-framework\eden\middleware\__init__.py", line 451, in __call__
+    await self.app(scope, receive, send_wrapper)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\routing.py", line 716, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\routing.py", line 736, in app
+    await route.handle(scope, receive, send)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\routing.py", line 290, in handle
+    await self.app(scope, receive, send)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\routing.py", line 78, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\routing.py", line 76, in app
+    await response(scope, receive, send)
+TypeError: object MagicMock can't be used in 'await' expression
+_______________________ test_undefined_error_rendering ________________________
+
+tmp_path = WindowsPath('C:/Users/COBBY/AppData/Local/Temp/pytest-of-COBBY/pytest-231/test_undefined_error_rendering0')
+
+>   ???
+E   assert ('Undefined Variable' in '{"error":true,"status_code":500,"detail":"Internal server error."}' or 'Template Error' in '{"error":true,"status_code":500,"detail":"Internal server error."}')
+E    +  where '{"error":true,"status_code":500,"detail":"Internal server error."}' = <Response [500 Internal Server Error]>.text
+E    +  and   '{"error":true,"status_code":500,"detail":"Internal server error."}' = <Response [500 Internal Server Error]>.text
+
+/home/kb/projects/eden/tests/test_template_errors.py:79: AssertionError
+---------------------------- Captured stdout call -----------------------------
+[32m18:35:17 INFO    [0m eden.storage ù Registered storage backend 'local' (default=True)
+DEBUG: ContextMiddleware for GET /
+[31m18:35:17 ERROR   [0m [0e5a2ea1] eden.error_middleware ù TypeError in GET /: object MagicMock can't be used in 'await' expression
+  + Exception Group Traceback (most recent call last):
+  |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\_utils.py", line 81, in collapse_excgroups
+  |     yield
+  |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 192, in __call__
+  |     async with anyio.create_task_group() as task_group:
+  |                ^^^^^^^^^^^^^^^^^^^^^^^^^
+  |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\anyio\_backends\_asyncio.py", line 783, in __aexit__
+  |     raise BaseExceptionGroup(
+  | ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)
+  +-+---------------- 1 ----------------
+    | Traceback (most recent call last):
+    |   File "C:\PROJECTS\eden-framework\eden\error_middleware.py", line 72, in dispatch
+    |     response = await call_next(request)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    |     raise app_exc from app_exc.__cause__ or app_exc.__context__
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "C:\PROJECTS\eden-framework\eden\middleware\__init__.py", line 334, in __call__
+    |     await self.app(scope, receive, send_with_headers)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    |     with recv_stream, send_stream, collapse_excgroups():
+    |                                    ^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\COBBY\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\contextlib.py", line 158, in __exit__
+    |     self.gen.throw(value)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\_utils.py", line 87, in collapse_excgroups
+    |     raise exc
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 193, in __call__
+    |     response = await self.dispatch_func(request, call_next)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\PROJECTS\eden-framework\eden\auth\middleware.py", line 66, in dispatch
+    |     response = await call_next(request)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    |     raise app_exc from app_exc.__cause__ or app_exc.__context__
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    |     with recv_stream, send_stream, collapse_excgroups():
+    |                                    ^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\COBBY\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\contextlib.py", line 158, in __exit__
+    |     self.gen.throw(value)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\_utils.py", line 87, in collapse_excgroups
+    |     raise exc
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 193, in __call__
+    |     response = await self.dispatch_func(request, call_next)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\PROJECTS\eden-framework\eden\auth\middleware.py", line 88, in dispatch
+    |     return await call_next(request)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    |     raise app_exc from app_exc.__cause__ or app_exc.__context__
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\cors.py", line 87, in __call__
+    |     await self.app(scope, receive, send)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\gzip.py", line 29, in __call__
+    |     await responder(scope, receive, send)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\gzip.py", line 130, in __call__
+    |     await super().__call__(scope, receive, send)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\gzip.py", line 46, in __call__
+    |     await self.app(scope, receive, self.send_with_compression)
+    |   File "C:\PROJECTS\eden-framework\eden\middleware\__init__.py", line 451, in __call__
+    |     await self.app(scope, receive, send_wrapper)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    |     await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    |     raise exc
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    |     await app(scope, receive, sender)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\routing.py", line 716, in __call__
+    |     await self.middleware_stack(scope, receive, send)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\routing.py", line 736, in app
+    |     await route.handle(scope, receive, send)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\routing.py", line 290, in handle
+    |     await self.app(scope, receive, send)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\routing.py", line 78, in app
+    |     await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    |     raise exc
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    |     await app(scope, receive, sender)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\routing.py", line 76, in app
+    |     await response(scope, receive, send)
+    | TypeError: object MagicMock can't be used in 'await' expression
+    +------------------------------------
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\PROJECTS\eden-framework\eden\error_middleware.py", line 72, in dispatch
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "C:\PROJECTS\eden-framework\eden\middleware\__init__.py", line 334, in __call__
+    await self.app(scope, receive, send_with_headers)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+                                   ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\COBBY\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\contextlib.py", line 158, in __exit__
+    self.gen.throw(value)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\_utils.py", line 87, in collapse_excgroups
+    raise exc
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 193, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\eden\auth\middleware.py", line 66, in dispatch
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+                                   ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\COBBY\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\contextlib.py", line 158, in __exit__
+    self.gen.throw(value)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\_utils.py", line 87, in collapse_excgroups
+    raise exc
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 193, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\eden\auth\middleware.py", line 88, in dispatch
+    return await call_next(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\cors.py", line 87, in __call__
+    await self.app(scope, receive, send)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\gzip.py", line 29, in __call__
+    await responder(scope, receive, send)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\gzip.py", line 130, in __call__
+    await super().__call__(scope, receive, send)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\gzip.py", line 46, in __call__
+    await self.app(scope, receive, self.send_with_compression)
+  File "C:\PROJECTS\eden-framework\eden\middleware\__init__.py", line 451, in __call__
+    await self.app(scope, receive, send_wrapper)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\routing.py", line 716, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\routing.py", line 736, in app
+    await route.handle(scope, receive, send)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\routing.py", line 290, in handle
+    await self.app(scope, receive, send)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\routing.py", line 78, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\routing.py", line 76, in app
+    await response(scope, receive, send)
+TypeError: object MagicMock can't be used in 'await' expression
+[31m18:35:17 ERROR   [0m [0e5a2ea1] eden.exceptions ù Unhandled non-Eden exception: TypeError: object MagicMock can't be used in 'await' expression
+  + Exception Group Traceback (most recent call last):
+  |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\_utils.py", line 81, in collapse_excgroups
+  |     yield
+  |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 192, in __call__
+  |     async with anyio.create_task_group() as task_group:
+  |                ^^^^^^^^^^^^^^^^^^^^^^^^^
+  |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\anyio\_backends\_asyncio.py", line 783, in __aexit__
+  |     raise BaseExceptionGroup(
+  | ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)
+  +-+---------------- 1 ----------------
+    | Traceback (most recent call last):
+    |   File "C:\PROJECTS\eden-framework\eden\error_middleware.py", line 72, in dispatch
+    |     response = await call_next(request)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    |     raise app_exc from app_exc.__cause__ or app_exc.__context__
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "C:\PROJECTS\eden-framework\eden\middleware\__init__.py", line 334, in __call__
+    |     await self.app(scope, receive, send_with_headers)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    |     with recv_stream, send_stream, collapse_excgroups():
+    |                                    ^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\COBBY\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\contextlib.py", line 158, in __exit__
+    |     self.gen.throw(value)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\_utils.py", line 87, in collapse_excgroups
+    |     raise exc
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 193, in __call__
+    |     response = await self.dispatch_func(request, call_next)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\PROJECTS\eden-framework\eden\auth\middleware.py", line 66, in dispatch
+    |     response = await call_next(request)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    |     raise app_exc from app_exc.__cause__ or app_exc.__context__
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    |     with recv_stream, send_stream, collapse_excgroups():
+    |                                    ^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\Users\COBBY\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\contextlib.py", line 158, in __exit__
+    |     self.gen.throw(value)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\_utils.py", line 87, in collapse_excgroups
+    |     raise exc
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 193, in __call__
+    |     response = await self.dispatch_func(request, call_next)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\PROJECTS\eden-framework\eden\auth\middleware.py", line 88, in dispatch
+    |     return await call_next(request)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    |     raise app_exc from app_exc.__cause__ or app_exc.__context__
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    |     await self.app(scope, receive_or_disconnect, send_no_error)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\cors.py", line 87, in __call__
+    |     await self.app(scope, receive, send)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\gzip.py", line 29, in __call__
+    |     await responder(scope, receive, send)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\gzip.py", line 130, in __call__
+    |     await super().__call__(scope, receive, send)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\gzip.py", line 46, in __call__
+    |     await self.app(scope, receive, self.send_with_compression)
+    |   File "C:\PROJECTS\eden-framework\eden\middleware\__init__.py", line 451, in __call__
+    |     await self.app(scope, receive, send_wrapper)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    |     await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    |     raise exc
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    |     await app(scope, receive, sender)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\routing.py", line 716, in __call__
+    |     await self.middleware_stack(scope, receive, send)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\routing.py", line 736, in app
+    |     await route.handle(scope, receive, send)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\routing.py", line 290, in handle
+    |     await self.app(scope, receive, send)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\routing.py", line 78, in app
+    |     await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    |     raise exc
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    |     await app(scope, receive, sender)
+    |   File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\routing.py", line 76, in app
+    |     await response(scope, receive, send)
+    | TypeError: object MagicMock can't be used in 'await' expression
+    +------------------------------------
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\PROJECTS\eden-framework\eden\error_middleware.py", line 72, in dispatch
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "C:\PROJECTS\eden-framework\eden\middleware\__init__.py", line 334, in __call__
+    await self.app(scope, receive, send_with_headers)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+                                   ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\COBBY\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\contextlib.py", line 158, in __exit__
+    self.gen.throw(value)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\_utils.py", line 87, in collapse_excgroups
+    raise exc
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 193, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\eden\auth\middleware.py", line 66, in dispatch
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 191, in __call__
+    with recv_stream, send_stream, collapse_excgroups():
+                                   ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\COBBY\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\contextlib.py", line 158, in __exit__
+    self.gen.throw(value)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\_utils.py", line 87, in collapse_excgroups
+    raise exc
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 193, in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\eden\auth\middleware.py", line 88, in dispatch
+    return await call_next(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\cors.py", line 87, in __call__
+    await self.app(scope, receive, send)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\gzip.py", line 29, in __call__
+    await responder(scope, receive, send)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\gzip.py", line 130, in __call__
+    await super().__call__(scope, receive, send)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\gzip.py", line 46, in __call__
+    await self.app(scope, receive, self.send_with_compression)
+  File "C:\PROJECTS\eden-framework\eden\middleware\__init__.py", line 451, in __call__
+    await self.app(scope, receive, send_wrapper)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\routing.py", line 716, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\routing.py", line 736, in app
+    await route.handle(scope, receive, send)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\routing.py", line 290, in handle
+    await self.app(scope, receive, send)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\routing.py", line 78, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\routing.py", line 76, in app
+    await response(scope, receive, send)
+TypeError: object MagicMock can't be used in 'await' expression
+____________________________ test_tenant_creation _____________________________
+
+tenant_a = <Tenant(name='Tenant A', slug='tenant-a')>
+
+    @pytest.mark.asyncio
+    async def test_tenant_creation(tenant_a):
+>       assert tenant_a.id is not None
+E       AssertionError: assert None is not None
+E        +  where None = <Tenant(name='Tenant A', slug='tenant-a')>.id
+
+tests\test_tenancy.py:28: AssertionError
+____________________________ test_tenant_isolation ____________________________
+
+tenant_a = <Tenant(name='Tenant A', slug='tenant-a')>
+tenant_b = <Tenant(name='Tenant B', slug='tenant-b')>
+
+    @pytest.mark.asyncio
+    async def test_tenant_isolation(tenant_a, tenant_b):
+        # Set context to Tenant A
+        token = set_current_tenant(tenant_a)
+        try:
+            task_a = await TenantTask.create(title="Task A")
+            assert task_a.tenant_id == tenant_a.id
+    
+            # Verify it's visible
+            tasks = await TenantTask.all()
+>           assert len(tasks) == 1
+E           assert 0 == 1
+E            +  where 0 = len([])
+
+tests\test_tenancy.py:42: AssertionError
+________________________ test_manual_tenant_assignment ________________________
+
+tenant_a = <Tenant(name='Tenant A', slug='tenant-a')>
+tenant_b = <Tenant(name='Tenant B', slug='tenant-b')>
+
+    @pytest.mark.asyncio
+    async def test_manual_tenant_assignment(tenant_a, tenant_b):
+        # Even if Tenant B is in context, we can manually assign to Tenant A
+        token = set_current_tenant(tenant_b)
+        try:
+            task = await TenantTask.create(title="Manual", tenant_id=tenant_a.id)
+            assert task.tenant_id == tenant_a.id
+        finally:
+            reset_current_tenant(token)
+    
+        # Verify Tenant A can see it
+        token = set_current_tenant(tenant_a)
+        try:
+            fetched = await TenantTask.filter(title="Manual").first()
+>           assert fetched is not None
+E           assert None is not None
+
+tests\test_tenancy.py:128: AssertionError
+---------------------------- Captured stdout setup ----------------------------
+DEBUG TASK: executing failing_task attempt 1
+_________________ TestPydanticTypes.test_eden_email_in_model __________________
+
+self = <tests.test_validators.TestPydanticTypes object at 0x000002485CA36AE0>
+
+>   ???
+E   pydantic_core._pydantic_core.ValidationError: 2 validation errors for EmailModel
+E   title
+E     Field required [type=missing, input_value={'email': 'test@example.com'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/missing
+E   price
+E     Field required [type=missing, input_value={'email': 'test@example.com'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/missing
+
+/home/kb/projects/eden/tests/test_validators.py:377: ValidationError
+_________________ TestPydanticTypes.test_eden_phone_in_model __________________
+
+self = <tests.test_validators.TestPydanticTypes object at 0x000002485CA35490>
+
+>   ???
+E   pydantic_core._pydantic_core.ValidationError: 2 validation errors for PhoneModel
+E   title
+E     Field required [type=missing, input_value={'phone': '+233501234567'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/missing
+E   price
+E     Field required [type=missing, input_value={'phone': '+233501234567'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/missing
+
+/home/kb/projects/eden/tests/test_validators.py:387: ValidationError
+__________________ TestPydanticTypes.test_eden_slug_in_model __________________
+
+self = <tests.test_validators.TestPydanticTypes object at 0x000002485CA4C0B0>
+
+>   ???
+E   pydantic_core._pydantic_core.ValidationError: 2 validation errors for SlugModel
+E   title
+E     Field required [type=missing, input_value={'slug': 'my-post'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/missing
+E   price
+E     Field required [type=missing, input_value={'slug': 'my-post'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/missing
+
+/home/kb/projects/eden/tests/test_validators.py:397: ValidationError
+__________________ TestPydanticTypes.test_eden_url_in_model ___________________
+
+self = <tests.test_validators.TestPydanticTypes object at 0x000002485CA4D940>
+
+>   ???
+E   pydantic_core._pydantic_core.ValidationError: 2 validation errors for URLModel
+E   title
+E     Field required [type=missing, input_value={'website': 'https://eden.dev'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/missing
+E   price
+E     Field required [type=missing, input_value={'website': 'https://eden.dev'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/missing
+
+/home/kb/projects/eden/tests/test_validators.py:407: ValidationError
+_________________ TestPydanticTypes.test_eden_color_in_model __________________
+
+self = <tests.test_validators.TestPydanticTypes object at 0x000002485CA4D520>
+
+>   ???
+E   pydantic_core._pydantic_core.ValidationError: 2 validation errors for ColorModel
+E   title
+E     Field required [type=missing, input_value={'brand_color': '#ff5733'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/missing
+E   price
+E     Field required [type=missing, input_value={'brand_color': '#ff5733'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/missing
+
+/home/kb/projects/eden/tests/test_validators.py:417: ValidationError
+============================== warnings summary ===============================
+eden\testing.py:63
+  C:\PROJECTS\eden-framework\eden\testing.py:63: PytestCollectionWarning: cannot collect test class 'EdenTestClient' because it has a __init__ constructor (from: tests/test_config_and_testing.py)
+    class EdenTestClient(httpx.AsyncClient):
+
+..\..\home\kb\projects\eden\tests\test_directives_integration.py:295
+  /home/kb/projects/eden/tests/test_directives_integration.py:295: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+
+..\..\home\kb\projects\eden\tests\test_directives_integration.py:313
+  /home/kb/projects/eden/tests/test_directives_integration.py:313: PytestUnknownMarkWarning: Unknown pytest.mark.integration - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+
+tests\test_storage_cleanup.py:26
+  C:\PROJECTS\eden-framework\tests\test_storage_cleanup.py:26: PytestCollectionWarning: cannot collect test class 'TestUser' because it has a __init__ constructor (from: tests/test_storage_cleanup.py)
+    class TestUser(Model):
+
+tests\test_storage_cleanup.py:34
+  C:\PROJECTS\eden-framework\tests\test_storage_cleanup.py:34: PytestCollectionWarning: cannot collect test class 'TestPost' because it has a __init__ constructor (from: tests/test_storage_cleanup.py)
+    class TestPost(Model):
+
+tests/test_auth_critical_fixes.py::test_complete_login_required_alias
+  C:\PROJECTS\eden-framework\tests\test_auth_critical_fixes.py:225: DeprecationWarning: eden.auth.complete is deprecated. Import from eden.auth instead.
+    from eden.auth.complete import login_required as complete_login_required
+
+tests/test_config_and_testing.py::TestTestClientContext::test_testclient_context_isolation
+tests/test_core_integration.py::test_client_authentication
+  C:\PROJECTS\eden-framework\.venv\Lib\site-packages\jwt\api_jwt.py:153: InsecureKeyLengthWarning: The HMAC key is 30 bytes long, which is below the minimum recommended length of 32 bytes for SHA256. See RFC 7518 Section 3.2.
+    return self._jws.encode(
+
+tests/test_config_and_testing.py::TestTestClientContext::test_testclient_context_isolation
+tests/test_core_integration.py::test_client_authentication
+  C:\PROJECTS\eden-framework\.venv\Lib\site-packages\jwt\api_jwt.py:371: InsecureKeyLengthWarning: The HMAC key is 30 bytes long, which is below the minimum recommended length of 32 bytes for SHA256. See RFC 7518 Section 3.2.
+    decoded = self.decode_complete(
+
+tests/test_forms.py::test_render_all
+  C:\PROJECTS\eden-framework\eden\forms.py:721: UserWarning: render_csrf() called outside of request context. No token will be produced.
+    warnings.warn("render_csrf() called outside of request context. No token will be produced.")
+
+tests/test_storage_cleanup.py: 10 warnings
+  C:\PROJECTS\eden-framework\eden\db\file_reference.py:189: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    ref.deleted_at = datetime.utcnow()
+
+tests/test_storage_cleanup.py::test_file_reference_query_only_active_references
+  C:\PROJECTS\eden-framework\tests\test_storage_cleanup.py:430: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    already_deleted.deleted_at = datetime.utcnow()
+
+tests/test_tenancy.py::test_tenant_creation
+tests/test_tenancy.py::test_tenant_isolation
+tests/test_tenancy.py::test_cross_tenant_access_prevention
+tests/test_tenancy.py::test_global_access_no_context
+tests/test_tenancy.py::test_manual_tenant_assignment
+  C:\PROJECTS\eden-framework\eden\db\mixins\lifecycle.py:90: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    sess.add(self)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_orm.py::test_orm_basic_crud - sqlalchemy.exc.OperationalErr...
+FAILED tests/test_orm.py::test_orm_id_generation - sqlalchemy.exc.Operational...
+FAILED tests/test_orm.py::test_orm_timestamps - sqlalchemy.exc.OperationalErr...
+FAILED tests/test_orm.py::test_orm_all_and_count - sqlalchemy.exc.Operational...
+FAILED tests/test_orm_advanced.py::test_orm_m2o_navigation - sqlalchemy.exc.O...
+FAILED tests/test_orm_advanced.py::test_orm_prefetch_syntax - sqlalchemy.exc....
+FAILED tests/test_tasks_full.py::TestTaskResultStorage::test_cleanup_expired_results
+FAILED tests/test_template_errors.py::test_syntax_error_rendering - assert 'T...
+FAILED tests/test_template_errors.py::test_undefined_error_rendering - assert...
+FAILED tests/test_tenancy.py::test_tenant_creation - AssertionError: assert N...
+FAILED tests/test_tenancy.py::test_tenant_isolation - assert 0 == 1
+FAILED tests/test_tenancy.py::test_manual_tenant_assignment - assert None is ...
+FAILED tests/test_validators.py::TestPydanticTypes::test_eden_email_in_model
+FAILED tests/test_validators.py::TestPydanticTypes::test_eden_phone_in_model
+FAILED tests/test_validators.py::TestPydanticTypes::test_eden_slug_in_model
+FAILED tests/test_validators.py::TestPydanticTypes::test_eden_url_in_model - ...
+FAILED tests/test_validators.py::TestPydanticTypes::test_eden_color_in_model
+===== 17 failed, 1034 passed, 5 skipped, 27 warnings in 69.48s (0:01:09) ======

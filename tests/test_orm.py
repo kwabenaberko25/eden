@@ -7,14 +7,14 @@ class Task(Model):
     title: str = f(max_length=100)
     is_done: bool = f(default=False)
 
-@pytest.fixture(autouse=True)
-async def setup_db(db, db_transaction):
+@pytest.fixture(scope="function", autouse=True)
+async def setup_orm_tables(db):
     """Ensure tables are created for models in this file."""
     async with db.engine.begin() as conn:
         await conn.run_sync(Model.metadata.create_all)
     yield
 
-async def test_orm_basic_crud(db):
+async def test_orm_basic_crud(db, db_transaction):
     # 1. Create
     task = await Task.create(title="Finish Audit", is_done=False)
     assert task.id is not None
@@ -46,7 +46,7 @@ async def test_orm_basic_crud(db):
     assert deleted is None
 
 @pytest.mark.asyncio
-async def test_orm_id_generation(db):
+async def test_orm_id_generation(db, db_transaction):
     # Test that UUIDs are unique and auto-generated
     t1 = await Task.create(title="Task 1")
     t2 = await Task.create(title="Task 2")
@@ -54,7 +54,7 @@ async def test_orm_id_generation(db):
     assert isinstance(t1.id, uuid.UUID)
 
 @pytest.mark.asyncio
-async def test_orm_timestamps(db):
+async def test_orm_timestamps(db, db_transaction):
     task = await Task.create(title="Timestamp Test")
     created_at = task.created_at
     updated_at = task.updated_at
@@ -67,7 +67,7 @@ async def test_orm_timestamps(db):
     assert task.created_at == created_at
 
 @pytest.mark.asyncio
-async def test_orm_all_and_count(db):
+async def test_orm_all_and_count(db, db_transaction):
     # Clear and add items
     await Task.create(title="A")
     await Task.create(title="B")

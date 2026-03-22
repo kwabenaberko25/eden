@@ -1,0 +1,286 @@
+INFO:eden.migrations:Migrations: Applying evolutions to head on default schema...
+INFO  [alembic.env] Using database URL: postgresql+asyncpg://postgres:0123456789@localhost:5432/eden_tests
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.env] Migrations: Context: schema=None, version_table=alembic_version, actual_current_schema=public
+INFO  [alembic.runtime.migration] Running upgrade  -> d2d3b0a786fd, initial
+INFO  [alembic.runtime.migration] Running upgrade d2d3b0a786fd -> 6bb62a1af5e5, add_audit_logs_v3
+INFO  [alembic.env] Verification inside env.py: Tables = [('public', 'eden_social_accounts'), ('public', 'password_reset_tokens'), ('public', 'eden_subscriptions'), ('public', 'eden_audit_logs'), ('public', 'alembic_version'), ('public', 'eden_payment_events'), ('public', 'eden_tenants'), ('public', 'file_references'), ('public', 'eden_users'), ('public', 'eden_api_keys'), ('public', 'eden_customers')]
+INFO  [alembic.env] Migrations: online migration committed.
+INFO  [alembic.env] Using database URL: postgresql+asyncpg://postgres:0123456789@localhost:5432/eden_tests
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.env] Migrations: Setting search_path to tenant_x
+INFO  [alembic.env] Migrations: Context: schema=tenant_x, version_table=alembic_version_tenant, actual_current_schema=tenant_x
+INFO  [alembic.runtime.migration] Running upgrade  -> d2d3b0a786fd, initial
+INFO  [alembic.env] Verification inside env.py: Tables = [('public', 'eden_social_accounts'), ('public', 'password_reset_tokens'), ('public', 'eden_subscriptions'), ('public', 'eden_audit_logs'), ('tenant_x', 'alembic_version_tenant'), ('tenant_x', 'eden_payment_events'), ('tenant_x', 'eden_tenants'), ('public', 'alembic_version'), ('public', 'eden_payment_events'), ('public', 'eden_tenants'), ('public', 'file_references'), ('public', 'eden_users'), ('public', 'eden_api_keys'), ('public', 'eden_customers'), ('tenant_x', 'file_references'), ('tenant_x', 'eden_users'), ('tenant_x', 'eden_api_keys'), ('tenant_x', 'eden_customers'), ('tenant_x', 'eden_social_accounts'), ('tenant_x', 'password_reset_tokens'), ('tenant_x', 'eden_subscriptions')]
+INFO  [alembic.env] Migrations: online migration committed.
+INFO  [alembic.env] Using database URL: postgresql+asyncpg://postgres:0123456789@localhost:5432/eden_tests
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.env] Migrations: Setting search_path to tenant_y
+INFO  [alembic.env] Migrations: Context: schema=tenant_y, version_table=alembic_version_tenant, actual_current_schema=tenant_y
+INFO  [alembic.runtime.migration] Running upgrade  -> d2d3b0a786fd, initial
+INFO  [alembic.env] Verification inside env.py: Tables = [('public', 'eden_social_accounts'), ('public', 'password_reset_tokens'), ('public', 'eden_subscriptions'), ('public', 'eden_audit_logs'), ('tenant_x', 'alembic_version_tenant'), ('tenant_x', 'eden_payment_events'), ('tenant_x', 'eden_tenants'), ('public', 'alembic_version'), ('public', 'eden_payment_events'), ('public', 'eden_tenants'), ('public', 'file_references'), ('public', 'eden_users'), ('public', 'eden_api_keys'), ('public', 'eden_customers'), ('tenant_x', 'file_references'), ('tenant_y', 'alembic_version_tenant'), ('tenant_x', 'eden_users'), ('tenant_x', 'eden_api_keys'), ('tenant_x', 'eden_customers'), ('tenant_x', 'eden_social_accounts'), ('tenant_x', 'password_reset_tokens'), ('tenant_x', 'eden_subscriptions'), ('tenant_y', 'eden_payment_events'), ('tenant_y', 'eden_tenants'), ('tenant_y', 'file_references'), ('tenant_y', 'eden_users'), ('tenant_y', 'eden_api_keys'), ('tenant_y', 'eden_customers'), ('tenant_y', 'eden_social_accounts'), ('tenant_y', 'password_reset_tokens'), ('tenant_y', 'eden_subscriptions')]
+INFO  [alembic.env] Migrations: online migration committed.
+INFO  [alembic.env] Using database URL: postgresql+asyncpg://postgres:0123456789@localhost:5432/eden_tests
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.env] Migrations: Setting search_path to tenant_x
+INFO  [alembic.env] Migrations: Context: schema=tenant_x, version_table=alembic_version_tenant, actual_current_schema=tenant_x
+INFO  [alembic.runtime.migration] Running upgrade d2d3b0a786fd -> 6bb62a1af5e5, add_audit_logs_v3
+INFO  [alembic.env] Verification inside env.py: Tables = [('public', 'eden_social_accounts'), ('public', 'password_reset_tokens'), ('public', 'eden_subscriptions'), ('public', 'eden_audit_logs'), ('tenant_x', 'alembic_version_tenant'), ('tenant_x', 'eden_payment_events'), ('tenant_x', 'eden_tenants'), ('public', 'alembic_version'), ('public', 'eden_payment_events'), ('public', 'eden_tenants'), ('public', 'file_references'), ('public', 'eden_users'), ('public', 'eden_api_keys'), ('public', 'eden_customers'), ('tenant_x', 'file_references'), ('tenant_y', 'alembic_version_tenant'), ('tenant_x', 'eden_users'), ('tenant_x', 'eden_api_keys'), ('tenant_x', 'eden_customers'), ('tenant_x', 'eden_social_accounts'), ('tenant_x', 'password_reset_tokens'), ('tenant_x', 'eden_subscriptions'), ('tenant_y', 'eden_payment_events'), ('tenant_y', 'eden_tenants'), ('tenant_y', 'file_references'), ('tenant_y', 'eden_users'), ('tenant_y', 'eden_api_keys'), ('tenant_y', 'eden_customers'), ('tenant_y', 'eden_social_accounts'), ('tenant_y', 'password_reset_tokens'), ('tenant_y', 'eden_subscriptions'), ('tenant_x', 'eden_audit_logs')]
+INFO  [alembic.env] Migrations: online migration committed.
+INFO  [alembic.env] Using database URL: postgresql+asyncpg://postgres:0123456789@localhost:5432/eden_tests
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.env] Migrations: Setting search_path to tenant_y
+INFO  [alembic.env] Migrations: Context: schema=tenant_y, version_table=alembic_version_tenant, actual_current_schema=tenant_y
+INFO  [alembic.runtime.migration] Running upgrade d2d3b0a786fd -> 6bb62a1af5e5, add_audit_logs_v3
+INFO  [alembic.env] Verification inside env.py: Tables = [('public', 'eden_social_accounts'), ('public', 'password_reset_tokens'), ('public', 'eden_subscriptions'), ('public', 'eden_audit_logs'), ('tenant_x', 'alembic_version_tenant'), ('tenant_x', 'eden_payment_events'), ('tenant_x', 'eden_tenants'), ('public', 'alembic_version'), ('public', 'eden_payment_events'), ('public', 'eden_tenants'), ('public', 'file_references'), ('public', 'eden_users'), ('public', 'eden_api_keys'), ('public', 'eden_customers'), ('tenant_x', 'file_references'), ('tenant_y', 'alembic_version_tenant'), ('tenant_x', 'eden_users'), ('tenant_x', 'eden_api_keys'), ('tenant_x', 'eden_customers'), ('tenant_x', 'eden_social_accounts'), ('tenant_x', 'password_reset_tokens'), ('tenant_x', 'eden_subscriptions'), ('tenant_y', 'eden_payment_events'), ('tenant_y', 'eden_tenants'), ('tenant_y', 'file_references'), ('tenant_y', 'eden_users'), ('tenant_y', 'eden_api_keys'), ('tenant_y', 'eden_customers'), ('tenant_y', 'eden_social_accounts'), ('tenant_y', 'password_reset_tokens'), ('tenant_y', 'eden_subscriptions'), ('tenant_x', 'eden_audit_logs'), ('tenant_y', 'eden_audit_logs')]
+INFO  [alembic.env] Migrations: online migration committed.
+DEBUG: Initializing model subclass: FileReference (table: file_references)
+DEBUG: Processing FileReference
+DEBUG: FileReference.model_class_name -> hasattr(col)=True, hasattr(info)=False
+DEBUG: FileReference.model_instance_id -> hasattr(col)=True, hasattr(info)=False
+DEBUG: FileReference.file_path -> hasattr(col)=True, hasattr(info)=False
+DEBUG: FileReference.storage_backend -> hasattr(col)=True, hasattr(info)=False
+DEBUG: FileReference.deleted_at -> hasattr(col)=True, hasattr(info)=False
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[str] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[uuid.UUID] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[str] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[str] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime | None] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: <class 'datetime.datetime'> (type: <class 'type'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[uuid.UUID] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[str] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[uuid.UUID] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[str] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[str] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime | None] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: <class 'datetime.datetime'> (type: <class 'type'>)
+DEBUG: Initializing model subclass: VectorModel (table: N/A)
+DEBUG: Initializing model subclass: AuditLog (table: eden_audit_logs)
+DEBUG: Processing AuditLog
+DEBUG: AuditLog.id -> hasattr(col)=True, hasattr(info)=False
+DEBUG: AuditLog.user_id -> hasattr(col)=True, hasattr(info)=False
+DEBUG: AuditLog.action -> hasattr(col)=True, hasattr(info)=False
+DEBUG: AuditLog.model_name -> hasattr(col)=True, hasattr(info)=False
+DEBUG: AuditLog.record_id -> hasattr(col)=True, hasattr(info)=False
+DEBUG: AuditLog.changes -> hasattr(col)=True, hasattr(info)=False
+DEBUG: AuditLog.timestamp -> hasattr(col)=True, hasattr(info)=False
+DEBUG: Analyzing hint: <class 'uuid.UUID'> (type: <class 'type'>)
+DEBUG: Analyzing hint: str | None (type: <class 'typing.Union'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: dict | None (type: <class 'typing.Union'>)
+DEBUG: Analyzing hint: <class 'dict'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'datetime.datetime'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'uuid.UUID'> (type: <class 'type'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: str | None (type: <class 'typing.Union'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: dict | None (type: <class 'typing.Union'>)
+DEBUG: Analyzing hint: <class 'dict'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'datetime.datetime'> (type: <class 'type'>)
+DEBUG: Initializing model subclass: Customer (table: eden_customers)
+DEBUG: Processing Customer
+DEBUG: Customer.user_id -> hasattr(col)=True, hasattr(info)=False
+DEBUG: Customer.provider_customer_id -> hasattr(col)=True, hasattr(info)=False
+DEBUG: Customer.provider -> hasattr(col)=True, hasattr(info)=False
+DEBUG: Analyzing hint: <class 'uuid.UUID'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[uuid.UUID] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: <class 'uuid.UUID'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Initializing model subclass: Subscription (table: eden_subscriptions)
+DEBUG: Processing Subscription
+DEBUG: Subscription.customer_id -> hasattr(col)=True, hasattr(info)=False
+DEBUG: Subscription.provider_subscription_id -> hasattr(col)=True, hasattr(info)=False
+DEBUG: Subscription.status -> hasattr(col)=True, hasattr(info)=False
+DEBUG: Subscription.price_id -> hasattr(col)=True, hasattr(info)=False
+DEBUG: Subscription.current_period_end -> hasattr(col)=True, hasattr(info)=False
+DEBUG: Subscription.cancel_at_period_end -> hasattr(col)=True, hasattr(info)=False
+DEBUG: Analyzing hint: <class 'uuid.UUID'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: str | None (type: <class 'typing.Union'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: datetime.datetime | None (type: <class 'typing.Union'>)
+DEBUG: Analyzing hint: <class 'datetime.datetime'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'bool'> (type: <class 'type'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[uuid.UUID] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: <class 'uuid.UUID'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: str | None (type: <class 'typing.Union'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: datetime.datetime | None (type: <class 'typing.Union'>)
+DEBUG: Analyzing hint: <class 'datetime.datetime'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'bool'> (type: <class 'type'>)
+DEBUG: Initializing model subclass: PaymentEvent (table: eden_payment_events)
+DEBUG: Processing PaymentEvent
+DEBUG: PaymentEvent.provider_event_id -> hasattr(col)=True, hasattr(info)=False
+DEBUG: PaymentEvent.event_type -> hasattr(col)=True, hasattr(info)=False
+DEBUG: PaymentEvent.payload -> hasattr(col)=True, hasattr(info)=False
+DEBUG: PaymentEvent.processed -> hasattr(col)=True, hasattr(info)=False
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'dict'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'bool'> (type: <class 'type'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[uuid.UUID] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'dict'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'bool'> (type: <class 'type'>)
+DEBUG: Initializing model subclass: User (table: eden_users)
+DEBUG: Processing User
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[str | None] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[uuid.UUID] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[str] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[str] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[bool] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[bool] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[bool] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[str | None] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[str | None] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[list[str]] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[list[str]] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] (type: <class 'typing._GenericAlias'>)
+DEBUG: Initializing model subclass: SocialAccount (table: eden_social_accounts)
+DEBUG: Processing SocialAccount
+DEBUG: SocialAccount.provider -> hasattr(col)=True, hasattr(info)=False
+DEBUG: SocialAccount.provider_user_id -> hasattr(col)=True, hasattr(info)=False
+DEBUG: SocialAccount.provider_metadata -> hasattr(col)=True, hasattr(info)=False
+DEBUG: SocialAccount.user -> hasattr(col)=False, hasattr(info)=True
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[str] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[str] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[dict] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[ForwardRef('User')] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[uuid.UUID] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[str] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[str] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[dict] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[eden.auth.models.User] (type: <class 'typing._GenericAlias'>)
+DEBUG: infer field: SocialAccount.user, is_list=False, target_name=User, is_reference=True
+DEBUG: Building N:1 for SocialAccount.user -> User
+DEBUG: Checking FK column user_id for SocialAccount, already_defined=False
+RESOLVING User for SocialAccount
+DEBUG: Creating FK for SocialAccount.user_id -> eden_users.id
+DEBUG: _build_many_to_one for SocialAccount.user -> User
+DEBUG: Initializing model subclass: PasswordResetToken (table: password_reset_tokens)
+DEBUG: Processing PasswordResetToken
+DEBUG: PasswordResetToken.user_id -> hasattr(col)=True, hasattr(info)=False
+DEBUG: PasswordResetToken.token -> hasattr(col)=True, hasattr(info)=False
+DEBUG: PasswordResetToken.expires_at -> hasattr(col)=True, hasattr(info)=False
+DEBUG: PasswordResetToken.used_at -> hasattr(col)=True, hasattr(info)=False
+DEBUG: Analyzing hint: <class 'uuid.UUID'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'datetime.datetime'> (type: <class 'type'>)
+DEBUG: Analyzing hint: datetime.datetime | None (type: <class 'typing.Union'>)
+DEBUG: Analyzing hint: <class 'datetime.datetime'> (type: <class 'type'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[uuid.UUID] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: <class 'uuid.UUID'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'datetime.datetime'> (type: <class 'type'>)
+DEBUG: Analyzing hint: datetime.datetime | None (type: <class 'typing.Union'>)
+DEBUG: Analyzing hint: <class 'datetime.datetime'> (type: <class 'type'>)
+DEBUG: Initializing model subclass: APIKey (table: eden_api_keys)
+DEBUG: Processing APIKey
+DEBUG: APIKey.name -> hasattr(col)=True, hasattr(info)=False
+DEBUG: APIKey.prefix -> hasattr(col)=True, hasattr(info)=False
+DEBUG: APIKey.key_hash -> hasattr(col)=True, hasattr(info)=False
+DEBUG: APIKey.user_id -> hasattr(col)=True, hasattr(info)=False
+DEBUG: APIKey.scopes -> hasattr(col)=True, hasattr(info)=False
+DEBUG: APIKey.expires_at -> hasattr(col)=True, hasattr(info)=False
+DEBUG: APIKey.last_used_at -> hasattr(col)=True, hasattr(info)=False
+DEBUG: APIKey.is_active -> hasattr(col)=True, hasattr(info)=False
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'uuid.UUID'> (type: <class 'type'>)
+DEBUG: Analyzing hint: list[str] (type: <class 'types.GenericAlias'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: datetime.datetime | None (type: <class 'typing.Union'>)
+DEBUG: Analyzing hint: <class 'datetime.datetime'> (type: <class 'type'>)
+DEBUG: Analyzing hint: datetime.datetime | None (type: <class 'typing.Union'>)
+DEBUG: Analyzing hint: <class 'datetime.datetime'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'bool'> (type: <class 'type'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[uuid.UUID] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'uuid.UUID'> (type: <class 'type'>)
+DEBUG: Analyzing hint: list[str] (type: <class 'types.GenericAlias'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: datetime.datetime | None (type: <class 'typing.Union'>)
+DEBUG: Analyzing hint: <class 'datetime.datetime'> (type: <class 'type'>)
+DEBUG: Analyzing hint: datetime.datetime | None (type: <class 'typing.Union'>)
+DEBUG: Analyzing hint: <class 'datetime.datetime'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'bool'> (type: <class 'type'>)
+DEBUG: Initializing model subclass: Tenant (table: eden_tenants)
+DEBUG: Processing Tenant
+DEBUG: Tenant.name -> hasattr(col)=True, hasattr(info)=False
+DEBUG: Tenant.slug -> hasattr(col)=True, hasattr(info)=False
+DEBUG: Tenant.is_active -> hasattr(col)=True, hasattr(info)=False
+DEBUG: Tenant.plan -> hasattr(col)=True, hasattr(info)=False
+DEBUG: Tenant.schema_name -> hasattr(col)=True, hasattr(info)=False
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'bool'> (type: <class 'type'>)
+DEBUG: Analyzing hint: str | None (type: <class 'typing.Union'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: str | None (type: <class 'typing.Union'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[uuid.UUID] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'bool'> (type: <class 'type'>)
+DEBUG: Analyzing hint: str | None (type: <class 'typing.Union'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: str | None (type: <class 'typing.Union'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+Verifying tenant migrations on postgresql+asyncpg://postgres:0123456789@localhost:5432/eden_tests
+Cleaning up old schemas...
+Migrating public schema to head...
+Seeding tenants...
+  - All tables in DB: [('public', 'eden_social_accounts'), ('public', 'password_reset_tokens'), ('public', 'eden_subscriptions'), ('public', 'eden_audit_logs'), ('public', 'alembic_version'), ('public', 'eden_payment_events'), ('public', 'eden_tenants'), ('public', 'file_references'), ('public', 'eden_users'), ('public', 'eden_api_keys'), ('public', 'eden_customers')]
+Created tenants in public: 382de67c-305b-4242-b447-5f0244c7c6f7, bdc460bb-c774-4ff9-9925-6d464f7d1bc9
+Setting up tenants at old revision (d2d3b0a786fd)...
+  - Provisioning tenant_x...
+  - Provisioning tenant_y...
+Running batch migration for all tenants to 'head'...
+Checking final versions...
+  - tenant_x version: 6bb62a1af5e5
+  - tenant_y version: 6bb62a1af5e5
+Verification complete

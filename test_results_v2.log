@@ -1,0 +1,129 @@
+============================= test session starts =============================
+platform win32 -- Python 3.14.3, pytest-9.0.2, pluggy-1.6.0 -- C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\python.exe
+cachedir: .pytest_cache
+rootdir: C:\PROJECTS\eden-framework
+configfile: pyproject.toml
+plugins: anyio-4.12.1, asyncio-1.3.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=session, asyncio_default_test_loop_scope=session
+collecting ... collected 3 items
+
+tests/test_postgres_full_session.py::test_postgres_session_identity PASSED [ 33%]
+tests/test_postgres_full_session.py::test_postgres_orm_complex_lookups FAILED [ 66%]
+tests/test_postgres_full_session.py::test_postgres_multi_tenancy_schemas FAILED [100%]
+
+================================== FAILURES ===================================
+______________________ test_postgres_orm_complex_lookups ______________________
+
+db_pg = <eden.db.session.Database object at 0x0000025F110C38C0>
+
+    @pytest.mark.asyncio
+    async def test_postgres_orm_complex_lookups(db_pg):
+        """
+        2. The ORM, models and queries, complex aggregation and lookups work.
+        Verifies Layer 3 (Deep Path) and Layer 2 (Session) on Postgres.
+        """
+        async with db_pg.transaction() as session:
+            # Setup data
+            author = LiveAuthor(name="Postgres Pro")
+            session.add(author)
+            await session.flush()
+    
+            book = LiveBook(title="Eden for Postgres", price=45.0, author_id=author.id)
+            session.add(book)
+            await session.flush()
+    
+            review = LiveReview(content="Great!", rating=5, book_id=book.id)
+            session.add(review)
+            await session.flush()
+    
+            # Test 1: Deep Path Lookup (Auto-Join)
+            # Find books by authors with certain name
+            qs = LiveBook.filter(author__name="Postgres Pro")
+            found_books = await qs.all()
+            assert len(found_books) == 1
+            assert found_books[0].title == "Eden for Postgres"
+    
+            # Test 2: Complex Aggregation
+            # Count reviews for books by this author
+>           stats = await LiveBook.filter(author__name="Postgres Pro").annotate(
+                review_count=Count("reviews"),
+                avg_rating=Avg("reviews__rating")
+            ).values("title", "review_count", "avg_rating")
+
+tests\test_postgres_full_session.py:125: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+eden\db\query.py:536: in annotate
+    if fk_col: break
+       ^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = Column('book_id', Uuid(), ForeignKey('live_books.id'), table=<live_reviews>, nullable=False)
+
+    def __bool__(self):
+>       raise TypeError("Boolean value of this clause is not defined")
+E       TypeError: Boolean value of this clause is not defined
+
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\sql\elements.py:763: TypeError
+_____________________ test_postgres_multi_tenancy_schemas _____________________
+
+db_pg = <eden.db.session.Database object at 0x0000025F110C38C0>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000025F1124F790>
+
+    @pytest.mark.asyncio
+    async def test_postgres_multi_tenancy_schemas(db_pg, monkeypatch):
+        """
+        3. Multi tenancy works with the postgres schema setup.
+        Verifies isolation using PG search_path and Tenant.provision_schema.
+        """
+        # Mock MigrationManager.stamp to avoid failure if migrations folder doesn't exist
+        from eden.db.migrations import MigrationManager
+        monkeypatch.setattr(MigrationManager, "stamp", lambda *a, **k: None)
+    
+        # 1. Create two tenants
+        async with db_pg.transaction() as session:
+            t1 = Tenant(name="Tenant Alpha", slug="alpha", schema_name="tenant_alpha")
+            t2 = Tenant(name="Tenant Beta", slug="beta", schema_name="tenant_beta")
+            session.add_all([t1, t2])
+            await session.flush()
+    
+            # 2. Provision schemas
+            await t1.provision_schema(session)
+            await t2.provision_schema(session)
+            await t2.provision_schema(session)
+    
+        # 3. Insert isolated data
+        # We switch search_path manually for this test to verify isolation
+        async with db_pg.transaction() as session:
+            # Insert in Alpha
+            await session.execute(text("SET search_path TO tenant_alpha, public"))
+            author_a = LiveAuthor(name="Alpha Author")
+            session.add(author_a)
+            await session.flush()
+    
+            # Insert in Beta
+            await session.execute(text("SET search_path TO tenant_beta, public"))
+            author_b = LiveAuthor(name="Beta Author")
+            session.add(author_b)
+            await session.flush()
+    
+            # Cleanup search path for verification
+            await session.execute(text("SET search_path TO public"))
+    
+        # 4. Verify Isolation
+        async with db_pg.transaction() as session:
+            # Query in Alpha schema
+            await session.execute(text("SET search_path TO tenant_alpha, public"))
+            authors_in_alpha = await LiveAuthor.query().all()
+>           assert len(authors_in_alpha) == 1
+E           assert 2 == 1
+E            +  where 2 = len([<tests.test_postgres_full_session.LiveAuthor object at 0x0000025F1261A2C0>, <tests.test_postgres_full_session.LiveAuthor object at 0x0000025F1261A520>])
+
+tests\test_postgres_full_session.py:178: AssertionError
+---------------------------- Captured stdout call -----------------------------
+DEBUG: Config.get_database_url default for dev: sqlite+aiosqlite:///eden.db
+DEBUG: Config.get_database_url default for dev: sqlite+aiosqlite:///eden.db
+DEBUG: Config.get_database_url default for dev: sqlite+aiosqlite:///eden.db
+=========================== short test summary info ===========================
+FAILED tests/test_postgres_full_session.py::test_postgres_orm_complex_lookups
+FAILED tests/test_postgres_full_session.py::test_postgres_multi_tenancy_schemas
+========================= 2 failed, 1 passed in 0.62s =========================

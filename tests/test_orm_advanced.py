@@ -10,8 +10,17 @@ class AdvPost(Model):
     title: str = f(max_length=200)
     author: Mapped["AdvUser"] = Reference(back_populates="posts")
 
+@pytest.fixture(autouse=True)
+async def setup_db_tables(db):
+    """Ensure tables are created and clean for these specific models."""
+    async with db.engine.begin() as conn:
+        await conn.run_sync(AdvPost.__table__.drop, checkfirst=True)
+        await conn.run_sync(AdvUser.__table__.drop, checkfirst=True)
+        await conn.run_sync(Model.metadata.create_all)
+    yield
+
 @pytest.mark.asyncio
-async def test_orm_relationships_o2m(db):
+async def test_orm_relationships_o2m(db, db_transaction):
     # 1. Create User and Posts
     user = await AdvUser.create(name="Author 1")
     await AdvPost.create(title="Post 1", author_id=user.id)
@@ -25,7 +34,7 @@ async def test_orm_relationships_o2m(db):
     assert fetched_user.posts[0].author_id == user.id
 
 @pytest.mark.asyncio
-async def test_orm_m2o_navigation(db):
+async def test_orm_m2o_navigation(db, db_transaction):
     user = await AdvUser.create(name="Author 2")
     post = await AdvPost.create(title="Navigation Post", author_id=user.id)
     
@@ -34,7 +43,7 @@ async def test_orm_m2o_navigation(db):
     assert fetched_post.author.name == "Author 2"
 
 @pytest.mark.asyncio
-async def test_orm_prefetch_syntax(db):
+async def test_orm_prefetch_syntax(db, db_transaction):
     # Test multiple prefetch formats
     await AdvUser.create(name="Prefetch User")
     

@@ -8,12 +8,12 @@ from eden.forms import Schema, BaseForm, ModelForm
 from eden.db.lookups import q
 
 # 1. Define modern models
-class Category(Model):
+class FormCategory(Model):
     __tablename__ = "categorys"
     __table_args__ = {"extend_existing": True}
     name: Annotated[str, MaxLength(50), Label("Category Name")]
 
-class Product(Model):
+class FormProduct(Model):
     __tablename__ = "products"
     __table_args__ = {"extend_existing": True}
     title: Annotated[str, MaxLength(100), Label("Product Title"), Required]
@@ -21,14 +21,15 @@ class Product(Model):
     status: Annotated[str, Choices(["draft", "published", "archived"]), Label("Current Status")]
     category_id: Optional[uuid.UUID] = ForeignKeyField("categorys.id", nullable=True)
     
-    category: Mapped[Optional[Category]] = Relationship(back_populates="products")
+    category: Mapped[Optional[FormCategory]] = Relationship(back_populates="products")
 
-Category.products = Relationship(Product, back_populates="category")
+FormCategory.products = Relationship(FormProduct, back_populates="category")
 
-@pytest.fixture(autouse=True)
-async def setup_db(db, db_transaction):
+@pytest.fixture(scope="module", autouse=True)
+async def setup_db(db):
     """Ensure tables are created for models in this file."""
     async with db.engine.begin() as conn:
+        print(f"DEBUG: Running create_all in module setup_db for {__file__}")
         await conn.run_sync(Model.metadata.create_all)
     yield
 
@@ -37,7 +38,7 @@ async def test_form_metadata_propagation():
     """Verify that ORM metadata flows seamlessly into forms."""
     
     # Test 1: Model.as_form()
-    form = Product.as_form()
+    form = FormProduct.as_form()
     
     # Check title field
     title_field = form["title"]
@@ -57,7 +58,7 @@ async def test_schema_declarative_integration():
     
     class ProductSchema(Schema):
         class Meta:
-            model = Product
+            model = FormProduct
             include = ["title", "price"]
 
     # Verify Pydantic validation
@@ -78,7 +79,7 @@ async def test_model_form_saving(db, db_transaction):
     
     class ProductCreateForm(ModelForm):
         class Meta:
-            model = Product
+            model = FormProduct
             fields = ["title", "price", "status"]
 
     data = {
@@ -95,26 +96,26 @@ async def test_model_form_saving(db, db_transaction):
     assert product.title == "Form Saved Product"
     
     # Verify we can query it back using advanced lookups
-    fetched = await Product.query().filter(q.title.icontains("Saved")).first()
+    fetched = await FormProduct.query().filter(q.title.icontains("Saved")).first()
     assert fetched.id == product.id
     assert fetched.price == 299
 
 @pytest.mark.asyncio
 async def test_complex_query_integration(db, db_transaction):
     """Verify that we can use streamlined lookups with joined data."""
-    cat = await Category.create(name="Electronics")
-    await Product.create(title="Laptop", price=1000, category_id=cat.id, status="published")
-    await Product.create(title="Phone", price=500, category_id=cat.id, status="published")
+    cat = await FormCategory.create(name="Electronics")
+    await FormProduct.create(title="Laptop", price=1000, category_id=cat.id, status="published")
+    await FormProduct.create(title="Phone", price=500, category_id=cat.id, status="published")
     
     # Query using attribute lookup and automatic join
-    results = await Product.query().filter(Product.category.name == "Electronics").all()
+    results = await FormProduct.query().filter(FormCategory.name == "Electronics").all()
     assert len(results) == 2
     assert all(p.category_id == cat.id for p in results)
     
     # Query using select_related
-    p = await Product.query().filter(title="Laptop").select_related("category").first()
+    p = await FormProduct.query().filter(title="Laptop").select_related("category").first()
     assert p.category.name == "Electronics"
     
     # Query using values_list
-    prices = await Product.query().order_by("price").values_list("price", flat=True)
+    prices = await FormProduct.query().order_by("price").values_list("price", flat=True)
     assert prices == [500, 1000]

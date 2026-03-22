@@ -27,9 +27,11 @@ import asyncio
 from typing import Optional, List, Dict, Any
 from pathlib import Path
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 import subprocess
 import json
+
+from sqlalchemy import Column, String, DateTime, Text, JSON
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +63,7 @@ class MigrationInfo(Model):
     id: int = Column(Integer, primary_key=True)
     version: str = Column(String(32), unique=True, index=True)
     description: str = Column(String(255))
-    applied_at: datetime = Column(DateTime, default=datetime.utcnow)
+    applied_at: datetime = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     duration_ms: int = Column(Integer)
     status: str = Column(String(20), default='success')  # success, failed
     error_message: str = Column(String(1000), nullable=True)

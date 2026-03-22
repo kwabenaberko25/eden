@@ -56,11 +56,11 @@ class ValidatorMixin:
     """Mixin to add validation hooks and full lifecycle cleaning to models."""
     
     # Class-level state per model (isolated in __init_subclass__)
-    _validation_rules: ClassVar[Dict[str, List[ValidationRule]]] = {}
-    _pre_save_hooks: ClassVar[List[Callable]] = []
-    _post_save_hooks: ClassVar[List[Callable]] = []
-    _pre_delete_hooks: ClassVar[List[Callable]] = []
-    _post_delete_hooks: ClassVar[List[Callable]] = []
+    _validation_rules: Dict[str, List[ValidationRule]] = {}
+    _pre_save_hooks: List[Callable] = []
+    _post_save_hooks: List[Callable] = []
+    _pre_delete_hooks: List[List[Callable]] = []
+    _post_delete_hooks: List[List[Callable]] = []
 
     def __init_subclass__(cls, **kwargs):
         """Isolate validation state per model to prevent rule leakage."""
@@ -166,6 +166,10 @@ class ValidatorMixin:
             validator_func=validator
         ))
     
+    async def clean(self) -> None:
+        """Stub for model-level validation logic."""
+        pass
+
     async def full_clean(self, exclude: Optional[List[str]] = None) -> None:
         """
         Run the full validation lifecycle for the model.

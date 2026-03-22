@@ -307,8 +307,10 @@ class TestFixtures:
         if user_factory.user_model is None:
             pytest.skip("User model not available")
         
-        user = await user_factory.create(email="alice@example.com")
-        assert user.email == "alice@example.com"
+        import uuid
+        unique_email = f"alice_{uuid.uuid4().hex[:8]}@example.com"
+        user = await user_factory.create(email=unique_email)
+        assert user.email == unique_email
     
     @pytest.mark.asyncio
     async def test_user_factory_admin(self, user_factory):

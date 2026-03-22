@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any, Optional, Dict, List, Union, Type, TypeVar, get_args, get_origin, Annotated
 
 from sqlalchemy import (
     BigInteger,
@@ -624,6 +624,7 @@ def f(
     foreign_key: str | None = None,
     on_delete: str = "CASCADE",
     json: bool = False,
+    reference: bool = False,
     **kwargs: Any,
 ) -> Any:
     """
@@ -635,13 +636,19 @@ def f(
         payload: dict = f(json=True)
     """
     from sqlalchemy import JSON
+    # Ensure reference is not passed to mapped_column
+    if reference:
+        kwargs.setdefault("index", True)
+        
     kw, fk_from_kw = _process_field_args(nullable, required, kwargs, default_nullable=_UNSET)
     kw.update({"unique": unique, "index": index})
     if default is not None:
         kw["default"] = default
     
     # Store metadata for form generation/validation
-    meta = {}
+    meta: Dict[str, Any] = {}
+    if reference:
+        meta["is_reference"] = True
     if label: meta["label"] = label
     if placeholder: meta["placeholder"] = placeholder
     if help_text: meta["help_text"] = help_text

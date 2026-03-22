@@ -315,27 +315,45 @@ class QuerySet(Generic[T]):
         """
         Asynchronous context manager to resolve and provide a database session.
         Ensures that auto-acquired sessions are properly closed.
+        
+        Session Resolution Order:
+        1. Explicit session passed during .query(session=...)
+        2. Global context session (from middleware or db.transaction())
+        3. Model-bound database: New temporary session (auto-closed)
+        
+        Raises:
+            SessionResolutionError: If no session can be resolved.
         """
+        from .session import SessionResolutionError
+
         # 1. Use existing session lookup (explicit or context-aware)
         session = self._resolve_session_sync()
         if session:
-            # print(f"DEBUG: Using session from context for {self._model_cls.__name__}")
+            # Check for closed session
+            if not session.is_active:
+                raise SessionResolutionError(
+                    f"Resolved session for {self._model_cls.__name__} is inactive. "
+                    "Ensure you are not reusing a session that has already been closed."
+                )
             yield session
             return
 
         # 2. Fallback to model-bound database
         if self._model_cls._db is not None:
-            async with self._model_cls._db.session() as session:
-                yield session
+            # Note: We create a new temporary session here. This is only safe for 
+            # non-transactional read operations. For writes, we strongly recommend
+            # using an explicit transaction.
+            async with self._model_cls._db.session() as temp_session:
+                yield temp_session
                 return
 
         # 3. Final error if no session could be resolved
-        raise RuntimeError(
-            "QuerySet requires a session for execution. "
-            "Ensure one of:\n"
-            f"  1) Call within request context or transaction\n"
-            f"  2) Bind model to database: {self._model_cls.__name__}._bind_db(db)\n"
-            f"  3) Pass session explicitly to .query(session=session)"
+        raise SessionResolutionError(
+            f"QuerySet for '{self._model_cls.__name__}' failed to resolve a database session for execution.\n\n"
+            "RESOLUTION STEPS REQUIRED:\n"
+            "  1. Active Context: Ensure this is called within a web request or 'async with db.transaction()'.\n"
+            f"  2. Model Binding: Ensure '{self._model_cls.__name__}' is bound using 'Database.connect()' or '{self._model_cls.__name__}._bind_db(db)'.\n"
+            "  3. Explicit Session: Pass a session manually: .query(session=my_session).\n"
         )
 
     def for_user(self, user: Any, action: str = "read") -> QuerySet[T]:
@@ -495,28 +513,50 @@ class QuerySet(Generic[T]):
         
         for alias, expr in annotations.items():
             if isinstance(expr, Aggregate):
-                # Advanced: Check if field is a relationship
-                attr = getattr(self._model_cls, expr.field, None)
+                     # Check for relationship aggregates (e.g. Count('reviews') or Avg('reviews__rating'))
+                field_name = expr.field
+                
+                # Support deep paths: e.g., 'reviews__rating' -> ('reviews', 'rating')
+                if "__" in field_name:
+                    rel_name, target_field_name = field_name.split("__", 1)
+                else:
+                    rel_name = field_name
+                    target_field_name = None
+                
+                attr = getattr(self._model_cls, rel_name, None)
                 if attr is not None and hasattr(attr, "prop") and isinstance(attr.prop, RelationshipProperty):
                     from sqlalchemy import inspect as sa_inspect
                     from sqlalchemy import select as sa_select
+                    from sqlalchemy import func
                     
                     rel = attr.prop
                     target_model = rel.mapper.class_
-                    
-                    # Logic: select count(*) from target where target.fk == self.pk
                     pk_col = sa_inspect(self._model_cls).primary_key[0]
-                    sub_stmt = sa_select(func.count()).select_from(target_model)
                     
-                    found_fk = False
-                    for col in target_model.__table__.columns:
+                    # Determine target expression: func(target_model.column) or func(*)
+                    if target_field_name:
+                        target_col = getattr(target_model, target_field_name)
+                        agg_func = getattr(func, expr.function.lower())
+                        agg_expr = agg_func(target_col)
+                    else:
+                        # Default to Count(*) if no field specified
+                        agg_expr = func.count()
+                    
+                    sub_stmt = sa_select(agg_expr).select_from(target_model)
+                    
+                    # Find the foreign key column in the target model that references the primary key of the current model
+                    fk_col = None
+                    for col in sa_inspect(target_model).columns:
                         for fk in col.foreign_keys:
-                            if fk.references(self._model_cls.__table__.c.id):
-                                sub_stmt = sub_stmt.where(col == self._model_cls.id)
-                                found_fk = True
+                            if fk.references(pk_col.table):
+                                fk_col = col
                                 break
-                        if found_fk: break
-                    
+                        if fk_col is not None: break
+
+                    if fk_col is None:
+                        raise ValueError(f"Could not find foreign key from {target_model.__name__} to {self._model_cls.__name__} for aggregate annotation '{alias}'")
+
+                    sub_stmt = sub_stmt.where(fk_col == pk_col)
                     annot_expr = sub_stmt.scalar_subquery().label(alias)
                 else:
                     # Simple column aggregate
@@ -565,12 +605,17 @@ class QuerySet(Generic[T]):
                 
             if loader:
                 stmt = stmt.options(loader)
-        return stmt
+        
+        # We MUST use populate_existing=True when using prefetch, because if the 
+        # objects were already in memory (identity map) but without their 
+        # relationships loaded, SQLAlchemy selectinload would skip them.
+        return stmt.execution_options(populate_existing=True)
 
     def _apply_select_related(self, stmt):
         if not self._select_related_paths:
             return stmt
 
+        from sqlalchemy.orm import joinedload
         for rel_path in self._select_related_paths:
             parts = rel_path.split(".")
             current_model = self._model_cls
@@ -587,7 +632,10 @@ class QuerySet(Generic[T]):
             
             if loader:
                 stmt = stmt.options(loader)
-        return stmt
+        
+        # Similar to prefetch, select_related benefits from populate_existing 
+        # to ensure the N side of the join updates existing N instances in memory.
+        return stmt.execution_options(populate_existing=True)
 
     def _get_cache_key(self) -> str:
         """Generate a unique cache key for the current statement."""
@@ -797,6 +845,7 @@ class QuerySet(Generic[T]):
             # Check for soft delete
             if hasattr(self._model_cls, "deleted_at") and not hard:
                 from datetime import datetime
+                from pytz import UTC
                 return await self.update(deleted_at=datetime.now(UTC))
 
             # Trigger hooks

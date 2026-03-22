@@ -1,16 +1,10 @@
-import pytest
+from __future__ import annotations
+from typing import List, Optional, Annotated
 import uuid
-from typing import Annotated, Optional, List
-from eden.db import (
-    Model, 
-    MaxLength, 
-    Required, 
-    Indexed, 
-    Database, 
-    relationship, 
-    Mapped,
-    ForeignKey
-)
+import pytest
+from sqlalchemy.orm import Mapped, relationship
+from sqlalchemy import inspect, ForeignKey
+from eden.db import Model, mapped_column, Required, MaxLength, Indexed
 
 # Define models using the new Annotated pattern
 class ModernUser(Model):
@@ -20,7 +14,6 @@ class ModernUser(Model):
     email: Annotated[str, Required(), Indexed()]
     bio: Annotated[Optional[str], MaxLength(500)] = ""
     
-    # Relationship using Mapped
     posts: Mapped[List["ModernPost"]] = relationship(back_populates="author")
 
 class ModernPost(Model):
@@ -32,42 +25,33 @@ class ModernPost(Model):
     
     author: Mapped[ModernUser] = relationship(back_populates="posts")
 
-@pytest.fixture(autouse=True)
-async def setup_db_tables(db, db_transaction):
-    """Ensure tables are created for these specific models."""
-    async with db.engine.begin() as conn:
-        await conn.run_sync(Model.metadata.create_all)
-    yield
-
 @pytest.mark.asyncio
-async def test_annotated_schema_inference(db):
+async def test_annotated_schema_inference(db, db_transaction):
     """Test that schema is correctly inferred from Annotated types."""
     print("\n--- RUNNING test_annotated_schema_inference ---")
-    from sqlalchemy import inspect
+    mapper = inspect(ModernUser)
     
-    def get_columns(conn):
-        inspector = inspect(conn)
-        return {c["name"]: [c, inspector] for c in inspector.get_columns(ModernUser.__tablename__)}
+    # Check columns
+    assert "name" in mapper.columns
+    assert mapper.columns["name"].type.length == 100
+    assert mapper.columns["name"].index is True
     
-    async with db.engine.connect() as conn:
-        columns_data = await conn.run_sync(get_columns)
+    assert "email" in mapper.columns
+    assert mapper.columns["email"].nullable is False
+    assert mapper.columns["email"].index is True
     
-    # Check name column
-    assert "name" in columns_data
-    col = columns_data["name"][0]
-    assert col["type"].length == 100
+    assert "bio" in mapper.columns
+    assert mapper.columns["bio"].type.length == 500
+    assert mapper.columns["bio"].nullable is True
     
-    # Check email column
-    assert "email" in columns_data
-    assert columns_data["email"][0]["nullable"] is False
-    
-    # Check bio column
-    assert "bio" in columns_data
-    assert columns_data["bio"][0]["type"].length == 500
-    assert columns_data["bio"][0]["nullable"] is True
+    # Check relationship
+    assert "posts" in mapper.relationships
+    relationship = mapper.relationships["posts"]
+    assert relationship.target.name == "modern_posts"
+    assert relationship.back_populates == "author"
 
 @pytest.mark.asyncio
-async def test_modern_crud_operations(db):
+async def test_modern_crud_operations(db, db_transaction):
     """Test CRUD operations with modern models."""
     print("\n--- RUNNING test_modern_crud_operations ---")
     # Create
@@ -79,26 +63,25 @@ async def test_modern_crud_operations(db):
     assert user.id is not None
     assert user.name == "Modern User"
     
-    # Create related
     post = await ModernPost.create(
         title="Modern Post",
+        content="This is a modern post.",
         author_id=user.id
     )
     assert post.author_id == user.id
     
-    # Fetch with relationship
-    fetched_user = await ModernUser.query().prefetch("posts").filter(id=user.id).first()
+    # Read with relationship
+    fetched_user = await ModernUser.query().prefetch("posts").get(user.id)
     assert len(fetched_user.posts) == 1
     assert fetched_user.posts[0].title == "Modern Post"
 
 @pytest.mark.asyncio
-async def test_validation_rules_from_annotated(db):
+async def test_validation_rules_from_annotated(db, db_transaction):
     """Test that validation rules are correctly extracted from Annotated."""
     # bio has MaxLength(500)
     long_bio = "a" * 501
     
-    # The validation happens in .clean() or during .create() if it calls clean
-    # Model.create usually does validation
+    import eden.db.validation
     from eden.db.validation import ValidationErrors
     
     with pytest.raises(ValidationErrors) as excinfo:
@@ -108,8 +91,7 @@ async def test_validation_rules_from_annotated(db):
             bio=long_bio
         )
     
-    # Check that it's a validation error for 'bio'
-    error_dict = excinfo.value.to_dict()
-    errors = error_dict["extra"]["errors"]
-    assert any(e["loc"] == ["bio"] for e in errors)
-    assert any("500" in e["msg"] for e in errors)
+    errors = excinfo.value.errors
+    # errors is Dict[str, List[str]]
+    assert "bio" in errors
+    assert any("500" in msg for msg in errors["bio"])

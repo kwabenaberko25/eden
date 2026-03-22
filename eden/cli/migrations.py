@@ -43,33 +43,21 @@ class MigrationManager:
         manager = DbMigrationManager(self.db_url)
         
         if command_name == "init":
-            return await asyncio.to_thread(manager.init)
+            return await manager.init()
         elif command_name == "revision":
-            return await asyncio.to_thread(manager.generate, kwargs.get("message", "Auto migration"))
+            return await manager.generate(kwargs.get("message", "Auto migration"))
         elif command_name == "upgrade":
             revision = args[0] if args else "head"
-            return await asyncio.to_thread(manager.migrate, revision)
+            return await manager.migrate(revision)
         elif command_name == "downgrade":
             revision = args[0] if args else "-1"
-            return await asyncio.to_thread(manager.downgrade, revision)
+            return await manager.downgrade(revision)
         elif command_name == "current":
-            if hasattr(manager, "current"):
-                return await asyncio.to_thread(manager.current)
-            # Fallback to subprocess for current as it might not be in DbMigrationManager yet
-            import subprocess
-            cmd = ["alembic", "current"]
-            result = subprocess.run(cmd, capture_output=True, text=True)
-            return result.stdout.strip()
+            return await manager.current()
         elif command_name == "history":
-            return await asyncio.to_thread(manager.history)
+            return await manager.history()
         elif command_name == "stamp":
-            if hasattr(manager, "stamp"):
-                return await asyncio.to_thread(manager.stamp, args[0] if args else "head")
-            # Fallback
-            import subprocess
-            cmd = ["alembic", "stamp", args[0] if args else "head"]
-            subprocess.run(cmd, capture_output=True, text=True)
-            return None
+            return await manager.stamp(args[0] if args else "head")
         
         raise MigrationException(f"Unsupported migration command: {command_name}")
 

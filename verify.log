@@ -1,0 +1,452 @@
+INFO:eden.migrations:Migrations: Applying evolutions to head on default schema...
+INFO  [alembic.env] Migrations: do_run_migrations context: schema=None, version_table=alembic_version, actual_current_schema=public
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade  -> d2d3b0a786fd, initial
+INFO  [alembic.runtime.migration] Running upgrade d2d3b0a786fd -> 6bb62a1af5e5, add_audit_logs_v3
+DEBUG: Initializing model subclass: FileReference (table: file_references)
+DEBUG: Processing FileReference
+DEBUG: FileReference.model_class_name -> hasattr(col)=True, hasattr(info)=False
+DEBUG: FileReference.model_instance_id -> hasattr(col)=True, hasattr(info)=False
+DEBUG: FileReference.file_path -> hasattr(col)=True, hasattr(info)=False
+DEBUG: FileReference.storage_backend -> hasattr(col)=True, hasattr(info)=False
+DEBUG: FileReference.deleted_at -> hasattr(col)=True, hasattr(info)=False
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[str] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[uuid.UUID] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[str] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[str] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime | None] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: <class 'datetime.datetime'> (type: <class 'type'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[uuid.UUID] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[str] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[uuid.UUID] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[str] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[str] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime | None] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: <class 'datetime.datetime'> (type: <class 'type'>)
+DEBUG: Initializing model subclass: VectorModel (table: N/A)
+DEBUG: Initializing model subclass: AuditLog (table: eden_audit_logs)
+DEBUG: Processing AuditLog
+DEBUG: AuditLog.id -> hasattr(col)=True, hasattr(info)=False
+DEBUG: AuditLog.user_id -> hasattr(col)=True, hasattr(info)=False
+DEBUG: AuditLog.action -> hasattr(col)=True, hasattr(info)=False
+DEBUG: AuditLog.model_name -> hasattr(col)=True, hasattr(info)=False
+DEBUG: AuditLog.record_id -> hasattr(col)=True, hasattr(info)=False
+DEBUG: AuditLog.changes -> hasattr(col)=True, hasattr(info)=False
+DEBUG: AuditLog.timestamp -> hasattr(col)=True, hasattr(info)=False
+DEBUG: Analyzing hint: <class 'uuid.UUID'> (type: <class 'type'>)
+DEBUG: Analyzing hint: str | None (type: <class 'typing.Union'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: dict | None (type: <class 'typing.Union'>)
+DEBUG: Analyzing hint: <class 'dict'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'datetime.datetime'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'uuid.UUID'> (type: <class 'type'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: str | None (type: <class 'typing.Union'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: dict | None (type: <class 'typing.Union'>)
+DEBUG: Analyzing hint: <class 'dict'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'datetime.datetime'> (type: <class 'type'>)
+DEBUG: Initializing model subclass: Customer (table: eden_customers)
+DEBUG: Processing Customer
+DEBUG: Customer.user_id -> hasattr(col)=True, hasattr(info)=False
+DEBUG: Customer.provider_customer_id -> hasattr(col)=True, hasattr(info)=False
+DEBUG: Customer.provider -> hasattr(col)=True, hasattr(info)=False
+DEBUG: Analyzing hint: <class 'uuid.UUID'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[uuid.UUID] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: <class 'uuid.UUID'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Initializing model subclass: Subscription (table: eden_subscriptions)
+DEBUG: Processing Subscription
+DEBUG: Subscription.customer_id -> hasattr(col)=True, hasattr(info)=False
+DEBUG: Subscription.provider_subscription_id -> hasattr(col)=True, hasattr(info)=False
+DEBUG: Subscription.status -> hasattr(col)=True, hasattr(info)=False
+DEBUG: Subscription.price_id -> hasattr(col)=True, hasattr(info)=False
+DEBUG: Subscription.current_period_end -> hasattr(col)=True, hasattr(info)=False
+DEBUG: Subscription.cancel_at_period_end -> hasattr(col)=True, hasattr(info)=False
+DEBUG: Analyzing hint: <class 'uuid.UUID'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: str | None (type: <class 'typing.Union'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: datetime.datetime | None (type: <class 'typing.Union'>)
+DEBUG: Analyzing hint: <class 'datetime.datetime'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'bool'> (type: <class 'type'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[uuid.UUID] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: <class 'uuid.UUID'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: str | None (type: <class 'typing.Union'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: datetime.datetime | None (type: <class 'typing.Union'>)
+DEBUG: Analyzing hint: <class 'datetime.datetime'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'bool'> (type: <class 'type'>)
+DEBUG: Initializing model subclass: PaymentEvent (table: eden_payment_events)
+DEBUG: Processing PaymentEvent
+DEBUG: PaymentEvent.provider_event_id -> hasattr(col)=True, hasattr(info)=False
+DEBUG: PaymentEvent.event_type -> hasattr(col)=True, hasattr(info)=False
+DEBUG: PaymentEvent.payload -> hasattr(col)=True, hasattr(info)=False
+DEBUG: PaymentEvent.processed -> hasattr(col)=True, hasattr(info)=False
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'dict'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'bool'> (type: <class 'type'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[uuid.UUID] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'dict'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'bool'> (type: <class 'type'>)
+DEBUG: Initializing model subclass: User (table: eden_users)
+DEBUG: Processing User
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[str | None] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[uuid.UUID] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[str] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[str] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[bool] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[bool] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[bool] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[str | None] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[str | None] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[list[str]] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[list[str]] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] (type: <class 'typing._GenericAlias'>)
+DEBUG: Initializing model subclass: SocialAccount (table: eden_social_accounts)
+DEBUG: Processing SocialAccount
+DEBUG: SocialAccount.provider -> hasattr(col)=True, hasattr(info)=False
+DEBUG: SocialAccount.provider_user_id -> hasattr(col)=True, hasattr(info)=False
+DEBUG: SocialAccount.provider_metadata -> hasattr(col)=True, hasattr(info)=False
+DEBUG: SocialAccount.user -> hasattr(col)=False, hasattr(info)=True
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[str] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[str] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[dict] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[ForwardRef('User')] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[uuid.UUID] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[str] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[str] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[dict] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[eden.auth.models.User] (type: <class 'typing._GenericAlias'>)
+DEBUG: infer field: SocialAccount.user, is_list=False, target_name=User, is_reference=True
+DEBUG: Building N:1 for SocialAccount.user -> User
+DEBUG: Checking FK column user_id for SocialAccount, already_defined=False
+RESOLVING User for SocialAccount
+DEBUG: Creating FK for SocialAccount.user_id -> eden_users.id
+DEBUG: _build_many_to_one for SocialAccount.user -> User
+DEBUG: Initializing model subclass: PasswordResetToken (table: password_reset_tokens)
+DEBUG: Processing PasswordResetToken
+DEBUG: PasswordResetToken.user_id -> hasattr(col)=True, hasattr(info)=False
+DEBUG: PasswordResetToken.token -> hasattr(col)=True, hasattr(info)=False
+DEBUG: PasswordResetToken.expires_at -> hasattr(col)=True, hasattr(info)=False
+DEBUG: PasswordResetToken.used_at -> hasattr(col)=True, hasattr(info)=False
+DEBUG: Analyzing hint: <class 'uuid.UUID'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'datetime.datetime'> (type: <class 'type'>)
+DEBUG: Analyzing hint: datetime.datetime | None (type: <class 'typing.Union'>)
+DEBUG: Analyzing hint: <class 'datetime.datetime'> (type: <class 'type'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[uuid.UUID] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: <class 'uuid.UUID'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'datetime.datetime'> (type: <class 'type'>)
+DEBUG: Analyzing hint: datetime.datetime | None (type: <class 'typing.Union'>)
+DEBUG: Analyzing hint: <class 'datetime.datetime'> (type: <class 'type'>)
+DEBUG: Initializing model subclass: APIKey (table: eden_api_keys)
+DEBUG: Processing APIKey
+DEBUG: APIKey.name -> hasattr(col)=True, hasattr(info)=False
+DEBUG: APIKey.prefix -> hasattr(col)=True, hasattr(info)=False
+DEBUG: APIKey.key_hash -> hasattr(col)=True, hasattr(info)=False
+DEBUG: APIKey.user_id -> hasattr(col)=True, hasattr(info)=False
+DEBUG: APIKey.scopes -> hasattr(col)=True, hasattr(info)=False
+DEBUG: APIKey.expires_at -> hasattr(col)=True, hasattr(info)=False
+DEBUG: APIKey.last_used_at -> hasattr(col)=True, hasattr(info)=False
+DEBUG: APIKey.is_active -> hasattr(col)=True, hasattr(info)=False
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'uuid.UUID'> (type: <class 'type'>)
+DEBUG: Analyzing hint: list[str] (type: <class 'types.GenericAlias'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: datetime.datetime | None (type: <class 'typing.Union'>)
+DEBUG: Analyzing hint: <class 'datetime.datetime'> (type: <class 'type'>)
+DEBUG: Analyzing hint: datetime.datetime | None (type: <class 'typing.Union'>)
+DEBUG: Analyzing hint: <class 'datetime.datetime'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'bool'> (type: <class 'type'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[uuid.UUID] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'uuid.UUID'> (type: <class 'type'>)
+DEBUG: Analyzing hint: list[str] (type: <class 'types.GenericAlias'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: datetime.datetime | None (type: <class 'typing.Union'>)
+DEBUG: Analyzing hint: <class 'datetime.datetime'> (type: <class 'type'>)
+DEBUG: Analyzing hint: datetime.datetime | None (type: <class 'typing.Union'>)
+DEBUG: Analyzing hint: <class 'datetime.datetime'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'bool'> (type: <class 'type'>)
+DEBUG: Initializing model subclass: Tenant (table: eden_tenants)
+DEBUG: Processing Tenant
+DEBUG: Tenant.name -> hasattr(col)=True, hasattr(info)=False
+DEBUG: Tenant.slug -> hasattr(col)=True, hasattr(info)=False
+DEBUG: Tenant.is_active -> hasattr(col)=True, hasattr(info)=False
+DEBUG: Tenant.plan -> hasattr(col)=True, hasattr(info)=False
+DEBUG: Tenant.schema_name -> hasattr(col)=True, hasattr(info)=False
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'bool'> (type: <class 'type'>)
+DEBUG: Analyzing hint: str | None (type: <class 'typing.Union'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: str | None (type: <class 'typing.Union'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[uuid.UUID] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: sqlalchemy.orm.base.Mapped[datetime.datetime] (type: <class 'typing._GenericAlias'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: <class 'bool'> (type: <class 'type'>)
+DEBUG: Analyzing hint: str | None (type: <class 'typing.Union'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+DEBUG: Analyzing hint: str | None (type: <class 'typing.Union'>)
+DEBUG: Analyzing hint: <class 'str'> (type: <class 'type'>)
+Verifying tenant migrations on postgresql+asyncpg://postgres:0123456789@localhost:5432/eden_tests
+Cleaning up old schemas (including public)...
+Migrating public schema to head...
+Seeding tenants...
+  - Session search_path: "$user", public
+  - Tables in public: []
+Traceback (most recent call last):
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py", line 526, in _prepare_and_execute
+    prepared_stmt, attributes = await adapt_connection._prepare(
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        operation, self._invalidate_schema_cache_asof
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py", line 773, in _prepare
+    prepared_stmt = await self._connection.prepare(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        operation, name=self._prepared_statement_name_func()
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\asyncpg\connection.py", line 638, in prepare
+    return await self._prepare(
+           ^^^^^^^^^^^^^^^^^^^^
+    ...<4 lines>...
+    )
+    ^
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\asyncpg\connection.py", line 657, in _prepare
+    stmt = await self._get_statement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\asyncpg\connection.py", line 443, in _get_statement
+    statement = await self._protocol.prepare(
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "asyncpg/protocol/protocol.pyx", line 165, in prepare
+asyncpg.exceptions.UndefinedTableError: relation "eden_tenants" does not exist
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        cursor, str_statement, effective_parameters, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py", line 585, in execute
+    self._adapt_connection.await_(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self._prepare_and_execute(operation, parameters)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py", line 132, in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py", line 196, in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py", line 563, in _prepare_and_execute
+    self._handle_exception(error)
+    ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py", line 513, in _handle_exception
+    self._adapt_connection._handle_exception(error)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py", line 797, in _handle_exception
+    raise translated_error from error
+sqlalchemy.dialects.postgresql.asyncpg.AsyncAdapt_asyncpg_dbapi.ProgrammingError: <class 'asyncpg.exceptions.UndefinedTableError'>: relation "eden_tenants" does not exist
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\PROJECTS\eden-framework\verify_tenant_migrations.py", line 120, in <module>
+    asyncio.run(verify())
+    ~~~~~~~~~~~^^^^^^^^^^
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\runners.py", line 204, in run
+    return runner.run(main)
+           ~~~~~~~~~~^^^^^^
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\runners.py", line 127, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 719, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "C:\PROJECTS\eden-framework\verify_tenant_migrations.py", line 79, in verify
+    tx = await Tenant.create(name="Tenant X", slug="tenant_x_slug", schema_name="tenant_x")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\eden\db\mixins\crud.py", line 144, in create
+    await instance.save(session)
+  File "C:\PROJECTS\eden-framework\eden\db\mixins\lifecycle.py", line 91, in save
+    await sess.flush()
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\ext\asyncio\session.py", line 787, in flush
+    await greenlet_spawn(self.sync_session.flush, objects=objects)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py", line 203, in greenlet_spawn
+    result = context.switch(value)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\session.py", line 4331, in flush
+    self._flush(objects)
+    ~~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\session.py", line 4466, in _flush
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 121, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\session.py", line 4427, in _flush
+    flush_context.execute()
+    ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\unitofwork.py", line 466, in execute
+    rec.execute(self)
+    ~~~~~~~~~~~^^^^^^
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\unitofwork.py", line 642, in execute
+    util.preloaded.orm_persistence.save_obj(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self.mapper,
+        ^^^^^^^^^^^^
+        uow.states_for_mapper_hierarchy(self.mapper, False, False),
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        uow,
+        ^^^^
+    )
+    ^
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\persistence.py", line 93, in save_obj
+    _emit_insert_statements(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        base_mapper,
+        ^^^^^^^^^^^^
+    ...<3 lines>...
+        insert,
+        ^^^^^^^
+    )
+    ^
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\persistence.py", line 1233, in _emit_insert_statements
+    result = connection.execute(
+        statement,
+        params,
+        execution_options=execution_options,
+    )
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py", line 1419, in execute
+    return meth(
+        self,
+        distilled_parameters,
+        execution_options or NO_OPTIONS,
+    )
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\sql\elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self, distilled_params, execution_options
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+        dialect,
+    ...<8 lines>...
+        cache_hit=cache_hit,
+    )
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~^
+        dialect, context, statement, parameters
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        e, str_statement, effective_parameters, cursor, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        cursor, str_statement, effective_parameters, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py", line 585, in execute
+    self._adapt_connection.await_(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self._prepare_and_execute(operation, parameters)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py", line 132, in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py", line 196, in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py", line 563, in _prepare_and_execute
+    self._handle_exception(error)
+    ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py", line 513, in _handle_exception
+    self._adapt_connection._handle_exception(error)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py", line 797, in _handle_exception
+    raise translated_error from error
+sqlalchemy.exc.ProgrammingError: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "eden_tenants" does not exist
+[SQL: INSERT INTO eden_tenants (name, slug, is_active, plan, schema_name, id) VALUES ($1::VARCHAR, $2::VARCHAR, $3::BOOLEAN, $4::VARCHAR, $5::VARCHAR, $6::UUID) RETURNING eden_tenants.created_at, eden_tenants.updated_at]
+[parameters: ('Tenant X', 'tenant_x_slug', True, None, 'tenant_x', UUID('40a3520a-bd93-4cf2-aab1-6e0e9e62e3d0'))]
+(Background on this error at: https://sqlalche.me/e/20/f405)

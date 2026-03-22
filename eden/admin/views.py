@@ -5,17 +5,25 @@ Auto-generated CRUD views for registered models.
 """
 
 import math
-from typing import Any
+from typing import Any, Type
 
 from eden.exceptions import Forbidden, NotFound
 from eden.requests import Request
 from eden.responses import HtmlResponse, RedirectResponse, JsonResponse, Response
-from eden.security.csrf import get_csrf_token
+from eden.middleware import get_csrf_token
 from eden.admin.models import AuditLog
 
 
 async def _check_staff(request: Request) -> None:
-    """Ensure the user is authenticated and is_staff."""
+    """
+    Ensure the user is authenticated and has staff privileges.
+    
+    Raises:
+        Forbidden: If user is not authenticated or lacks staff permission.
+    
+    Returns:
+        None
+    """
     user = getattr(request.state, "user", None)
     if not user:
         raise Forbidden(detail="Authentication required to access admin.")
@@ -24,7 +32,16 @@ async def _check_staff(request: Request) -> None:
 
 
 async def admin_dashboard(request: Request, admin_site: Any) -> HtmlResponse:
-    """Admin dashboard showing all registered models with counts."""
+    """
+    Render the admin dashboard with registered model counts.
+    
+    Args:
+        request: The HTTP request.
+        admin_site: The AdminSite instance with registered models.
+    
+    Returns:
+        HtmlResponse: Rendered dashboard HTML.
+    """
     await _check_staff(request)
 
     models_info = []
@@ -269,8 +286,18 @@ async def admin_edit_view(
     return HtmlResponse(html)
 
 
-async def _get_fields_data(model, model_admin, instance=None) -> list[dict]:
-    """Helper to prepare field data for templates."""
+async def _get_fields_data(model: Type, model_admin: Any, instance: Any | None = None) -> list[dict[str, Any]]:
+    """
+    Prepare field data for form rendering in templates.
+    
+    Args:
+        model: The Model class to introspect.
+        model_admin: The ModelAdmin configuration instance.
+        instance: Optional model instance to populate values from.
+    
+    Returns:
+        list[dict]: List of field dictionaries with metadata and current values.
+    """
     from sqlalchemy import inspect as sa_inspect
     mapper = sa_inspect(model)
     fields_data = []
@@ -298,8 +325,18 @@ async def _get_fields_data(model, model_admin, instance=None) -> list[dict]:
     return fields_data
 
 
-async def _get_inlines_data(model, model_admin, instance=None) -> list[dict]:
-    """Prepare data for inline models."""
+async def _get_inlines_data(model: Type, model_admin: Any, instance: Any | None = None) -> list[dict[str, Any]]:
+    """
+    Prepare data for inline models in forms.
+    
+    Args:
+        model: The Model class containing inlines.
+        model_admin: The ModelAdmin configuration instance.
+        instance: Optional model instance to load related records from.
+    
+    Returns:
+        list[dict]: List of inline data dictionaries ready for rendering.
+    """
     inlines_data = []
     for inline_class in model_admin.inlines:
         inline = inline_class()

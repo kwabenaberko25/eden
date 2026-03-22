@@ -24,14 +24,6 @@ class EnhancedChild(Model):
     name: str = f()
     parent: Mapped["EnhancedParent"] = Reference(back_populates="children")
 
-@pytest.fixture(autouse=True)
-async def setup_db(db, db_transaction):
-    print("DEBUG: setup_db called")
-    print(f"DEBUG: Tables in metadata: {list(Model.metadata.tables.keys())}")
-    async with db.engine.begin() as conn:
-        await conn.run_sync(Model.metadata.create_all)
-    yield
-    print("DEBUG: setup_db yielded")
 
 @pytest.mark.asyncio
 async def test_orm_json_field():
@@ -123,15 +115,13 @@ async def test_orm_f_relationship_oneliner():
     parent = await EnhancedParent.create(name="EnhancedParent 1")
     child = await EnhancedChild.create(name="EnhancedChild 1", parent_id=parent.id)
     
-    # Verify data exists
-    count = await EnhancedChild.query().filter(parent_id=parent.id).count()
-    print(f"DEBUG: EnhancedChild count for parent {parent.id}: {count}")
+    print(f"DEBUG TEST: Parent ID={parent.id} ({type(parent.id)})")
+    print(f"DEBUG TEST: Child Parent ID={child.parent_id} ({type(child.parent_id)})")
     
-    # Check parent's children
-    fetched_parents = await EnhancedParent.query().prefetch("children").filter(id=parent.id).all()
-    fetched_parent = fetched_parents[0]
-    print(f"DEBUG: fetched_parent.children type: {type(fetched_parent.children)}")
-    print(f"DEBUG: fetched_parent.children items: {len(fetched_parent.children)}")
+    # Fresh fetch
+    fetched_parent = await EnhancedParent.query().prefetch("children").first()
+    
+    print(f"DEBUG TEST: Fetched Parent children count: {len(fetched_parent.children)}")
     if len(fetched_parent.children) > 0:
         print(f"DEBUG: Example child: {fetched_parent.children[0].name}")
     

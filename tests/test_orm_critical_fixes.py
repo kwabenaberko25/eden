@@ -410,6 +410,8 @@ async def test_full_workflow_context_transaction_relationships(test_db: Database
         count = result.scalar()
         assert count == 2, "Both books should be persisted"
 
-
-if __name__ == "__main__":
-    pytest.main([__file__, "-v"])
+    # Clean up test data
+    async with test_db.session() as cleanup_session:
+        await cleanup_session.execute(f"DELETE FROM {Book.__tablename__}")
+        await cleanup_session.execute(f"DELETE FROM {Author.__tablename__}")
+        await cleanup_session.commit()

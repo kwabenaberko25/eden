@@ -4,11 +4,12 @@ Eden — Admin Panel
 Auto-generated admin interface for managing Model data.
 """
 
-from typing import Any, Optional, Callable
+from typing import Any, Optional, Callable, Type
 
 from eden.admin.options import ModelAdmin, TabularInline, StackedInline
 from eden.routing import Router
 from eden.responses import JsonResponse, Response
+from eden.requests import Request
 
 # Re-export new widget system for backward compatibility
 try:
@@ -200,32 +201,32 @@ class AdminSite:
         # Register routes for each model
         for model, model_admin in self._registry.items():
             # Capture variables in a dedicated scope to avoid loop closure issues
-            def register_model_routes(m, ma):
+            def register_model_routes(m: Any, ma: ModelAdmin) -> None:
                 t = m.__tablename__
                 
                 @router.get(f"/{t}/", name=f"admin_{t}_list")
                 @admin_required
-                async def list_view(request):
+                async def list_view(request: Request) -> Response:
                     return await admin_list_view(request, m, ma)
 
                 @router.route(f"/{t}/add", methods=["GET", "POST"], name=f"admin_{t}_add")
                 @admin_required
-                async def add_view(request):
+                async def add_view(request: Request) -> Response:
                     return await admin_add_view(request, m, ma)
 
                 @router.get(f"/{t}/{{record_id}}", name=f"admin_{t}_detail")
                 @admin_required
-                async def detail_view(request, record_id: str):
+                async def detail_view(request: Request, record_id: str) -> Response:
                     return await admin_detail_view(request, m, ma, record_id)
 
                 @router.route(f"/{t}/{{record_id}}/edit", methods=["GET", "POST"], name=f"admin_{t}_edit")
                 @admin_required
-                async def edit_view(request, record_id: str):
+                async def edit_view(request: Request, record_id: str) -> Response:
                     return await admin_edit_view(request, m, ma, record_id)
 
                 @router.post(f"/{t}/action", name=f"admin_{t}_action")
                 @admin_required
-                async def action_view(request):
+                async def action_view(request: Request) -> JsonResponse:
                     # For bulk actions
                     data = await request.json()
                     action_name = data.get("action")
@@ -242,7 +243,7 @@ class AdminSite:
 
                 @router.post(f"/{t}/{{record_id}}/delete", name=f"admin_{t}_delete")
                 @admin_required
-                async def delete_view(request, record_id: str):
+                async def delete_view(request: Request, record_id: str) -> Response:
                     return await admin_delete_view(request, m, ma, record_id)
 
             register_model_routes(model, model_admin)
