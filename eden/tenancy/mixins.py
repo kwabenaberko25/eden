@@ -52,6 +52,15 @@ class TenantMixin:
 
         tenant_id = get_current_tenant_id()
         if tenant_id is None:
+            from eden.tenancy.registry import tenancy_registry
+            from eden.tenancy.exceptions import TenancyIsolationError
+            
+            if tenancy_registry.strict_mode:
+                raise TenancyIsolationError(
+                    f"Attempted to query tenant-isolated model {target_cls.__name__} "
+                    "without a valid tenant context in strict mode."
+                )
+            
             # FAIL-SECURE: Return empty result if no tenant in context
             return stmt.where(false())
 

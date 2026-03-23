@@ -23,6 +23,7 @@ from .metadata import MetadataToken
 from .mixins.crud import CrudMixin
 from .mixins.serialization import SerializationMixin
 from .mixins.lifecycle import LifecycleMixin
+# from eden.tenancy.registry import tenancy_registry (moved to local imports)
 
 T = TypeVar("T", bound="Model")
 from sqlalchemy import (
@@ -149,6 +150,14 @@ class Model(Base, AccessControl, ValidatorMixin, LifecycleMixin, SerializationMi
 
             # Apply comparators
             SchemaInferenceEngine.apply_comparators(cls)
+
+            # 3. Tenancy Auto-Discovery
+            # If a model has 'tenant_id' but doesn't explicitly inherit from TenantMixin,
+            # we register it for isolation anyway (Secure-by-Default).
+            if hasattr(cls, "tenant_id") or "tenant_id" in cls.__annotations__:
+                if not cls.__dict__.get("__abstract__", False):
+                    from eden.tenancy.registry import tenancy_registry
+                    tenancy_registry.register(cls)
             
             # Register event listeners for timestamp management
             @event.listens_for(cls, "before_update", propagate=True)
@@ -229,10 +238,22 @@ class Model(Base, AccessControl, ValidatorMixin, LifecycleMixin, SerializationMi
     def _base_select(cls, **kwargs) -> Any:
         """Cooperative base select for this model."""
         stmt = select(cls)
+        applied_isolation = False
+        
+        # 1. Apply default filters from mixins (e.g. TenantMixin, SoftDeleteMixin)
         for base in cls.mro():
             if hasattr(base, "_apply_default_filters") and base is not Model:
                 if "_apply_default_filters" in base.__dict__:
                     stmt = base._apply_default_filters(cls, stmt, **kwargs)
+                    if getattr(base, "__eden_tenant_isolated__", False):
+                        applied_isolation = True
+        
+        # 2. Secure-by-Default: If model is isolated but no mixin applied the filter, apply it now.
+        from eden.tenancy.registry import tenancy_registry
+        if not applied_isolation and tenancy_registry.is_isolated(cls):
+            from eden.tenancy.mixins import TenantMixin
+            stmt = TenantMixin._apply_tenant_filter(cls, stmt, **kwargs)
+            
         return stmt
 
     # ── Bulk Operations ───────────────────────────────────────────────────

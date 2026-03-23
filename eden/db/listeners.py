@@ -9,6 +9,7 @@ async def _async_broadcast(channels: list[str], event_type: str, data: dict):
     for channel in channels:
         await connection_manager.broadcast({
             "event": event_type,
+            "channel": channel,
             "data": data
         }, channel=channel)
 

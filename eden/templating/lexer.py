@@ -15,6 +15,12 @@ class TokenType(Enum):
     STRING = auto()         # "..." or '...' or `...`
     EOF = auto()
 
+class LexerState(Enum):
+    MAIN = auto()
+    TAG = auto()
+    ATTR_S = auto()
+    ATTR_D = auto()
+
 CORE_DIRECTIVES = {
     "csrf", "csrf_token", "method", "old", "eden_head", "eden_scripts", "eden_toasts",
     "css", "js", "vite", "yield", "stack", "super", "extends", "include", "includeWhen",
@@ -25,7 +31,7 @@ CORE_DIRECTIVES = {
     "foreach", "while", "switch", "case", "default", "auth", "can", "role",
     "permission", "cannot", "guest", "htmx", "non_htmx", "render_field", "error",
     "messages", "even", "odd", "first", "last", "break", "continue", "php", "inject",
-    "form", "field", "input", "button", "admin"
+    "form", "field", "input", "button", "admin", "reactive"
 }
 
 @dataclass

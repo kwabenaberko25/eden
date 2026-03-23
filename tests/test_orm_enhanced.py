@@ -7,8 +7,6 @@ from sqlalchemy.orm import Mapped
 from eden.db import Model, f, Relationship, Reference, Database, QuerySet, Sum, Avg, Max, Q
 from sqlalchemy import func
 
-print("DEBUG: test_orm_enhanced.py IMPORTED")
-
 # Premium bidirectional relationship definitions
 class EnhancedUser(Model):
     name: str = f(max_length=50)
@@ -26,7 +24,8 @@ class EnhancedChild(Model):
 
 
 @pytest.mark.asyncio
-async def test_orm_json_field():
+async def test_orm_json_field(db, db_transaction):
+    """Test JSON field support and basic persistence."""
     user = await EnhancedUser.create(
         name="Alice", 
         data={"skills": ["python", "sql"], "pref": "dark"},
@@ -46,7 +45,8 @@ async def test_orm_json_field():
     assert refreshed.data["pref"] == "light"
 
 @pytest.mark.asyncio
-async def test_queryset_aggregate_django_style():
+async def test_queryset_aggregate_django_style(db, db_transaction):
+    """Test aggregate functions (Sum, Avg, Max) with isolated data."""
     await EnhancedUser.create(name="A", score=10)
     await EnhancedUser.create(name="B", score=20)
     await EnhancedUser.create(name="C", score=30)
@@ -63,7 +63,8 @@ async def test_queryset_aggregate_django_style():
     assert int(stats["maximum"]) == 30
 
 @pytest.mark.asyncio
-async def test_queryset_annotate_complex():
+async def test_queryset_annotate_complex(db, db_transaction):
+    """Test complex annotations with boolean conditions."""
     await EnhancedUser.create(name="Alice", score=100)
     await EnhancedUser.create(name="Bob", score=40)
     
@@ -77,7 +78,8 @@ async def test_queryset_annotate_complex():
     assert results[1]["is_high_score"] is False
 
 @pytest.mark.asyncio
-async def test_orm_complex_lookups():
+async def test_orm_complex_lookups(db, db_transaction):
+    """Test complex OR/AND lookups using Q objects."""
     await EnhancedUser.create(name="Alice", score=10, data={"dept": "IT"})
     await EnhancedUser.create(name="Bob", score=20, data={"dept": "HR"})
     await EnhancedUser.create(name="Charlie", score=30, data={"dept": "IT"})
@@ -91,7 +93,8 @@ async def test_orm_complex_lookups():
     assert names == {"Alice", "Bob"}
 
 @pytest.mark.asyncio
-async def test_queryset_update_returning():
+async def test_queryset_update_returning(db, db_transaction):
+    """Test bulk update functionality."""
     await EnhancedUser.create(name="Ghost", score=0)
     
     # Bulk update
@@ -102,7 +105,8 @@ async def test_queryset_update_returning():
     assert user.score == 99
 
 @pytest.mark.asyncio
-async def test_queryset_delete():
+async def test_queryset_delete(db, db_transaction):
+    """Test bulk delete and clean state before execution."""
     await EnhancedUser.create(name="To Delete", score=0)
     assert await EnhancedUser.count() == 1
     
@@ -110,20 +114,14 @@ async def test_queryset_delete():
     assert await EnhancedUser.count() == 0
 
 @pytest.mark.asyncio
-async def test_orm_f_relationship_oneliner():
-    # Test that EnhancedChild model has parent_id automatically created
+async def test_orm_f_relationship_oneliner(db, db_transaction):
+    """Test one-liner relationship definitions and prefetching."""
     parent = await EnhancedParent.create(name="EnhancedParent 1")
-    child = await EnhancedChild.create(name="EnhancedChild 1", parent_id=parent.id)
+    await EnhancedChild.create(name="EnhancedChild 1", parent_id=parent.id)
     
-    print(f"DEBUG TEST: Parent ID={parent.id} ({type(parent.id)})")
-    print(f"DEBUG TEST: Child Parent ID={child.parent_id} ({type(child.parent_id)})")
-    
-    # Fresh fetch
-    fetched_parent = await EnhancedParent.query().prefetch("children").first()
-    
-    print(f"DEBUG TEST: Fetched Parent children count: {len(fetched_parent.children)}")
-    if len(fetched_parent.children) > 0:
-        print(f"DEBUG: Example child: {fetched_parent.children[0].name}")
+    # Fresh fetch with prefetch
+    fetched_parent = await EnhancedParent.query().prefetch("children").get(parent.id)
     
     assert len(fetched_parent.children) == 1
     assert fetched_parent.children[0].name == "EnhancedChild 1"
+

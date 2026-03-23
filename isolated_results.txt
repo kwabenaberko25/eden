@@ -1,0 +1,396 @@
+============================= test session starts =============================
+platform win32 -- Python 3.14.3, pytest-9.0.2, pluggy-1.6.0
+rootdir: C:\PROJECTS\eden-framework
+configfile: pyproject.toml
+plugins: anyio-4.12.1, asyncio-1.3.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=session, asyncio_default_test_loop_scope=session
+collected 10 items
+
+tests\test_orm_modern.py ...                                             [ 30%]
+tests\test_orm_enhanced.py .FFF.F.                                       [100%]
+
+================================== FAILURES ===================================
+____________________ test_queryset_aggregate_django_style _____________________
+
+    @pytest.mark.asyncio
+    async def test_queryset_aggregate_django_style():
+        await EnhancedUser.create(name="A", score=10)
+        await EnhancedUser.create(name="B", score=20)
+        await EnhancedUser.create(name="C", score=30)
+    
+        # Test Django-style aggregate objects
+        stats = await EnhancedUser.query().aggregate(
+            total=Sum("score"),
+            average=Avg("score"),
+            maximum=Max("score")
+        )
+    
+        assert int(stats["total"]) == 60
+>       assert int(stats["average"]) == 20
+E       assert 15 == 20
+E        +  where 15 = int(15.0)
+
+tests\test_orm_enhanced.py:62: AssertionError
+---------------------------- Captured stdout call -----------------------------
+2026-03-23 10:16:02,385 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-03-23 10:16:02,385 INFO sqlalchemy.engine.Engine INSERT INTO enhanced_users (name, data, score, tags, id) VALUES (?, ?, ?, ?, ?) RETURNING created_at, updated_at
+2026-03-23 10:16:02,385 INFO sqlalchemy.engine.Engine [generated in 0.00024s] ('A', '{}', 10, '[]', '5b02fb155ee14bc98df29d56be2c7876')
+2026-03-23 10:16:02,389 INFO sqlalchemy.engine.Engine SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE enhanced_users.id = ?
+2026-03-23 10:16:02,389 INFO sqlalchemy.engine.Engine [cached since 0.04409s ago] ('5b02fb155ee14bc98df29d56be2c7876',)
+2026-03-23 10:16:02,391 INFO sqlalchemy.engine.Engine INSERT INTO eden_audit_logs (id, user_id, action, model_name, record_id, changes, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING created_at, updated_at
+2026-03-23 10:16:02,391 INFO sqlalchemy.engine.Engine [cached since 0.07313s ago] ('3a37dcff716e4d32b8ff58e567bc0993', None, 'create', 'EnhancedUser', '5b02fb15-5ee1-4bc9-8df2-9d56be2c7876', '{"name": {"old": null, "new": "A"}, "data": {"old": null, "new": {}}, "score": {"old": null, "new": 10}, "tags": {"old": null, "new": []}, "id": {"ol ... (26 characters truncated) ... -5ee1-4bc9-8df2-9d56be2c7876"}, "created_at": {"old": null, "new": "2026-03-23T10:16:02"}, "updated_at": {"old": null, "new": "2026-03-23T10:16:02"}}', '2026-03-23 10:16:02.391195')
+2026-03-23 10:16:02,393 INFO sqlalchemy.engine.Engine SELECT eden_audit_logs.id, eden_audit_logs.user_id, eden_audit_logs.action, eden_audit_logs.model_name, eden_audit_logs.record_id, eden_audit_logs.changes, eden_audit_logs.timestamp, eden_audit_logs.created_at, eden_audit_logs.updated_at 
+FROM eden_audit_logs 
+WHERE eden_audit_logs.id = ?
+2026-03-23 10:16:02,393 INFO sqlalchemy.engine.Engine [cached since 0.07282s ago] ('3a37dcff716e4d32b8ff58e567bc0993',)
+2026-03-23 10:16:02,394 INFO sqlalchemy.engine.Engine COMMIT
+2026-03-23 10:16:02,402 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-03-23 10:16:02,403 INFO sqlalchemy.engine.Engine INSERT INTO enhanced_users (name, data, score, tags, id) VALUES (?, ?, ?, ?, ?) RETURNING created_at, updated_at
+2026-03-23 10:16:02,403 INFO sqlalchemy.engine.Engine [cached since 0.01753s ago] ('B', '{}', 20, '[]', '6b49e2b83f76481ba99a3600addffa48')
+2026-03-23 10:16:02,406 INFO sqlalchemy.engine.Engine SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE enhanced_users.id = ?
+2026-03-23 10:16:02,406 INFO sqlalchemy.engine.Engine [cached since 0.0609s ago] ('6b49e2b83f76481ba99a3600addffa48',)
+2026-03-23 10:16:02,407 INFO sqlalchemy.engine.Engine INSERT INTO eden_audit_logs (id, user_id, action, model_name, record_id, changes, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING created_at, updated_at
+2026-03-23 10:16:02,407 INFO sqlalchemy.engine.Engine [cached since 0.08956s ago] ('699d34c473124e6480b8f27987e5cd0e', None, 'create', 'EnhancedUser', '6b49e2b8-3f76-481b-a99a-3600addffa48', '{"name": {"old": null, "new": "B"}, "data": {"old": null, "new": {}}, "score": {"old": null, "new": 20}, "tags": {"old": null, "new": []}, "id": {"ol ... (26 characters truncated) ... -3f76-481b-a99a-3600addffa48"}, "created_at": {"old": null, "new": "2026-03-23T10:16:02"}, "updated_at": {"old": null, "new": "2026-03-23T10:16:02"}}', '2026-03-23 10:16:02.407685')
+2026-03-23 10:16:02,409 INFO sqlalchemy.engine.Engine SELECT eden_audit_logs.id, eden_audit_logs.user_id, eden_audit_logs.action, eden_audit_logs.model_name, eden_audit_logs.record_id, eden_audit_logs.changes, eden_audit_logs.timestamp, eden_audit_logs.created_at, eden_audit_logs.updated_at 
+FROM eden_audit_logs 
+WHERE eden_audit_logs.id = ?
+2026-03-23 10:16:02,409 INFO sqlalchemy.engine.Engine [cached since 0.08859s ago] ('699d34c473124e6480b8f27987e5cd0e',)
+2026-03-23 10:16:02,410 INFO sqlalchemy.engine.Engine COMMIT
+2026-03-23 10:16:02,416 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-03-23 10:16:02,416 INFO sqlalchemy.engine.Engine INSERT INTO enhanced_users (name, data, score, tags, id) VALUES (?, ?, ?, ?, ?) RETURNING created_at, updated_at
+2026-03-23 10:16:02,417 INFO sqlalchemy.engine.Engine [cached since 0.03143s ago] ('C', '{}', 30, '[]', '1a47a5c2febe43fd8c0b3a7b2903378e')
+2026-03-23 10:16:02,419 INFO sqlalchemy.engine.Engine SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE enhanced_users.id = ?
+2026-03-23 10:16:02,419 INFO sqlalchemy.engine.Engine [cached since 0.07448s ago] ('1a47a5c2febe43fd8c0b3a7b2903378e',)
+2026-03-23 10:16:02,421 INFO sqlalchemy.engine.Engine INSERT INTO eden_audit_logs (id, user_id, action, model_name, record_id, changes, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING created_at, updated_at
+2026-03-23 10:16:02,421 INFO sqlalchemy.engine.Engine [cached since 0.1031s ago] ('7640fb1501614d59aaf9169d38a8ae4c', None, 'create', 'EnhancedUser', '1a47a5c2-febe-43fd-8c0b-3a7b2903378e', '{"name": {"old": null, "new": "C"}, "data": {"old": null, "new": {}}, "score": {"old": null, "new": 30}, "tags": {"old": null, "new": []}, "id": {"ol ... (26 characters truncated) ... -febe-43fd-8c0b-3a7b2903378e"}, "created_at": {"old": null, "new": "2026-03-23T10:16:02"}, "updated_at": {"old": null, "new": "2026-03-23T10:16:02"}}', '2026-03-23 10:16:02.421276')
+2026-03-23 10:16:02,423 INFO sqlalchemy.engine.Engine SELECT eden_audit_logs.id, eden_audit_logs.user_id, eden_audit_logs.action, eden_audit_logs.model_name, eden_audit_logs.record_id, eden_audit_logs.changes, eden_audit_logs.timestamp, eden_audit_logs.created_at, eden_audit_logs.updated_at 
+FROM eden_audit_logs 
+WHERE eden_audit_logs.id = ?
+2026-03-23 10:16:02,423 INFO sqlalchemy.engine.Engine [cached since 0.1028s ago] ('7640fb1501614d59aaf9169d38a8ae4c',)
+2026-03-23 10:16:02,424 INFO sqlalchemy.engine.Engine COMMIT
+2026-03-23 10:16:02,432 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-03-23 10:16:02,435 INFO sqlalchemy.engine.Engine SELECT sum(anon_1.score) AS total, avg(anon_1.score) AS average, max(anon_1.score) AS maximum 
+FROM (SELECT enhanced_users.name AS name, enhanced_users.data AS data, enhanced_users.score AS score, enhanced_users.tags AS tags, enhanced_users.id AS id, enhanced_users.created_at AS created_at, enhanced_users.updated_at AS updated_at 
+FROM enhanced_users) AS anon_1
+2026-03-23 10:16:02,435 INFO sqlalchemy.engine.Engine [generated in 0.00021s] ()
+2026-03-23 10:16:02,436 INFO sqlalchemy.engine.Engine ROLLBACK
+------------------------------ Captured log call ------------------------------
+INFO     sqlalchemy.engine.Engine:base.py:2710 BEGIN (implicit)
+INFO     sqlalchemy.engine.Engine:base.py:1846 INSERT INTO enhanced_users (name, data, score, tags, id) VALUES (?, ?, ?, ?, ?) RETURNING created_at, updated_at
+INFO     sqlalchemy.engine.Engine:base.py:1846 [generated in 0.00024s] ('A', '{}', 10, '[]', '5b02fb155ee14bc98df29d56be2c7876')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE enhanced_users.id = ?
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.04409s ago] ('5b02fb155ee14bc98df29d56be2c7876',)
+INFO     sqlalchemy.engine.Engine:base.py:1846 INSERT INTO eden_audit_logs (id, user_id, action, model_name, record_id, changes, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING created_at, updated_at
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.07313s ago] ('3a37dcff716e4d32b8ff58e567bc0993', None, 'create', 'EnhancedUser', '5b02fb15-5ee1-4bc9-8df2-9d56be2c7876', '{"name": {"old": null, "new": "A"}, "data": {"old": null, "new": {}}, "score": {"old": null, "new": 10}, "tags": {"old": null, "new": []}, "id": {"ol ... (26 characters truncated) ... -5ee1-4bc9-8df2-9d56be2c7876"}, "created_at": {"old": null, "new": "2026-03-23T10:16:02"}, "updated_at": {"old": null, "new": "2026-03-23T10:16:02"}}', '2026-03-23 10:16:02.391195')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT eden_audit_logs.id, eden_audit_logs.user_id, eden_audit_logs.action, eden_audit_logs.model_name, eden_audit_logs.record_id, eden_audit_logs.changes, eden_audit_logs.timestamp, eden_audit_logs.created_at, eden_audit_logs.updated_at 
+FROM eden_audit_logs 
+WHERE eden_audit_logs.id = ?
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.07282s ago] ('3a37dcff716e4d32b8ff58e567bc0993',)
+INFO     sqlalchemy.engine.Engine:base.py:2716 COMMIT
+INFO     sqlalchemy.engine.Engine:base.py:2710 BEGIN (implicit)
+INFO     sqlalchemy.engine.Engine:base.py:1846 INSERT INTO enhanced_users (name, data, score, tags, id) VALUES (?, ?, ?, ?, ?) RETURNING created_at, updated_at
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.01753s ago] ('B', '{}', 20, '[]', '6b49e2b83f76481ba99a3600addffa48')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE enhanced_users.id = ?
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.0609s ago] ('6b49e2b83f76481ba99a3600addffa48',)
+INFO     sqlalchemy.engine.Engine:base.py:1846 INSERT INTO eden_audit_logs (id, user_id, action, model_name, record_id, changes, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING created_at, updated_at
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.08956s ago] ('699d34c473124e6480b8f27987e5cd0e', None, 'create', 'EnhancedUser', '6b49e2b8-3f76-481b-a99a-3600addffa48', '{"name": {"old": null, "new": "B"}, "data": {"old": null, "new": {}}, "score": {"old": null, "new": 20}, "tags": {"old": null, "new": []}, "id": {"ol ... (26 characters truncated) ... -3f76-481b-a99a-3600addffa48"}, "created_at": {"old": null, "new": "2026-03-23T10:16:02"}, "updated_at": {"old": null, "new": "2026-03-23T10:16:02"}}', '2026-03-23 10:16:02.407685')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT eden_audit_logs.id, eden_audit_logs.user_id, eden_audit_logs.action, eden_audit_logs.model_name, eden_audit_logs.record_id, eden_audit_logs.changes, eden_audit_logs.timestamp, eden_audit_logs.created_at, eden_audit_logs.updated_at 
+FROM eden_audit_logs 
+WHERE eden_audit_logs.id = ?
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.08859s ago] ('699d34c473124e6480b8f27987e5cd0e',)
+INFO     sqlalchemy.engine.Engine:base.py:2716 COMMIT
+INFO     sqlalchemy.engine.Engine:base.py:2710 BEGIN (implicit)
+INFO     sqlalchemy.engine.Engine:base.py:1846 INSERT INTO enhanced_users (name, data, score, tags, id) VALUES (?, ?, ?, ?, ?) RETURNING created_at, updated_at
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.03143s ago] ('C', '{}', 30, '[]', '1a47a5c2febe43fd8c0b3a7b2903378e')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE enhanced_users.id = ?
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.07448s ago] ('1a47a5c2febe43fd8c0b3a7b2903378e',)
+INFO     sqlalchemy.engine.Engine:base.py:1846 INSERT INTO eden_audit_logs (id, user_id, action, model_name, record_id, changes, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING created_at, updated_at
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.1031s ago] ('7640fb1501614d59aaf9169d38a8ae4c', None, 'create', 'EnhancedUser', '1a47a5c2-febe-43fd-8c0b-3a7b2903378e', '{"name": {"old": null, "new": "C"}, "data": {"old": null, "new": {}}, "score": {"old": null, "new": 30}, "tags": {"old": null, "new": []}, "id": {"ol ... (26 characters truncated) ... -febe-43fd-8c0b-3a7b2903378e"}, "created_at": {"old": null, "new": "2026-03-23T10:16:02"}, "updated_at": {"old": null, "new": "2026-03-23T10:16:02"}}', '2026-03-23 10:16:02.421276')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT eden_audit_logs.id, eden_audit_logs.user_id, eden_audit_logs.action, eden_audit_logs.model_name, eden_audit_logs.record_id, eden_audit_logs.changes, eden_audit_logs.timestamp, eden_audit_logs.created_at, eden_audit_logs.updated_at 
+FROM eden_audit_logs 
+WHERE eden_audit_logs.id = ?
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.1028s ago] ('7640fb1501614d59aaf9169d38a8ae4c',)
+INFO     sqlalchemy.engine.Engine:base.py:2716 COMMIT
+INFO     sqlalchemy.engine.Engine:base.py:2710 BEGIN (implicit)
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT sum(anon_1.score) AS total, avg(anon_1.score) AS average, max(anon_1.score) AS maximum 
+FROM (SELECT enhanced_users.name AS name, enhanced_users.data AS data, enhanced_users.score AS score, enhanced_users.tags AS tags, enhanced_users.id AS id, enhanced_users.created_at AS created_at, enhanced_users.updated_at AS updated_at 
+FROM enhanced_users) AS anon_1
+INFO     sqlalchemy.engine.Engine:base.py:1846 [generated in 0.00021s] ()
+INFO     sqlalchemy.engine.Engine:base.py:2713 ROLLBACK
+_______________________ test_queryset_annotate_complex ________________________
+
+    @pytest.mark.asyncio
+    async def test_queryset_annotate_complex():
+        await EnhancedUser.create(name="Alice", score=100)
+        await EnhancedUser.create(name="Bob", score=40)
+    
+        # Annotate with a boolean condition
+        qs = EnhancedUser.query().annotate(is_high_score=EnhancedUser.score > 50)
+        results = await qs.order_by("name").values("name", "is_high_score")
+    
+>       assert results[0]["name"] == "Alice"
+E       AssertionError: assert 'A' == 'Alice'
+E         
+E         - Alice
+E         + A
+
+tests\test_orm_enhanced.py:74: AssertionError
+---------------------------- Captured stdout call -----------------------------
+2026-03-23 10:16:02,703 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-03-23 10:16:02,703 INFO sqlalchemy.engine.Engine INSERT INTO enhanced_users (name, data, score, tags, id) VALUES (?, ?, ?, ?, ?) RETURNING created_at, updated_at
+2026-03-23 10:16:02,703 INFO sqlalchemy.engine.Engine [cached since 0.3183s ago] ('Alice', '{}', 100, '[]', '901c6cfd981d41fe875f03c4e210fe19')
+2026-03-23 10:16:02,707 INFO sqlalchemy.engine.Engine SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE enhanced_users.id = ?
+2026-03-23 10:16:02,707 INFO sqlalchemy.engine.Engine [cached since 0.3624s ago] ('901c6cfd981d41fe875f03c4e210fe19',)
+2026-03-23 10:16:02,709 INFO sqlalchemy.engine.Engine INSERT INTO eden_audit_logs (id, user_id, action, model_name, record_id, changes, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING created_at, updated_at
+2026-03-23 10:16:02,709 INFO sqlalchemy.engine.Engine [cached since 0.3913s ago] ('1e94a88d261c4d1d8763edf0e644fb5c', None, 'create', 'EnhancedUser', '901c6cfd-981d-41fe-875f-03c4e210fe19', '{"name": {"old": null, "new": "Alice"}, "data": {"old": null, "new": {}}, "score": {"old": null, "new": 100}, "tags": {"old": null, "new": []}, "id": ... (31 characters truncated) ... -981d-41fe-875f-03c4e210fe19"}, "created_at": {"old": null, "new": "2026-03-23T10:16:02"}, "updated_at": {"old": null, "new": "2026-03-23T10:16:02"}}', '2026-03-23 10:16:02.709364')
+2026-03-23 10:16:02,711 INFO sqlalchemy.engine.Engine SELECT eden_audit_logs.id, eden_audit_logs.user_id, eden_audit_logs.action, eden_audit_logs.model_name, eden_audit_logs.record_id, eden_audit_logs.changes, eden_audit_logs.timestamp, eden_audit_logs.created_at, eden_audit_logs.updated_at 
+FROM eden_audit_logs 
+WHERE eden_audit_logs.id = ?
+2026-03-23 10:16:02,711 INFO sqlalchemy.engine.Engine [cached since 0.3906s ago] ('1e94a88d261c4d1d8763edf0e644fb5c',)
+2026-03-23 10:16:02,712 INFO sqlalchemy.engine.Engine COMMIT
+2026-03-23 10:16:02,719 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-03-23 10:16:02,720 INFO sqlalchemy.engine.Engine INSERT INTO enhanced_users (name, data, score, tags, id) VALUES (?, ?, ?, ?, ?) RETURNING created_at, updated_at
+2026-03-23 10:16:02,720 INFO sqlalchemy.engine.Engine [cached since 0.3345s ago] ('Bob', '{}', 40, '[]', '032bcba1a9de4d3bb79bfddf9ef654e1')
+2026-03-23 10:16:02,724 INFO sqlalchemy.engine.Engine SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE enhanced_users.id = ?
+2026-03-23 10:16:02,724 INFO sqlalchemy.engine.Engine [cached since 0.379s ago] ('032bcba1a9de4d3bb79bfddf9ef654e1',)
+2026-03-23 10:16:02,726 INFO sqlalchemy.engine.Engine INSERT INTO eden_audit_logs (id, user_id, action, model_name, record_id, changes, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING created_at, updated_at
+2026-03-23 10:16:02,726 INFO sqlalchemy.engine.Engine [cached since 0.4085s ago] ('acb5f60b019c484cb783568e94eec685', None, 'create', 'EnhancedUser', '032bcba1-a9de-4d3b-b79b-fddf9ef654e1', '{"name": {"old": null, "new": "Bob"}, "data": {"old": null, "new": {}}, "score": {"old": null, "new": 40}, "tags": {"old": null, "new": []}, "id": {" ... (28 characters truncated) ... -a9de-4d3b-b79b-fddf9ef654e1"}, "created_at": {"old": null, "new": "2026-03-23T10:16:02"}, "updated_at": {"old": null, "new": "2026-03-23T10:16:02"}}', '2026-03-23 10:16:02.726564')
+2026-03-23 10:16:02,728 INFO sqlalchemy.engine.Engine SELECT eden_audit_logs.id, eden_audit_logs.user_id, eden_audit_logs.action, eden_audit_logs.model_name, eden_audit_logs.record_id, eden_audit_logs.changes, eden_audit_logs.timestamp, eden_audit_logs.created_at, eden_audit_logs.updated_at 
+FROM eden_audit_logs 
+WHERE eden_audit_logs.id = ?
+2026-03-23 10:16:02,728 INFO sqlalchemy.engine.Engine [cached since 0.4083s ago] ('acb5f60b019c484cb783568e94eec685',)
+2026-03-23 10:16:02,730 INFO sqlalchemy.engine.Engine COMMIT
+2026-03-23 10:16:02,738 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-03-23 10:16:02,739 INFO sqlalchemy.engine.Engine SELECT enhanced_users.name, enhanced_users.score > ? AS is_high_score 
+FROM enhanced_users ORDER BY enhanced_users.name ASC
+2026-03-23 10:16:02,740 INFO sqlalchemy.engine.Engine [generated in 0.00023s] (50,)
+2026-03-23 10:16:02,741 INFO sqlalchemy.engine.Engine ROLLBACK
+------------------------------ Captured log call ------------------------------
+INFO     sqlalchemy.engine.Engine:base.py:2710 BEGIN (implicit)
+INFO     sqlalchemy.engine.Engine:base.py:1846 INSERT INTO enhanced_users (name, data, score, tags, id) VALUES (?, ?, ?, ?, ?) RETURNING created_at, updated_at
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.3183s ago] ('Alice', '{}', 100, '[]', '901c6cfd981d41fe875f03c4e210fe19')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE enhanced_users.id = ?
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.3624s ago] ('901c6cfd981d41fe875f03c4e210fe19',)
+INFO     sqlalchemy.engine.Engine:base.py:1846 INSERT INTO eden_audit_logs (id, user_id, action, model_name, record_id, changes, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING created_at, updated_at
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.3913s ago] ('1e94a88d261c4d1d8763edf0e644fb5c', None, 'create', 'EnhancedUser', '901c6cfd-981d-41fe-875f-03c4e210fe19', '{"name": {"old": null, "new": "Alice"}, "data": {"old": null, "new": {}}, "score": {"old": null, "new": 100}, "tags": {"old": null, "new": []}, "id": ... (31 characters truncated) ... -981d-41fe-875f-03c4e210fe19"}, "created_at": {"old": null, "new": "2026-03-23T10:16:02"}, "updated_at": {"old": null, "new": "2026-03-23T10:16:02"}}', '2026-03-23 10:16:02.709364')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT eden_audit_logs.id, eden_audit_logs.user_id, eden_audit_logs.action, eden_audit_logs.model_name, eden_audit_logs.record_id, eden_audit_logs.changes, eden_audit_logs.timestamp, eden_audit_logs.created_at, eden_audit_logs.updated_at 
+FROM eden_audit_logs 
+WHERE eden_audit_logs.id = ?
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.3906s ago] ('1e94a88d261c4d1d8763edf0e644fb5c',)
+INFO     sqlalchemy.engine.Engine:base.py:2716 COMMIT
+INFO     sqlalchemy.engine.Engine:base.py:2710 BEGIN (implicit)
+INFO     sqlalchemy.engine.Engine:base.py:1846 INSERT INTO enhanced_users (name, data, score, tags, id) VALUES (?, ?, ?, ?, ?) RETURNING created_at, updated_at
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.3345s ago] ('Bob', '{}', 40, '[]', '032bcba1a9de4d3bb79bfddf9ef654e1')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE enhanced_users.id = ?
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.379s ago] ('032bcba1a9de4d3bb79bfddf9ef654e1',)
+INFO     sqlalchemy.engine.Engine:base.py:1846 INSERT INTO eden_audit_logs (id, user_id, action, model_name, record_id, changes, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING created_at, updated_at
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.4085s ago] ('acb5f60b019c484cb783568e94eec685', None, 'create', 'EnhancedUser', '032bcba1-a9de-4d3b-b79b-fddf9ef654e1', '{"name": {"old": null, "new": "Bob"}, "data": {"old": null, "new": {}}, "score": {"old": null, "new": 40}, "tags": {"old": null, "new": []}, "id": {" ... (28 characters truncated) ... -a9de-4d3b-b79b-fddf9ef654e1"}, "created_at": {"old": null, "new": "2026-03-23T10:16:02"}, "updated_at": {"old": null, "new": "2026-03-23T10:16:02"}}', '2026-03-23 10:16:02.726564')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT eden_audit_logs.id, eden_audit_logs.user_id, eden_audit_logs.action, eden_audit_logs.model_name, eden_audit_logs.record_id, eden_audit_logs.changes, eden_audit_logs.timestamp, eden_audit_logs.created_at, eden_audit_logs.updated_at 
+FROM eden_audit_logs 
+WHERE eden_audit_logs.id = ?
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.4083s ago] ('acb5f60b019c484cb783568e94eec685',)
+INFO     sqlalchemy.engine.Engine:base.py:2716 COMMIT
+INFO     sqlalchemy.engine.Engine:base.py:2710 BEGIN (implicit)
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT enhanced_users.name, enhanced_users.score > ? AS is_high_score 
+FROM enhanced_users ORDER BY enhanced_users.name ASC
+INFO     sqlalchemy.engine.Engine:base.py:1846 [generated in 0.00023s] (50,)
+INFO     sqlalchemy.engine.Engine:base.py:2713 ROLLBACK
+__________________________ test_orm_complex_lookups ___________________________
+
+    @pytest.mark.asyncio
+    async def test_orm_complex_lookups():
+        await EnhancedUser.create(name="Alice", score=10, data={"dept": "IT"})
+        await EnhancedUser.create(name="Bob", score=20, data={"dept": "HR"})
+        await EnhancedUser.create(name="Charlie", score=30, data={"dept": "IT"})
+    
+        # Complex AND/OR with Q objects
+        q = (Q(name="Alice") | Q(name="Bob")) & Q(score__lt=25)
+        users = await EnhancedUser.filter(q)
+    
+>       assert len(users) == 2
+E       assert 3 == 2
+E        +  where 3 = len([<tests.test_orm_enhanced.EnhancedUser object at 0x000001ABF0D0F7A0>, <tests.test_orm_enhanced.EnhancedUser object at 0x000001ABF5BC59B0>, <tests.test_orm_enhanced.EnhancedUser object at 0x000001ABF5BC5EF0>])
+
+tests\test_orm_enhanced.py:89: AssertionError
+---------------------------- Captured stdout call -----------------------------
+2026-03-23 10:16:02,748 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-03-23 10:16:02,749 INFO sqlalchemy.engine.Engine INSERT INTO enhanced_users (name, data, score, tags, id) VALUES (?, ?, ?, ?, ?) RETURNING created_at, updated_at
+2026-03-23 10:16:02,749 INFO sqlalchemy.engine.Engine [generated in 0.00020s] ('Alice', '{"dept": "IT"}', 10, '[]', '53fb5ab9a1e0480b8048d2c748dba1ec')
+2026-03-23 10:16:02,752 INFO sqlalchemy.engine.Engine SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE enhanced_users.id = ?
+2026-03-23 10:16:02,752 INFO sqlalchemy.engine.Engine [cached since 0.407s ago] ('53fb5ab9a1e0480b8048d2c748dba1ec',)
+2026-03-23 10:16:02,753 INFO sqlalchemy.engine.Engine INSERT INTO eden_audit_logs (id, user_id, action, model_name, record_id, changes, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING created_at, updated_at
+2026-03-23 10:16:02,754 INFO sqlalchemy.engine.Engine [cached since 0.4357s ago] ('c3ac64c614ed4c17ab9b304ffe10b9dd', None, 'create', 'EnhancedUser', '53fb5ab9-a1e0-480b-8048-d2c748dba1ec', '{"name": {"old": null, "new": "Alice"}, "data": {"old": null, "new": {"dept": "IT"}}, "score": {"old": null, "new": 10}, "tags": {"old": null, "new": ... (42 characters truncated) ... -a1e0-480b-8048-d2c748dba1ec"}, "created_at": {"old": null, "new": "2026-03-23T10:16:02"}, "updated_at": {"old": null, "new": "2026-03-23T10:16:02"}}', '2026-03-23 10:16:02.753873')
+2026-03-23 10:16:02,755 INFO sqlalchemy.engine.Engine SELECT eden_audit_logs.id, eden_audit_logs.user_id, eden_audit_logs.action, eden_audit_logs.model_name, eden_audit_logs.record_id, eden_audit_logs.changes, eden_audit_logs.timestamp, eden_audit_logs.created_at, eden_audit_logs.updated_at 
+FROM eden_audit_logs 
+WHERE eden_audit_logs.id = ?
+2026-03-23 10:16:02,755 INFO sqlalchemy.engine.Engine [cached since 0.4353s ago] ('c3ac64c614ed4c17ab9b304ffe10b9dd',)
+2026-03-23 10:16:02,757 INFO sqlalchemy.engine.Engine COMMIT
+2026-03-23 10:16:02,764 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-03-23 10:16:02,765 INFO sqlalchemy.engine.Engine INSERT INTO enhanced_users (name, data, score, tags, id) VALUES (?, ?, ?, ?, ?) RETURNING created_at, updated_at
+2026-03-23 10:16:02,765 INFO sqlalchemy.engine.Engine [cached since 0.01579s ago] ('Bob', '{"dept": "HR"}', 20, '[]', '4f4ec49083264badbdb6fb4ce2ef25c4')
+2026-03-23 10:16:02,767 INFO sqlalchemy.engine.Engine SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE enhanced_users.id = ?
+2026-03-23 10:16:02,767 INFO sqlalchemy.engine.Engine [cached since 0.4225s ago] ('4f4ec49083264badbdb6fb4ce2ef25c4',)
+2026-03-23 10:16:02,769 INFO sqlalchemy.engine.Engine INSERT INTO eden_audit_logs (id, user_id, action, model_name, record_id, changes, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING created_at, updated_at
+2026-03-23 10:16:02,769 INFO sqlalchemy.engine.Engine [cached since 0.451s ago] ('3b6d68ea8ea249778c87eab332539f02', None, 'create', 'EnhancedUser', '4f4ec490-8326-4bad-bdb6-fb4ce2ef25c4', '{"name": {"old": null, "new": "Bob"}, "data": {"old": null, "new": {"dept": "HR"}}, "score": {"old": null, "new": 20}, "tags": {"old": null, "new": [ ... (40 characters truncated) ... -8326-4bad-bdb6-fb4ce2ef25c4"}, "created_at": {"old": null, "new": "2026-03-23T10:16:02"}, "updated_at": {"old": null, "new": "2026-03-23T10:16:02"}}', '2026-03-23 10:16:02.769179')
+2026-03-23 10:16:02,770 INFO sqlalchemy.engine.Engine SELECT eden_audit_logs.id, eden_audit_logs.user_id, eden_audit_logs.action, eden_audit_logs.model_name, eden_audit_logs.record_id, eden_audit_logs.changes, eden_audit_logs.timestamp, eden_audit_logs.created_at, eden_audit_logs.updated_at 
+FROM eden_audit_logs 
+WHERE eden_audit_logs.id = ?
+2026-03-23 10:16:02,771 INFO sqlalchemy.engine.Engine [cached since 0.4505s ago] ('3b6d68ea8ea249778c87eab332539f02',)
+2026-03-23 10:16:02,772 INFO sqlalchemy.engine.Engine COMMIT
+2026-03-23 10:16:02,779 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-03-23 10:16:02,779 INFO sqlalchemy.engine.Engine INSERT INTO enhanced_users (name, data, score, tags, id) VALUES (?, ?, ?, ?, ?) RETURNING created_at, updated_at
+2026-03-23 10:16:02,779 INFO sqlalchemy.engine.Engine [cached since 0.03066s ago] ('Charlie', '{"dept": "IT"}', 30, '[]', '40e4e76eeeb140ce864008eb053e54d9')
+2026-03-23 10:16:02,782 INFO sqlalchemy.engine.Engine SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE enhanced_users.id = ?
+2026-03-23 10:16:02,783 INFO sqlalchemy.engine.Engine [cached since 0.4377s ago] ('40e4e76eeeb140ce864008eb053e54d9',)
+2026-03-23 10:16:02,784 INFO sqlalchemy.engine.Engine INSERT INTO eden_audit_logs (id, user_id, action, model_name, record_id, changes, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING created_at, updated_at
+2026-03-23 10:16:02,784 INFO sqlalchemy.engine.Engine [cached since 0.4664s ago] ('9f3cbb7ef4454e238f228a27d2a36a68', None, 'create', 'EnhancedUser', '40e4e76e-eeb1-40ce-8640-08eb053e54d9', '{"name": {"old": null, "new": "Charlie"}, "data": {"old": null, "new": {"dept": "IT"}}, "score": {"old": null, "new": 30}, "tags": {"old": null, "new ... (44 characters truncated) ... -eeb1-40ce-8640-08eb053e54d9"}, "created_at": {"old": null, "new": "2026-03-23T10:16:02"}, "updated_at": {"old": null, "new": "2026-03-23T10:16:02"}}', '2026-03-23 10:16:02.784534')
+2026-03-23 10:16:02,786 INFO sqlalchemy.engine.Engine SELECT eden_audit_logs.id, eden_audit_logs.user_id, eden_audit_logs.action, eden_audit_logs.model_name, eden_audit_logs.record_id, eden_audit_logs.changes, eden_audit_logs.timestamp, eden_audit_logs.created_at, eden_audit_logs.updated_at 
+FROM eden_audit_logs 
+WHERE eden_audit_logs.id = ?
+2026-03-23 10:16:02,786 INFO sqlalchemy.engine.Engine [cached since 0.4659s ago] ('9f3cbb7ef4454e238f228a27d2a36a68',)
+2026-03-23 10:16:02,787 INFO sqlalchemy.engine.Engine COMMIT
+2026-03-23 10:16:02,796 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-03-23 10:16:02,797 INFO sqlalchemy.engine.Engine SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE (enhanced_users.name = ? OR enhanced_users.name = ?) AND enhanced_users.score < ?
+2026-03-23 10:16:02,797 INFO sqlalchemy.engine.Engine [generated in 0.00016s] ('Alice', 'Bob', 25)
+2026-03-23 10:16:02,798 INFO sqlalchemy.engine.Engine ROLLBACK
+------------------------------ Captured log call ------------------------------
+INFO     sqlalchemy.engine.Engine:base.py:2710 BEGIN (implicit)
+INFO     sqlalchemy.engine.Engine:base.py:1846 INSERT INTO enhanced_users (name, data, score, tags, id) VALUES (?, ?, ?, ?, ?) RETURNING created_at, updated_at
+INFO     sqlalchemy.engine.Engine:base.py:1846 [generated in 0.00020s] ('Alice', '{"dept": "IT"}', 10, '[]', '53fb5ab9a1e0480b8048d2c748dba1ec')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE enhanced_users.id = ?
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.407s ago] ('53fb5ab9a1e0480b8048d2c748dba1ec',)
+INFO     sqlalchemy.engine.Engine:base.py:1846 INSERT INTO eden_audit_logs (id, user_id, action, model_name, record_id, changes, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING created_at, updated_at
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.4357s ago] ('c3ac64c614ed4c17ab9b304ffe10b9dd', None, 'create', 'EnhancedUser', '53fb5ab9-a1e0-480b-8048-d2c748dba1ec', '{"name": {"old": null, "new": "Alice"}, "data": {"old": null, "new": {"dept": "IT"}}, "score": {"old": null, "new": 10}, "tags": {"old": null, "new": ... (42 characters truncated) ... -a1e0-480b-8048-d2c748dba1ec"}, "created_at": {"old": null, "new": "2026-03-23T10:16:02"}, "updated_at": {"old": null, "new": "2026-03-23T10:16:02"}}', '2026-03-23 10:16:02.753873')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT eden_audit_logs.id, eden_audit_logs.user_id, eden_audit_logs.action, eden_audit_logs.model_name, eden_audit_logs.record_id, eden_audit_logs.changes, eden_audit_logs.timestamp, eden_audit_logs.created_at, eden_audit_logs.updated_at 
+FROM eden_audit_logs 
+WHERE eden_audit_logs.id = ?
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.4353s ago] ('c3ac64c614ed4c17ab9b304ffe10b9dd',)
+INFO     sqlalchemy.engine.Engine:base.py:2716 COMMIT
+INFO     sqlalchemy.engine.Engine:base.py:2710 BEGIN (implicit)
+INFO     sqlalchemy.engine.Engine:base.py:1846 INSERT INTO enhanced_users (name, data, score, tags, id) VALUES (?, ?, ?, ?, ?) RETURNING created_at, updated_at
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.01579s ago] ('Bob', '{"dept": "HR"}', 20, '[]', '4f4ec49083264badbdb6fb4ce2ef25c4')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE enhanced_users.id = ?
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.4225s ago] ('4f4ec49083264badbdb6fb4ce2ef25c4',)
+INFO     sqlalchemy.engine.Engine:base.py:1846 INSERT INTO eden_audit_logs (id, user_id, action, model_name, record_id, changes, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING created_at, updated_at
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.451s ago] ('3b6d68ea8ea249778c87eab332539f02', None, 'create', 'EnhancedUser', '4f4ec490-8326-4bad-bdb6-fb4ce2ef25c4', '{"name": {"old": null, "new": "Bob"}, "data": {"old": null, "new": {"dept": "HR"}}, "score": {"old": null, "new": 20}, "tags": {"old": null, "new": [ ... (40 characters truncated) ... -8326-4bad-bdb6-fb4ce2ef25c4"}, "created_at": {"old": null, "new": "2026-03-23T10:16:02"}, "updated_at": {"old": null, "new": "2026-03-23T10:16:02"}}', '2026-03-23 10:16:02.769179')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT eden_audit_logs.id, eden_audit_logs.user_id, eden_audit_logs.action, eden_audit_logs.model_name, eden_audit_logs.record_id, eden_audit_logs.changes, eden_audit_logs.timestamp, eden_audit_logs.created_at, eden_audit_logs.updated_at 
+FROM eden_audit_logs 
+WHERE eden_audit_logs.id = ?
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.4505s ago] ('3b6d68ea8ea249778c87eab332539f02',)
+INFO     sqlalchemy.engine.Engine:base.py:2716 COMMIT
+INFO     sqlalchemy.engine.Engine:base.py:2710 BEGIN (implicit)
+INFO     sqlalchemy.engine.Engine:base.py:1846 INSERT INTO enhanced_users (name, data, score, tags, id) VALUES (?, ?, ?, ?, ?) RETURNING created_at, updated_at
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.03066s ago] ('Charlie', '{"dept": "IT"}', 30, '[]', '40e4e76eeeb140ce864008eb053e54d9')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE enhanced_users.id = ?
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.4377s ago] ('40e4e76eeeb140ce864008eb053e54d9',)
+INFO     sqlalchemy.engine.Engine:base.py:1846 INSERT INTO eden_audit_logs (id, user_id, action, model_name, record_id, changes, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING created_at, updated_at
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.4664s ago] ('9f3cbb7ef4454e238f228a27d2a36a68', None, 'create', 'EnhancedUser', '40e4e76e-eeb1-40ce-8640-08eb053e54d9', '{"name": {"old": null, "new": "Charlie"}, "data": {"old": null, "new": {"dept": "IT"}}, "score": {"old": null, "new": 30}, "tags": {"old": null, "new ... (44 characters truncated) ... -eeb1-40ce-8640-08eb053e54d9"}, "created_at": {"old": null, "new": "2026-03-23T10:16:02"}, "updated_at": {"old": null, "new": "2026-03-23T10:16:02"}}', '2026-03-23 10:16:02.784534')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT eden_audit_logs.id, eden_audit_logs.user_id, eden_audit_logs.action, eden_audit_logs.model_name, eden_audit_logs.record_id, eden_audit_logs.changes, eden_audit_logs.timestamp, eden_audit_logs.created_at, eden_audit_logs.updated_at 
+FROM eden_audit_logs 
+WHERE eden_audit_logs.id = ?
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.4659s ago] ('9f3cbb7ef4454e238f228a27d2a36a68',)
+INFO     sqlalchemy.engine.Engine:base.py:2716 COMMIT
+INFO     sqlalchemy.engine.Engine:base.py:2710 BEGIN (implicit)
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE (enhanced_users.name = ? OR enhanced_users.name = ?) AND enhanced_users.score < ?
+INFO     sqlalchemy.engine.Engine:base.py:1846 [generated in 0.00016s] ('Alice', 'Bob', 25)
+INFO     sqlalchemy.engine.Engine:base.py:2713 ROLLBACK
+____________________________ test_queryset_delete _____________________________
+
+    @pytest.mark.asyncio
+    async def test_queryset_delete():
+        await EnhancedUser.create(name="To Delete", score=0)
+>       assert await EnhancedUser.count() == 1
+E       assert 11 == 1
+
+tests\test_orm_enhanced.py:107: AssertionError
+---------------------------- Captured stdout call -----------------------------
+2026-03-23 10:16:02,843 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-03-23 10:16:02,844 INFO sqlalchemy.engine.Engine INSERT INTO enhanced_users (name, data, score, tags, id) VALUES (?, ?, ?, ?, ?) RETURNING created_at, updated_at
+2026-03-23 10:16:02,844 INFO sqlalchemy.engine.Engine [cached since 0.4588s ago] ('To Delete', '{}', 0, '[]', '9760fed4bd30491083f0a2eaf38d2b6a')
+2026-03-23 10:16:02,847 INFO sqlalchemy.engine.Engine SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE enhanced_users.id = ?
+2026-03-23 10:16:02,847 INFO sqlalchemy.engine.Engine [cached since 0.5026s ago] ('9760fed4bd30491083f0a2eaf38d2b6a',)
+2026-03-23 10:16:02,849 INFO sqlalchemy.engine.Engine INSERT INTO eden_audit_logs (id, user_id, action, model_name, record_id, changes, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING created_at, updated_at
+2026-03-23 10:16:02,850 INFO sqlalchemy.engine.Engine [cached since 0.5317s ago] ('6479d267ac0c4213b37d51c5e265d102', None, 'create', 'EnhancedUser', '9760fed4-bd30-4910-83f0-a2eaf38d2b6a', '{"name": {"old": null, "new": "To Delete"}, "data": {"old": null, "new": {}}, "score": {"old": null, "new": 0}, "tags": {"old": null, "new": []}, "id ... (33 characters truncated) ... -bd30-4910-83f0-a2eaf38d2b6a"}, "created_at": {"old": null, "new": "2026-03-23T10:16:02"}, "updated_at": {"old": null, "new": "2026-03-23T10:16:02"}}', '2026-03-23 10:16:02.849798')
+2026-03-23 10:16:02,851 INFO sqlalchemy.engine.Engine SELECT eden_audit_logs.id, eden_audit_logs.user_id, eden_audit_logs.action, eden_audit_logs.model_name, eden_audit_logs.record_id, eden_audit_logs.changes, eden_audit_logs.timestamp, eden_audit_logs.created_at, eden_audit_logs.updated_at 
+FROM eden_audit_logs 
+WHERE eden_audit_logs.id = ?
+2026-03-23 10:16:02,851 INFO sqlalchemy.engine.Engine [cached since 0.5313s ago] ('6479d267ac0c4213b37d51c5e265d102',)
+2026-03-23 10:16:02,853 INFO sqlalchemy.engine.Engine COMMIT
+2026-03-23 10:16:02,864 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-03-23 10:16:02,865 INFO sqlalchemy.engine.Engine SELECT count(*) AS count_1 
+FROM (SELECT enhanced_users.name AS name, enhanced_users.data AS data, enhanced_users.score AS score, enhanced_users.tags AS tags, enhanced_users.id AS id, enhanced_users.created_at AS created_at, enhanced_users.updated_at AS updated_at 
+FROM enhanced_users) AS anon_1
+2026-03-23 10:16:02,865 INFO sqlalchemy.engine.Engine [generated in 0.00016s] ()
+2026-03-23 10:16:02,866 INFO sqlalchemy.engine.Engine ROLLBACK
+------------------------------ Captured log call ------------------------------
+INFO     sqlalchemy.engine.Engine:base.py:2710 BEGIN (implicit)
+INFO     sqlalchemy.engine.Engine:base.py:1846 INSERT INTO enhanced_users (name, data, score, tags, id) VALUES (?, ?, ?, ?, ?) RETURNING created_at, updated_at
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.4588s ago] ('To Delete', '{}', 0, '[]', '9760fed4bd30491083f0a2eaf38d2b6a')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE enhanced_users.id = ?
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.5026s ago] ('9760fed4bd30491083f0a2eaf38d2b6a',)
+INFO     sqlalchemy.engine.Engine:base.py:1846 INSERT INTO eden_audit_logs (id, user_id, action, model_name, record_id, changes, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING created_at, updated_at
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.5317s ago] ('6479d267ac0c4213b37d51c5e265d102', None, 'create', 'EnhancedUser', '9760fed4-bd30-4910-83f0-a2eaf38d2b6a', '{"name": {"old": null, "new": "To Delete"}, "data": {"old": null, "new": {}}, "score": {"old": null, "new": 0}, "tags": {"old": null, "new": []}, "id ... (33 characters truncated) ... -bd30-4910-83f0-a2eaf38d2b6a"}, "created_at": {"old": null, "new": "2026-03-23T10:16:02"}, "updated_at": {"old": null, "new": "2026-03-23T10:16:02"}}', '2026-03-23 10:16:02.849798')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT eden_audit_logs.id, eden_audit_logs.user_id, eden_audit_logs.action, eden_audit_logs.model_name, eden_audit_logs.record_id, eden_audit_logs.changes, eden_audit_logs.timestamp, eden_audit_logs.created_at, eden_audit_logs.updated_at 
+FROM eden_audit_logs 
+WHERE eden_audit_logs.id = ?
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.5313s ago] ('6479d267ac0c4213b37d51c5e265d102',)
+INFO     sqlalchemy.engine.Engine:base.py:2716 COMMIT
+INFO     sqlalchemy.engine.Engine:base.py:2710 BEGIN (implicit)
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT count(*) AS count_1 
+FROM (SELECT enhanced_users.name AS name, enhanced_users.data AS data, enhanced_users.score AS score, enhanced_users.tags AS tags, enhanced_users.id AS id, enhanced_users.created_at AS created_at, enhanced_users.updated_at AS updated_at 
+FROM enhanced_users) AS anon_1
+INFO     sqlalchemy.engine.Engine:base.py:1846 [generated in 0.00016s] ()
+INFO     sqlalchemy.engine.Engine:base.py:2713 ROLLBACK
+============================== warnings summary ===============================
+tests/test_orm_modern.py: 4 warnings
+tests/test_orm_enhanced.py: 28 warnings
+  C:\PROJECTS\eden-framework\eden\db\validation.py:194: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    if asyncio.iscoroutinefunction(self.clean):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_orm_enhanced.py::test_queryset_aggregate_django_style - ass...
+FAILED tests/test_orm_enhanced.py::test_queryset_annotate_complex - Assertion...
+FAILED tests/test_orm_enhanced.py::test_orm_complex_lookups - assert 3 == 2
+FAILED tests/test_orm_enhanced.py::test_queryset_delete - assert 11 == 1
+================== 4 failed, 6 passed, 32 warnings in 1.09s ===================

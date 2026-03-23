@@ -466,3 +466,52 @@ def render_form_components(compiler: "TemplateCompiler", node: "DirectiveNode", 
     if body_compiled:
         return f'{{% component "{node.name}", {expr} %}}{body_compiled}{{% endcomponent %}}'
     return f'{{{{ component("{node.name}", {expr}) }}}}'
+# ── ORM & Reactivity ──────────────────────────────────────────────────────────
+
+@directive("reactive")
+def render_reactive(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -> str:
+    """
+    Reactive wrapper for a block of code.
+    Automatically handles WebSocket sync and HTMX-based self-refresh.
+    """
+    import hashlib
+    
+    expr = (expr or "").strip()
+    # Support both @reactive(obj) and @reactive(obj, id="custom")
+    parts = [p.strip() for p in expr.split(',', 1)]
+    sync_obj = parts[0]
+    provided_id = None
+    
+    if len(parts) > 1:
+        # Simple parser for id="value"
+        id_part = parts[1].strip()
+        if id_part.startswith('id='):
+            provided_id = id_part[3:].strip().strip("'").strip('"')
+
+    # Generate a stable unique ID if not provided, based on source location
+    if not provided_id:
+        loc = f"{node.line}_{node.column}"
+        h = hashlib.md5(loc.encode()).hexdigest()[:6]
+        provided_id = f"sync_{h}"
+    
+    body = get_body_compiled(compiler, node)
+    
+    # We use get_sync_channel(obj) to resolve the channel name (e.g. "users:5")
+    # hx-sync: listens for broadcasts on this channel
+    # hx-trigger: refreshes on 'updated' or 'created' events from the body (bubbled up)
+    # hx-get: calls current URL to get the refreshed fragment
+    # fragment_ID: provides the anchor for Smart Fragment Resolution
+    return (
+        f'{{% set __ch = get_sync_channel({sync_obj}) %}}'
+        f'<div id="{provided_id}" '
+        f'hx-sync="{{{{ __ch }}}}" '
+        f'hx-trigger="updated:{{{{ __ch }}}} from:body, created:{{{{ __ch }}}} from:body" '
+        f'hx-get="{{{{ request.url }}}}" '
+        f'hx-target="this" '
+        f'hx-swap="outerHTML" '
+        f'class="eden-reactive">'
+        f'{{% block fragment_{provided_id} %}}'
+        f'{body}'
+        f'{{% endblock %}}'
+        f'</div>'
+    )

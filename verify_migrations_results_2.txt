@@ -1,0 +1,185 @@
+INFO:eden.migrations:Migrations: Applying evolutions to head on default schema...
+INFO  [alembic.env] Using database URL: postgresql+asyncpg://postgres:0123456789@localhost/eden_tests
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.env] Migrations: Context: schema=None, version_table=alembic_version, actual_current_schema=public
+INFO  [alembic.runtime.migration] Running upgrade  -> d2d3b0a786fd, initial
+INFO  [alembic.runtime.migration] Running upgrade d2d3b0a786fd -> 6bb62a1af5e5, add_audit_logs_v3
+INFO  [alembic.env] Verification inside env.py: Tables = [('public', 'alembic_version'), ('public', 'eden_payment_events'), ('public', 'eden_tenants'), ('public', 'file_references'), ('public', 'eden_users'), ('public', 'eden_api_keys'), ('public', 'eden_customers'), ('public', 'eden_social_accounts'), ('public', 'password_reset_tokens'), ('public', 'eden_subscriptions'), ('public', 'eden_audit_logs')]
+INFO  [alembic.env] Migrations: online migration committed.
+INFO  [alembic.env] Using database URL: postgresql+asyncpg://postgres:0123456789@localhost/eden_tests
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.env] Migrations: Setting search_path to tenant_x
+INFO  [alembic.env] Migrations: Context: schema=tenant_x, version_table=alembic_version_tenant, actual_current_schema=tenant_x
+INFO  [alembic.runtime.migration] Running upgrade  -> d2d3b0a786fd, initial
+INFO  [alembic.env] Verification inside env.py: Tables = [('public', 'alembic_version'), ('public', 'eden_payment_events'), ('public', 'eden_tenants'), ('public', 'file_references'), ('public', 'eden_users'), ('public', 'eden_api_keys'), ('public', 'eden_customers'), ('public', 'eden_social_accounts'), ('public', 'password_reset_tokens'), ('public', 'eden_subscriptions'), ('public', 'eden_audit_logs'), ('tenant_x', 'alembic_version_tenant'), ('tenant_x', 'eden_payment_events'), ('tenant_x', 'eden_tenants'), ('tenant_x', 'file_references'), ('tenant_x', 'eden_users'), ('tenant_x', 'eden_api_keys'), ('tenant_x', 'eden_customers'), ('tenant_x', 'eden_social_accounts'), ('tenant_x', 'password_reset_tokens'), ('tenant_x', 'eden_subscriptions')]
+INFO  [alembic.env] Migrations: online migration committed.
+INFO  [alembic.env] Using database URL: postgresql+asyncpg://postgres:0123456789@localhost/eden_tests
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.env] Migrations: Setting search_path to tenant_y
+INFO  [alembic.env] Migrations: Context: schema=tenant_y, version_table=alembic_version_tenant, actual_current_schema=tenant_y
+INFO  [alembic.runtime.migration] Running upgrade  -> d2d3b0a786fd, initial
+INFO  [alembic.env] Verification inside env.py: Tables = [('public', 'alembic_version'), ('public', 'eden_payment_events'), ('public', 'eden_tenants'), ('public', 'file_references'), ('public', 'eden_users'), ('public', 'eden_api_keys'), ('public', 'eden_customers'), ('public', 'eden_social_accounts'), ('public', 'password_reset_tokens'), ('public', 'eden_subscriptions'), ('public', 'eden_audit_logs'), ('tenant_x', 'alembic_version_tenant'), ('tenant_x', 'eden_payment_events'), ('tenant_x', 'eden_tenants'), ('tenant_x', 'file_references'), ('tenant_x', 'eden_users'), ('tenant_x', 'eden_api_keys'), ('tenant_x', 'eden_customers'), ('tenant_x', 'eden_social_accounts'), ('tenant_x', 'password_reset_tokens'), ('tenant_x', 'eden_subscriptions'), ('tenant_y', 'alembic_version_tenant'), ('tenant_y', 'eden_payment_events'), ('tenant_y', 'eden_tenants'), ('tenant_y', 'file_references'), ('tenant_y', 'eden_users'), ('tenant_y', 'eden_api_keys'), ('tenant_y', 'eden_customers'), ('tenant_y', 'eden_social_accounts'), ('tenant_y', 'password_reset_tokens'), ('tenant_y', 'eden_subscriptions')]
+INFO  [alembic.env] Migrations: online migration committed.
+INFO  [alembic.env] Using database URL: postgresql+asyncpg://postgres:0123456789@localhost/eden_tests
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.env] Migrations: Setting search_path to tenant_x
+INFO  [alembic.env] Migrations: Context: schema=tenant_x, version_table=alembic_version_tenant, actual_current_schema=tenant_x
+INFO  [alembic.runtime.migration] Running upgrade d2d3b0a786fd -> 6bb62a1af5e5, add_audit_logs_v3
+INFO  [alembic.env] Verification inside env.py: Tables = [('public', 'alembic_version'), ('public', 'eden_payment_events'), ('public', 'eden_tenants'), ('public', 'file_references'), ('public', 'eden_users'), ('public', 'eden_api_keys'), ('public', 'eden_customers'), ('public', 'eden_social_accounts'), ('public', 'password_reset_tokens'), ('public', 'eden_subscriptions'), ('public', 'eden_audit_logs'), ('tenant_x', 'alembic_version_tenant'), ('tenant_x', 'eden_payment_events'), ('tenant_x', 'eden_tenants'), ('tenant_x', 'file_references'), ('tenant_x', 'eden_users'), ('tenant_x', 'eden_api_keys'), ('tenant_x', 'eden_customers'), ('tenant_x', 'eden_social_accounts'), ('tenant_x', 'password_reset_tokens'), ('tenant_x', 'eden_subscriptions'), ('tenant_y', 'alembic_version_tenant'), ('tenant_y', 'eden_payment_events'), ('tenant_y', 'eden_tenants'), ('tenant_y', 'file_references'), ('tenant_y', 'eden_users'), ('tenant_y', 'eden_api_keys'), ('tenant_y', 'eden_customers'), ('tenant_y', 'eden_social_accounts'), ('tenant_y', 'password_reset_tokens'), ('tenant_y', 'eden_subscriptions'), ('tenant_x', 'eden_audit_logs')]
+INFO  [alembic.env] Migrations: online migration committed.
+INFO  [alembic.env] Using database URL: postgresql+asyncpg://postgres:0123456789@localhost/eden_tests
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.env] Migrations: Setting search_path to tenant_y
+INFO  [alembic.env] Migrations: Context: schema=tenant_y, version_table=alembic_version_tenant, actual_current_schema=tenant_y
+INFO  [alembic.runtime.migration] Running upgrade d2d3b0a786fd -> 6bb62a1af5e5, add_audit_logs_v3
+INFO  [alembic.env] Verification inside env.py: Tables = [('tenant_y', 'eden_audit_logs'), ('public', 'alembic_version'), ('public', 'eden_payment_events'), ('public', 'eden_tenants'), ('public', 'file_references'), ('public', 'eden_users'), ('public', 'eden_api_keys'), ('public', 'eden_customers'), ('public', 'eden_social_accounts'), ('public', 'password_reset_tokens'), ('public', 'eden_subscriptions'), ('public', 'eden_audit_logs'), ('tenant_x', 'alembic_version_tenant'), ('tenant_x', 'eden_payment_events'), ('tenant_x', 'eden_tenants'), ('tenant_x', 'file_references'), ('tenant_x', 'eden_users'), ('tenant_x', 'eden_api_keys'), ('tenant_x', 'eden_customers'), ('tenant_x', 'eden_social_accounts'), ('tenant_x', 'password_reset_tokens'), ('tenant_x', 'eden_subscriptions'), ('tenant_y', 'alembic_version_tenant'), ('tenant_y', 'eden_payment_events'), ('tenant_y', 'eden_tenants'), ('tenant_y', 'file_references'), ('tenant_y', 'eden_users'), ('tenant_y', 'eden_api_keys'), ('tenant_y', 'eden_customers'), ('tenant_y', 'eden_social_accounts'), ('tenant_y', 'password_reset_tokens'), ('tenant_y', 'eden_subscriptions'), ('tenant_x', 'eden_audit_logs')]
+INFO  [alembic.env] Migrations: online migration committed.
+SCANNING RULES FOR FileReference
+  SCANNING BASE FileReference
+  SCANNING BASE Model
+  SCANNING BASE Base
+  SCANNING BASE DeclarativeBase
+  SCANNING BASE Inspectable
+  SCANNING BASE Generic
+  SCANNING BASE AccessControl
+  SCANNING BASE ValidatorMixin
+  SCANNING BASE LifecycleMixin
+  SCANNING BASE SerializationMixin
+  SCANNING BASE CrudMixin
+SCANNING RULES FOR AuditLog
+  SCANNING BASE AuditLog
+DISCOVERED INFO FOR user_id: {'max': 255}
+DISCOVERED INFO FOR action: {'max': 50, 'required': True}
+DISCOVERED INFO FOR model_name: {'max': 255, 'required': True}
+DISCOVERED INFO FOR record_id: {'max': 255, 'required': True}
+  SCANNING BASE Model
+  SCANNING BASE Base
+  SCANNING BASE DeclarativeBase
+  SCANNING BASE Inspectable
+  SCANNING BASE Generic
+  SCANNING BASE AccessControl
+  SCANNING BASE ValidatorMixin
+  SCANNING BASE LifecycleMixin
+  SCANNING BASE SerializationMixin
+  SCANNING BASE CrudMixin
+SCANNING RULES FOR Customer
+  SCANNING BASE Customer
+  SCANNING BASE Model
+  SCANNING BASE Base
+  SCANNING BASE DeclarativeBase
+  SCANNING BASE Inspectable
+  SCANNING BASE Generic
+  SCANNING BASE AccessControl
+  SCANNING BASE ValidatorMixin
+  SCANNING BASE LifecycleMixin
+  SCANNING BASE SerializationMixin
+  SCANNING BASE CrudMixin
+SCANNING RULES FOR Subscription
+  SCANNING BASE Subscription
+  SCANNING BASE Model
+  SCANNING BASE Base
+  SCANNING BASE DeclarativeBase
+  SCANNING BASE Inspectable
+  SCANNING BASE Generic
+  SCANNING BASE AccessControl
+  SCANNING BASE ValidatorMixin
+  SCANNING BASE LifecycleMixin
+  SCANNING BASE SerializationMixin
+  SCANNING BASE CrudMixin
+SCANNING RULES FOR PaymentEvent
+  SCANNING BASE PaymentEvent
+  SCANNING BASE Model
+  SCANNING BASE Base
+  SCANNING BASE DeclarativeBase
+  SCANNING BASE Inspectable
+  SCANNING BASE Generic
+  SCANNING BASE AccessControl
+  SCANNING BASE ValidatorMixin
+  SCANNING BASE LifecycleMixin
+  SCANNING BASE SerializationMixin
+  SCANNING BASE CrudMixin
+SCANNING RULES FOR User
+  SCANNING BASE User
+  SCANNING BASE Model
+  SCANNING BASE Base
+  SCANNING BASE DeclarativeBase
+  SCANNING BASE Inspectable
+  SCANNING BASE Generic
+  SCANNING BASE AccessControl
+  SCANNING BASE ValidatorMixin
+  SCANNING BASE LifecycleMixin
+  SCANNING BASE SerializationMixin
+  SCANNING BASE CrudMixin
+  SCANNING BASE BaseUser
+  SCANNING BASE BaseUser
+  SCANNING BASE CustomerMixin
+RESOLVING User for SocialAccount
+SCANNING RULES FOR SocialAccount
+  SCANNING BASE SocialAccount
+DISCOVERED INFO FOR user_id: {'on_delete': 'CASCADE', 'required': True, 'index': True, 'fk_type': None, 'back_populates': 'social_accounts', 'lazy': 'selectin', 'secondary': _RelationshipArg(name='secondary', argument=None, resolved=None)}
+  SCANNING BASE Model
+  SCANNING BASE Base
+  SCANNING BASE DeclarativeBase
+  SCANNING BASE Inspectable
+  SCANNING BASE Generic
+  SCANNING BASE AccessControl
+  SCANNING BASE ValidatorMixin
+  SCANNING BASE LifecycleMixin
+  SCANNING BASE SerializationMixin
+  SCANNING BASE CrudMixin
+SCANNING RULES FOR PasswordResetToken
+  SCANNING BASE PasswordResetToken
+DISCOVERED INFO FOR token: {'max': 255, 'required': True}
+  SCANNING BASE Model
+  SCANNING BASE Base
+  SCANNING BASE DeclarativeBase
+  SCANNING BASE Inspectable
+  SCANNING BASE Generic
+  SCANNING BASE AccessControl
+  SCANNING BASE ValidatorMixin
+  SCANNING BASE LifecycleMixin
+  SCANNING BASE SerializationMixin
+  SCANNING BASE CrudMixin
+SCANNING RULES FOR APIKey
+  SCANNING BASE APIKey
+  SCANNING BASE Model
+  SCANNING BASE Base
+  SCANNING BASE DeclarativeBase
+  SCANNING BASE Inspectable
+  SCANNING BASE Generic
+  SCANNING BASE AccessControl
+  SCANNING BASE ValidatorMixin
+  SCANNING BASE LifecycleMixin
+  SCANNING BASE SerializationMixin
+  SCANNING BASE CrudMixin
+SCANNING RULES FOR Tenant
+  SCANNING BASE Tenant
+  SCANNING BASE Model
+  SCANNING BASE Base
+  SCANNING BASE DeclarativeBase
+  SCANNING BASE Inspectable
+  SCANNING BASE Generic
+  SCANNING BASE AccessControl
+  SCANNING BASE ValidatorMixin
+  SCANNING BASE LifecycleMixin
+  SCANNING BASE SerializationMixin
+  SCANNING BASE CrudMixin
+Verifying tenant migrations on postgresql+asyncpg://postgres:0123456789@localhost/eden_tests
+Cleaning up old schemas...
+Migrating public schema to head...
+Seeding tenants...
+  - All tables in DB: [('public', 'alembic_version'), ('public', 'eden_payment_events'), ('public', 'eden_tenants'), ('public', 'file_references'), ('public', 'eden_users'), ('public', 'eden_api_keys'), ('public', 'eden_customers'), ('public', 'eden_social_accounts'), ('public', 'password_reset_tokens'), ('public', 'eden_subscriptions'), ('public', 'eden_audit_logs')]
+Created tenants in public: 2a13183d-9cf7-44f3-8c7c-8620a9898bf6, aa97e446-ebea-4af5-b234-def2fb4be258
+Setting up tenants at old revision (d2d3b0a786fd)...
+  - Provisioning tenant_x...
+  - Provisioning tenant_y...
+Running batch migration for all tenants to 'head'...
+Checking final versions...
+  - tenant_x version: 6bb62a1af5e5
+  - tenant_y version: 6bb62a1af5e5
+Verification complete

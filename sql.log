@@ -11043,3 +11043,459 @@ SQL: SELECT modern_users.name, modern_users.email, modern_users.bio, modern_user
 FROM modern_users 
 WHERE modern_users.id = 'a0d85425a14b44de90fd9bdcfebaf959'
 
+MODEL: ModernUser
+SQL: SELECT modern_users.name, modern_users.email, modern_users.bio, modern_users.id, modern_users.created_at, modern_users.updated_at 
+FROM modern_users 
+WHERE modern_users.id = '86f97cd7db67476a97ea448fdef168e1'
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE enhanced_users.id = '4b9cfef20027499595bfa2f86abc0e14'
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE enhanced_users.id = '4b9cfef20027499595bfa2f86abc0e14'
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.score > 50 AS is_high_score 
+FROM enhanced_users ORDER BY enhanced_users.name ASC
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE (enhanced_users.name = 'Alice' OR enhanced_users.name = 'Bob') AND enhanced_users.score < 25
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE enhanced_users.name = 'Ghost'
+
+MODEL: EnhancedUser
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT enhanced_users.name AS name, enhanced_users.data AS data, enhanced_users.score AS score, enhanced_users.tags AS tags, enhanced_users.id AS id, enhanced_users.created_at AS created_at, enhanced_users.updated_at AS updated_at 
+FROM enhanced_users) AS anon_1
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents
+
+MODEL: ModernUser
+SQL: SELECT modern_users.name, modern_users.email, modern_users.bio, modern_users.id, modern_users.created_at, modern_users.updated_at 
+FROM modern_users 
+WHERE modern_users.id = 'c2840055a26b451facb54fc35578eb8f'
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE enhanced_users.id = '1baf4bc95cd5447d8e800681947d1e83'
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE enhanced_users.id = '1baf4bc95cd5447d8e800681947d1e83'
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.score > 50 AS is_high_score 
+FROM enhanced_users ORDER BY enhanced_users.name ASC
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE (enhanced_users.name = 'Alice' OR enhanced_users.name = 'Bob') AND enhanced_users.score < 25
+
+MODEL: EnhancedUser
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT enhanced_users.name AS name, enhanced_users.data AS data, enhanced_users.score AS score, enhanced_users.tags AS tags, enhanced_users.id AS id, enhanced_users.created_at AS created_at, enhanced_users.updated_at AS updated_at 
+FROM enhanced_users) AS anon_1
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents
+
+MODEL: AuditProject
+SQL: SELECT audit_projects.name, audit_projects.id, audit_projects.created_at, audit_projects.updated_at, audit_projects.tenant_id 
+FROM audit_projects 
+WHERE audit_projects.tenant_id = '5c8ad119f5ad4922bd944cd68c8d32aa'
+
+MODEL: AuditProject
+SQL: SELECT audit_projects.name, audit_projects.id, audit_projects.created_at, audit_projects.updated_at, audit_projects.tenant_id 
+FROM audit_projects 
+WHERE audit_projects.tenant_id = '7bc68ac5289c4609a6c56999b7c164f9'
+
+MODEL: AuditProject
+SQL: SELECT audit_projects.name, audit_projects.id, audit_projects.created_at, audit_projects.updated_at, audit_projects.tenant_id 
+FROM audit_projects 
+WHERE false
+
+MODEL: AuditProject
+SQL: SELECT audit_projects.name, audit_projects.id, audit_projects.created_at, audit_projects.updated_at, audit_projects.tenant_id 
+FROM audit_projects 
+WHERE audit_projects.tenant_id = 'a5b6bae8eee64b2dbe46c413d027c195' AND audit_projects.tenant_id = '6943a73d341f4fd9a3d8ac4dd9b1eedb'
+
+MODEL: ModernUser
+SQL: SELECT modern_users.name, modern_users.email, modern_users.bio, modern_users.id, modern_users.created_at, modern_users.updated_at 
+FROM modern_users 
+WHERE modern_users.id = 'da9c6be733da4074a1f7e386c69cc098'
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE enhanced_users.id = 'b4a49e89c89d4861b9ee52e0f2c424b2'
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE enhanced_users.id = 'b4a49e89c89d4861b9ee52e0f2c424b2'
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.score > 50 AS is_high_score 
+FROM enhanced_users ORDER BY enhanced_users.name ASC
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE (enhanced_users.name = 'Alice' OR enhanced_users.name = 'Bob') AND enhanced_users.score < 25
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE enhanced_users.name = 'Ghost'
+
+MODEL: EnhancedUser
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT enhanced_users.name AS name, enhanced_users.data AS data, enhanced_users.score AS score, enhanced_users.tags AS tags, enhanced_users.id AS id, enhanced_users.created_at AS created_at, enhanced_users.updated_at AS updated_at 
+FROM enhanced_users) AS anon_1
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE enhanced_users.id = '936cd12609df4582819ae18f72909213'
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE enhanced_users.id = '936cd12609df4582819ae18f72909213'
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.score > 50 AS is_high_score 
+FROM enhanced_users ORDER BY enhanced_users.name ASC
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE (enhanced_users.name = 'Alice' OR enhanced_users.name = 'Bob') AND enhanced_users.score < 25
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE enhanced_users.name = 'Ghost'
+
+MODEL: EnhancedUser
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT enhanced_users.name AS name, enhanced_users.data AS data, enhanced_users.score AS score, enhanced_users.tags AS tags, enhanced_users.id AS id, enhanced_users.created_at AS created_at, enhanced_users.updated_at AS updated_at 
+FROM enhanced_users) AS anon_1
+
+MODEL: EnhancedUser
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT enhanced_users.name AS name, enhanced_users.data AS data, enhanced_users.score AS score, enhanced_users.tags AS tags, enhanced_users.id AS id, enhanced_users.created_at AS created_at, enhanced_users.updated_at AS updated_at 
+FROM enhanced_users) AS anon_1
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents 
+WHERE enhanced_parents.id = 'c7357ef1cc0047598c9b5ae18460b6d7'
+
+MODEL: ModernUser
+SQL: SELECT modern_users.name, modern_users.email, modern_users.bio, modern_users.id, modern_users.created_at, modern_users.updated_at 
+FROM modern_users 
+WHERE modern_users.id = '2919bf47a07142f988d252ac6f33f417'
+
+MODEL: AuditProject
+SQL: SELECT audit_projects.name, audit_projects.id, audit_projects.created_at, audit_projects.updated_at, audit_projects.tenant_id 
+FROM audit_projects 
+WHERE audit_projects.tenant_id = '46102ef7cd4445a28d5dff0aaa3e1eaf'
+
+MODEL: AuditProject
+SQL: SELECT audit_projects.name, audit_projects.id, audit_projects.created_at, audit_projects.updated_at, audit_projects.tenant_id 
+FROM audit_projects 
+WHERE audit_projects.tenant_id = '7c5d460c5b7848fe9df28016400875ab'
+
+MODEL: AuditProject
+SQL: SELECT audit_projects.name, audit_projects.id, audit_projects.created_at, audit_projects.updated_at, audit_projects.tenant_id 
+FROM audit_projects 
+WHERE false
+
+MODEL: AuditProject
+SQL: SELECT audit_projects.name, audit_projects.id, audit_projects.created_at, audit_projects.updated_at, audit_projects.tenant_id 
+FROM audit_projects 
+WHERE audit_projects.tenant_id = '4c23d511990c4a87a106bc3bd9fc593a' AND audit_projects.tenant_id = '66fe4385c6ad4fad8c38d888b90556ef'
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE enhanced_users.id = '54757914226546fcace68737e2add4aa'
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE enhanced_users.id = '54757914226546fcace68737e2add4aa'
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.score > 50 AS is_high_score 
+FROM enhanced_users ORDER BY enhanced_users.name ASC
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE (enhanced_users.name = 'Alice' OR enhanced_users.name = 'Bob') AND enhanced_users.score < 25
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE enhanced_users.name = 'Ghost'
+
+MODEL: EnhancedUser
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT enhanced_users.name AS name, enhanced_users.data AS data, enhanced_users.score AS score, enhanced_users.tags AS tags, enhanced_users.id AS id, enhanced_users.created_at AS created_at, enhanced_users.updated_at AS updated_at 
+FROM enhanced_users) AS anon_1
+
+MODEL: EnhancedUser
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT enhanced_users.name AS name, enhanced_users.data AS data, enhanced_users.score AS score, enhanced_users.tags AS tags, enhanced_users.id AS id, enhanced_users.created_at AS created_at, enhanced_users.updated_at AS updated_at 
+FROM enhanced_users) AS anon_1
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents 
+WHERE enhanced_parents.id = '88a43412f3c9416d8c87c7811695d2fc'
+
+MODEL: ModernUser
+SQL: SELECT modern_users.name, modern_users.email, modern_users.bio, modern_users.id, modern_users.created_at, modern_users.updated_at 
+FROM modern_users 
+WHERE modern_users.id = '5ac8322cd64e4dc68abd16d197935962'
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE enhanced_users.id = 'b645e875be8945eda32cdaab20a59297'
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE enhanced_users.id = 'b645e875be8945eda32cdaab20a59297'
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.score > 50 AS is_high_score 
+FROM enhanced_users ORDER BY enhanced_users.name ASC
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE (enhanced_users.name = 'Alice' OR enhanced_users.name = 'Bob') AND enhanced_users.score < 25
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE enhanced_users.name = 'Ghost'
+
+MODEL: EnhancedUser
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT enhanced_users.name AS name, enhanced_users.data AS data, enhanced_users.score AS score, enhanced_users.tags AS tags, enhanced_users.id AS id, enhanced_users.created_at AS created_at, enhanced_users.updated_at AS updated_at 
+FROM enhanced_users) AS anon_1
+
+MODEL: EnhancedUser
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT enhanced_users.name AS name, enhanced_users.data AS data, enhanced_users.score AS score, enhanced_users.tags AS tags, enhanced_users.id AS id, enhanced_users.created_at AS created_at, enhanced_users.updated_at AS updated_at 
+FROM enhanced_users) AS anon_1
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents 
+WHERE enhanced_parents.id = '2ac646d9229344239deed8890c55ba18'
+
+MODEL: AuditProject
+SQL: SELECT audit_projects.name, audit_projects.id, audit_projects.created_at, audit_projects.updated_at, audit_projects.tenant_id 
+FROM audit_projects 
+WHERE audit_projects.tenant_id = '038b5d011af940aba158ce6782ebfff3'
+
+MODEL: AuditProject
+SQL: SELECT audit_projects.name, audit_projects.id, audit_projects.created_at, audit_projects.updated_at, audit_projects.tenant_id 
+FROM audit_projects 
+WHERE audit_projects.tenant_id = 'ecf769da7cbc4c428c474214c7c268d9'
+
+MODEL: AuditProject
+SQL: SELECT audit_projects.name, audit_projects.id, audit_projects.created_at, audit_projects.updated_at, audit_projects.tenant_id 
+FROM audit_projects 
+WHERE false
+
+MODEL: AuditProject
+SQL: SELECT audit_projects.name, audit_projects.id, audit_projects.created_at, audit_projects.updated_at, audit_projects.tenant_id 
+FROM audit_projects 
+WHERE audit_projects.tenant_id = '89335c26fae24eed8810783878f7c17a' AND audit_projects.tenant_id = '26d1b8855ab04b90a331318b3bccbee5'
+
+MODEL: AuditProject
+SQL: SELECT audit_projects.name, audit_projects.id, audit_projects.created_at, audit_projects.updated_at, audit_projects.tenant_id 
+FROM audit_projects 
+WHERE audit_projects.tenant_id = '5ffe32c107d1424086baa9509e805bbe'
+
+MODEL: AuditProject
+SQL: SELECT audit_projects.name, audit_projects.id, audit_projects.created_at, audit_projects.updated_at, audit_projects.tenant_id 
+FROM audit_projects 
+WHERE audit_projects.tenant_id = '0842e41e0cc9427aadf35bdcf7b90103'
+
+MODEL: AuditProject
+SQL: SELECT audit_projects.name, audit_projects.id, audit_projects.created_at, audit_projects.updated_at, audit_projects.tenant_id 
+FROM audit_projects 
+WHERE false
+
+MODEL: AuditProject
+SQL: SELECT audit_projects.name, audit_projects.id, audit_projects.created_at, audit_projects.updated_at, audit_projects.tenant_id 
+FROM audit_projects 
+WHERE audit_projects.tenant_id = '3b3bacbab02143099e1e5b75e4ea995c' AND audit_projects.tenant_id = 'af952ace81374becb3fd6498c98a41c5'
+
+MODEL: AuditProject
+SQL: SELECT audit_projects.name, audit_projects.id, audit_projects.created_at, audit_projects.updated_at, audit_projects.tenant_id 
+FROM audit_projects 
+WHERE audit_projects.tenant_id = 'f36b6ac73a3f4bb49ea39d689a3579da'
+
+MODEL: AuditProject
+SQL: SELECT audit_projects.name, audit_projects.id, audit_projects.created_at, audit_projects.updated_at, audit_projects.tenant_id 
+FROM audit_projects 
+WHERE audit_projects.tenant_id = '6d1a3dde7cab49febf9cec20a0d8e5c6'
+
+MODEL: AuditProject
+SQL: SELECT audit_projects.name, audit_projects.id, audit_projects.created_at, audit_projects.updated_at, audit_projects.tenant_id 
+FROM audit_projects 
+WHERE false
+
+MODEL: AuditProject
+SQL: SELECT audit_projects.name, audit_projects.id, audit_projects.created_at, audit_projects.updated_at, audit_projects.tenant_id 
+FROM audit_projects 
+WHERE audit_projects.tenant_id = '10e24be1347145eda46df7a4147eb581' AND audit_projects.tenant_id = '9a6e67d193814a709fa57411a9d0228a'
+
+MODEL: NakedModel
+SQL: SELECT naked_models.name, naked_models.tenant_id, naked_models.id, naked_models.created_at, naked_models.updated_at 
+FROM naked_models 
+WHERE naked_models.tenant_id = '4093e08ec9134c6397fbfa9522282326'
+
+MODEL: NakedModel
+SQL: SELECT naked_models.name, naked_models.tenant_id, naked_models.id, naked_models.created_at, naked_models.updated_at 
+FROM naked_models 
+WHERE naked_models.tenant_id = '51d7295b289447bb9b0cf1959e65513f'
+
+MODEL: NakedModel
+SQL: SELECT naked_models.name, naked_models.tenant_id, naked_models.id, naked_models.created_at, naked_models.updated_at 
+FROM naked_models 
+WHERE false
+
+MODEL: NakedModel
+SQL: SELECT naked_models.name, naked_models.tenant_id, naked_models.id, naked_models.created_at, naked_models.updated_at 
+FROM naked_models 
+WHERE naked_models.tenant_id = '760ece9ae9094973a6ca83de3eefccec'
+
+MODEL: NakedModel
+SQL: SELECT naked_models.name, naked_models.tenant_id, naked_models.id, naked_models.created_at, naked_models.updated_at 
+FROM naked_models 
+WHERE naked_models.tenant_id = 'ddae6ca6d89146618af1c06eb86dc9bc'
+
+MODEL: NakedModel
+SQL: SELECT naked_models.name, naked_models.tenant_id, naked_models.id, naked_models.created_at, naked_models.updated_at 
+FROM naked_models 
+WHERE false
+
+MODEL: NakedModel
+SQL: SELECT naked_models.name, naked_models.tenant_id, naked_models.id, naked_models.created_at, naked_models.updated_at 
+FROM naked_models 
+WHERE false
+
+MODEL: NakedModel
+SQL: SELECT naked_models.name, naked_models.tenant_id, naked_models.id, naked_models.created_at, naked_models.updated_at 
+FROM naked_models 
+WHERE naked_models.tenant_id = '8092d110b5dd4acab67c1594379d6f68'
+
+MODEL: NakedModel
+SQL: SELECT naked_models.name, naked_models.tenant_id, naked_models.id, naked_models.created_at, naked_models.updated_at 
+FROM naked_models 
+WHERE naked_models.tenant_id = '3044c55db71549e8a29262aed7def590'
+
+MODEL: NakedModel
+SQL: SELECT naked_models.name, naked_models.tenant_id, naked_models.id, naked_models.created_at, naked_models.updated_at 
+FROM naked_models 
+WHERE false
+
+MODEL: NakedModel
+SQL: SELECT naked_models.name, naked_models.tenant_id, naked_models.id, naked_models.created_at, naked_models.updated_at 
+FROM naked_models 
+WHERE false
+
+MODEL: NakedModel
+SQL: SELECT naked_models.name, naked_models.tenant_id, naked_models.id, naked_models.created_at, naked_models.updated_at 
+FROM naked_models
+
+MODEL: TenantTask
+SQL: SELECT tenant_test_tasks.title, tenant_test_tasks.tenant_id, tenant_test_tasks.id, tenant_test_tasks.created_at, tenant_test_tasks.updated_at 
+FROM tenant_test_tasks 
+WHERE tenant_test_tasks.tenant_id = '1b62053c477a41c1b1cce940e85fa3b8'
+
+MODEL: TenantTask
+SQL: SELECT tenant_test_tasks.title, tenant_test_tasks.tenant_id, tenant_test_tasks.id, tenant_test_tasks.created_at, tenant_test_tasks.updated_at 
+FROM tenant_test_tasks 
+WHERE tenant_test_tasks.tenant_id = 'eed175571dea4e52a5fb3031c187acf5'
+
+MODEL: TenantTask
+SQL: SELECT tenant_test_tasks.title, tenant_test_tasks.tenant_id, tenant_test_tasks.id, tenant_test_tasks.created_at, tenant_test_tasks.updated_at 
+FROM tenant_test_tasks 
+WHERE tenant_test_tasks.tenant_id = 'eed175571dea4e52a5fb3031c187acf5'
+
+MODEL: TenantTask
+SQL: SELECT tenant_test_tasks.title, tenant_test_tasks.tenant_id, tenant_test_tasks.id, tenant_test_tasks.created_at, tenant_test_tasks.updated_at 
+FROM tenant_test_tasks 
+WHERE tenant_test_tasks.tenant_id = 'e0b07c5dfbab4a6abdfab96d161f34d0' AND tenant_test_tasks.id = 'e052cd8573c94c3596ff6f7c79a32912'
+
+MODEL: TenantTask
+SQL: SELECT tenant_test_tasks.title, tenant_test_tasks.tenant_id, tenant_test_tasks.id, tenant_test_tasks.created_at, tenant_test_tasks.updated_at 
+FROM tenant_test_tasks 
+WHERE tenant_test_tasks.tenant_id = 'e0b07c5dfbab4a6abdfab96d161f34d0' AND tenant_test_tasks.id = 'e052cd8573c94c3596ff6f7c79a32912'
+
+MODEL: TenantTask
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT tenant_test_tasks.title AS title, tenant_test_tasks.tenant_id AS tenant_id, tenant_test_tasks.id AS id, tenant_test_tasks.created_at AS created_at, tenant_test_tasks.updated_at AS updated_at 
+FROM tenant_test_tasks 
+WHERE tenant_test_tasks.tenant_id = 'e0b07c5dfbab4a6abdfab96d161f34d0' AND tenant_test_tasks.id = 'e052cd8573c94c3596ff6f7c79a32912') AS anon_1
+
+MODEL: TenantTask
+SQL: SELECT tenant_test_tasks.title, tenant_test_tasks.tenant_id, tenant_test_tasks.id, tenant_test_tasks.created_at, tenant_test_tasks.updated_at 
+FROM tenant_test_tasks 
+WHERE false
+
+MODEL: TenantTask
+SQL: SELECT tenant_test_tasks.title, tenant_test_tasks.tenant_id, tenant_test_tasks.id, tenant_test_tasks.created_at, tenant_test_tasks.updated_at 
+FROM tenant_test_tasks 
+WHERE tenant_test_tasks.tenant_id = 'd3e3e27c76884e36b7c5dc3b4209ad16' AND tenant_test_tasks.title = 'Manual'
+
+MODEL: AuditProject
+SQL: SELECT audit_projects.name, audit_projects.id, audit_projects.created_at, audit_projects.updated_at, audit_projects.tenant_id 
+FROM audit_projects 
+WHERE audit_projects.tenant_id = '6ccb6e941f324ba38a4faca3461a7768'
+
+MODEL: AuditProject
+SQL: SELECT audit_projects.name, audit_projects.id, audit_projects.created_at, audit_projects.updated_at, audit_projects.tenant_id 
+FROM audit_projects 
+WHERE audit_projects.tenant_id = 'b864043cf01f4331ba8d19f3f767a402'
+
+MODEL: AuditProject
+SQL: SELECT audit_projects.name, audit_projects.id, audit_projects.created_at, audit_projects.updated_at, audit_projects.tenant_id 
+FROM audit_projects 
+WHERE false
+
+MODEL: AuditProject
+SQL: SELECT audit_projects.name, audit_projects.id, audit_projects.created_at, audit_projects.updated_at, audit_projects.tenant_id 
+FROM audit_projects 
+WHERE audit_projects.tenant_id = '5d995b32669d441b819abe3e11d8c0e1' AND audit_projects.tenant_id = '5bb3caf24244413bad38b6d61852b52c'
+

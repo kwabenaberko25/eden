@@ -22,6 +22,7 @@ class DirectiveNode(Node):
     expression: str | None = None
     body: list[Node] | None = None
     line: int = 0
+    column: int = 0
     orelse: list[Node] = field(default_factory=list)
 
 class TemplateParser:
@@ -104,12 +105,17 @@ class TemplateParser:
                 "auth", "guest", "htmx", "non_htmx", "fragment", "push", "verbatim",
                 "section", "block", "slot", "component", "error", "messages",
                 "even", "odd", "first", "last", "can", "cannot", "role", "permission",
-                "form", "field", "button", "input", "php", "inject", "status"
+                "form", "field", "button", "input", "php", "inject", "status", "reactive"
             )
             
             standalone_directives = ("break", "continue")
             if directive_token.value in standalone_directives:
-                return DirectiveNode(name=directive_token.value, expression=expression, line=directive_token.line)
+                return DirectiveNode(
+                    name=directive_token.value, 
+                    expression=expression, 
+                    line=directive_token.line,
+                    column=directive_token.column
+                )
             
             if directive_token.value in block_directives:
                 saved_pos = self.pos
@@ -147,7 +153,8 @@ class TemplateParser:
                         name=directive_token.value,
                         expression=expression,
                         body=grouped_body,
-                        line=directive_token.line
+                        line=directive_token.line,
+                        column=directive_token.column
                     )
                 else:
                     self.pos = saved_pos
@@ -155,7 +162,8 @@ class TemplateParser:
             return DirectiveNode(
                 name=directive_token.value,
                 expression=expression,
-                line=directive_token.line
+                line=directive_token.line,
+                column=directive_token.column
             )
             
         elif token.type == TokenType.BLOCK_CLOSE:

@@ -287,6 +287,22 @@ class QuerySet(Generic[T]):
         clone._return_dicts = False
         return clone
 
+    def include_tenantless(self) -> QuerySet[T]:
+        """
+        Bypass tenancy isolation for this query.
+        """
+        clone = self._clone()
+        clone._stmt = self._model_cls._base_select(include_tenantless=True)
+        return clone
+
+    def include_deleted(self) -> QuerySet[T]:
+        """
+        Include soft-deleted records in the query.
+        """
+        clone = self._clone()
+        clone._stmt = self._model_cls._base_select(include_deleted=True)
+        return clone
+
     def limit(self, n: int) -> QuerySet[T]:
         """Add limit and return a new QuerySet."""
         clone = self._clone()

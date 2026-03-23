@@ -13,6 +13,30 @@ DEFAULT_DUMP_STYLE = (
     "text-xs font-mono border border-gray-800 my-4"
 )
 
+def get_sync_channel(obj: Any) -> str:
+    """Helper to resolve a sync channel from an object or class."""
+    if obj is None:
+        return ""
+    # 1. Check for __tablename__ (SQLAlchemy Model or similar)
+    if hasattr(obj, "__tablename__"):
+        table = getattr(obj, "__tablename__")
+        # If it's an instance with an ID
+        if hasattr(obj, "id") and getattr(obj, "id"):
+            return f"{table}:{obj.id}"
+        # Otherwise it's probably the collection channel
+        return table
+    
+    # 2. Check if it's a class with __tablename__
+    if isinstance(obj, type) and hasattr(obj, "__tablename__"):
+        return getattr(obj, "__tablename__")
+        
+    # 3. Handle dict or object with 'id' but no tablename (use generic approach or string)
+    if isinstance(obj, dict) and "id" in obj:
+        return f"obj:{obj['id']}"
+        
+    return str(obj)
+
+
 def render_fragment(
     env: Environment,
     template_name: str,
@@ -197,6 +221,7 @@ class EdenTemplates(StarletteJinja2Templates):
         self.env.globals["eden_stack"] = self._stack_helper
         self.env.globals["eden_dependency"] = self._dependency_helper
         self.env.globals["set_response_status"] = self._status_helper
+        self.env.globals["get_sync_channel"] = get_sync_channel
 
     def _old_helper(self, name: str, default: Any = "") -> Any:
         """Helper for @old directive logic."""

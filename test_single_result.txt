@@ -1,0 +1,39 @@
+============================= test session starts =============================
+platform win32 -- Python 3.14.3, pytest-9.0.2, pluggy-1.6.0
+rootdir: C:\PROJECTS\eden-framework
+configfile: pyproject.toml
+plugins: anyio-4.12.1, asyncio-1.3.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=session, asyncio_default_test_loop_scope=session
+collected 1 item
+
+tests\test_orm_enhanced.py F                                             [100%]
+
+================================== FAILURES ===================================
+__________________________ test_orm_complex_lookups ___________________________
+
+    @pytest.mark.asyncio
+    async def test_orm_complex_lookups():
+>       await EnhancedUser.create(name="Alice", score=10, data={"dept": "IT"})
+
+tests\test_orm_enhanced.py:81: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+eden\db\mixins\crud.py:144: in create
+    await instance.save(session)
+eden\db\mixins\lifecycle.py:38: in save
+    db = self.__class__._get_db()
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+cls = <class 'tests.test_orm_enhanced.EnhancedUser'>
+
+    @classmethod
+    def _get_db(cls) -> Any:
+        """Get the bound database instance."""
+        if cls._db is None:
+>           raise RuntimeError("Model is not bound to a Database. Call db.connect() first.")
+E           RuntimeError: Model is not bound to a Database. Call db.connect() first.
+
+eden\db\base.py:196: RuntimeError
+=========================== short test summary info ===========================
+FAILED tests/test_orm_enhanced.py::test_orm_complex_lookups - RuntimeError: M...
+============================== 1 failed in 0.36s ==============================
