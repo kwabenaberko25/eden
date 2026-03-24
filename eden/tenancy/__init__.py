@@ -9,6 +9,8 @@ from .context import (
     get_current_tenant_id,
     reset_current_tenant,
     set_current_tenant,
+    AcrossTenants,
+    is_across_tenants,
 )
 from .middleware import TenantMiddleware
 from .models import AnonymousTenant, Tenant
@@ -24,4 +26,6 @@ __all__ = [
     "get_current_tenant",
     "get_current_tenant_id",
     "reset_current_tenant",
+    "AcrossTenants",
+    "is_across_tenants",
 ]

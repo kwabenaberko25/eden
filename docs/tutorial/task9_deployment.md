@@ -44,6 +44,7 @@ docker build -t my-eden-app .
 In production, you must use environment variables to override sensitive defaults.
 
 **Create a `.env` file (not committed to Git)**:
+
 ```env
 EDEN_DEBUG=false
 EDEN_SECRET_KEY=9a2b3c4d5e6f7g8h9i0j...
@@ -64,7 +65,8 @@ While `eden run` is great for development, for high-traffic production use the *
 gunicorn app:app -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
 ```
 
-### 🧠 Breakdown:
+### 🧠 Breakdown
+
 - `-w 4`: Runs 4 independent worker processes (usually `2 * CPU cores + 1`).
 - `-k uvicorn...`: Tells Gunicorn to use the high-performance Uvicorn worker for async ASGI.
 
@@ -76,12 +78,14 @@ gunicorn app:app -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
 
 1. **Create a server** running Ubuntu 22.04 LTS
 2. **Install Docker**:
+
    ```bash
    curl -fsSL https://get.docker.com -o get-docker.sh
    sudo sh get-docker.sh
    ```
 
 3. **Push your image**:
+
    ```bash
    docker login
    docker tag my-eden-app your-registry/my-eden-app:latest
@@ -89,6 +93,7 @@ gunicorn app:app -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
    ```
 
 4. **Run the container**:
+
    ```bash
    docker run -d \
      -e DATABASE_URL="postgresql://..." \
@@ -104,14 +109,16 @@ Eden can run serverlessly with minimal changes:
 ```python
 # app.py - Same Eden app code
 from mangum import Mangum
+from eden import Eden
 
-app = create_app()
+app = Eden()
 
 # Wrap for serverless
 handler = Mangum(app)
 ```
 
 Deploy to AWS Lambda:
+
 ```bash
 sam build
 sam deploy
@@ -219,17 +226,18 @@ Set up application monitoring to catch issues in production:
 
 ```python
 # app/__init__.py
+from eden import Eden
 from eden.telemetry import setup_sentry
 
 # Configure error tracking
 setup_sentry(
-    dsn="https://your-sentry-dsn@sentry.io/...",
+    dsn="https://your-sentry-dsn@sentry.io/1",
     environment="production",
     traces_sample_rate=0.1  # Sample 10% of transactions
 )
 
 def create_app():
-    app = Eden(...)
+    app = Eden()
     
     # Enable structured logging
     app.enable_logging(
@@ -238,6 +246,8 @@ def create_app():
     )
     
     return app
+
+app = create_app()
 ```
 
 Monitor with tools like:

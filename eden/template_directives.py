@@ -466,6 +466,37 @@ def render_form_components(compiler: "TemplateCompiler", node: "DirectiveNode", 
     if body_compiled:
         return f'{{% component "{node.name}", {expr} %}}{body_compiled}{{% endcomponent %}}'
     return f'{{{{ component("{node.name}", {expr}) }}}}'
+
+
+# ── Recursion & Hierarchical Data ─────────────────────────────────────────────
+
+@directive("recursive")
+def render_recursive(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -> str:
+    """
+    Render hierarchical data structures recursively.
+    Maps to Jinja2's `for ... recursive` loop.
+    Use @child(item.children) within the block to recurse.
+    """
+    inner = expr.replace('$', '') if expr else ""
+    if ' as ' in inner:
+        parts = inner.split(' as ')
+        inner = f"{parts[1].strip()} in {parts[0].strip()}"
+    
+    body_compiled = get_body_compiled(compiler, node)
+    res = [f"{{% for {inner} recursive %}}{body_compiled}"]
+    for o in node.orelse:
+        res.append(compiler.visit(o))
+    res.append("{% endfor %}")
+    return "".join(res)
+
+@directive(["child", "recurse"])
+def render_child(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -> str:
+    """
+    Recurse to the next level in a @recursive loop.
+    Maps to Jinja2's `loop(next_items)` call.
+    """
+    val = expr.replace('$', '') if expr else ""
+    return f"{{{{ loop({val}) }}}}"
 # ── ORM & Reactivity ──────────────────────────────────────────────────────────
 
 @directive("reactive")

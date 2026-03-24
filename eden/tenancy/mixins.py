@@ -44,10 +44,10 @@ class TenantMixin:
         Applies tenant isolation to the query using Fail-Secure logic.
         """
         from sqlalchemy import false
-        from eden.tenancy.context import get_current_tenant_id
+        from eden.tenancy.context import get_current_tenant_id, is_across_tenants
 
-        # Skip if explicitly requested (e.g. for cross-tenant admin tasks)
-        if kwargs.get("include_tenantless", False):
+        # Skip if explicitly requested (via kwarg or AcrossTenants context manager)
+        if kwargs.get("include_tenantless", False) or is_across_tenants():
             return stmt
 
         tenant_id = get_current_tenant_id()

@@ -4,7 +4,7 @@ Eden — Admin Panel
 Auto-generated admin interface for managing Model data.
 """
 
-from typing import Any, Optional, Callable, Type
+from typing import Any, Optional, Callable, Type, List, Dict, Iterable
 
 from eden.admin.options import ModelAdmin, TabularInline, StackedInline
 from eden.routing import Router
@@ -34,9 +34,23 @@ try:
         AdminRegistry,
         register_admin,
         get_admin,
+        StatWidget,
+        ChartWidget,
+        DashboardWidget,
+        register_dashboard,
+        get_dashboard,
+        display,
     )
 except ImportError:
     # Graceful fallback if widgets module not available
+    def display(description: str = None, boolean: bool = None) -> Callable:
+        def decorator(func: Callable) -> Callable:
+            if description:
+                setattr(func, "short_description", description)
+            if boolean is not None:
+                setattr(func, "boolean", boolean)
+            return func
+        return decorator
     pass
 
 
@@ -45,47 +59,107 @@ class AdminSite:
     Registry for admin-registered models.
 
     Generates CRUD views and a dashboard for all registered models.
-
-    Usage:
-        from eden.responses import HtmlResponse, RedirectResponse, JsonResponse
-
-        class UserAdmin(ModelAdmin):
-            list_display = ["email", "full_name", "is_active"]
-            search_fields = ["email", "full_name"]
-
-        # In your app setup:
-        app.mount_admin()
     """
 
     def __init__(self):
         self._registry: dict[type, ModelAdmin] = {}
+        # Provide easy access to widgets for ModelAdmin configuration
+        try:
+            import eden.admin.widgets as widgets
+            self.widgets = widgets
+        except ImportError:
+            self.widgets = None
 
-    def register(self, model: type, admin_class: type | None = None):
+    def register(self, model_or_iterable: Any, admin_class: Optional[Type] = None) -> Any:
         """
         Register a model for the admin panel.
 
         Can be used as a decorator or called directly:
 
-            # As decorator
+            # As decorator (Eden auto style)
             @admin.register
             class User(Model):
                 ...
 
             # Direct call
             admin.register(User, UserAdmin)
+            admin.register([User, Profile], DefaultAdmin)
         """
-        if admin_class is None:
-            # Check if model is actually a ModelAdmin subclass (used as decorator)
-            if isinstance(model, type) and not issubclass(model, ModelAdmin):
-                self._registry[model] = ModelAdmin()
-                return model
-            admin_class = ModelAdmin
+        from eden.admin.options import ModelAdmin as BaseAdmin
 
-        if isinstance(admin_class, type):
-            self._registry[model] = admin_class()
-        else:
-            self._registry[model] = admin_class
+        def _do_register(model, admin_cls=None):
+            if admin_cls is None:
+                # Use default ModelAdmin or the one defined on the model
+                admin_cls = getattr(model, "Admin", BaseAdmin)
+            
+            # Instantiate correctly
+            # Note: in this framework ModelAdmin constructor is assumed to be generic
+            self._registry[model] = admin_cls()
+            
+            # Propagate to global site if this isn't the global site instance
+            # (only if admin is already defined at this point)
+            try:
+                # 'admin' is the global instance defined at the bottom of this file
+                # If we're currently executing the part that defines 'admin', it might be None
+                global_site = globals().get("admin")
+                if global_site and self is not global_site and model not in global_site._registry:
+                    global_site.register(model, admin_cls)
+            except Exception:
+                pass
+
+        # 1. Direct call with specified admin class
+        if admin_class is not None:
+            if isinstance(model_or_iterable, (list, tuple, set, Iterable)) and not isinstance(model_or_iterable, type):
+                for m in model_or_iterable:
+                    _do_register(m, admin_class)
+            else:
+                _do_register(model_or_iterable, admin_class)
+            return admin_class
+
+        # 2. Iterable of models (no admin class provided)
+        if isinstance(model_or_iterable, (list, tuple, set, Iterable)) and not isinstance(model_or_iterable, type):
+            for m in model_or_iterable:
+                _do_register(m)
+            return
+
+        # 3. Decorator or Single Model Registration
+        model = model_or_iterable
+        
+        # Determine if it's an admin class decorator: @register class MyAdmin(ModelAdmin)
+        try:
+            is_admin = isinstance(model, type) and issubclass(model, BaseAdmin)
+        except:
+            is_admin = False
+            
+        if is_admin:
+            from_model = getattr(model, "model", None)
+            if from_model:
+                _do_register(from_model, model)
+            return model
+            
+        # Decorating a model (common in tests) or direct registration
+        _do_register(model)
         return model
+
+    def dashboard(self, dashboard_class: Type) -> Type:
+        """Decorator to register a dashboard class."""
+        from eden.admin.widgets import register_dashboard
+        register_dashboard(dashboard_class)
+        return dashboard_class
+
+    def display(self, description: str = None, boolean: bool = None) -> Callable:
+        """Access the display decorator via the admin instance."""
+        return display(description, boolean)
+
+    @property
+    def TabularInline(self):
+        from eden.admin.options import TabularInline as TI
+        return TI
+
+    @property
+    def StackedInline(self):
+        from eden.admin.options import StackedInline as SI
+        return SI
 
     def unregister(self, model: type) -> None:
         """Remove a model from the admin registry."""
@@ -139,10 +213,7 @@ class AdminSite:
     def build_router(self, prefix: str = "/admin") -> Router:
         """
         Generate the admin Router with all CRUD routes.
-
-        Returns a Router that can be included in the app.
         """
-        # Auto-register core models if not already registered
         self.register_defaults()
 
         from eden.admin.views import (
@@ -167,7 +238,6 @@ class AdminSite:
                     from eden.auth.base import get_current_user
                     user = await get_current_user(request)
                 
-                # Fallback: manually check session if auth middleware didn't run or hasn't populated state
                 if not user and hasattr(request, "session"):
                     from eden.auth.backends.session import SessionBackend
                     backend = SessionBackend()
@@ -185,22 +255,17 @@ class AdminSite:
                 return await func(request, *args, **kwargs)
             return wrapper
 
-        # Login
-        site = self
+        site_instance = self
         @router.route("/login", methods=["GET", "POST"], name="admin_login")
         async def login_view(request):
-            return await admin_login(request, site)
-
-        # Dashboard
+            return await admin_login(request, site_instance)
 
         @router.get("/", name="admin_dashboard")
         @admin_required
         async def dashboard(request):
-            return await admin_dashboard(request, site)
+            return await admin_dashboard(request, site_instance)
 
-        # Register routes for each model
         for model, model_admin in self._registry.items():
-            # Capture variables in a dedicated scope to avoid loop closure issues
             def register_model_routes(m: Any, ma: ModelAdmin) -> None:
                 t = m.__tablename__
                 
@@ -227,12 +292,10 @@ class AdminSite:
                 @router.post(f"/{t}/action", name=f"admin_{t}_action")
                 @admin_required
                 async def action_view(request: Request) -> JsonResponse:
-                    # For bulk actions
                     data = await request.json()
                     action_name = data.get("action")
                     selected_ids = data.get("ids", [])
                     
-                    # Find action in model_admin.actions
                     for action_class in ma.actions:
                         action = action_class()
                         if action.name == action_name:
@@ -251,42 +314,16 @@ class AdminSite:
         return router
 
 
-
 # Global default admin site
 admin = AdminSite()
 
-# Inlines are now fully implemented in options.py
-
 
 __all__ = [
-    # Legacy admin interface
-    "admin",
-    "AdminSite",
-    "ModelAdmin",
-    "TabularInline",
-    "StackedInline",
-    # New widget system
-    "FieldWidget",
-    "TextField",
-    "EmailField",
-    "PasswordField",
-    "TextAreaField",
-    "SelectField",
-    "CheckboxField",
-    "DateTimeField",
-    "ImageField",
-    # Actions
-    "Action",
-    "DeleteAction",
-    "DeactivateAction",
-    "ExportAction",
-    "ApproveAction",
-    # Audit
-    "AuditEntry",
-    "AuditTrail",
-    # Admin configurations
-    "AdminPanel",
-    "AdminRegistry",
-    "register_admin",
-    "get_admin",
+    "admin", "AdminSite", "ModelAdmin", "TabularInline", "StackedInline",
+    "FieldWidget", "TextField", "EmailField", "PasswordField", "TextAreaField",
+    "SelectField", "CheckboxField", "DateTimeField", "ImageField",
+    "Action", "DeleteAction", "DeactivateAction", "ExportAction", "ApproveAction",
+    "AuditEntry", "AuditLog", "AuditTrail", "AdminPanel", "AdminRegistry",
+    "register_admin", "get_admin", "StatWidget", "ChartWidget", "DashboardWidget",
+    "register_dashboard", "display"
 ]

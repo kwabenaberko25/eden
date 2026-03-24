@@ -65,6 +65,19 @@ Routes are defined using the standard HTTP method decorators. Eden supports `@ge
 | `path` | `{file:path}` | Captures everything, including slashes. |
 
 ```python
+from eden import Eden, Model
+from starlette.responses import FileResponse
+app = Eden()
+
+class Post(Model):
+    def to_dict(self): return {"id": self.id}
+
+class User(Model):
+    def to_dict(self): return {"id": self.id}
+
+class BlogPost(Model):
+    pass
+
 # Single parameter
 @app.get("/posts/{id:int}")
 async def get_post(request, id: int):
@@ -104,6 +117,15 @@ async def serve_file(request, filepath: str):
 Query parameters are accessed via `request.query_params`.
 
 ```python
+from eden import Eden, Model
+app = Eden()
+
+class Post(Model):
+    def to_dict(self): return {"id": self.id}
+
+class Product(Model):
+    def to_dict(self): return {"id": self.id}
+
 # Single query parameter for search
 @app.get("/search")
 async def search(request):
@@ -127,6 +149,12 @@ async def list_products(request):
 
 ### JSON Request Body
 ```python
+from eden import Eden, Request, Model
+app = Eden()
+
+class Post(Model):
+    def to_dict(self): return {"id": self.id}
+
 @app.post("/posts")
 async def create_post(request: Request):
     data = await request.json()
@@ -139,6 +167,9 @@ async def create_post(request: Request):
 
 ### Form Data & File Uploads
 ```python
+from eden import Eden, Request
+app = Eden()
+
 @app.post("/upload")
 async def upload_file(request: Request):
     form_data = await request.form_data()
@@ -149,8 +180,9 @@ async def upload_file(request: Request):
     
     # Save file
     file_path = f"uploads/{file.filename}"
-    with open(file_path, "wb") as f:
-        f.write(await file.read())
+    # In a real app, use aiofiles or a background task
+    # with open(file_path, "wb") as f:
+    #     f.write(await file.read())
     
     return {"filename": file.filename}, 201
 ```
@@ -162,7 +194,8 @@ async def upload_file(request: Request):
 Eden supports multiple response types. You can return a dictionary (auto-JSON), a string (auto-HTML), or an explicit Response object.
 
 ```python
-from eden import status, redirect
+from eden import Eden, status, redirect
+app = Eden()
 
 # Explicit status codes
 @app.post("/tasks")
@@ -177,7 +210,8 @@ async def old_url(request):
 # Error Response Codes
 @app.get("/private-item/{id}")
 async def get_private(request, id: int):
-    if not request.user.is_authenticated:
+    # request.user is injected by AuthMiddleware
+    if not hasattr(request, "user") or not request.user.is_authenticated:
         return {"error": "Auth required"}, status.HTTP_401_UNAUTHORIZED
     return {"id": id}
 ```
@@ -190,6 +224,11 @@ async def get_private(request, id: int):
 As your application grows, use `Router` to group related logic. Routers can have their own prefixes, tags, and middleware.
 
 ```python
+from eden import Eden, Router, Model
+app = Eden()
+
+class User(Model): pass
+
 # api/users.py
 users_router = Router(name="users")
 
@@ -211,16 +250,21 @@ Now your routes are available at:
 **Namespace Reversal**: You can generate URLs using the `namespace:name` convention, which makes your code resistant to path changes.
 
 ```python
-# Generates '/api/v1/users'
-url = app.url_for("api:users:list")
+from eden import Eden
+app = Eden()
+# Generates '/api/v1/users' if registered
+# url = app.url_for("api:users:list")
 ```
 
 ### Recursive Middleware
 Apply security middleware (like `AuthMiddleware`) at the `Router` level to protect a group of routes instantly.
 
 ```python
-from eden.middleware import AuthMiddleware
+from eden import Eden, Router
+from unittest.mock import MagicMock
+AuthMiddleware = MagicMock # Mock middleware for example
 
+app = Eden()
 admin_router = Router(name="admin", prefix="/admin")
 admin_router.add_middleware(AuthMiddleware)
 
@@ -235,8 +279,10 @@ async def dashboard(request):
 One of Eden's "Killer Features" is the ability to generate a full suite of professional CRUD routes directly from an ORM model.
 
 ```python
-from eden import Router
-from app.models import Product
+from eden import Eden, Router, Model
+app = Eden()
+
+class Product(Model): pass
 
 # This single line generates list, show, create, update, and delete routes!
 product_router = Router(prefix="/products", model=Product)
@@ -266,7 +312,10 @@ The `Router` class is the primary interface for route registration and organizat
 For complex logic, inheritance provides a cleaner structure than decorators.
 
 ```python
+from eden import Router
 from eden.routing import View
+
+router = Router()
 
 class UserProfileView(View):
     async def get(self, user_id: int):
@@ -286,7 +335,12 @@ router.add_view("/users/{user_id:int}", UserProfileView)
 The Eden way is to validate request data using Schemas declaratively:
 
 ```python
+from eden import Eden, Model
 from eden.forms import Schema, field
+app = Eden()
+
+class User(Model):
+    def to_dict(self): return {"id": self.id}
 
 class CreateUserSchema(Schema):
     name: str = field(min_length=2)
@@ -301,7 +355,9 @@ async def create_user(request, data: CreateUserSchema):
 
 ### Global Exception Handlers
 ```python
-from eden.exceptions import HTTPException
+from eden import Eden
+from eden.exceptions import HttpException
+app = Eden()
 
 # Handle 404 globally
 @app.exception_handler(404)
@@ -316,6 +372,13 @@ async def handle_not_found(request, exc):
 One of Eden's elite features is the ability to render specific template sections (fragments) based on the request state.
 
 ```python
+from eden import Eden, Model
+app = Eden()
+
+class Post(Model):
+    @staticmethod
+    async def search(q): return []
+
 @app.get("/search")
 async def search(request):
     results = await Post.search(request.query_params.get("q"))

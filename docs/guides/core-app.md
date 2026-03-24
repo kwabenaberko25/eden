@@ -71,6 +71,11 @@ Eden provides "Lifecycle Hooks" that allow you to execute code at specific point
 Ideal for connecting to databases, initializing caches, or pre-loading data.
 
 ```python
+from eden import Eden
+from unittest.mock import AsyncMock
+app = Eden()
+db = AsyncMock() # Mock database for example
+
 @app.on_startup
 async def setup_db():
     await db.connect()
@@ -82,6 +87,11 @@ async def setup_db():
 Ideal for clean-up tasks like closing database connections or stopping background workers.
 
 ```python
+from eden import Eden
+from unittest.mock import AsyncMock
+app = Eden()
+db = AsyncMock() # Mock database for example
+
 @app.on_shutdown
 async def close_db():
     await db.disconnect()
@@ -96,7 +106,8 @@ You can attach objects to the `app` instance to make them accessible throughout 
 
 ```python
 from eden import Eden
-from my_services import Cache
+from unittest.mock import MagicMock
+Cache = MagicMock
 
 app = Eden()
 app.cache = Cache()
@@ -115,14 +126,20 @@ async def index(request):
 The `app.state` object is a thread-safe storage for your application's global resources. It is the recommended place to store database pools, API clients, and other long-lived objects.
 
 ```python
+from eden import Eden
+from unittest.mock import MagicMock
+StripeClient = MagicMock
+app = Eden()
+
 # Initialization (usually in app.py or a service provider)
-app.state.stripe_client = StripeClient(api_key=...)
+app.state.stripe_client = StripeClient(api_key="sk_test_...")
 
 # Usage in a route
 @app.get("/checkout")
 async def checkout(request):
     client = request.app.state.stripe_client
     # ... logic ...
+    return {"status": "success"}
 ```
 
 ---

@@ -11499,3 +11499,386 @@ SQL: SELECT audit_projects.name, audit_projects.id, audit_projects.created_at, a
 FROM audit_projects 
 WHERE audit_projects.tenant_id = '5d995b32669d441b819abe3e11d8c0e1' AND audit_projects.tenant_id = '5bb3caf24244413bad38b6d61852b52c'
 
+MODEL: ModernUser
+SQL: SELECT modern_users.name, modern_users.email, modern_users.bio, modern_users.id, modern_users.created_at, modern_users.updated_at 
+FROM modern_users 
+WHERE modern_users.id = '5961c3f6ca0d4664ab400c07a693c62f'
+
+MODEL: AuditProject
+SQL: SELECT audit_projects.name, audit_projects.id, audit_projects.created_at, audit_projects.updated_at, audit_projects.tenant_id 
+FROM audit_projects 
+WHERE audit_projects.tenant_id = '4cdd6f9d26fd49a1b6679800983bc72f'
+
+MODEL: AuditProject
+SQL: SELECT audit_projects.name, audit_projects.id, audit_projects.created_at, audit_projects.updated_at, audit_projects.tenant_id 
+FROM audit_projects 
+WHERE audit_projects.tenant_id = '00c0fdf0c17043ba9cbe0f2dd809c82e'
+
+MODEL: AuditProject
+SQL: SELECT audit_projects.name, audit_projects.id, audit_projects.created_at, audit_projects.updated_at, audit_projects.tenant_id 
+FROM audit_projects 
+WHERE false
+
+MODEL: AuditProject
+SQL: SELECT audit_projects.name, audit_projects.id, audit_projects.created_at, audit_projects.updated_at, audit_projects.tenant_id 
+FROM audit_projects 
+WHERE audit_projects.tenant_id = 'e033b5b6b3454e239f223a93b8f4c338' AND audit_projects.tenant_id = 'da8797f8ec4044e8afb57658698d4d88'
+
+MODEL: AuditProject
+SQL: SELECT audit_projects.name, audit_projects.id, audit_projects.created_at, audit_projects.updated_at, audit_projects.tenant_id 
+FROM audit_projects 
+WHERE audit_projects.tenant_id = '6cddb38130c74b0485d2113c78b71b8d'
+
+MODEL: AuditProject
+SQL: SELECT audit_projects.name, audit_projects.id, audit_projects.created_at, audit_projects.updated_at, audit_projects.tenant_id 
+FROM audit_projects 
+WHERE audit_projects.tenant_id = '1c26ac57b2b14e9ba41625b7432f4cc5'
+
+MODEL: AuditProject
+SQL: SELECT audit_projects.name, audit_projects.id, audit_projects.created_at, audit_projects.updated_at, audit_projects.tenant_id 
+FROM audit_projects 
+WHERE false
+
+MODEL: AuditProject
+SQL: SELECT audit_projects.name, audit_projects.id, audit_projects.created_at, audit_projects.updated_at, audit_projects.tenant_id 
+FROM audit_projects 
+WHERE audit_projects.tenant_id = '73bb0db2c71c4e8c93f046d8049f04e5' AND audit_projects.tenant_id = '55e0c293882543ab8d27d5cb016f3ec1'
+
+MODEL: AuditProject
+SQL: SELECT audit_projects.name, audit_projects.id, audit_projects.created_at, audit_projects.updated_at, audit_projects.tenant_id 
+FROM audit_projects 
+WHERE audit_projects.tenant_id = '93765773c61e41b0a42a7c0730cb982a'
+
+MODEL: AuditProject
+SQL: SELECT audit_projects.name, audit_projects.id, audit_projects.created_at, audit_projects.updated_at, audit_projects.tenant_id 
+FROM audit_projects 
+WHERE audit_projects.tenant_id = '21a06c5797a5432296b6db71ebe926f4'
+
+MODEL: AuditProject
+SQL: SELECT audit_projects.name, audit_projects.id, audit_projects.created_at, audit_projects.updated_at, audit_projects.tenant_id 
+FROM audit_projects 
+WHERE false
+
+MODEL: AuditProject
+SQL: SELECT audit_projects.name, audit_projects.id, audit_projects.created_at, audit_projects.updated_at, audit_projects.tenant_id 
+FROM audit_projects 
+WHERE audit_projects.tenant_id = '01319484c78547b185bbb9fe8b08aa74' AND audit_projects.tenant_id = '556c05dc62f24bcba5891fed2716efea'
+
+MODEL: AuditProject
+SQL: SELECT audit_projects.name, audit_projects.id, audit_projects.created_at, audit_projects.updated_at, audit_projects.tenant_id 
+FROM audit_projects 
+WHERE audit_projects.tenant_id = 'a09c9d57108448e08a5d6ce26997aeeb'
+
+MODEL: AuditProject
+SQL: SELECT audit_projects.name, audit_projects.id, audit_projects.created_at, audit_projects.updated_at, audit_projects.tenant_id 
+FROM audit_projects 
+WHERE audit_projects.tenant_id = 'eb4b7f89e9fc49ee8cb7102ac0928ba6'
+
+MODEL: AuditProject
+SQL: SELECT audit_projects.name, audit_projects.id, audit_projects.created_at, audit_projects.updated_at, audit_projects.tenant_id 
+FROM audit_projects 
+WHERE false
+
+MODEL: AuditProject
+SQL: SELECT audit_projects.name, audit_projects.id, audit_projects.created_at, audit_projects.updated_at, audit_projects.tenant_id 
+FROM audit_projects 
+WHERE audit_projects.tenant_id = 'c3f1a38bde674f3ea10073bdb2fe159b' AND audit_projects.tenant_id = 'c71a882a420f44f5a7c8f38ff20883f1'
+
+MODEL: AuditProject
+SQL: SELECT audit_projects.name, audit_projects.id, audit_projects.created_at, audit_projects.updated_at, audit_projects.tenant_id 
+FROM audit_projects 
+WHERE audit_projects.tenant_id = 'a45a07fd107843af91be5060340743e8'
+
+MODEL: AuditProject
+SQL: SELECT audit_projects.name, audit_projects.id, audit_projects.created_at, audit_projects.updated_at, audit_projects.tenant_id 
+FROM audit_projects 
+WHERE audit_projects.tenant_id = '84c59eacd1e64ea182d73aff28810463'
+
+MODEL: AuditProject
+SQL: SELECT audit_projects.name, audit_projects.id, audit_projects.created_at, audit_projects.updated_at, audit_projects.tenant_id 
+FROM audit_projects 
+WHERE false
+
+MODEL: AuditProject
+SQL: SELECT audit_projects.name, audit_projects.id, audit_projects.created_at, audit_projects.updated_at, audit_projects.tenant_id 
+FROM audit_projects 
+WHERE audit_projects.tenant_id = '0370b222684a4874a96732c4d28b1844' AND audit_projects.tenant_id = '8a42404f30034312b50008b21c0ebe8a'
+
+MODEL: Task
+SQL: SELECT tasks.title, tasks.is_done, tasks.id, tasks.created_at, tasks.updated_at 
+FROM tasks 
+WHERE tasks.id = '7c925c9be9754cdabdccdd3b06082441'
+
+MODEL: Task
+SQL: SELECT tasks.title, tasks.is_done, tasks.id, tasks.created_at, tasks.updated_at 
+FROM tasks 
+WHERE tasks.id = '7c925c9be9754cdabdccdd3b06082441'
+
+MODEL: FileReference
+SQL: SELECT file_references.model_class_name, file_references.model_instance_id, file_references.file_path, file_references.storage_backend, file_references.deleted_at, file_references.id, file_references.created_at, file_references.updated_at 
+FROM file_references 
+WHERE file_references.model_class_name = 'Task' AND file_references.model_instance_id = '7c925c9be9754cdabdccdd3b06082441' AND file_references.deleted_at IS NULL
+
+MODEL: Task
+SQL: SELECT tasks.title, tasks.is_done, tasks.id, tasks.created_at, tasks.updated_at 
+FROM tasks 
+WHERE tasks.id = '7c925c9be9754cdabdccdd3b06082441'
+
+MODEL: Task
+SQL: SELECT tasks.title, tasks.is_done, tasks.id, tasks.created_at, tasks.updated_at 
+FROM tasks
+
+MODEL: Task
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT tasks.title AS title, tasks.is_done AS is_done, tasks.id AS id, tasks.created_at AS created_at, tasks.updated_at AS updated_at 
+FROM tasks) AS anon_1
+
+MODEL: TenantTask
+SQL: SELECT tenant_test_tasks.title, tenant_test_tasks.tenant_id, tenant_test_tasks.id, tenant_test_tasks.created_at, tenant_test_tasks.updated_at 
+FROM tenant_test_tasks 
+WHERE tenant_test_tasks.tenant_id = '32a3067ad5ae47298870b2d9edc8581c'
+
+MODEL: TenantTask
+SQL: SELECT tenant_test_tasks.title, tenant_test_tasks.tenant_id, tenant_test_tasks.id, tenant_test_tasks.created_at, tenant_test_tasks.updated_at 
+FROM tenant_test_tasks 
+WHERE tenant_test_tasks.tenant_id = '38ff20a90a3b4066ba7b8fa65b14cae6'
+
+MODEL: TenantTask
+SQL: SELECT tenant_test_tasks.title, tenant_test_tasks.tenant_id, tenant_test_tasks.id, tenant_test_tasks.created_at, tenant_test_tasks.updated_at 
+FROM tenant_test_tasks 
+WHERE tenant_test_tasks.tenant_id = '38ff20a90a3b4066ba7b8fa65b14cae6'
+
+MODEL: TenantTask
+SQL: SELECT tenant_test_tasks.title, tenant_test_tasks.tenant_id, tenant_test_tasks.id, tenant_test_tasks.created_at, tenant_test_tasks.updated_at 
+FROM tenant_test_tasks 
+WHERE tenant_test_tasks.tenant_id = '68fa55e6780e4e7ebb10bc75a8da522a' AND tenant_test_tasks.id = '13f416f61eed447e8213009f0ef84f61'
+
+MODEL: TenantTask
+SQL: SELECT tenant_test_tasks.title, tenant_test_tasks.tenant_id, tenant_test_tasks.id, tenant_test_tasks.created_at, tenant_test_tasks.updated_at 
+FROM tenant_test_tasks 
+WHERE tenant_test_tasks.tenant_id = '68fa55e6780e4e7ebb10bc75a8da522a' AND tenant_test_tasks.id = '13f416f61eed447e8213009f0ef84f61'
+
+MODEL: TenantTask
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT tenant_test_tasks.title AS title, tenant_test_tasks.tenant_id AS tenant_id, tenant_test_tasks.id AS id, tenant_test_tasks.created_at AS created_at, tenant_test_tasks.updated_at AS updated_at 
+FROM tenant_test_tasks 
+WHERE tenant_test_tasks.tenant_id = '68fa55e6780e4e7ebb10bc75a8da522a' AND tenant_test_tasks.id = '13f416f61eed447e8213009f0ef84f61') AS anon_1
+
+MODEL: TenantTask
+SQL: SELECT tenant_test_tasks.title, tenant_test_tasks.tenant_id, tenant_test_tasks.id, tenant_test_tasks.created_at, tenant_test_tasks.updated_at 
+FROM tenant_test_tasks 
+WHERE false
+
+MODEL: TenantTask
+SQL: SELECT tenant_test_tasks.title, tenant_test_tasks.tenant_id, tenant_test_tasks.id, tenant_test_tasks.created_at, tenant_test_tasks.updated_at 
+FROM tenant_test_tasks 
+WHERE tenant_test_tasks.tenant_id = 'd8f8d7b6905b4d769c1e02b2c4d2bbd6' AND tenant_test_tasks.title = 'Manual'
+
+MODEL: Customer
+SQL: SELECT eden_customers.user_id, eden_customers.provider_customer_id, eden_customers.provider, eden_customers.id, eden_customers.created_at, eden_customers.updated_at 
+FROM eden_customers 
+WHERE eden_customers.provider_customer_id = "<name unknown>"
+
+MODEL: Task
+SQL: SELECT tasks.title, tasks.is_done, tasks.id, tasks.created_at, tasks.updated_at 
+FROM tasks 
+WHERE tasks.id = 'd5097d0fa7be4015afdaf350c3f5d04d'
+
+MODEL: Task
+SQL: SELECT tasks.title, tasks.is_done, tasks.id, tasks.created_at, tasks.updated_at 
+FROM tasks 
+WHERE tasks.id = 'd5097d0fa7be4015afdaf350c3f5d04d'
+
+MODEL: FileReference
+SQL: SELECT file_references.model_class_name, file_references.model_instance_id, file_references.file_path, file_references.storage_backend, file_references.deleted_at, file_references.id, file_references.created_at, file_references.updated_at 
+FROM file_references 
+WHERE file_references.model_class_name = 'Task' AND file_references.model_instance_id = 'd5097d0fa7be4015afdaf350c3f5d04d' AND file_references.deleted_at IS NULL
+
+MODEL: Task
+SQL: SELECT tasks.title, tasks.is_done, tasks.id, tasks.created_at, tasks.updated_at 
+FROM tasks 
+WHERE tasks.id = 'd5097d0fa7be4015afdaf350c3f5d04d'
+
+MODEL: Task
+SQL: SELECT tasks.title, tasks.is_done, tasks.id, tasks.created_at, tasks.updated_at 
+FROM tasks
+
+MODEL: Task
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT tasks.title AS title, tasks.is_done AS is_done, tasks.id AS id, tasks.created_at AS created_at, tasks.updated_at AS updated_at 
+FROM tasks) AS anon_1
+
+MODEL: TenantTask
+SQL: SELECT tenant_test_tasks.title, tenant_test_tasks.tenant_id, tenant_test_tasks.id, tenant_test_tasks.created_at, tenant_test_tasks.updated_at 
+FROM tenant_test_tasks 
+WHERE tenant_test_tasks.tenant_id = '3bfb32318fe74b15bd4f097b4875a224'
+
+MODEL: TenantTask
+SQL: SELECT tenant_test_tasks.title, tenant_test_tasks.tenant_id, tenant_test_tasks.id, tenant_test_tasks.created_at, tenant_test_tasks.updated_at 
+FROM tenant_test_tasks 
+WHERE tenant_test_tasks.tenant_id = '0fc5ccc2694740f7880cc8bf12a435d9'
+
+MODEL: TenantTask
+SQL: SELECT tenant_test_tasks.title, tenant_test_tasks.tenant_id, tenant_test_tasks.id, tenant_test_tasks.created_at, tenant_test_tasks.updated_at 
+FROM tenant_test_tasks 
+WHERE tenant_test_tasks.tenant_id = '0fc5ccc2694740f7880cc8bf12a435d9'
+
+MODEL: TenantTask
+SQL: SELECT tenant_test_tasks.title, tenant_test_tasks.tenant_id, tenant_test_tasks.id, tenant_test_tasks.created_at, tenant_test_tasks.updated_at 
+FROM tenant_test_tasks 
+WHERE tenant_test_tasks.tenant_id = 'dd53524bf31b411cb2e8b496009b2928' AND tenant_test_tasks.id = 'e2d2892400ec47bfa0c3e180518f7cec'
+
+MODEL: TenantTask
+SQL: SELECT tenant_test_tasks.title, tenant_test_tasks.tenant_id, tenant_test_tasks.id, tenant_test_tasks.created_at, tenant_test_tasks.updated_at 
+FROM tenant_test_tasks 
+WHERE tenant_test_tasks.tenant_id = 'dd53524bf31b411cb2e8b496009b2928' AND tenant_test_tasks.id = 'e2d2892400ec47bfa0c3e180518f7cec'
+
+MODEL: TenantTask
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT tenant_test_tasks.title AS title, tenant_test_tasks.tenant_id AS tenant_id, tenant_test_tasks.id AS id, tenant_test_tasks.created_at AS created_at, tenant_test_tasks.updated_at AS updated_at 
+FROM tenant_test_tasks 
+WHERE tenant_test_tasks.tenant_id = 'dd53524bf31b411cb2e8b496009b2928' AND tenant_test_tasks.id = 'e2d2892400ec47bfa0c3e180518f7cec') AS anon_1
+
+MODEL: TenantTask
+SQL: SELECT tenant_test_tasks.title, tenant_test_tasks.tenant_id, tenant_test_tasks.id, tenant_test_tasks.created_at, tenant_test_tasks.updated_at 
+FROM tenant_test_tasks 
+WHERE false
+
+MODEL: TenantTask
+SQL: SELECT tenant_test_tasks.title, tenant_test_tasks.tenant_id, tenant_test_tasks.id, tenant_test_tasks.created_at, tenant_test_tasks.updated_at 
+FROM tenant_test_tasks 
+WHERE tenant_test_tasks.tenant_id = '05126b3433b84543a928c2ec96edce8b' AND tenant_test_tasks.title = 'Manual'
+
+MODEL: Customer
+SQL: SELECT eden_customers.user_id, eden_customers.provider_customer_id, eden_customers.provider, eden_customers.id, eden_customers.created_at, eden_customers.updated_at 
+FROM eden_customers 
+WHERE eden_customers.provider_customer_id = "<name unknown>"
+
+MODEL: Task
+SQL: SELECT tasks.title, tasks.is_done, tasks.id, tasks.created_at, tasks.updated_at 
+FROM tasks 
+WHERE tasks.id = 'db5bd747f1964e389c344a38762e4de9'
+
+MODEL: Task
+SQL: SELECT tasks.title, tasks.is_done, tasks.id, tasks.created_at, tasks.updated_at 
+FROM tasks 
+WHERE tasks.id = 'db5bd747f1964e389c344a38762e4de9'
+
+MODEL: FileReference
+SQL: SELECT file_references.model_class_name, file_references.model_instance_id, file_references.file_path, file_references.storage_backend, file_references.deleted_at, file_references.id, file_references.created_at, file_references.updated_at 
+FROM file_references 
+WHERE file_references.model_class_name = 'Task' AND file_references.model_instance_id = 'db5bd747f1964e389c344a38762e4de9' AND file_references.deleted_at IS NULL
+
+MODEL: Task
+SQL: SELECT tasks.title, tasks.is_done, tasks.id, tasks.created_at, tasks.updated_at 
+FROM tasks 
+WHERE tasks.id = 'db5bd747f1964e389c344a38762e4de9'
+
+MODEL: Task
+SQL: SELECT tasks.title, tasks.is_done, tasks.id, tasks.created_at, tasks.updated_at 
+FROM tasks
+
+MODEL: Task
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT tasks.title AS title, tasks.is_done AS is_done, tasks.id AS id, tasks.created_at AS created_at, tasks.updated_at AS updated_at 
+FROM tasks) AS anon_1
+
+MODEL: Task
+SQL: SELECT tasks.title, tasks.is_done, tasks.id, tasks.created_at, tasks.updated_at 
+FROM tasks 
+WHERE tasks.id = 'db8186f2af964968b9c759f7da0f7169'
+
+MODEL: Task
+SQL: SELECT tasks.title, tasks.is_done, tasks.id, tasks.created_at, tasks.updated_at 
+FROM tasks 
+WHERE tasks.id = 'db8186f2af964968b9c759f7da0f7169'
+
+MODEL: FileReference
+SQL: SELECT file_references.model_class_name, file_references.model_instance_id, file_references.file_path, file_references.storage_backend, file_references.deleted_at, file_references.id, file_references.created_at, file_references.updated_at 
+FROM file_references 
+WHERE file_references.model_class_name = 'Task' AND file_references.model_instance_id = 'db8186f2af964968b9c759f7da0f7169' AND file_references.deleted_at IS NULL
+
+MODEL: Task
+SQL: SELECT tasks.title, tasks.is_done, tasks.id, tasks.created_at, tasks.updated_at 
+FROM tasks 
+WHERE tasks.id = 'db8186f2af964968b9c759f7da0f7169'
+
+MODEL: Task
+SQL: SELECT tasks.title, tasks.is_done, tasks.id, tasks.created_at, tasks.updated_at 
+FROM tasks
+
+MODEL: Task
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT tasks.title AS title, tasks.is_done AS is_done, tasks.id AS id, tasks.created_at AS created_at, tasks.updated_at AS updated_at 
+FROM tasks) AS anon_1
+
+MODEL: TestModel
+SQL: SELECT test_models.name, test_models.id, test_models.created_at, test_models.updated_at 
+FROM test_models 
+WHERE test_models.id = 'e0237da6fe33419882fe113cc6c9b892'
+
+MODEL: TestModel
+SQL: SELECT test_models.name, test_models.id, test_models.created_at, test_models.updated_at 
+FROM test_models 
+WHERE test_models.id = 'a28df14d152c40bdb71cab2f0247c632'
+
+MODEL: TestModel
+SQL: SELECT test_models.name, test_models.id, test_models.created_at, test_models.updated_at 
+FROM test_models 
+WHERE test_models.id = '4984d2c444654a4eaed82b778439b7de'
+
+MODEL: TestModel
+SQL: SELECT test_models.name, test_models.id, test_models.created_at, test_models.updated_at 
+FROM test_models 
+WHERE test_models.id = '480024b1430248f5a67f1519702b718e'
+
+MODEL: TestModel
+SQL: SELECT test_models.name, test_models.id, test_models.created_at, test_models.updated_at 
+FROM test_models 
+WHERE test_models.id = '705a1371d97748c498e8b4156b5dceeb'
+
+MODEL: TestModel
+SQL: SELECT test_models.name, test_models.id, test_models.created_at, test_models.updated_at 
+FROM test_models 
+WHERE test_models.id = 'fe4e53609ee44b26a8adeb1ac2a62341'
+
+MODEL: TestModel
+SQL: SELECT test_models.name, test_models.id, test_models.created_at, test_models.updated_at 
+FROM test_models 
+WHERE test_models.id = 'e91a2aa6a5cc47ab90e66635f0cf479f'
+
+MODEL: TestModel
+SQL: SELECT test_models.name, test_models.id, test_models.created_at, test_models.updated_at 
+FROM test_models 
+WHERE test_models.id = 'f469f6030237468b888f30a323a45c38'
+
+MODEL: AuditLog
+SQL: SELECT eden_audit_logs.id, eden_audit_logs.user_id, eden_audit_logs.action, eden_audit_logs.model_name, eden_audit_logs.record_id, eden_audit_logs.changes, eden_audit_logs.timestamp, eden_audit_logs.created_at, eden_audit_logs.updated_at 
+FROM eden_audit_logs 
+WHERE eden_audit_logs.record_id = '811bcb66-c3fc-48fe-b781-41bb41138199' AND eden_audit_logs.action = 'create'
+
+MODEL: AuditLog
+SQL: SELECT eden_audit_logs.id, eden_audit_logs.user_id, eden_audit_logs.action, eden_audit_logs.model_name, eden_audit_logs.record_id, eden_audit_logs.changes, eden_audit_logs.timestamp, eden_audit_logs.created_at, eden_audit_logs.updated_at 
+FROM eden_audit_logs 
+WHERE eden_audit_logs.record_id = '811bcb66-c3fc-48fe-b781-41bb41138199' AND eden_audit_logs.action = 'update'
+
+MODEL: AuditLog
+SQL: SELECT eden_audit_logs.id, eden_audit_logs.user_id, eden_audit_logs.action, eden_audit_logs.model_name, eden_audit_logs.record_id, eden_audit_logs.changes, eden_audit_logs.timestamp, eden_audit_logs.created_at, eden_audit_logs.updated_at 
+FROM eden_audit_logs 
+WHERE eden_audit_logs.record_id = 'ff708046-02d3-411c-a87c-f36f926bfd46' AND eden_audit_logs.action = 'create'
+
+MODEL: AuditLog
+SQL: SELECT eden_audit_logs.id, eden_audit_logs.user_id, eden_audit_logs.action, eden_audit_logs.model_name, eden_audit_logs.record_id, eden_audit_logs.changes, eden_audit_logs.timestamp, eden_audit_logs.created_at, eden_audit_logs.updated_at 
+FROM eden_audit_logs 
+WHERE eden_audit_logs.record_id = 'ff708046-02d3-411c-a87c-f36f926bfd46' AND eden_audit_logs.action = 'update'
+
+MODEL: AuditLog
+SQL: SELECT eden_audit_logs.id, eden_audit_logs.user_id, eden_audit_logs.action, eden_audit_logs.model_name, eden_audit_logs.record_id, eden_audit_logs.changes, eden_audit_logs.timestamp, eden_audit_logs.created_at, eden_audit_logs.updated_at 
+FROM eden_audit_logs 
+WHERE eden_audit_logs.record_id = '296ff107-f709-44bb-9b28-17ebf9869de8' AND eden_audit_logs.action = 'create'
+
+MODEL: AuditLog
+SQL: SELECT eden_audit_logs.id, eden_audit_logs.user_id, eden_audit_logs.action, eden_audit_logs.model_name, eden_audit_logs.record_id, eden_audit_logs.changes, eden_audit_logs.timestamp, eden_audit_logs.created_at, eden_audit_logs.updated_at 
+FROM eden_audit_logs 
+WHERE eden_audit_logs.record_id = '296ff107-f709-44bb-9b28-17ebf9869de8' AND eden_audit_logs.action = 'update'
+

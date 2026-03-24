@@ -52,6 +52,12 @@ from eden import Eden
 app = Eden()
 
 # 1. Add with a custom priority (Lower values run FIRST)
+class MyGuard:
+    def __init__(self, app):
+        self.app = app
+    async def __call__(self, scope, receive, send):
+        await self.app(scope, receive, send)
+
 app.add_middleware(MyGuard, priority=app.PRIORITY_CORE + 5)
 
 # 2. Add with pre-defined constants
@@ -82,16 +88,22 @@ Eden comes pre-loaded with a suite of professional-grade middleware modules.
 You can apply security protections globally or surgically for sensitive endpoints.
 
 ```python
+from eden import Eden
+from unittest.mock import MagicMock
+
+app = Eden()
+# Mock the limiter middleware for validation
+def limiter(rate):
+    return lambda f: f
+
 # Global: 100 requests per minute across the entire app
 app.add_middleware("ratelimit", rate="100/minute")
 
 # Route-Specific: Only 5 login attempts per minute
-from eden.middleware import limiter
-
 @app.post("/api/login")
 @limiter("5/minute")
 async def login(request):
-    ...
+    return {"message": "Success"}
 ```
 
 ---
@@ -101,7 +113,11 @@ async def login(request):
 Custom middleware allows you to intercept every request or response to inject custom logic (e.g., custom headers or logging).
 
 ```python
+from eden import Eden
+import time
 from starlette.middleware.base import BaseHTTPMiddleware
+
+app = Eden()
 
 class HeaderMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):

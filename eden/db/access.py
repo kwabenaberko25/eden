@@ -42,6 +42,27 @@ class AccessControl:
     Mixin to enable Row-Level RBAC on a Model.
     """
     __rbac__: Dict[str, PermissionRule] = {}
+    
+    def __init_subclass__(cls, **kwargs):
+        """Isolate RBAC state per model but inherit and merge from parents."""
+        super().__init_subclass__(**kwargs)
+        
+        # Find the first parent that has __rbac__ (other than cls itself)
+        parent_rbac = {}
+        for base in cls.__mro__[1:]:
+            if hasattr(base, "__rbac__"):
+                parent_rbac = getattr(base, "__rbac__", {})
+                break
+        
+        # If the class itself defined __rbac__ in its body, we should merge with parent's
+        if "__rbac__" in cls.__dict__:
+            # Merge: parent rules first, then class rules (overriding parents)
+            merged = parent_rbac.copy()
+            merged.update(cls.__dict__["__rbac__"])
+            cls.__rbac__ = merged
+        else:
+            # Not defined in body, just copy from parent to ensure isolation
+            cls.__rbac__ = parent_rbac.copy()
 
     @classmethod
     def get_security_filters(cls, user: Any, action: str = "read") -> Union[bool, ColumnElement[bool]]:

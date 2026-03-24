@@ -48,11 +48,12 @@ The easiest way to boot your UI is by using the `@eden_head` directive in your b
 </html>
 ```
 
-### What `@eden_head` Injects:
--   **Typography**: Google Fonts integration for **Plus Jakarta Sans** (Body) and **Outfit** (Headings).
--   **Premium Reset**: Custom CSS for smooth scrolling, antialiasing, and Obsidian-dark mode defaults.
--   **Design Tokens**: Built-in CSS variables like `--eden-obsidian` and `.glass` (glassmorphism) utilities.
--   **Micro-animations**: Pre-configured classes like `.hover-lift` for premium interaction feedback.
+### What `@eden_head` Injects
+
+- **Typography**: Google Fonts integration for **Plus Jakarta Sans** (Body) and **Outfit** (Headings).
+- **Premium Reset**: Custom CSS for smooth scrolling, antialiasing, and Obsidian-dark mode defaults.
+- **Design Tokens**: Built-in CSS variables like `--eden-obsidian` and `.glass` (glassmorphism) utilities.
+- **Micro-animations**: Pre-configured classes like `.hover-lift` for premium interaction feedback.
 
 ---
 
@@ -61,9 +62,10 @@ The easiest way to boot your UI is by using the `@eden_head` directive in your b
 One of Eden's most powerful features is the automatic WebSocket synchronization. When you include `@eden_scripts`, Eden injects the `eden-sync` HTMX extension.
 
 ### How it Works
-1.  **Automatic Connection**: On page load, a WebSocket connection is established to `/_eden/sync`.
-2.  **Component Subscription**: Elements with the `hx-sync="channel_name"` attribute automatically subscribe to updates for that channel.
-3.  **Live Updates**: When the server broadcasts an event to that channel, HTMX triggers a refresh or an event on the matching elements.
+
+1. **Automatic Connection**: On page load, a WebSocket connection is established to `/_eden/sync`.
+2. **Component Subscription**: Elements with the `hx-sync="channel_name"` attribute automatically subscribe to updates for that channel.
+3. **Live Updates**: When the server broadcasts an event to that channel, HTMX triggers a refresh or an event on the matching elements.
 
 ```html
 <!-- This div will automatically refresh whenever 'orders' are updated on the server -->
@@ -79,6 +81,7 @@ One of Eden's most powerful features is the automatic WebSocket synchronization.
 Eden includes a premium toast notification system that handles both **session-based flashes** and **real-time WebSocket messages**.
 
 ### 1. The `@eden_toasts` Container
+
 Place this directive once in your base template. It renders the container and a listener for incoming messages.
 
 ```html
@@ -86,19 +89,25 @@ Place this directive once in your base template. It renders the container and a 
 ```
 
 ### 2. Triggering Toasts
+
 Toasts can be triggered from Python logic using the `messages` framework or directly via the real-time sync.
 
 ```python
+from eden import Eden
 from eden.messages import success, error
+from eden.responses import redirect
+
+app = Eden()
 
 @app.post("/settings")
 async def save_settings(request):
     # This will appear as a premium toast on the next page load
-    success("Settings saved successfully!")
+    success("Settings saved successfully!", request=request)
     return redirect("/")
 ```
 
 ### 3. Toast Categories
+
 | Category | Visual Style | Use Case |
 | :--- | :--- | :--- |
 | **Success** | Emerald Border | Resource creation, successful saves. |
@@ -110,10 +119,10 @@ async def save_settings(request):
 
 ## 💡 Best Practices
 
-1.  **Selective Assets**: You can disable specific libraries in `@eden_head` if not needed: `@eden_head(alpine=False, fontawesome=False)`.
-2.  **Use `.glass`**: Leverage the built-in `.glass` class for cards and panels to immediately achieve a premium, modern aesthetic.
-3.  **HTMX over JS**: Prefer HTMX attributes for server communication before reaching for custom Alpine.js or vanilla JavaScript.
-4.  **Local Static Files**: For your own project-specific assets, place them in the `/static` directory and reference them via `@static('path/to/file.png')`.
+1. **Selective Assets**: You can disable specific libraries in `@eden_head` if not needed: `@eden_head(alpine=False, fontawesome=False)`.
+2. **Use `.glass`**: Leverage the built-in `.glass` class for cards and panels to immediately achieve a premium, modern aesthetic.
+3. **HTMX over JS**: Prefer HTMX attributes for server communication before reaching for custom Alpine.js or vanilla JavaScript.
+4. **Local Static Files**: For your own project-specific assets, place them in the `/static` directory and reference them via `@static('path/to/file.png')`.
 
 ---
 

@@ -30,7 +30,6 @@ Create a file named `app.py`. Eden's core `Eden` class is a high-level wrapper t
 from eden import Eden, Request
 
 # Initialize with a secret_key to enable sessions, CSRF, and security middleware
-
 app = Eden(
     title="Eden Task Manager",
     secret_key="dev-secret-key-change-in-prod",
@@ -38,13 +37,9 @@ app = Eden(
 )
 
 # Root endpoint - Returns a high-performance JSON response
-
 @app.get("/")
 async def home():
     return {"status": "online", "message": "Welcome to Eden! 🌿"}
-
-if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=8000)
 ```
 
 > [!IMPORTANT]
@@ -59,11 +54,9 @@ Eden's ORM uses modern Python type hints (`Mapped`) combined with a "Zen" helper
 Add this task model to your `app.py`:
 
 ```python
-from eden import Model, f
-from sqlalchemy.orm import Mapped
+from eden import Eden, Model, f, Mapped, Request
 
-# Configure SQLite - Eden bootstraps the database on the first request
-
+app = Eden(secret_key="dev-secret")
 app.state.database_url = "sqlite+aiosqlite:///tasks.db"
 
 class Task(Model):
@@ -75,15 +68,13 @@ class Task(Model):
     description: Mapped[str | None] = f(nullable=True)
     completed: Mapped[bool] = f(default=False)
 
-# List all tasks with a single line
-
+# List all tasks
 @app.get("/tasks")
 async def list_tasks():
     tasks = await Task.all()
     return {"count": len(tasks), "tasks": tasks}
 
 # Create a task from a JSON request
-
 @app.post("/tasks")
 async def create_task(request: Request):
     data = await request.json()
@@ -179,7 +170,12 @@ Use the `@fragments` directive to allow HTMX to update only parts of the page.
 Update your `app.py` to bridge the models and templates.
 
 ```python
-from eden import render_template
+from eden import Eden, Model, f, Mapped, Request, render_template
+
+app = Eden(secret_key="dev-secret")
+
+class Task(Model):
+    title: Mapped[str] = f()
 
 @app.get("/view")
 async def view_tasks():

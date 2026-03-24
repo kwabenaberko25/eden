@@ -11,7 +11,11 @@ Eden routes support metadata (descriptions, tags, middleware) that enable automa
 Every route can have:
 
 ```python
+from unittest.mock import MagicMock
 from eden import Router
+
+# Mock middleware for illustration
+RequireAuth = MagicMock
 
 router = Router()
 
@@ -69,19 +73,18 @@ async def delete_user(id: int):
 
 ```python
 from eden import Router
-from eden.routing import url_for
 
 router = Router()
 
 @router.get("/users/{id}", name="get_user")
 async def get_user(id: int, request):
-    # Generate URL for related user
-    delete_url = url_for(request, "delete_user", id=id)
+    # Generate URL for related user via Starlette request object
+    delete_url = request.url_for("delete_user", id=str(id))
     
     return {
         "id": id,
         "_links": {
-            "delete": {"href": delete_url}
+            "delete": {"href": str(delete_url)}
         }
     }
 ```
@@ -140,6 +143,9 @@ async def get_product(id: int):
 ### Override Tags per Route
 
 ```python
+from eden import Router
+router_users = Router(prefix="/users")
+
 @router_users.get(
     "/search",
     tags=["search"]  # Override router's default tag
@@ -168,6 +174,9 @@ async def search_users(request):
 ### Summaries & Descriptions
 
 ```python
+from eden import Router
+router = Router()
+
 @router.get(
     "/users/{id}",
     summary="Get user by ID",  # Short single-line summary
@@ -189,6 +198,9 @@ async def get_user(id: int):
 If you don't provide summary/description, Eden uses the function docstring:
 
 ```python
+from eden import Router
+router = Router()
+
 @router.get("/users/{id}")
 async def get_user(id: int):
     """
@@ -206,6 +218,11 @@ async def get_user(id: int):
 ### Different Descriptions per Method
 
 ```python
+from eden import Router
+router = Router()
+async def list_users(): return []
+async def create_user(request): return {}
+
 @router.route(
     "/users",
     methods=["GET", "POST"],
@@ -247,27 +264,33 @@ class RequireAdminMiddleware(BaseHTTPMiddleware):
 
 router = Router(prefix="/api")
 
-# This route has extra middleware
+# This route has extra middleware (using the class)
 @router.get(
     "/stats",
-    middleware=[RequireAdminMiddleware()]
+    middleware=[RequireAdminMiddleware]
 )
 async def admin_stats():
-    return {"stats": {...}}
+    return {"stats": {}}
 
 # Public route (no extra middleware)
 @router.get("/data")
 async def public_data():
-    return {"data": {...}}
+    return {"data": {}}
 ```
 
 ### Apply Middleware to Router
 
 ```python
+from eden import Router
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import JSONResponse
+class RequireAdminMiddleware(BaseHTTPMiddleware): pass
+class LoggingMiddleware(BaseHTTPMiddleware): pass
+
 router_admin = Router(
     prefix="/admin",
     tags=["admin"],
-    middleware=[RequireAdminMiddleware()]  # All routes protected
+    middleware=[RequireAdminMiddleware]  # All routes protected
 )
 
 @router_admin.get("/users")
@@ -281,12 +304,17 @@ async def reports():
     return {}
 
 # Add more middleware after creation
-router_admin.add_middleware(LoggingMiddleware())
+router_admin.add_middleware(LoggingMiddleware)
 ```
 
 ### Conditional Middleware
 
 ```python
+from eden import Router
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import JSONResponse
+router = Router()
+
 class ConditionalAuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
         # Check if user authenticated
@@ -302,7 +330,7 @@ class ConditionalAuthMiddleware(BaseHTTPMiddleware):
 
 @router.get(
     "/public",
-    middleware=[ConditionalAuthMiddleware()],
+    middleware=[ConditionalAuthMiddleware],
     allow_anon=True  # Custom metadata
 )
 async def public_route():
@@ -316,6 +344,11 @@ async def public_route():
 ### Role-Based Access Control
 
 ```python
+from eden import Router
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import JSONResponse
+router = Router()
+
 class RBACMiddleware(BaseHTTPMiddleware):
     """Check that user has required role."""
     
@@ -339,7 +372,7 @@ class RBACMiddleware(BaseHTTPMiddleware):
 # Usage
 @router.get(
     "/admin/users",
-    middleware=[RBACMiddleware()],
+    middleware=[RBACMiddleware],
     required_roles=["admin"]
 )
 async def admin_users():
@@ -348,7 +381,7 @@ async def admin_users():
 
 @router.get(
     "/user-list",
-    middleware=[RBACMiddleware()],
+    middleware=[RBACMiddleware],
     required_roles=["admin", "moderator"]
 )
 async def moderator_list():
@@ -359,6 +392,14 @@ async def moderator_list():
 ### Resource-Based Access Control (RBAC)
 
 ```python
+from eden import Router
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import JSONResponse
+router = Router()
+class Post: 
+    @staticmethod
+    async def get(id): return type('P', (), {'user_id': 1})()
+
 class ResourceACLMiddleware(BaseHTTPMiddleware):
     """Check ownership of resource."""
     
@@ -389,7 +430,7 @@ class ResourceACLMiddleware(BaseHTTPMiddleware):
 
 @router.delete(
     "/posts/{id}",
-    middleware=[ResourceACLMiddleware()],
+    middleware=[ResourceACLMiddleware],
     resource_type="post"
 )
 async def delete_post(id: int):
@@ -404,6 +445,9 @@ async def delete_post(id: int):
 ### API Versioning with Routers
 
 ```python
+from eden import Router, Eden
+app = Eden()
+
 # v1: Legacy API
 router_v1 = Router(
     prefix="/api/v1",
@@ -451,6 +495,11 @@ app.include_router(router_v2)
 ### Deprecation Warnings
 
 ```python
+from eden import Router
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import JSONResponse
+router = Router()
+
 class DeprecationMiddleware(BaseHTTPMiddleware):
     """Add deprecation warning headers."""
     
@@ -472,18 +521,13 @@ class DeprecationMiddleware(BaseHTTPMiddleware):
 
 @router.get(
     "/users/{id}/profile",
-    middleware=[DeprecationMiddleware()],
+    middleware=[DeprecationMiddleware],
     deprecated={
         "sunset_date": "2024-12-31T00:00:00Z",
         "replacement": "/api/v2/users/{id}"
     }
 )
 async def get_profile(id: int):
-    """
-    DEPRECATED: Use /api/v2/users/{id} instead.
-    
-    This endpoint will be removed on 2024-12-31.
-    """
     return {}
 ```
 
@@ -495,6 +539,12 @@ async def get_profile(id: int):
 
 ```python
 from eden.routing import Route
+from eden import Eden
+from unittest.mock import MagicMock
+# Using a dummy type for illustration
+User = type('User', (), {'all': MagicMock(), 'get': MagicMock(), '__tablename__': 'user'})
+Post = type('Post', (), {'all': MagicMock(), 'get': MagicMock(), '__tablename__': 'post'})
+app = Eden()
 
 def create_crud_routes(model_name, model_class):
     """Generate CRUD routes for a model."""
@@ -546,21 +596,22 @@ for route in create_crud_routes("posts", Post):
 ### List All Routes with Metadata
 
 ```python
+from eden import Eden
+app = Eden()
+
 def print_routes(app):
     """Debug helper to print all routes."""
     for route in app.routes:
         print(f"{route.methods} {route.path}")
         print(f"  Name: {route.name}")
         print(f"  Summary: {route.summary}")
-        print(f"  Tags: {route.tags}")
-        print(f"  Middleware: {len(route.middleware)} middleware(s)")
-        print()
+        # ... etc
 
 # Useful for CLI or debug page
 @app.get("/debug/routes")
-async def debug_routes():
+async def debug_routes(request):
     routes = []
-    for route in app.routes:
+    for route in request.app.routes:
         routes.append({
             "method": route.methods,
             "path": route.path,
@@ -578,21 +629,32 @@ async def debug_routes():
 ### Route Parameters
 
 ```python
+from eden import Router
+router = Router()
+auth_middleware = type('Auth', (), {})
+
 @router.route(
     path="/items/{id}",                    # URL path
-    methods=["GET", "POST"],               # HTTP methods
-    name="item_detail",                    # Route name
-    summary="Get item details",            # Short description
-    description="Full documentation...",    # Long description
-    tags=["items"],                        # OpenAPI tags
-    middleware=[auth_middleware],          # Extra middleware
-    include_in_schema=True                 # Include in OpenAPI
+    methods=["GET", "POST"],
+    name="item_detail",
+    summary="Get item details",
+    description="Full documentation...",
+    tags=["items"],
+    middleware=[auth_middleware],
+    include_in_schema=True
 )
+async def item_detail(id: int):
+    return {"id": id}
 ```
 
 ### Router Configuration
 
 ```python
+from eden import Router
+# Mock for illustration
+UserModel = type('User', (), {'__tablename__': 'users'})
+cors_middleware = type('CORS', (), {})
+
 Router(
     prefix="/api/v1",                      # URL prefix
     name="api_v1",                         # Router name

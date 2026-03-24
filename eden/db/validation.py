@@ -9,6 +9,7 @@ from dataclasses import dataclass, field as dc_field
 import re
 import logging
 import asyncio
+import inspect
 
 logger = logging.getLogger(__name__)
 
@@ -63,13 +64,14 @@ class ValidatorMixin:
     _post_delete_hooks: List[List[Callable]] = []
 
     def __init_subclass__(cls, **kwargs):
-        """Isolate validation state per model to prevent rule leakage."""
+        """Isolate validation state per model to prevent rule leakage but inherit from parents."""
         super().__init_subclass__(**kwargs)
-        cls._validation_rules = {}
-        cls._pre_save_hooks = []
-        cls._post_save_hooks = []
-        cls._pre_delete_hooks = []
-        cls._post_delete_hooks = []
+        import copy
+        cls._validation_rules = copy.deepcopy(getattr(cls, "_validation_rules", {}))
+        cls._pre_save_hooks = list(getattr(cls, "_pre_save_hooks", []))
+        cls._post_save_hooks = list(getattr(cls, "_post_save_hooks", []))
+        cls._pre_delete_hooks = list(getattr(cls, "_pre_delete_hooks", []))
+        cls._post_delete_hooks = list(getattr(cls, "_post_delete_hooks", []))
     
     @classmethod
     def add_validation_rule(cls, field_name: str, rule: ValidationRule) -> None:
@@ -191,7 +193,7 @@ class ValidatorMixin:
         # 2. Cross-field validation (custom clean method)
         try:
             if hasattr(self, 'clean'):
-                if asyncio.iscoroutinefunction(self.clean):
+                if inspect.iscoroutinefunction(self.clean):
                     await self.clean()
                 else:
                     self.clean()
@@ -242,7 +244,7 @@ class ValidatorMixin:
             if hasattr(self, clean_method):
                 method = getattr(self, clean_method)
                 try:
-                    if asyncio.iscoroutinefunction(method):
+                    if inspect.iscoroutinefunction(method):
                         await method()
                     else:
                         method()
@@ -322,7 +324,7 @@ class ValidatorMixin:
     async def _trigger_hooks(self, hook_list: List[Callable]) -> None:
         """Execute a list of hooks."""
         for hook in hook_list:
-            if asyncio.iscoroutinefunction(hook):
+            if inspect.iscoroutinefunction(hook):
                 await hook(self)
             else:
                 hook(self)

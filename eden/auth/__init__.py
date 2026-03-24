@@ -42,6 +42,7 @@ from eden.auth.utils import get_user_model, set_user_model
 from eden.auth.hashers import (
     hash_password,
     check_password,
+    check_password as verify_password,
     needs_rehash,
     hasher,
     Argon2Hasher,
@@ -78,6 +79,8 @@ from eden.auth.decorators import (
     roles_required,
     permissions_required,
     require_permission,
+    can_read,
+    can_write,
     is_authorized,
     bind_user_principal,
     require_role,
@@ -86,6 +89,7 @@ from eden.auth.decorators import (
     staff_required,
     require_permission as permission_required, # Alias
     require_role as role_required, # Alias
+    view_decorator,
 )
 
 # ── Middleware ───────────────────────────────────────────────────────────
@@ -145,6 +149,7 @@ __all__ = [
     # Password hashing
     "hash_password",
     "check_password",
+    "verify_password",
     "needs_rehash",
     "hasher",
     "hasher_registry",
@@ -173,6 +178,8 @@ __all__ = [
     "permissions_required",
     "require_permission",
     "require_role",
+    "can_read",
+    "can_write",
     "require_any_permission",
     "require_any_role",
     "is_authorized",
@@ -180,6 +187,7 @@ __all__ = [
     "staff_required",
     "permission_required",
     "role_required",
+    "view_decorator",
     
     # Query-Level RBAC
     "apply_rbac_filter",

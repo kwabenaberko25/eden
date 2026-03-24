@@ -84,6 +84,12 @@ Back in your router, use the simple `.render()` helper to send the page to the c
 **File**: `app/routes/user.py`
 
 ```python
+from eden import Router, Model
+
+user_router = Router()
+class User(Model):
+    pass
+
 @user_router.get("/directory")
 async def show_directory(request):
     """Render the community member directory."""
@@ -96,7 +102,8 @@ async def show_directory(request):
 > [!TIP]
 > For the ultimate clean syntax, you can also use `from eden import render_template`. It uses the current request context automatically:
 > ```python
-> return render_template("user_list.html", members=members)
+> from eden import render_template
+> # return render_template("user_list.html", members=members)
 > ```
 
 > [!NOTE]

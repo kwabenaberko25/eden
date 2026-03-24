@@ -39,8 +39,29 @@ def get_mail_backend() -> EmailBackend:
         return _mail_backend
 
     import os
-    from eden.mail.backends import SMTPBackend
+    from eden.mail.backends import SMTPBackend, ResendBackend, SESBackend
 
+    # 1. Resend
+    resend_key = os.environ.get("EDEN_RESEND_KEY")
+    if resend_key:
+        _mail_backend = ResendBackend(
+            api_key=resend_key,
+            from_email=os.environ.get("EDEN_MAIL_FROM")
+        )
+        return _mail_backend
+
+    # 2. AWS SES
+    ses_region = os.environ.get("EDEN_SES_REGION") or os.environ.get("AWS_REGION")
+    if ses_region or os.environ.get("EDEN_AWS_ACCESS_KEY_ID"):
+        _mail_backend = SESBackend(
+            region_name=ses_region or "us-east-1",
+            access_key=os.environ.get("EDEN_AWS_ACCESS_KEY_ID") or os.environ.get("AWS_ACCESS_KEY_ID"),
+            secret_key=os.environ.get("EDEN_AWS_SECRET_ACCESS_KEY") or os.environ.get("AWS_SECRET_ACCESS_KEY"),
+            from_email=os.environ.get("EDEN_MAIL_FROM")
+        )
+        return _mail_backend
+
+    # 3. SMTP
     smtp_url = os.environ.get("EDEN_SMTP_URL")
     if smtp_url:
         _mail_backend = SMTPBackend.from_url(smtp_url)

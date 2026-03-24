@@ -149,6 +149,35 @@ class Config(BaseModel):
         description="Database connection string"
     )
     
+    # Database Connection Pool
+    db_pool_size: int = Field(
+        default=10,
+        description="Number of persistent connections in the pool",
+        ge=1
+    )
+    db_max_overflow: int = Field(
+        default=20,
+        description="Max additional connections beyond pool_size under load",
+        ge=0
+    )
+    db_pool_recycle: int = Field(
+        default=3600,
+        description="Recycle connections after this many seconds (prevents stale connections)"
+    )
+    db_pool_timeout: int = Field(
+        default=30,
+        description="Seconds to wait for a connection before timing out",
+        ge=1
+    )
+    db_pool_pre_ping: bool = Field(
+        default=True,
+        description="Test connections for liveness before checking out from the pool"
+    )
+    db_echo: bool = Field(
+        default=False,
+        description="Echo SQL statements to log (useful for debugging)"
+    )
+    
     # Auth & Tokens
     jwt_secret: str = Field(
         default="",
@@ -307,17 +336,47 @@ class Config(BaseModel):
         
         # Defaults by environment
         if self.env == Environment.TEST:
-            default = "sqlite+aiosqlite:///:memory:"
-            return default
+            return "sqlite+aiosqlite:///:memory:"
         elif self.env == Environment.PROD:
             raise ValueError(
                 "database_url is required in production. "
                 "Set DATABASE_URL environment variable."
             )
         else:  # dev
-            default = "sqlite+aiosqlite:///eden.db"
-            print(f"DEBUG: Config.get_database_url default for dev: {default}")
-            return default
+            return "sqlite+aiosqlite:///eden.db"
+    
+    def get_database_engine_kwargs(self) -> Dict[str, Any]:
+        """
+        Build SQLAlchemy engine keyword arguments from config pool settings.
+        
+        Returns a dict suitable for passing directly to ``Database(url, **kwargs)``
+        or ``create_async_engine(url, **kwargs)``.
+        
+        Connection pool settings are only applied for non-SQLite databases,
+        since SQLite uses different pooling behavior.
+        
+        Returns:
+            Dict of engine keyword arguments.
+        
+        Example:
+            config = get_config()
+            db = Database(config.get_database_url(), **config.get_database_engine_kwargs())
+        """
+        kwargs: Dict[str, Any] = {
+            "pool_pre_ping": self.db_pool_pre_ping,
+            "echo": self.db_echo,
+        }
+        
+        url = self.get_database_url()
+        # Pool size settings only apply to non-SQLite engines.
+        # SQLite uses StaticPool or NullPool depending on context.
+        if not url.startswith("sqlite"):
+            kwargs["pool_size"] = self.db_pool_size
+            kwargs["max_overflow"] = self.db_max_overflow
+            kwargs["pool_recycle"] = self.db_pool_recycle
+            kwargs["pool_timeout"] = self.db_pool_timeout
+        
+        return kwargs
     
     def is_prod(self) -> bool:
         """Check if running in production."""
@@ -406,7 +465,7 @@ class ConfigManager:
         # We allow Pydantic to handle more complex types downstream if needed
         self._config = Config(
             env=os.getenv("EDEN_ENV", "dev"),
-            debug=os.getenv("EDEN_DEBUG", os.getenv("DEBUG", "")).lower() in ("true", "1", "yes"),
+            debug=os.getenv("EDEN_DEBUG", os.getenv("DEBUG")) or None,
             secret_key=os.getenv("SECRET_KEY", ""),
             database_url=os.getenv("DATABASE_URL", ""),
             jwt_secret=os.getenv("JWT_SECRET", ""),

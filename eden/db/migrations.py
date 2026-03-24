@@ -226,14 +226,28 @@ revision = ${repr(up_revision)}
 down_revision = ${repr(down_revision)}
 branch_labels = ${repr(branch_labels)}
 depends_on = ${repr(depends_on)}
+__eden_tenant_isolated__ = ${tenant_isolated}
 
 
 def upgrade() -> None:
+    from alembic import context
+    is_tenant_context = context.config.get_main_option("tenant_schema") is not None
+    if is_tenant_context != __eden_tenant_isolated__:
+        # Skip this migration if the context doesn't match the migration type
+        return
+
     ${upgrades if upgrades else "pass"}
 
 
 def downgrade() -> None:
+    from alembic import context
+    is_tenant_context = context.config.get_main_option("tenant_schema") is not None
+    if is_tenant_context != __eden_tenant_isolated__:
+        return
+
     ${downgrades if downgrades else "pass"}
+
+
 """)
 
     async def upgrade(self, revision: str = "head") -> None:
@@ -306,7 +320,8 @@ def downgrade() -> None:
             self.config.set_main_option("version_table", "alembic_version_tenant")
 
         try:
-            await asyncio.to_thread(command.revision, self.config, message=message, autogenerate=True)
+            # Pass tenant_isolated to the template context
+            await asyncio.to_thread(command.revision, self.config, message=message, autogenerate=True, tenant_isolated=tenant_isolated)
             logger.info(f"Migrations: {label} revision successfully generated.")
         except Exception as e:
             logger.error(f"Migration Error: {e}")
@@ -411,7 +426,11 @@ def downgrade() -> None:
                             else:
                                 results[schema] = f"drifted (expected {head_revision}, got {tenant_version})"
                         except Exception as e:
-                            results[schema] = f"error: {str(e)}"
+                            # Handle case where the tenant schema or version table doesn't exist yet
+                            if "does not exist" in str(e).lower() or "undefined_table" in str(e).lower():
+                                results[schema] = "unprovisioned"
+                            else:
+                                results[schema] = f"error: {str(e)}"
                 except Exception as e:
                     logger.warning(f"Failed to fetch tenants for drift check: {e}")
         finally:
@@ -480,9 +499,24 @@ def downgrade() -> None:
         return history_data
 
 
-    async def migrate_tenants(self, revision: str = "head") -> None:
+    async def migrate_tenants(
+        self, 
+        revision: str = "head", 
+        continue_on_error: bool = True
+    ) -> dict[str, str]:
         """
         Apply pending migrations to ALL active tenant schemas.
+        
+        Args:
+            revision: Target revision (default: "head").
+            continue_on_error: If True, continues migrating remaining tenants 
+                after one fails. If False, stops at first failure.
+        
+        Returns:
+            Dict mapping schema_name -> status ("ok" or error message).
+            
+        Raises:
+            MigrationError: If continue_on_error=False and a tenant fails.
         """
         from sqlalchemy import select
         from sqlalchemy.ext.asyncio import create_async_engine
@@ -498,11 +532,11 @@ def downgrade() -> None:
             url = get_config().get_database_url()
 
         engine = create_async_engine(url, poolclass=NullPool)
+        results: dict[str, str] = {}
         
         try:
             async with engine.connect() as conn:
                 # 1. Fetch all active tenants with schemas
-                # We select individual columns to ensure compatibility with Core connection
                 result = await conn.execute(select(Tenant.schema_name, Tenant.name).where(
                     Tenant.schema_name.isnot(None),
                     Tenant.is_active.is_(True)
@@ -511,25 +545,59 @@ def downgrade() -> None:
                 
                 if not tenants:
                     logger.info("Migrations: No active tenants with schemas found.")
-                    return
+                    return results
 
                 logger.info("Migrations: Found %d tenant(s) to migrate.", len(tenants))
 
-                # 2. Iterate and migrate each one
+                # 2. Iterate and migrate each one sequentially
                 for tenant in tenants:
-                    logger.info("Migrations: Migrating schema '%s' (Tenant: %s)...", 
-                                tenant.schema_name, tenant.name)
-                    # We use a fresh config copy to prevent state pollution
+                    schema_name = tenant.schema_name
+                    tenant_name = tenant.name
+                    logger.info(
+                        "Migrations: Migrating schema '%s' (Tenant: %s)...", 
+                        schema_name, tenant_name
+                    )
                     try:
-                        await self.migrate(revision=revision, schema=tenant.schema_name)
+                        await self.migrate(revision=revision, schema=schema_name)
+                        results[schema_name] = "ok"
+                        logger.info(
+                            "Migrations: Schema '%s' migrated successfully.", 
+                            schema_name
+                        )
                     except Exception as e:
-                        logger.error("Migrations: Failed for tenant %s: %s", tenant.schema_name, e)
-                        # Decide whether to continue or abort. Usually continue for independent tenants.
-                        continue
+                        error_msg = str(e)
+                        results[schema_name] = f"error: {error_msg}"
+                        logger.error(
+                            "Migrations: Failed for tenant '%s' (schema: %s): %s", 
+                            tenant_name, schema_name, error_msg
+                        )
+                        if not continue_on_error:
+                            raise MigrationError(
+                                f"Tenant migration aborted at schema '{schema_name}': {error_msg}"
+                            ) from e
         finally:
             await engine.dispose()
 
-        logger.info("Migrations: Batch tenant migration complete.")
+        # 3. Log summary
+        succeeded = sum(1 for v in results.values() if v == "ok")
+        failed = sum(1 for v in results.values() if v.startswith("error"))
+        total = len(results)
+        
+        if failed:
+            logger.warning(
+                "Migrations: Batch tenant migration complete. %d/%d succeeded, %d failed.",
+                succeeded, total, failed
+            )
+            for schema, status in results.items():
+                if status != "ok":
+                    logger.warning("  - %s: %s", schema, status)
+        else:
+            logger.info(
+                "Migrations: Batch tenant migration complete. All %d tenant(s) migrated successfully.",
+                total
+            )
+        
+        return results
 
 
 # ── Functional Interface ──────────────────────────────────────────────────

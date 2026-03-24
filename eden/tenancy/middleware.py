@@ -87,12 +87,17 @@ class TenantMiddleware(BaseHTTPMiddleware):
             if app and hasattr(app, "state") and hasattr(app.state, "db"):
                 # Create a session from the database
                 db = app.state.db
-                session = await db.session().__aenter__()
+                ctx_manager = db.session()
+                session = await ctx_manager.__aenter__()
                 request.state.db = session
                 # Set in context for QuerySet
                 from eden.db.session import set_session
                 request.state._db_token = set_session(session)
-                request.state._db_cleanup = lambda: db.session().__aexit__(None, None, None)
+                
+                # Define a cleanup function that uses the SAME context manager
+                async def cleanup():
+                    await ctx_manager.__aexit__(None, None, None)
+                request.state._db_cleanup = cleanup
             else:
                 # No database configured, skip tenant schema switching
                 pass
@@ -107,6 +112,18 @@ class TenantMiddleware(BaseHTTPMiddleware):
             token = set_current_tenant(tenant)
             request.state.tenant = tenant
             tenant_id_str = str(tenant.id)
+
+            # Set DB session variable for Postgres RLS if session exists
+            if hasattr(request.state, "db") and request.state.db:
+                from sqlalchemy import text
+                try:
+                    # Use SET LOCAL to ensure it's scoped and cleared on transaction end/rollback
+                    await request.state.db.execute(
+                        text("SELECT set_config('app.current_tenant_id', :tid, true)"),
+                        {"tid": tenant_id_str}
+                    )
+                except Exception as e:
+                    get_logger(__name__).warning(f"Failed to set tenant session variable: {e}")
 
             # If the tenant has a dedicated schema, switch to it
             schema_name = getattr(tenant, "schema_name", None)
@@ -203,22 +220,33 @@ class TenantMiddleware(BaseHTTPMiddleware):
             return cached_tenant
         
         from sqlalchemy import select
-
         from eden.tenancy.models import Tenant
 
         session = getattr(request.state, "db", None)
         if not session:
             return None
 
-        # Try by slug first, then by ID
-        stmt = select(Tenant).where(
-            (Tenant.slug == identifier) | (Tenant.id == identifier)
-        ).where(Tenant.is_active)
+        # Try by slug first, then by ID (validate UUID format to prevent server crashes)
+        import uuid as uuid_mod
+        try:
+            # Check if identifier is a valid UUID
+            uuid_val = uuid_mod.UUID(identifier)
+            stmt = select(Tenant).where(
+                (Tenant.slug == identifier) | (Tenant.id == uuid_val)
+            )
+        except (ValueError, TypeError):
+            # Not a UUID, only query by slug
+            stmt = select(Tenant).where(Tenant.slug == identifier)
+
+        stmt = stmt.where(Tenant.is_active)
 
         result = await session.execute(stmt)
         tenant = result.scalar_one_or_none()
         
-        # Cache the result (even if None, to avoid repeated DB hits for invalid identifiers)
-        await self._cache.set(cache_key, tenant, ttl=300)
+        # Cache the result
+        # Note: Use a short TTL (10s) for negative results to avoid locking out newly created tenants
+        # and a longer TTL (300s) for positive results.
+        ttl = 300 if tenant else 10
+        await self._cache.set(cache_key, tenant, ttl=ttl)
         
         return tenant

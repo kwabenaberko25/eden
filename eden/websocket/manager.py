@@ -26,11 +26,27 @@ class ConnectionManager:
     
     This unifies the previous RealTimeManager and ConnectionManager into a single,
     robust implementation.
+    
+    Features:
+        - Channel/room-based pub/sub
+        - Per-user connection tracking
+        - Heartbeat ping/pong for dead connection detection
+        - Distributed backend with auto-reconnection
+        - Origin and CSRF security validation
     """
+    
+    # Default heartbeat interval: 30 seconds
+    DEFAULT_HEARTBEAT_INTERVAL = 30.0
+    # Maximum retries for distributed backend reconnection
+    MAX_DISTRIBUTED_RETRIES = 5
+    # Base delay for exponential backoff (seconds)
+    RETRY_BASE_DELAY = 1.0
+    
     def __init__(
         self, 
         allowed_origins: list[str] | None = None,
-        require_csrf: bool = False
+        require_csrf: bool = False,
+        heartbeat_interval: float = DEFAULT_HEARTBEAT_INTERVAL,
     ) -> None:
         # channel_name -> set of websockets
         self._channels: dict[str, set[WebSocket]] = defaultdict(set)
@@ -43,11 +59,16 @@ class ConnectionManager:
         # Distributed backend support
         self._distributed_backend: DistributedBackend | None = None
         self._worker_id: str = str(uuid.uuid4())
+        self._distributed_listener_task: asyncio.Task | None = None
         
         # Security configuration
         self.allowed_origins = [re.compile(o) for o in (allowed_origins or [])]
         self.require_csrf = require_csrf
         self._csrf_session_key = "eden_csrf_token" # matches CSRFMiddleware
+        
+        # Heartbeat configuration
+        self._heartbeat_interval = heartbeat_interval
+        self._heartbeat_task: asyncio.Task | None = None
 
     async def connect(self, websocket: WebSocket, user_id: str | None = None) -> None:
         """Accept and register a WebSocket connection with security checks."""
@@ -227,15 +248,60 @@ class ConnectionManager:
         }
 
     async def set_distributed_backend(self, backend: DistributedBackend) -> None:
-        """Enable distributed broadcasting across multiple workers."""
+        """
+        Enable distributed broadcasting across multiple workers.
+        
+        Subscribes to the distributed backend with automatic reconnection
+        on failure using exponential backoff.
+        """
         if self._distributed_backend:
             return
             
         self._distributed_backend = backend
-        await self._distributed_backend.subscribe("ws_broadcast", self._on_distributed_message)
+        
+        # Start subscription with retry logic
+        self._distributed_listener_task = asyncio.create_task(
+            self._distributed_listener_loop()
+        )
+        
         w_id = str(self._worker_id)
         short_id = w_id[:8] if len(w_id) >= 8 else w_id
         logger.info(f"WebSocket ConnectionManager synchronized with distributed backend (worker_id={short_id})")
+
+    async def _distributed_listener_loop(self) -> None:
+        """
+        Retry loop for distributed backend subscription.
+        
+        If subscription fails (e.g., Redis disconnect), retries with
+        exponential backoff up to MAX_DISTRIBUTED_RETRIES times.
+        After exhausting retries, logs an error and gives up.
+        """
+        retries = 0
+        while retries < self.MAX_DISTRIBUTED_RETRIES:
+            try:
+                if self._distributed_backend:
+                    await self._distributed_backend.subscribe(
+                        "ws_broadcast", self._on_distributed_message
+                    )
+                    # If subscribe returns normally (some backends block here),
+                    # reset retry counter on successful operation
+                    retries = 0
+                    # If the subscribe method is non-blocking, break out
+                    break
+            except Exception as e:
+                retries += 1
+                delay = self.RETRY_BASE_DELAY * (2 ** (retries - 1))
+                logger.error(
+                    f"Distributed listener failed (attempt {retries}/{self.MAX_DISTRIBUTED_RETRIES}): {e}. "
+                    f"Retrying in {delay:.1f}s..."
+                )
+                if retries < self.MAX_DISTRIBUTED_RETRIES:
+                    await asyncio.sleep(delay)
+                else:
+                    logger.error(
+                        "Distributed listener exhausted all retries. "
+                        "Cross-worker broadcasting will not work until restart."
+                    )
 
     async def _on_distributed_message(self, data: Any) -> None:
         """Handle broadcast events from other workers."""
@@ -253,6 +319,76 @@ class ConnectionManager:
         if channel and message is not None:
             # Broadcast locally, marking it as distributed to avoid feedback loops
             await self.broadcast(message, channel=channel, _is_distributed=True)
+
+    # --- Heartbeat ---
+    
+    async def start_heartbeat(self) -> None:
+        """
+        Start the heartbeat background task.
+        
+        Periodically sends WebSocket pings to all connected sockets.
+        Sockets that fail to respond are considered dead and disconnected.
+        This prevents resource leaks from half-open connections.
+        """
+        if self._heartbeat_task and not self._heartbeat_task.done():
+            return  # Already running
+        
+        self._heartbeat_task = asyncio.create_task(self._heartbeat_loop())
+        logger.info(f"WebSocket heartbeat started (interval={self._heartbeat_interval}s)")
+
+    async def stop_heartbeat(self) -> None:
+        """Stop the heartbeat background task."""
+        if self._heartbeat_task and not self._heartbeat_task.done():
+            self._heartbeat_task.cancel()
+            try:
+                await self._heartbeat_task
+            except asyncio.CancelledError:
+                pass
+            self._heartbeat_task = None
+            logger.info("WebSocket heartbeat stopped")
+
+    async def _heartbeat_loop(self) -> None:
+        """
+        Background loop that pings all connections periodically.
+        
+        On each tick:
+        1. Iterates over all tracked sockets
+        2. Sends a WebSocket ping frame
+        3. Disconnects any socket that fails to respond
+        """
+        while True:
+            try:
+                await asyncio.sleep(self._heartbeat_interval)
+                
+                if not self._socket_channels:
+                    continue  # No connections to ping
+                
+                dead: list[WebSocket] = []
+                
+                for ws in list(self._socket_channels.keys()):
+                    try:
+                        if ws.client_state == WebSocketState.CONNECTED:
+                            # Send a WebSocket protocol-level ping
+                            await ws.send_bytes(b"")  # Lightweight ping
+                        else:
+                            dead.append(ws)
+                    except Exception:
+                        dead.append(ws)
+                
+                # Clean up dead connections
+                for ws in dead:
+                    logger.debug(f"Heartbeat: removing dead connection")
+                    await self.disconnect(ws)
+                
+                if dead:
+                    metrics.increment("websocket_heartbeat_dead_total", value=len(dead))
+                    
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error(f"Heartbeat loop error: {e}")
+                # Don't crash the loop on unexpected errors
+                await asyncio.sleep(self._heartbeat_interval)
 
     def count(self) -> int:
         """Return total number of active connections on this worker."""
@@ -274,6 +410,17 @@ class ConnectionManager:
 
     async def shutdown(self) -> None:
         """Close all active WebSocket connections gracefully."""
+        # Stop background tasks
+        await self.stop_heartbeat()
+        
+        if self._distributed_listener_task and not self._distributed_listener_task.done():
+            self._distributed_listener_task.cancel()
+            try:
+                await self._distributed_listener_task
+            except asyncio.CancelledError:
+                pass
+            self._distributed_listener_task = None
+        
         active_sockets = list(self._socket_channels.keys())
         logger.info("Closing %d WebSocket connections for shutdown...", len(active_sockets))
         

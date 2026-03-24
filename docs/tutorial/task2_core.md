@@ -12,8 +12,18 @@ Eden uses a "Factory Pattern" for application initialization. This makes testing
 
 ```python
 from eden import Eden, setup_logging
-from .settings import DEBUG, SECRET_KEY, DATABASE_URL, LOG_LEVEL, LOG_FORMAT
-from .routes import main_router
+from eden.routing import Router
+import os
+
+# --- Configuration (Mocked for Tutorial) ---
+DEBUG = True
+SECRET_KEY = "dev-secret-key"
+DATABASE_URL = "sqlite+aiosqlite:///db.sqlite3"
+LOG_LEVEL = "DEBUG"
+LOG_FORMAT = "text"
+
+# --- Routes (Mocked for Tutorial) ---
+main_router = Router()
 
 def create_app() -> Eden:
     # 1. Configure Structured Logging
@@ -87,6 +97,7 @@ eden run
 ```
 
 ### Verification
+
 Once the server starts, visit `http://127.0.0.1:8000`. You should receive a welcome JSON:
 
 ```json
@@ -96,6 +107,7 @@ Once the server starts, visit `http://127.0.0.1:8000`. You should receive a welc
 ```
 
 ### 🛰️ Checking Health
+
 Visit the built-in health endpoint at `http://127.0.0.1:8000/health`:
 
 ```json

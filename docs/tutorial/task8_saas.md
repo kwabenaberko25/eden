@@ -11,11 +11,15 @@ Eden can auto-generate a stunning, secure admin interface from your database mod
 **File**: `app/__init__.py`
 
 ```python
+from eden import Eden
+from eden.db import Model, f
 from eden.admin import admin
-from app.models import User
+
+class User(Model):
+    email: str = f(unique=True)
 
 def create_app() -> Eden:
-    app = Eden(...)
+    app = Eden(secret_key="dev-secret")
     
     # 1. Register your models with the Admin site
     admin.register(User)
@@ -39,7 +43,10 @@ Eden provides a unified interface for sending emails, with backends for developm
 **File**: `app/__init__.py`
 
 ```python
+from eden import Eden
 from eden.mail import SMTPBackend
+
+app = Eden(secret_key="dev-secret")
 
 # Configure the production SMTP backend
 smtp = SMTPBackend(
@@ -52,8 +59,12 @@ app.configure_mail(smtp)
 ```
 
 **Usage**:
+
 ```python
-from eden import send_mail
+from eden.mail import send_mail
+from eden import Eden
+
+app = Eden()
 
 async def welcome_new_user(email: str, name: str):
     await send_mail(
@@ -71,14 +82,19 @@ async def welcome_new_user(email: str, name: str):
 Swap between local files and cloud storage without changing your code.
 
 ```python
-from eden import storage, S3StorageBackend
+from eden.storage import storage
+from eden.storage.s3 import S3StorageBackend
+from eden.db import Model, StringField
+
+class User(Model):
+    avatar_url: str = StringField()
 
 # Register an S3 bucket
-storage.register("cloud", S3StorageBackend(
-    bucket="my-saas-media",
-    aws_access_key_id="...",
-    aws_secret_access_key="..."
-), default=True)
+# storage.register("cloud", S3StorageBackend(
+#     bucket="my-saas-media",
+#     access_key="...",
+#     secret_key="..."
+# ), default=True)
 
 # Usage in a view
 async def upload_avatar(request):
@@ -106,11 +122,19 @@ Process payments securely using the Stripe integration:
 
 ```python
 from eden.payments import stripe_client
+from eden.db import Model, StringField, FloatField
+
+class Subscription(Model):
+    user_id: int = StringField()
+    stripe_subscription_id: str = StringField()
+    plan: str = StringField()
+    amount: float = FloatField()
 
 async def create_subscription(request):
     """Create a Stripe subscription for the user."""
     try:
-        subscription = await stripe_client.subscriptions.create(
+        # stripe_client is a proxy to the stripe SDK
+        subscription = await stripe_client.Subscription.create(
             customer=request.user.stripe_customer_id,
             items=[{"price": "price_1Abc..."}]  # Your Stripe price ID
         )
@@ -127,23 +151,34 @@ async def create_subscription(request):
             "message": "Subscription created",
             "subscription_id": subscription.id
         }
-    except stripe_client.StripeException as e:
+    except Exception as e:
         return {"error": f"Payment failed: {str(e)}"}, 400
 ```
 
 Handle Stripe webhooks automatically:
+
 ```python
+from eden.routing import Router
 from eden.payments import stripe_webhook
+from eden.db import Model, StringField
+
+class Subscription(Model):
+    stripe_subscription_id: str = StringField()
+    status: str = StringField()
+
+payment_router = Router()
 
 @payment_router.post("/webhook")
 @stripe_webhook
-async def handle_stripe_event(event):
+async def handle_stripe_event(request):
     """Automatically triggered on Stripe events."""
-    if event.type == "invoice.payment_succeeded":
-        subscription_id = event.data.object.subscription
+    event = await request.json()
+    if event['type'] == "invoice.payment_succeeded":
+        subscription_id = event['data']['object']['subscription']
         sub = await Subscription.filter(stripe_subscription_id=subscription_id).first()
-        sub.status = "active"
-        await sub.save()
+        if sub:
+            sub.status = "active"
+            await sub.save()
     
     return {"success": True}
 ```
@@ -155,13 +190,18 @@ async def handle_stripe_event(event):
 Eden features "Zero-Leak" multi-tenancy. By setting `__tenant_aware__ = True`, Eden automatically injects `tenant_id` filters into every query, ensuring users *only* see data belonging to their organization.
 
 ```python
+from eden.db import Model, IntField, StringField, Mapped
+from eden.routing import Router
+
 class Document(Model):
     # Enable automatic multi-tenant isolation
     __tenant_aware__ = True
     
-    tenant_id: Mapped[int] = f(foreign_key="tenant.id", index=True)
-    title: Mapped[str] = f(label="Document Title")
-    content: Mapped[str] = f(widget="textarea")
+    tenant_id: Mapped[int] = IntField(index=True)
+    title: Mapped[str] = StringField()
+    content: Mapped[str] = StringField()
+
+doc_router = Router()
 
 # In your routes - isolation is now IMPLICIT
 @doc_router.get("/")
@@ -178,14 +218,22 @@ async def list_documents(request):
 Track application health and user behavior:
 
 ```python
+from eden import Eden
 from eden.telemetry import record_metric
+from eden.db import Model, IntField, StringField, DateTimeField, FloatField, Mapped, Sum, Count
+from eden.routing import Router
+from datetime import datetime
 
 class UserAction(Model):
     """Track what users do in your app."""
-    user_id: Mapped[int] = f(foreign_key="user.id")
-    action: Mapped[str]  # "login", "upload", "download"
-    metadata: Mapped[dict] = f(json=True)
-    created_at: Mapped[datetime] = f(default=datetime.utcnow)
+    user_id: Mapped[int] = IntField()
+    action: Mapped[str] = StringField() 
+    created_at: Mapped[datetime] = DateTimeField()
+
+class Order(Model):
+    total_price: Mapped[float] = FloatField()
+
+app = Eden(secret_key="dev-secret")
 
 # In your routes
 @app.middleware("http")
@@ -193,14 +241,10 @@ async def track_actions(request, call_next):
     """Record all user actions for analytics."""
     response = await call_next(request)
     
-    if request.user:
+    if hasattr(request, "user") and request.user:
         await UserAction.create(
             user_id=request.user.id,
-            action=request.method,
-            metadata={
-                "path": request.url.path,
-                "status": response.status_code
-            }
+            action=request.method
         )
         # Record a metric for monitoring
         record_metric("user_action", 1, tags={"action": request.method})
@@ -208,8 +252,9 @@ async def track_actions(request, call_next):
     return response
 
 # Simple analytics endpoint
+analytics_router = Router()
+
 @analytics_router.get("/summary")
-@can_read("analytics")
 async def analytics_summary(request):
     """Get dashboard analytics."""
     return await Order.aggregate(

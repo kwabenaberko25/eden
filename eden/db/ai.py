@@ -42,20 +42,23 @@ class VectorModel(Model):
         cls,
         embedding: List[float],
         field: str = "embedding",
-        limit: int = 10
+        limit: int = 10,
+        session: Optional[Any] = None
     ) -> List[Any]:
         """
         Perform a semantic search using cosine distance.
         """
         from sqlalchemy import select
         
-        column = getattr(cls, field)
-        # pgvector uses <=> for cosine distance (smaller is better/more similar)
-        stmt = select(cls).order_by(column.cosine_distance(embedding)).limit(limit)
-        
-        async with cls._get_session() as session:
-            result = await session.execute(stmt)
+        async with cls._provide_session() as sess:
+            current_session = session or sess
+            column = getattr(cls, field)
+            # pgvector uses <=> for cosine distance (smaller is better/more similar)
+            stmt = select(cls).order_by(column.cosine_distance(embedding)).limit(limit)
+            
+            result = await current_session.execute(stmt)
             return list(result.scalars().all())
+
 
 
 def VectorField(dimensions: int, **kwargs) -> Any:

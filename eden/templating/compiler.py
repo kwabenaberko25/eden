@@ -1,8 +1,11 @@
 
 from __future__ import annotations
 import json as _json
+import logging
 from typing import Any, List, Optional, Type
 from .parser import Node, TextNode, DirectiveNode
+
+logger = logging.getLogger("eden.templating")
 
 class TemplateCompiler:
     def compile(self, nodes: List[Node]) -> str:
@@ -29,7 +32,30 @@ class TemplateCompiler:
             
         # HARDENING: If unknown, revert to literal text instead of a comment
         # This makes the engine "unbreakable" when encountering unknown @ symbols
+        # But WARN the developer so typos don't go unnoticed
+        logger.warning(
+            f"Unknown template directive: @{name} (line {node.line}, col {node.column}). "
+            f"If this is intentional, use @@{name} to escape."
+        )
         return f"@{name}" + (f"({expr})" if expr else "")
+
+    def reconstruct(self, nodes: List[Node]) -> str:
+        """Reconstruct the original source from nodes (best effort)."""
+        res = []
+        for node in nodes:
+            if isinstance(node, TextNode):
+                res.append(node.content)
+            elif isinstance(node, DirectiveNode):
+                res.append(f"@{node.name}")
+                if node.expression:
+                    res.append(node.expression) # Includes parentheses
+                if node.body:
+                    res.append(" {")
+                    res.append(self.reconstruct(node.body))
+                    res.append("}")
+                for orelse in node.orelse:
+                    res.append(self.reconstruct([orelse]))
+        return "".join(res)
 
     def handle_props(self, props_val: str) -> str:
         """

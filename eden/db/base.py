@@ -26,6 +26,18 @@ from .mixins.lifecycle import LifecycleMixin
 # from eden.tenancy.registry import tenancy_registry (moved to local imports)
 
 T = TypeVar("T", bound="Model")
+
+
+def reactive(cls: Type[T]) -> Type[T]:
+    """
+    Decorator to enable real-time WebSocket broadcasting for a Model.
+    When an instance is created, updated, or deleted, an event will be broadcast
+    to the corresponding WebSocket channels.
+    """
+    cls.__reactive__ = True
+    return cls
+
+
 from sqlalchemy import (
     event,
     Column,

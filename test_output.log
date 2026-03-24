@@ -1,0 +1,344 @@
+SCANNING RULES FOR FileReference
+  SCANNING BASE FileReference
+  SCANNING BASE Model
+  SCANNING BASE Base
+  SCANNING BASE DeclarativeBase
+  SCANNING BASE Inspectable
+  SCANNING BASE Generic
+  SCANNING BASE AccessControl
+  SCANNING BASE ValidatorMixin
+  SCANNING BASE LifecycleMixin
+  SCANNING BASE SerializationMixin
+  SCANNING BASE CrudMixin
+SCANNING RULES FOR AuditLog
+  SCANNING BASE AuditLog
+DISCOVERED INFO FOR user_id: {'max': 255}
+DISCOVERED INFO FOR action: {'max': 50, 'required': True}
+DISCOVERED INFO FOR model_name: {'max': 255, 'required': True}
+DISCOVERED INFO FOR record_id: {'max': 255, 'required': True}
+  SCANNING BASE Model
+  SCANNING BASE Base
+  SCANNING BASE DeclarativeBase
+  SCANNING BASE Inspectable
+  SCANNING BASE Generic
+  SCANNING BASE AccessControl
+  SCANNING BASE ValidatorMixin
+  SCANNING BASE LifecycleMixin
+  SCANNING BASE SerializationMixin
+  SCANNING BASE CrudMixin
+SCANNING RULES FOR Customer
+  SCANNING BASE Customer
+  SCANNING BASE Model
+  SCANNING BASE Base
+  SCANNING BASE DeclarativeBase
+  SCANNING BASE Inspectable
+  SCANNING BASE Generic
+  SCANNING BASE AccessControl
+  SCANNING BASE ValidatorMixin
+  SCANNING BASE LifecycleMixin
+  SCANNING BASE SerializationMixin
+  SCANNING BASE CrudMixin
+SCANNING RULES FOR Subscription
+  SCANNING BASE Subscription
+  SCANNING BASE Model
+  SCANNING BASE Base
+  SCANNING BASE DeclarativeBase
+  SCANNING BASE Inspectable
+  SCANNING BASE Generic
+  SCANNING BASE AccessControl
+  SCANNING BASE ValidatorMixin
+  SCANNING BASE LifecycleMixin
+  SCANNING BASE SerializationMixin
+  SCANNING BASE CrudMixin
+SCANNING RULES FOR PaymentEvent
+  SCANNING BASE PaymentEvent
+  SCANNING BASE Model
+  SCANNING BASE Base
+  SCANNING BASE DeclarativeBase
+  SCANNING BASE Inspectable
+  SCANNING BASE Generic
+  SCANNING BASE AccessControl
+  SCANNING BASE ValidatorMixin
+  SCANNING BASE LifecycleMixin
+  SCANNING BASE SerializationMixin
+  SCANNING BASE CrudMixin
+SCANNING RULES FOR User
+  SCANNING BASE User
+  SCANNING BASE Model
+  SCANNING BASE Base
+  SCANNING BASE DeclarativeBase
+  SCANNING BASE Inspectable
+  SCANNING BASE Generic
+  SCANNING BASE AccessControl
+  SCANNING BASE ValidatorMixin
+  SCANNING BASE LifecycleMixin
+  SCANNING BASE SerializationMixin
+  SCANNING BASE CrudMixin
+  SCANNING BASE BaseUser
+  SCANNING BASE BaseUser
+  SCANNING BASE CustomerMixin
+RESOLVING User for SocialAccount
+SCANNING RULES FOR SocialAccount
+  SCANNING BASE SocialAccount
+DISCOVERED INFO FOR user_id: {'on_delete': 'CASCADE', 'required': True, 'index': True, 'fk_type': None, 'back_populates': 'social_accounts', 'lazy': 'selectin', 'secondary': _RelationshipArg(name='secondary', argument=None, resolved=None)}
+  SCANNING BASE Model
+  SCANNING BASE Base
+  SCANNING BASE DeclarativeBase
+  SCANNING BASE Inspectable
+  SCANNING BASE Generic
+  SCANNING BASE AccessControl
+  SCANNING BASE ValidatorMixin
+  SCANNING BASE LifecycleMixin
+  SCANNING BASE SerializationMixin
+  SCANNING BASE CrudMixin
+SCANNING RULES FOR PasswordResetToken
+  SCANNING BASE PasswordResetToken
+DISCOVERED INFO FOR token: {'max': 255, 'required': True}
+  SCANNING BASE Model
+  SCANNING BASE Base
+  SCANNING BASE DeclarativeBase
+  SCANNING BASE Inspectable
+  SCANNING BASE Generic
+  SCANNING BASE AccessControl
+  SCANNING BASE ValidatorMixin
+  SCANNING BASE LifecycleMixin
+  SCANNING BASE SerializationMixin
+  SCANNING BASE CrudMixin
+SCANNING RULES FOR APIKey
+  SCANNING BASE APIKey
+  SCANNING BASE Model
+  SCANNING BASE Base
+  SCANNING BASE DeclarativeBase
+  SCANNING BASE Inspectable
+  SCANNING BASE Generic
+  SCANNING BASE AccessControl
+  SCANNING BASE ValidatorMixin
+  SCANNING BASE LifecycleMixin
+  SCANNING BASE SerializationMixin
+  SCANNING BASE CrudMixin
+SCANNING RULES FOR Tenant
+  SCANNING BASE Tenant
+  SCANNING BASE Model
+  SCANNING BASE Base
+  SCANNING BASE DeclarativeBase
+  SCANNING BASE Inspectable
+  SCANNING BASE Generic
+  SCANNING BASE AccessControl
+  SCANNING BASE ValidatorMixin
+  SCANNING BASE LifecycleMixin
+  SCANNING BASE SerializationMixin
+  SCANNING BASE CrudMixin
+============================= test session starts =============================
+platform win32 -- Python 3.14.3, pytest-9.0.2, pluggy-1.6.0 -- C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\python.exe
+cachedir: .pytest_cache
+rootdir: C:\PROJECTS\eden-framework
+configfile: pyproject.toml
+plugins: anyio-4.12.1, asyncio-1.3.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=session, asyncio_default_test_loop_scope=session
+collecting ... SCANNING RULES FOR TestModel
+  SCANNING BASE TestModel
+DISCOVERED INFO FOR name: {'max': 100, 'required': True}
+  SCANNING BASE Model
+  SCANNING BASE Base
+  SCANNING BASE DeclarativeBase
+  SCANNING BASE Inspectable
+  SCANNING BASE Generic
+  SCANNING BASE AccessControl
+  SCANNING BASE ValidatorMixin
+  SCANNING BASE LifecycleMixin
+  SCANNING BASE SerializationMixin
+  SCANNING BASE CrudMixin
+collected 1 item
+
+tests/test_db_lifecycle_fixes.py::test_save_commit_false_reproduction 2026-03-23 21:49:36,383 INFO sqlalchemy.engine.Engine select pg_catalog.version()
+2026-03-23 21:49:36,383 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-03-23 21:49:36,386 INFO sqlalchemy.engine.Engine select current_schema()
+2026-03-23 21:49:36,386 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-03-23 21:49:36,388 INFO sqlalchemy.engine.Engine show standard_conforming_strings
+2026-03-23 21:49:36,388 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-03-23 21:49:36,390 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-03-23 21:49:36,394 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-23 21:49:36,394 INFO sqlalchemy.engine.Engine [generated in 0.00030s] ('file_references', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-23 21:49:36,399 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-23 21:49:36,399 INFO sqlalchemy.engine.Engine [cached since 0.005352s ago] ('eden_audit_logs', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-23 21:49:36,400 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-23 21:49:36,401 INFO sqlalchemy.engine.Engine [cached since 0.006576s ago] ('eden_customers', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-23 21:49:36,401 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-23 21:49:36,402 INFO sqlalchemy.engine.Engine [cached since 0.007565s ago] ('eden_subscriptions', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-23 21:49:36,402 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-23 21:49:36,403 INFO sqlalchemy.engine.Engine [cached since 0.008544s ago] ('eden_payment_events', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-23 21:49:36,403 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-23 21:49:36,403 INFO sqlalchemy.engine.Engine [cached since 0.009464s ago] ('eden_users', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-23 21:49:36,404 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-23 21:49:36,404 INFO sqlalchemy.engine.Engine [cached since 0.01037s ago] ('eden_social_accounts', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-23 21:49:36,405 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-23 21:49:36,405 INFO sqlalchemy.engine.Engine [cached since 0.0111s ago] ('password_reset_tokens', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-23 21:49:36,406 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-23 21:49:36,406 INFO sqlalchemy.engine.Engine [cached since 0.01181s ago] ('eden_api_keys', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-23 21:49:36,406 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-23 21:49:36,407 INFO sqlalchemy.engine.Engine [cached since 0.01255s ago] ('eden_tenants', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-23 21:49:36,407 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-23 21:49:36,407 INFO sqlalchemy.engine.Engine [cached since 0.01343s ago] ('test_models', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-23 21:49:36,409 INFO sqlalchemy.engine.Engine 
+CREATE TABLE test_models (
+	name VARCHAR(100) NOT NULL, 
+	id UUID NOT NULL, 
+	created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT now() NOT NULL, 
+	updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT now() NOT NULL, 
+	PRIMARY KEY (id)
+)
+
+
+2026-03-23 21:49:36,409 INFO sqlalchemy.engine.Engine [no key 0.00017s] ()
+2026-03-23 21:49:36,417 INFO sqlalchemy.engine.Engine COMMIT
+FAILED
+
+================================== FAILURES ===================================
+_____________________ test_save_commit_false_reproduction _____________________
+
+db = <eden.db.session.Database object at 0x000002A7CF471E80>
+
+    @pytest.mark.asyncio
+    async def test_save_commit_false_reproduction(db):
+        """
+        Test that save(commit=False) actually defers the commit.
+        Currently, it is suspected to commit anyway if it owns the transaction.
+        """
+        # 1. Save with commit=False (no outer transaction)
+>       instance = await TestModel.create(name="Partial", commit=False)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_db_lifecycle_fixes.py:17: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+eden\db\mixins\crud.py:143: in create
+    instance = cls(**kwargs)
+               ^^^^^^^^^^^^^
+<string>:4: in __init__
+    ???
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\state.py:596: in _initialize_instance
+    with util.safe_reraise():
+         ^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\langhelpers.py:121: in __exit__
+    raise exc_value.with_traceback(exc_tb)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\state.py:594: in _initialize_instance
+    manager.original_init(*mixed[1:], **kwargs)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <tests.test_db_lifecycle_fixes.TestModel object at 0x000002A7CF393A10>
+kwargs = {'commit': False, 'name': 'Partial'}
+cls_ = <class 'tests.test_db_lifecycle_fixes.TestModel'>, k = 'commit'
+
+    def _declarative_constructor(self: Any, **kwargs: Any) -> None:
+        """A simple constructor that allows initialization from kwargs.
+    
+        Sets attributes on the constructed instance using the names and
+        values in ``kwargs``.
+    
+        Only keys that are present as
+        attributes of the instance's class are allowed. These could be,
+        for example, any mapped columns or relationships.
+        """
+        cls_ = type(self)
+        for k in kwargs:
+            if not hasattr(cls_, k):
+>               raise TypeError(
+                    "%r is an invalid keyword argument for %s" % (k, cls_.__name__)
+                )
+E               TypeError: 'commit' is an invalid keyword argument for TestModel
+
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\decl_base.py:2179: TypeError
+----------------------------- Captured log setup ------------------------------
+INFO     sqlalchemy.engine.Engine:base.py:1846 select pg_catalog.version()
+INFO     sqlalchemy.engine.Engine:base.py:1846 [raw sql] ()
+INFO     sqlalchemy.engine.Engine:base.py:1846 select current_schema()
+INFO     sqlalchemy.engine.Engine:base.py:1846 [raw sql] ()
+INFO     sqlalchemy.engine.Engine:base.py:1846 show standard_conforming_strings
+INFO     sqlalchemy.engine.Engine:base.py:1846 [raw sql] ()
+INFO     sqlalchemy.engine.Engine:base.py:2710 BEGIN (implicit)
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [generated in 0.00030s] ('file_references', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.005352s ago] ('eden_audit_logs', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.006576s ago] ('eden_customers', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.007565s ago] ('eden_subscriptions', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.008544s ago] ('eden_payment_events', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.009464s ago] ('eden_users', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.01037s ago] ('eden_social_accounts', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.0111s ago] ('password_reset_tokens', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.01181s ago] ('eden_api_keys', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.01255s ago] ('eden_tenants', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.01343s ago] ('test_models', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 
+CREATE TABLE test_models (
+	name VARCHAR(100) NOT NULL, 
+	id UUID NOT NULL, 
+	created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT now() NOT NULL, 
+	updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT now() NOT NULL, 
+	PRIMARY KEY (id)
+)
+
+
+INFO     sqlalchemy.engine.Engine:base.py:1846 [no key 0.00017s] ()
+INFO     sqlalchemy.engine.Engine:base.py:2716 COMMIT
+============================== warnings summary ===============================
+tests\test_db_lifecycle_fixes.py:7
+  C:\PROJECTS\eden-framework\tests\test_db_lifecycle_fixes.py:7: PytestCollectionWarning: cannot collect test class 'TestModel' because it has a __init__ constructor (from: tests/test_db_lifecycle_fixes.py)
+    class TestModel(Model):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_db_lifecycle_fixes.py::test_save_commit_false_reproduction
+======================== 1 failed, 1 warning in 0.73s =========================

@@ -8,7 +8,7 @@ from __future__ import annotations
 import contextvars
 import time
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 @dataclass
 class TelemetryData:
@@ -77,3 +77,20 @@ def record_metric(name: str, value: float) -> None:
 def reset_telemetry(token: contextvars.Token) -> None:
     """Reset the telemetry context."""
     _telemetry_ctx.reset(token)
+
+def setup_sentry(dsn: str, environment: str = "production", **kwargs: Any) -> None:
+    """Configure Sentry for error tracking and performance monitoring."""
+    try:
+        import sentry_sdk
+        from sentry_sdk.integrations.starlette import StarletteIntegration
+        
+        sentry_sdk.init(
+            dsn=dsn,
+            environment=environment,
+            integrations=[StarletteIntegration()],
+            **kwargs
+        )
+    except ImportError:
+        import logging
+        logger = logging.getLogger("eden")
+        logger.warning("sentry-sdk not found. Install it to enable error tracking.")

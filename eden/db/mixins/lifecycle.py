@@ -72,7 +72,7 @@ class LifecycleMixin:
         # If commit=False, we use savepoint even if no session is provided, 
         # but db.transaction handles the details.
         
-        async with db.transaction(session=session) as sess:
+        async with db.transaction(session=session, commit=commit) as sess:
             # 1. Trigger Signals & Hooks (Before)
             await pre_save.send(sender=self.__class__, instance=self, is_new=is_new, session=sess)
             if is_new:
@@ -98,17 +98,9 @@ class LifecycleMixin:
                 await self._trigger_hooks(self._post_save_hooks)
             await post_save.send(sender=self.__class__, instance=self, is_new=is_new, session=sess)
 
-            # Special case for commit=False: we must ensure we don't commit if we are the owner.
-            # However, eden's db.transaction() will commit if it owns the session.
-            # Django-like behavior: we only commit if requested.
-            if not commit:
-                # We used db.transaction() which is atomic. 
-                # If we want to defer commit, we should have been called within an outer transaction.
-                # If we weren't, and commit=False, this is technically a 'flush-only' operation.
-                # Since Eden's db.transaction() commits on exit, we need a way to skip it.
-                # Actually, the 'atomic' mission is to centralize commits.
-                pass
-            
+            # Note: refresh might fail if we are outside a transaction but sess.refresh(self)
+            # would have happened inside the transaction block anyway.
+            # If commit=False, the transaction IS still open on this session.
             await sess.refresh(self)
             await self._log_audit(is_new, self._make_json_safe(changes) if not is_new else None)
             

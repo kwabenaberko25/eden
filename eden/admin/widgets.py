@@ -467,9 +467,58 @@ class AdminRegistry:
     def get(self, model: Type) -> Optional[AdminPanel]:
         return self._instances.get(model)
 
+class DashboardRegistry:
+    """Registry for admin dashboards."""
+    def __init__(self):
+        self._dashboards: List[Any] = []
+
+    def register(self, dashboard_cls: Type):
+        self._dashboards.append(dashboard_cls())
+        return dashboard_cls
+
+    def get_dashboards(self) -> List[Any]:
+        return self._dashboards
+
 _registry = AdminRegistry()
+_dashboard_registry = DashboardRegistry()
 register_admin = _registry.register
 get_admin = _registry.get
+register_dashboard = _dashboard_registry.register
+
+
+# ============================================================================
+# DASHBOARD WIDGETS
+# ============================================================================
+
+@dataclass
+class DashboardWidget(ABC):
+    """Base class for dashboard components."""
+    label: str
+    icon: Optional[str] = None
+    
+    @abstractmethod
+    def render(self) -> str:
+        raise NotImplementedError()
+
+@dataclass
+class StatWidget(DashboardWidget):
+    """Simple counter or metric card."""
+    value: Any = "0"
+    trend: Optional[str] = None # e.g. "+12%" or "up"
+    
+    def render(self) -> str:
+        return f'<div class="stat-card"><h3>{self.label}</h3><p>{self.value}</p></div>'
+
+@dataclass
+class ChartWidget(DashboardWidget):
+    """Data visualization widget."""
+    endpoint: Optional[str] = None
+    type: str = "line" # line, bar, area, pie
+    data: Optional[List[Dict[str, Any]]] = None
+    
+    def render(self) -> str:
+         return f'<div class="chart-card" data-type="{self.type}" data-endpoint="{self.endpoint}"><h3>{self.label}</h3></div>'
+
 
 __all__ = [
     "FieldWidget", "TextField", "EmailField", "PasswordField", "TextAreaField",
@@ -478,4 +527,5 @@ __all__ = [
     "Action", "DeleteAction", "DeactivateAction", "ExportAction", "ApproveAction",
     "AuditEntry", "AuditTrail",
     "AdminPanel", "AdminRegistry", "register_admin", "get_admin",
+    "DashboardWidget", "StatWidget", "ChartWidget", "register_dashboard",
 ]

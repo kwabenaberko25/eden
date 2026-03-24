@@ -460,3 +460,19 @@ def staff_required(func: Callable) -> Callable:
         return await func(*args, **kwargs)
 
     return wrapper
+
+
+def can_read(permission: str) -> Callable:
+    """
+    Decorator to ensure the user has 'read' permission for a resource.
+    Equivalent to @require_permission("{permission}:read").
+    """
+    return require_permission(f"{permission}:read")
+
+
+def can_write(permission: str) -> Callable:
+    """
+    Decorator to ensure the user has 'write' permission for a resource.
+    Equivalent to @require_permission("{permission}:write").
+    """
+    return require_permission(f"{permission}:write")

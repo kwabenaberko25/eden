@@ -21,7 +21,8 @@ from eden.db import Model, f, Mapped
 from eden.audit import AuditableMixin
 
 class Document(AuditableMixin, Model):
-    title: Mapped[str] = f()
+    __tablename__ = "documents"
+    title: Mapped[str] = f(max_length=255)
     content: Mapped[str] = f()
 ```
 
@@ -37,7 +38,10 @@ class Document(AuditableMixin, Model):
 You can record custom business events that aren't tied to a specific model change.
 
 ```python
+from eden import Eden
 from eden.audit import audit_log
+
+app = Eden()
 
 @app.post("/export-data")
 async def export_data(request):
@@ -58,13 +62,14 @@ async def export_data(request):
 Audit logs are stored in the `eden_audit_logs` table by default and can be viewed via the **Admin Panel**.
 
 ### Querying Programmatically
+
 ```python
 from eden.audit import AuditLog
 
 # Find all deletions by a specific user
 logs = await AuditLog.filter(
     action="delete", 
-    user_id=target_user_id
+    user_id="user_123"
 ).all()
 ```
 
@@ -101,3 +106,5 @@ Eden's audit trails meet most standard requirements for:
 ---
 
 **Next Steps**: [Logging & Telemetry](logging.md)
+
+---

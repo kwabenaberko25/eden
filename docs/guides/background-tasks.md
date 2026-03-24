@@ -33,13 +33,16 @@ from eden import Eden
 
 app = Eden()
 
+async def generate_heavy_pdf(user_id: int): 
+    # Mock for documentation example
+    pass
+
 @app.task()
 async def process_report(user_id: int):
     # This runs in a separate worker process
     await generate_heavy_pdf(user_id)
 
 # Trigger it from your view
-
 @app.get("/generate")
 async def trigger(request):
     await app.task.defer(process_report, user_id=1)
@@ -75,14 +78,23 @@ Tasks are simple Python functions decorated with `@app.task()`. Eden's **Depende
 ### 1. Define the Task
 
 ```python
-from eden import Depends
-from app.services import MailService
+from eden import Depends, Eden, Model, f
+from typing import Any
+
+app = Eden()
+
+class User(Model):
+    email: str = f(unique=True)
+
+class MailService:
+    async def send_welcome(self, email: str): pass
 
 @app.task()
-async def send_welcome_email(user_id: int, mailer: MailService = Depends()):
+async def send_welcome_email(user_id: int, mailer: MailService = Depends(MailService)):
     # Logic is executed in the background worker
     user = await User.get(user_id)
-    await mailer.send_welcome(user.email)
+    if user:
+        await mailer.send_welcome(user.email)
 ```
 
 ### 2. Invoke the Task
@@ -90,13 +102,20 @@ async def send_welcome_email(user_id: int, mailer: MailService = Depends()):
 Trigger your tasks using the `.kiq()` method (from Taskiq) or Eden's shorthand API.
 
 ```python
+from eden import Eden
+app = Eden()
+
+
+@app.task()
+async def send_welcome_email(user_id: int): pass
+
+# Start the broker first
+await app.task.startup()
 
 # Shorthand (Recommended)
-
 await app.task.defer(send_welcome_email, user_id=123)
 
 # With Delay (Schedule for 60 seconds from now)
-
 await app.task.schedule(send_welcome_email, delay=60, user_id=123)
 ```
 
@@ -107,18 +126,18 @@ await app.task.schedule(send_welcome_email, delay=60, user_id=123)
 Eden makes scheduling recurring tasks a first-class citizen with the `.every()` decorator. It supports intervals and standard **Cron expressions**.
 
 ```python
+from eden import Eden
+app = Eden()
 
 # Run every 5 minutes
-
 @app.task.every(minutes=5)
 async def check_inventory():
-    ...
+    pass
 
 # Run every night at midnight (Standard Cron)
-
 @app.task.every(cron="0 0 * * *")
 async def generate_daily_reports():
-    ...
+    pass
 ```
 
 ### 🛡️ Distributed Coordination
@@ -134,22 +153,25 @@ Background tasks can sometimes fail due to network issues or external API downti
 ### Automatic Retries
 
 ```python
+from eden import Eden
+app = Eden()
+
 @app.task(
     max_retries=5,                # Total attempts
     retry_delays=[1, 2, 4, 8, 16], # Delays in seconds
     exponential_backoff=True      # Multiplies delay by 2 on each fail
 )
 async def fetch_api_stats():
-    ...
+    pass
 ```
 
 ### The Dead-Letter Queue (DLQ)
 
 When a task exhausts all its retries, it enters the **Dead-Letter Queue**.
 
--   **Traceback Tracking**: Captures the full Python traceback and error message.
--   **Correlation ID**: Automatically propagates the `correlation_id` from the original web request, allowing you to trace the lifecycle of a request from the UI down to the worker logs.
--   **Monitoring**: Query the DLQ via `app.task._result_backend.get_dead_letter_tasks()`.
+- **Traceback Tracking**: Captures the full Python traceback and error message.
+- **Correlation ID**: Automatically propagates the `correlation_id` from the original web request, allowing you to trace the lifecycle of a request from the UI down to the worker logs.
+- **Monitoring**: Query the DLQ via `app.task._result_backend.get_dead_letter_tasks()`.
 
 ---
 
@@ -168,10 +190,10 @@ Every execution is tracked in the `TaskResult` store, allowing you to monitor th
 
 ## 💡 Best Practices
 
-1.  **Idempotency**: Ensure your tasks are safe to run multiple times. If a task fails halfway through, a retry should not create duplicate side effects.
-2.  **Pass IDs, Not Objects**: Instead of `send_email(user_obj)`, use `send_email(user_id)`. Large objects increase serialization overhead and may contain stale data.
-3.  **Keep Payloads Small**: Broker memory is valuable. Avoid passing large binary blobs or excessive JSON as task arguments.
-4.  **Graceful Shutdown**: Eden's `shutdown` lifecycle automatically waits for active tasks to complete before killing the worker process.
+1. **Idempotency**: Ensure your tasks are safe to run multiple times. If a task fails halfway through, a retry should not create duplicate side effects.
+2. **Pass IDs, Not Objects**: Instead of `send_email(user_obj)`, use `send_email(user_id)`. Large objects increase serialization overhead and may contain stale data.
+3. **Keep Payloads Small**: Broker memory is valuable. Avoid passing large binary blobs or excessive JSON as task arguments.
+4. **Graceful Shutdown**: Eden's `shutdown` lifecycle automatically waits for active tasks to complete before killing the worker process.
 
 ---
 

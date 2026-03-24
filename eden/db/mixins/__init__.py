@@ -8,10 +8,13 @@ from __future__ import annotations
 
 import datetime
 import uuid
-from typing import Any, Optional, TYPE_CHECKING
+from typing import Any, Optional, TYPE_CHECKING, TypeVar, Type
+from sqlalchemy import DateTime, Uuid
+from sqlalchemy.orm import Mapped, mapped_column
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
+    from ..base import Model
 
 from eden.context import get_user
 from ..fields import f
@@ -24,7 +27,9 @@ class SoftDeleteMixin:
     """
     __allow_unmapped__ = True
 
-    deleted_at: datetime.datetime | None = f(nullable=True, default=None)
+    deleted_at: Mapped[Optional[datetime.datetime]] = mapped_column(
+        DateTime, nullable=True, default=None
+    )
 
     @classmethod
     def _apply_default_filters(cls, target_cls: type, stmt: Any, **kwargs: Any) -> Any:
@@ -45,15 +50,12 @@ class SoftDeleteMixin:
         from ..base import Model
         db = Model._get_db()
         
-        async with db.transaction(session=session) as tx_session:
+        async with db.transaction(session=session, commit=commit) as tx_session:
             if hard:
                 await tx_session.delete(self)
             else:
                 self.deleted_at = datetime.datetime.now(datetime.UTC)
                 await tx_session.merge(self)
-            
-            if not commit:
-                await tx_session.flush()
 
 
 class TimestampMixin:
@@ -73,8 +75,12 @@ class BlameMixin:
     Automatically tracks who created and updated a record.
     Requires `AuthenticationMiddleware` and `User` model.
     """
-    created_by_id: uuid.UUID | None = f(nullable=True)
-    updated_by_id: uuid.UUID | None = f(nullable=True)
+    created_by_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        Uuid(native_uuid=True), nullable=True
+    )
+    updated_by_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        Uuid(native_uuid=True), nullable=True
+    )
 
     async def before_save(self, session):
         """Set updated_by_id from context."""

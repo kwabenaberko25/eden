@@ -1,0 +1,404 @@
+Validating 55 core guides...
+Validating: DIRECTIVES_TROUBLESHOOTING.md FAILED
+Validating: DIRECTIVES_USAGE_GUIDE.md PASSED
+Validating: admin.md FAILED
+Validating: advanced-routing.md PASSED
+Validating: api.md PASSED
+Validating: assets.md FAILED
+Validating: audit.md FAILED
+Validating: auth-oauth.md FAILED
+Validating: auth-rbac.md FAILED
+Validating: auth.md FAILED
+Validating: background-tasks.md FAILED
+Validating: caching.md FAILED
+Validating: cli.md PASSED
+Validating: components.md FAILED
+Validating: context-variables.md FAILED
+Validating: core-app.md PASSED
+Validating: csrf-protection.md FAILED
+Validating: dependency-injection.md PASSED
+Validating: deployment.md FAILED
+Validating: development-cycle.md FAILED
+Validating: exceptions.md FAILED
+Validating: formfield-api.md FAILED
+Validating: forms.md FAILED
+Validating: htmx.md FAILED
+Validating: i18n.md FAILED
+Validating: json.md PASSED
+Validating: killer-features.md FAILED
+Validating: logging.md FAILED
+Validating: middleware.md PASSED
+Validating: multi-backend-auth.md FAILED
+Validating: openapi.md PASSED
+Validating: optional-extras.md FAILED
+Validating: orm-migrations.md FAILED
+Validating: orm-querying.md FAILED
+Validating: orm-relationships.md FAILED
+Validating: orm-transactions.md FAILED
+Validating: orm.md PASSED
+Validating: payments.md FAILED
+Validating: performance.md FAILED
+Validating: realtime.md FAILED
+Validating: requests-responses.md PASSED
+Validating: routing.md PASSED
+Validating: security.md FAILED
+Validating: services.md FAILED
+Validating: sessions.md PASSED
+Validating: storage.md FAILED
+Validating: templating.md FAILED
+Validating: tenancy-postgres.md FAILED
+Validating: tenancy.md FAILED
+Validating: tenant-configuration.md FAILED
+Validating: testing.md FAILED
+Validating: troubleshooting.md FAILED
+Validating: ui-components.md PASSED
+Validating: websocket-auth.md FAILED
+Validating: websockets.md FAILED
+
+--- Summary ---
+Total: 55
+Passed: 14
+Failed: 41
+
+--- Failures ---
+
+[DIRECTIVES_TROUBLESHOOTING.md]
+  - NameError: name 'request' is not defined
+  - NameError: name 'request' is not defined
+  - AttributeError: 'NoneType' object has no attribute 'url_for'
+  - TypeError: Extension.__init__() got an unexpected keyword argument 'env'
+  - NameError: name 'env' is not defined
+  - NameError: name 'Path' is not defined
+
+[admin.md]
+  - ModuleNotFoundError: No module named 'app'
+  - ImportError: cannot import name 'StatWidget' from 'eden.admin' (C:\PROJECTS\eden-framework\eden\admin\__init__.py)
+  - NameError: name 'admin' is not defined
+  - NameError: name 'admin' is not defined
+  - NameError: name 'admin' is not defined
+  - NameError: name 'admin' is not defined
+
+[assets.md]
+  - ImportError: cannot import name 'success' from 'eden.messages' (C:\PROJECTS\eden-framework\eden\messages.py)
+
+[audit.md]
+  - ModuleNotFoundError: No module named 'eden.audit'
+  - Runtime Error: No module named 'eden.audit'
+  - Runtime Error: No module named 'eden.audit'
+
+[auth-oauth.md]
+  - NameError: name 'app' is not defined
+  - NameError: name 'oauth' is not defined
+
+[auth-rbac.md]
+  - NameError: name 'app' is not defined
+  - NameError: name 'app' is not defined
+  - ImportError: cannot import name 'view_decorator' from 'eden.auth' (C:\PROJECTS\eden-framework\eden\auth\__init__.py)
+  - Runtime Error: name 'Model' is not defined
+
+[auth.md]
+  - NameError: name 'request' is not defined
+  - Runtime Error: No User model found. Define a model inheriting from BaseUser.
+  - NameError: name 'user' is not defined. Did you mean: 'super'?
+  - NameError: name 'app' is not defined
+  - ImportError: cannot import name 'view_decorator' from 'eden.auth' (C:\PROJECTS\eden-framework\eden\auth\__init__.py)
+  - NameError: name 'app' is not defined
+  - Runtime Error: name 'app' is not defined
+
+[background-tasks.md]
+  - ImportError: cannot import name 'create_broker' from 'eden' (C:\PROJECTS\eden-framework\eden\__init__.py). Did you mean: 'create_user'?
+  - Runtime Error: No module named 'app'
+  - Runtime Error: name 'app' is not defined
+  - NameError: name 'app' is not defined
+  - NameError: name 'app' is not defined
+
+[caching.md]
+  - Runtime Error: name 'cache' is not defined
+  - NameError: name 'app' is not defined
+  - Runtime Error: name 'app' is not defined
+  - Runtime Error: name 'cache' is not defined
+
+[components.md]
+  - NameError: name 'register' is not defined
+  - NameError: name 'Component' is not defined
+  - Runtime Error: No module named 'models'
+
+[context-variables.md]
+  - NameError: name 'app' is not defined
+  - NameError: name 'app' is not defined
+  - Runtime Error: name 'app' is not defined
+  - Runtime Error: name 'app' is not defined
+  - Runtime Error: name 'app' is not defined
+  - NameError: name 'app' is not defined
+  - NameError: name 'app' is not defined
+  - Runtime Error: name 'app' is not defined
+  - NameError: name 'app' is not defined
+  - Runtime Error: name 'app' is not defined
+  - Runtime Error: name 'app' is not defined
+  - Runtime Error: name 'app' is not defined
+  - NameError: name 'app' is not defined
+  - NameError: name 'app' is not defined
+  - Runtime Error: name 'app' is not defined
+  - Runtime Error: name 'app' is not defined
+
+[csrf-protection.md]
+  - Runtime Error: name 'app' is not defined
+  - NameError: name 'app' is not defined
+  - Runtime Error: cannot import name 'get_csrf_token' from 'eden.context' (C:\PROJECTS\eden-framework\eden\context.py)
+  - Runtime Error: name 'app' is not defined
+  - Runtime Error: name 'app' is not defined
+  - Runtime Error: name 'app' is not defined
+  - NameError: name 'app' is not defined
+  - Runtime Error: name 'app' is not defined
+  - NameError: name 'pytest' is not defined. Did you mean: 'bytes'?
+  - NameError: name 'app' is not defined
+  - NameError: name 'app' is not defined
+  - NameError: name 'app' is not defined
+
+[deployment.md]
+  - ModuleNotFoundError: No module named 'eden.extras'
+
+[development-cycle.md]
+  - NameError: name 'Model' is not defined
+  - Runtime Error: name 'app' is not defined
+
+[exceptions.md]
+  - ImportError: cannot import name 'logger' from 'eden' (C:\PROJECTS\eden-framework\eden\__init__.py)
+  - NameError: name 'app' is not defined
+  - NameError: name 'app' is not defined
+  - ImportError: cannot import name 'HTTPException' from 'eden.exceptions' (C:\PROJECTS\eden-framework\eden\exceptions\__init__.py). Did you mean: 'HttpException'?
+  - NameError: name 'app' is not defined
+  - Runtime Error: cannot import name 'HTTPException' from 'eden.exceptions' (C:\PROJECTS\eden-framework\eden\exceptions\__init__.py)
+  - NameError: name 'app' is not defined
+
+[formfield-api.md]
+  - NameError: name 'form' is not defined. Did you mean: 'format'?
+  - NameError: name 'form' is not defined. Did you mean: 'format'?
+  - NameError: name 'form' is not defined. Did you mean: 'format'?
+  - NameError: name 'form' is not defined. Did you mean: 'format'?
+  - NameError: name 'form' is not defined. Did you mean: 'format'?
+  - NameError: name 'form' is not defined. Did you mean: 'format'?
+  - NameError: name 'form' is not defined. Did you mean: 'format'?
+  - NameError: name 'form' is not defined. Did you mean: 'format'?
+  - NameError: name 'form' is not defined. Did you mean: 'format'?
+  - NameError: name 'form' is not defined. Did you mean: 'format'?
+  - NameError: name 'form' is not defined. Did you mean: 'format'?
+  - NameError: name 'form' is not defined. Did you mean: 'format'?
+  - NameError: name 'form' is not defined. Did you mean: 'format'?
+  - NameError: name 'form' is not defined. Did you mean: 'format'?
+  - NameError: name 'form' is not defined. Did you mean: 'format'?
+  - Runtime Error: name 'app' is not defined
+  - NameError: name 'form' is not defined. Did you mean: 'format'?
+  - Runtime Error: name 'BaseForm' is not defined
+  - Runtime Error: name 'BaseForm' is not defined
+  - NameError: name 'form' is not defined. Did you mean: 'format'?
+
+[forms.md]
+  - ImportError: cannot import name 'EmailStr' from 'eden' (C:\PROJECTS\eden-framework\eden\__init__.py)
+  - NameError: name 'field' is not defined
+  - Runtime Error: No module named 'app'
+  - NameError: name 'Schema' is not defined
+  - Runtime Error: name 'app' is not defined
+
+[htmx.md]
+  - Runtime Error: name 'app' is not defined
+  - Runtime Error: name 'app' is not defined
+  - NameError: name 'app' is not defined
+  - NameError: name 'app' is not defined
+  - Runtime Error: name 'app' is not defined
+  - Runtime Error: name 'app' is not defined
+
+[i18n.md]
+  - NameError: name 'app' is not defined
+
+[killer-features.md]
+  - NameError: name 'Model' is not defined
+  - Runtime Error: name 'register' is not defined
+  - Runtime Error: name 'Project' is not defined
+
+[logging.md]
+  - ImportError: cannot import name 'logger' from 'eden' (C:\PROJECTS\eden-framework\eden\__init__.py)
+  - NameError: name 'app' is not defined
+  - ModuleNotFoundError: No module named 'eden.extras'
+
+[multi-backend-auth.md]
+  - NameError: name 'app' is not defined
+  - NameError: name 'app' is not defined
+  - NameError: name 'app' is not defined
+  - NameError: name 'app' is not defined
+  - ImportError: cannot import name 'APIKey' from 'eden.auth.models' (C:\PROJECTS\eden-framework\eden\auth\models.py)
+  - Runtime Error: name 'AuthBackend' is not defined
+  - Runtime Error: name 'AuthBackend' is not defined
+  - NameError: name 'app' is not defined
+  - NameError: name 'app' is not defined
+  - Runtime Error: name 'AuthBackend' is not defined
+  - NameError: name 'app' is not defined
+  - Runtime Error: name 'AuthBackend' is not defined
+  - Runtime Error: name 'AuthBackend' is not defined
+  - NameError: name 'pytest' is not defined. Did you mean: 'bytes'?
+  - Runtime Error: name 'AuthBackend' is not defined
+  - Runtime Error: name 'AuthBackend' is not defined
+  - Runtime Error: name 'AuthBackend' is not defined
+  - NameError: name 'ABC' is not defined
+  - NameError: name 'JWTBackend' is not defined
+
+[optional-extras.md]
+  - Runtime Error: name 'app' is not defined
+  - TypeError: StripeProvider.__init__() got an unexpected keyword argument 'secret_key'
+  - Runtime Error: name 'request' is not defined
+  - ImportError: cannot import name 'S3StorageBackend' from 'eden.storage' (C:\PROJECTS\eden-framework\eden\storage\__init__.py)
+  - Runtime Error: name 'storage' is not defined
+  - Runtime Error: name 'storage' is not defined
+  - ModuleNotFoundError: No module named 'asyncmy'
+  - Runtime Error: cannot import name 'Task' from 'eden.tasks' (C:\PROJECTS\eden-framework\eden\tasks\__init__.py)
+  - Runtime Error: 'EmailMessage' object has no attribute 'send'
+  - Runtime Error: name 'send_mail' is not defined
+  - Runtime Error: pgvector is required for VectorField. Install it with: uv add pgvector
+  - Runtime Error: No module named 'openai'
+  - NameError: name 'app' is not defined
+
+[orm-migrations.md]
+  - NameError: name 'Model' is not defined
+
+[orm-querying.md]
+  - Runtime Error: name 'Product' is not defined
+  - Runtime Error: name 'User' is not defined
+  - Runtime Error: name 'Product' is not defined
+  - Runtime Error: name 'Order' is not defined
+  - Runtime Error: name 'User' is not defined
+  - Runtime Error: name 'User' is not defined
+  - Runtime Error: name 'Post' is not defined
+
+[orm-relationships.md]
+  - NameError: name 'Reference' is not defined
+  - NameError: name 'Model' is not defined
+  - Runtime Error: name 'Employee' is not defined
+  - Runtime Error: name 'Post' is not defined
+  - Runtime Error: name 'Post' is not defined
+
+[orm-transactions.md]
+  - Runtime Error: name 'app' is not defined
+  - Runtime Error: name 'atomic' is not defined
+  - Runtime Error: name 'atomic' is not defined
+
+[payments.md]
+  - ImportError: cannot import name 'BillableMixin' from 'eden.payments' (C:\PROJECTS\eden-framework\eden\payments\__init__.py)
+  - NameError: name 'os' is not defined. Did you forget to import 'os'?
+  - Runtime Error: cannot import name 'get_payment_provider' from 'eden.payments' (C:\PROJECTS\eden-framework\eden\payments\__init__.py)
+  - Runtime Error: name 'app' is not defined
+  - Runtime Error: name 'app' is not defined
+
+[performance.md]
+  - NameError: name 'app' is not defined
+  - Runtime Error: name 'Post' is not defined
+  - Runtime Error: name 'User' is not defined
+  - NameError: name 'Database' is not defined
+  - ImportError: cannot import name 'GZIPMiddleware' from 'starlette.middleware.gzip' (C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\gzip.py). Did you mean: 'middleware'?
+  - Runtime Error: name 'app' is not defined
+
+[realtime.md]
+  - Runtime Error: name 'app' is not defined
+  - Runtime Error: name 'connection_manager' is not defined
+
+[security.md]
+  - AttributeError: 'Eden' object has no attribute 'before_request'
+  - Runtime Error: name 'app' is not defined
+  - Runtime Error: cannot import name 'hash_password' from 'eden.security' (C:\PROJECTS\eden-framework\eden\security\__init__.py)
+  - Runtime Error: cannot import name 'generate_totp_secret' from 'eden.auth' (C:\PROJECTS\eden-framework\eden\auth\__init__.py)
+  - Runtime Error: name 'User' is not defined
+  - Runtime Error: cannot import name 'CSRFProtection' from 'eden.middleware' (C:\PROJECTS\eden-framework\eden\middleware\__init__.py)
+  - Runtime Error: cannot import name 'mask_email' from 'eden.security' (C:\PROJECTS\eden-framework\eden\security\__init__.py)
+  - Runtime Error: cannot import name 'RedisCache' from 'eden.cache' (C:\PROJECTS\eden-framework\eden\cache\__init__.py)
+  - Runtime Error: cannot import name 'verify_api_key' from 'eden.auth' (C:\PROJECTS\eden-framework\eden\auth\__init__.py)
+  - Runtime Error: name 'app' is not defined
+  - NameError: name 'Eden' is not defined
+  - Runtime Error: cannot import name 'encrypt_field' from 'eden.security' (C:\PROJECTS\eden-framework\eden\security\__init__.py)
+  - Runtime Error: name 'app' is not defined
+  - Runtime Error: name 'app' is not defined
+  - Runtime Error: cannot import name 'verify_token' from 'eden.auth' (C:\PROJECTS\eden-framework\eden\auth\__init__.py)
+
+[services.md]
+  - Runtime Error: cannot import name 'send_mail' from 'eden' (C:\PROJECTS\eden-framework\eden\__init__.py)
+  - Runtime Error: name 'user' is not defined
+  - Runtime Error: name 'app' is not defined
+  - Runtime Error: name 'upload_file' is not defined
+  - Runtime Error: No module named 'openai'
+  - Runtime Error: module 'eden.storage' has no attribute 'save'
+  - Runtime Error: name 'app' is not defined
+  - Runtime Error: name 'app' is not defined
+
+[storage.md]
+  - ImportError: cannot import name 'S3StorageBackend' from 'eden.storage' (C:\PROJECTS\eden-framework\eden\storage\__init__.py)
+  - Runtime Error: name 'storage' is not defined
+  - Runtime Error: name 'storage' is not defined
+  - Runtime Error: name 'storage' is not defined
+
+[templating.md]
+  - TypeError: Eden.__init__() got an unexpected keyword argument 'template_dir'. Did you mean 'templates_dir'?
+  - Runtime Error: name 'app' is not defined
+  - NameError: name 'app' is not defined
+
+[tenancy-postgres.md]
+  - Runtime Error: name 'Tenant' is not defined
+
+[tenancy.md]
+  - ImportError: cannot import name 'TenantResolver' from 'eden.tenancy' (C:\PROJECTS\eden-framework\eden\tenancy\__init__.py)
+  - Runtime Error: name 'app' is not defined
+  - Runtime Error: cannot import name 'set_tenant_context' from 'eden.tenancy' (C:\PROJECTS\eden-framework\eden\tenancy\__init__.py)
+  - Runtime Error: name 'app' is not defined
+
+[tenant-configuration.md]
+  - Runtime Error: No module named 'eden.orm'
+  - NameError: name 'os' is not defined. Did you forget to import 'os'?
+  - NameError: name 'app' is not defined
+  - NameError: name 'app' is not defined
+  - Runtime Error: name 'app' is not defined
+  - NameError: name 'app' is not defined
+  - ModuleNotFoundError: No module named 'eden.orm'
+  - NameError: name 'schema' is not defined
+  - Runtime Error: name 'app' is not defined
+  - Runtime Error: name 'app' is not defined
+  - Runtime Error: name 'app' is not defined
+  - Runtime Error: name 'app' is not defined
+  - Runtime Error: name 'Model' is not defined
+  - Runtime Error: name 'app' is not defined
+  - Runtime Error: name 'app' is not defined
+
+[testing.md]
+  - Runtime Error: cannot import name 'TestClient' from 'eden.testing' (C:\PROJECTS\eden-framework\eden\testing.py)
+  - Runtime Error: name 'pytest' is not defined
+  - Runtime Error: name 'pytest' is not defined
+  - Runtime Error: name 'pytest' is not defined
+  - Runtime Error: name 'pytest' is not defined
+  - Runtime Error: cannot import name 'mock_tasks' from 'eden.tasks' (C:\PROJECTS\eden-framework\eden\tasks\__init__.py)
+
+[troubleshooting.md]
+  - Runtime Error: The asyncio extension requires an async driver to be used. The loaded 'psycopg2' is not async.
+  - Runtime Error: name 'User' is not defined
+  - NameError: name 'Database' is not defined
+  - TypeError: GoogleProvider.__init__() got an unexpected keyword argument 'state_ttl'
+  - Runtime Error: cannot import name 'generate_password_reset_token' from 'eden.auth' (C:\PROJECTS\eden-framework\eden\auth\__init__.py)
+  - Runtime Error: name 'user_data' is not defined
+  - Runtime Error: cannot import name 'RedisCache' from 'eden.cache' (C:\PROJECTS\eden-framework\eden\cache\__init__.py)
+  - AttributeError: 'Eden' object has no attribute 'mount'
+  - Runtime Error: name 'Eden' is not defined
+  - Runtime Error: name 'app' is not defined
+  - Runtime Error: name 'app' is not defined
+
+[websocket-auth.md]
+  - Runtime Error: name 'app' is not defined
+  - Runtime Error: name 'AuthenticatedWebSocket' is not defined
+  - Runtime Error: name 'app' is not defined
+  - Runtime Error: name 'websocket' is not defined
+  - Runtime Error: name 'app' is not defined
+  - Runtime Error: cannot import name 'connection_manager' from 'eden.websocket.auth' (C:\PROJECTS\eden-framework\eden\websocket\auth.py)
+  - Runtime Error: name 'app' is not defined
+  - Runtime Error: name 'app' is not defined
+  - ImportError: cannot import name 'connection_manager' from 'eden.websocket.auth' (C:\PROJECTS\eden-framework\eden\websocket\auth.py). Did you mean: 'ConnectionManager'?
+
+[websockets.md]
+  - Runtime Error: name 'app' is not defined
+  - NameError: name 'Model' is not defined
+  - Runtime Error: name 'ws' is not defined
+  - Runtime Error: name 'ws' is not defined
+  - Runtime Error: name 'chat_ws' is not defined

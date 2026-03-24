@@ -14,6 +14,7 @@ Eden's ORM is built on **SQLAlchemy 2.0** but provides a much cleaner, more intu
 from eden.db import Model, f
 from sqlalchemy.orm import Mapped
 
+class User(Model):
     # Use f() for simple fields with rich metadata.
     # This metadata powers your database, UI labels, and form placeholders.
     name: Mapped[str] = f(max_length=255, label="Full Name", placeholder="Jane Doe")
@@ -31,7 +32,8 @@ Ensure your model is exposed in the package:
 **File**: `app/models/__init__.py`
 
 ```python
-from .user import User
+# app/models/__init__.py
+# from .user import User
 ```
 
 ---
@@ -60,11 +62,12 @@ Let's explore the power of the Eden ORM inside a Python script or shell.
 
 ```python
 import asyncio
-from app import create_app
-from app.models import User
+from eden.db import Model, f
+from sqlalchemy.orm import Mapped
 
-# Boot the app context
-app = create_app()
+class User(Model):
+    name: Mapped[str] = f(max_length=255)
+    email: Mapped[str] = f(max_length=255, unique=True)
 
 async def demo_orm():
     # 1. CREATE: Instant persistence
@@ -84,7 +87,7 @@ async def demo_orm():
     # 4. DELETE: Simple removal
     # await target.delete()
 
-asyncio.run(demo_orm())
+# asyncio.run(demo_orm())
 ```
 
 ### Advanced Querying Preview
@@ -92,7 +95,14 @@ asyncio.run(demo_orm())
 Eden supports chainable, readable filters:
 
 ```python
-active_admins = await User.filter(is_active=True).order_by("-id").limit(10)
+from eden.db import Model, f
+from sqlalchemy.orm import Mapped
+
+class User(Model):
+    is_active: Mapped[bool] = f(default=True)
+
+async def query_example():
+    active_admins = await User.filter(is_active=True).order_by("-id").limit(10)
 ```
 
 ---
@@ -124,6 +134,9 @@ class Post(Model):
 ```python
 from sqlalchemy.orm import Mapped, relationship
 
+from eden.db import Model, f
+from sqlalchemy.orm import Mapped, relationship
+
 class User(Model):
     name: Mapped[str] = f(max_length=255)
     email: Mapped[str] = f(max_length=255, unique=True, index=True)
@@ -132,13 +145,18 @@ class User(Model):
     
     # Reverse relationship: access a user's posts
     posts: Mapped[list["Post"]] = relationship("Post", back_populates="user")
+
+class Post(Model):
+    user_id: Mapped[int] = f(foreign_key="user.id")
+    user: Mapped["User"] = relationship("User", back_populates="posts")
 ```
 
 **Update** `app/models/__init__.py`:
 
 ```python
-from .user import User
-from .post import Post
+# app/models/__init__.py
+# from .user import User
+# from .post import Post
 ```
 
 ---
@@ -148,18 +166,20 @@ from .post import Post
 When fetching users with their posts, Eden can load them efficiently to avoid N+1 queries:
 
 ```python
+from eden.db import Model, f
+from sqlalchemy.orm import Mapped
+
+class User(Model):
+    name: Mapped[str] = f(max_length=255)
+    posts: Mapped[list] = [] # Simplified for snippet
+
 async def get_user_with_posts(user_id: int):
-    # ❌ BAD: Lazy loading - runs 1 + N queries
-    user = await User.get(id=user_id)
-    posts = await user.posts  # Extra query!
-    
     # ✅ GOOD: Eager loading - single query with JOIN
     user = await User.select_related("posts").get(id=user_id)
     
-    # Selective model dumping for secure API responses
     return {
-        "user": user.to_dict(include=["id", "name", "email"]),
-        "posts": [p.to_dict(exclude=["user_id"]) for p in user.posts]
+        "user": user.to_dict(include=["id", "name"]),
+        "posts": [p.to_dict() for p in user.posts]
     }
 ```
 
@@ -170,20 +190,29 @@ async def get_user_with_posts(user_id: int):
 Eden makes querying intuitive and safe:
 
 ```python
-# Filter by multiple conditions
-recent_posts = await Post.filter(
-    user_id=user_id,
-    created_at__gte=datetime(2024, 1, 1)
-).order_by("-created_at").all()
+from eden.db import Model, f
+from datetime import datetime
 
-# Update multiple records at once
-await User.filter(is_active=False).update(profile_data={"status": "archived"})
+class Post(Model):
+    user_id: int = f()
+    created_at: datetime = f(default=datetime.utcnow)
 
-# Count matching records
-active_user_count = await User.filter(is_active=True).count()
+class User(Model):
+    is_active: bool = f(default=True)
+    profile_data: dict = f(json=True, default={})
 
-# Delete with conditions
-await Post.filter(created_at__lt=datetime(2023, 1, 1)).delete()
+async def bulk_ops_example(user_id: int):
+    # Filter by multiple conditions
+    recent_posts = await Post.filter(
+        user_id=user_id,
+        created_at__gte=datetime(2024, 1, 1)
+    ).order_by("-created_at").all()
+
+    # Update multiple records at once
+    await User.filter(is_active=False).update(profile_data={"status": "archived"})
+
+    # Count matching records
+    active_user_count = await User.filter(is_active=True).count()
 ```
 
 ---
@@ -193,26 +222,27 @@ await Post.filter(created_at__lt=datetime(2023, 1, 1)).delete()
 Always handle cases where data doesn't exist:
 
 ```python
+from eden.db import Model, f
+from eden.responses import Response
+from eden.routing import Router
+
+class User(Model):
+    pass
+
+user_router = Router()
+
 async def safe_get_user(user_id: int):
     try:
         user = await User.get(id=user_id)
         return {"success": True, "user": user.to_dict()}
     except User.DoesNotExist:
         return {"success": False, "error": "User not found"}
-    except Exception as e:
-        # Log unexpected errors
-        print(f"Database error: {e}")
-        return {"success": False, "error": "Internal server error"}
 
-# In your route:
 @user_router.get("/{user_id}")
-async def get_user(user_id: int):
+async def get_user_route(user_id: int):
     result = await safe_get_user(user_id)
     if not result["success"]:
-        return Response(
-            {"error": result["error"]}, 
-            status_code=status.HTTP_404_NOT_FOUND
-        )
+        return Response({"error": result["error"]}, status_code=404)
     return result["user"]
 ```
 

@@ -38,6 +38,7 @@ class Route:
     tags: list[str] = field(default_factory=list)
     middleware: list[Any] = field(default_factory=list)
     include_in_schema: bool = True
+    extras: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         self.methods = [m.upper() for m in self.methods]
@@ -273,6 +274,7 @@ class Router:
         tags: list[str] | None = None,
         middleware: list[Any] | None = None,
         include_in_schema: bool = True,
+        **kwargs: Any,
     ) -> None:
         """Register a route.
 
@@ -309,6 +311,7 @@ class Router:
             tags=(self.tags + (tags or [])),
             middleware=(self.middleware + (middleware or [])),
             include_in_schema=include_in_schema,
+            extras=kwargs,
         )
         self.routes.append(route)
 
@@ -322,11 +325,12 @@ class Router:
         description: str | None = None,
         tags: list[str] | None = None,
         include_in_schema: bool = True,
+        **kwargs: Any,
     ) -> Callable:
         """General-purpose route decorator."""
 
         def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
-            self._add_route(path, func, methods or ["GET"], name, summary, description, tags, middleware, include_in_schema)
+            self._add_route(path, func, methods or ["GET"], name, summary, description, tags, middleware, include_in_schema, **kwargs)
             return func
 
         return decorator
@@ -337,13 +341,15 @@ class Router:
         name: str | None = None,
         middleware: list[Any] | None = None,
         summary: str | None = None,
+        description: str | None = None,
         tags: list[str] | None = None,
         include_in_schema: bool = True,
+        **kwargs: Any,
     ) -> Callable:
         """Register a GET route."""
 
         def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
-            self._add_route(path, func, ["GET"], name, summary, None, tags, middleware, include_in_schema)
+            self._add_route(path, func, ["GET"], name, summary, description, tags, middleware, include_in_schema, **kwargs)
             return func
 
         return decorator
@@ -354,13 +360,15 @@ class Router:
         name: str | None = None,
         middleware: list[Any] | None = None,
         summary: str | None = None,
+        description: str | None = None,
         tags: list[str] | None = None,
         include_in_schema: bool = True,
+        **kwargs: Any,
     ) -> Callable:
         """Register a POST route."""
 
         def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
-            self._add_route(path, func, ["POST"], name, summary, None, tags, middleware, include_in_schema)
+            self._add_route(path, func, ["POST"], name, summary, description, tags, middleware, include_in_schema, **kwargs)
             return func
 
         return decorator
@@ -371,13 +379,15 @@ class Router:
         name: str | None = None,
         middleware: list[Any] | None = None,
         summary: str | None = None,
+        description: str | None = None,
         tags: list[str] | None = None,
         include_in_schema: bool = True,
+        **kwargs: Any,
     ) -> Callable:
         """Register a PUT route."""
 
         def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
-            self._add_route(path, func, ["PUT"], name, summary, None, tags, middleware, include_in_schema)
+            self._add_route(path, func, ["PUT"], name, summary, description, tags, middleware, include_in_schema, **kwargs)
             return func
 
         return decorator
@@ -388,13 +398,15 @@ class Router:
         name: str | None = None,
         middleware: list[Any] | None = None,
         summary: str | None = None,
+        description: str | None = None,
         tags: list[str] | None = None,
         include_in_schema: bool = True,
+        **kwargs: Any,
     ) -> Callable:
         """Register a PATCH route."""
 
         def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
-            self._add_route(path, func, ["PATCH"], name, summary, None, tags, middleware, include_in_schema)
+            self._add_route(path, func, ["PATCH"], name, summary, description, tags, middleware, include_in_schema, **kwargs)
             return func
 
         return decorator
@@ -405,13 +417,15 @@ class Router:
         name: str | None = None,
         middleware: list[Any] | None = None,
         summary: str | None = None,
+        description: str | None = None,
         tags: list[str] | None = None,
         include_in_schema: bool = True,
+        **kwargs: Any,
     ) -> Callable:
         """Register a DELETE route."""
 
         def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
-            self._add_route(path, func, ["DELETE"], name, summary, None, tags, middleware, include_in_schema)
+            self._add_route(path, func, ["DELETE"], name, summary, description, tags, middleware, include_in_schema, **kwargs)
             return func
 
         return decorator
@@ -422,13 +436,15 @@ class Router:
         name: str | None = None,
         middleware: list[Any] | None = None,
         summary: str | None = None,
+        description: str | None = None,
         tags: list[str] | None = None,
         include_in_schema: bool = True,
+        **kwargs: Any,
     ) -> Callable:
         """Register an OPTIONS route."""
 
         def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
-            self._add_route(path, func, ["OPTIONS"], name, summary, None, tags, middleware, include_in_schema)
+            self._add_route(path, func, ["OPTIONS"], name, summary, description, tags, middleware, include_in_schema, **kwargs)
             return func
 
         return decorator
@@ -439,15 +455,83 @@ class Router:
         name: str | None = None,
         middleware: list[Any] | None = None,
         summary: str | None = None,
+        description: str | None = None,
         tags: list[str] | None = None,
         include_in_schema: bool = True,
     ) -> Callable:
         """Register a HEAD route."""
 
         def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
-            self._add_route(path, func, ["HEAD"], name, summary, None, tags, middleware, include_in_schema)
+            self._add_route(path, func, ["HEAD"], name, summary, description, tags, middleware, include_in_schema, **kwargs)
             return func
 
+        return decorator
+
+    def validate(self, schema: type[Any], template: str | None = None) -> Callable:
+        """Decorator for automatic form validation."""
+        import functools
+        from eden.forms import BaseForm, Schema
+        from eden.responses import JsonResponse, Response
+
+        def decorator(func: Callable) -> Callable:
+            @functools.wraps(func)
+            async def wrapper(*args, **kwargs) -> Any:
+                # Find request in args or kwargs
+                request = None
+                for arg in args:
+                    if hasattr(arg, "scope"):
+                        request = arg
+                        break
+                if not request:
+                    request = kwargs.get("request")
+                
+                if not request:
+                    from eden.context import get_request
+                    request = get_request()
+
+                # 1. Parse data
+                if issubclass(schema, Schema):
+                    form = await schema.from_request(request)
+                else:
+                    # Fallback for plain Pydantic models
+                    data = {}
+                    try:
+                        data = await request.json()
+                    except (ValueError, RuntimeError):
+                        try:
+                            # Use dict() for Starlette/Eden form objects
+                            form_data = await request.form()
+                            data = dict(form_data)
+                        except (ValueError, RuntimeError):
+                            pass
+                    form = BaseForm(schema=schema, data=data)
+
+                # 2. Validate
+                if form.is_valid():
+                    sig = inspect.signature(func)
+                    # Inject model instance if annotation matches or name is 'credentials'
+                    for param_name, param in sig.parameters.items():
+                        if param.annotation == schema or param_name == "credentials":
+                            kwargs[param_name] = form.model_instance
+                            break
+                    
+                    handler_kwargs = {
+                        k: v for k, v in kwargs.items() 
+                        if k in sig.parameters
+                    }
+                    return await func(*args, **handler_kwargs)
+                
+                # 3. Handle failure
+                if template:
+                    if hasattr(request, "session"):
+                        request.session["_old_input"] = form.data
+                    
+                    from eden.templating import render_template
+                    return render_template(template, form=form, request=request)
+                
+                return JsonResponse({"errors": form.errors}, status_code=400)
+
+            return wrapper
         return decorator
 
     def add_view(

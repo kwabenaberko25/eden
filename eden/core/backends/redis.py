@@ -29,11 +29,19 @@ class RedisBackend(DistributedBackend):
     - Key-value storage with TTL
     """
     
-    def __init__(self, url: str = "redis://localhost:6379/0", prefix: str = "eden:", **kwargs: Any) -> None:
+    def __init__(self, url: Optional[str] = None, prefix: str = "eden:", **kwargs: Any) -> None:
         if aioredis is None:
             raise ImportError("redis[async] is required for RedisBackend. Install it: pip install redis[async]")
             
-        self.url = url
+        self.host = kwargs.get("host", "localhost")
+        self.port = kwargs.get("port", 6379)
+        self.db = kwargs.get("db", 0)
+        
+        if "host" in kwargs or "port" in kwargs:
+            self.url = f"redis://{self.host}:{self.port}/{self.db}"
+        else:
+            self.url = url or "redis://localhost:6379/0"
+            
         self.prefix = prefix
         self.redis: aioredis.Redis | None = None
         self._pubsub: aioredis.PubSub | None = None
@@ -43,6 +51,7 @@ class RedisBackend(DistributedBackend):
     async def connect(self) -> None:
         """Establish connection to Redis."""
         if not self.redis:
+            # We keep decode_responses=False to support binary payloads (though we often use JSON)
             self.redis = aioredis.from_url(self.url, decode_responses=False)
             logger.info(f"Connected to Redis distributed backend at {self.url}")
 
@@ -80,7 +89,7 @@ class RedisBackend(DistributedBackend):
         # px = milliseconds
         px = int(timeout * 1000)
         
-        result = await self.redis.set(key, identifier, px=px, nx=True)
+        result = await self.redis.set(key, identifier.encode("utf-8"), px=px, nx=True)
         return bool(result)
 
     async def release_lock(self, name: str, identifier: str) -> bool:
@@ -90,15 +99,18 @@ class RedisBackend(DistributedBackend):
             
         key = self._key(f"lock:{name}")
         
-        # Lua script to ensure we only release our own lock
-        script = """
-        if redis.call("get", KEYS[1]) == ARGV[1] then
-            return redis.call("del", KEYS[1])
-        else
-            return 0
-        end
-        """
-        result = await self.redis.eval(script, 1, key, identifier)
+        # Clean Lua script (dedented) to ensure we only release our own lock
+        script = (
+            "if redis.call('get', KEYS[1]) == ARGV[1] then "
+            "return redis.call('del', KEYS[1]) "
+            "else "
+            "return 0 "
+            "end"
+        )
+        
+        # Ensure identifier is bytes for compatibility with decode_responses=False
+        val = identifier if isinstance(identifier, bytes) else str(identifier).encode("utf-8")
+        result = await self.redis.eval(script, 1, key, val)
         return bool(result)
 
     # -- Pub/Sub --

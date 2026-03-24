@@ -249,7 +249,7 @@ class PeriodicTask:
                         if last_run:
                             try:
                                 if (now_ts - float(last_run)) < (self._interval_seconds * 0.8):
-                                    # print(f"DEBUG: periodic task {self.func.__name__} skipped (recently run)")
+                                    logger.debug("periodic task %s skipped (recently run)", self.func.__name__)
                                     continue
                             except (ValueError, TypeError):
                                 pass
@@ -261,12 +261,12 @@ class PeriodicTask:
                         )
                         
                         if not lock_acquired:
-                            # print(f"DEBUG: periodic task {self.func.__name__} lock failed")
+                            logger.debug("periodic task %s lock failed", self.func.__name__)
                             continue
 
                         # 3. Update last run time immediately
                         await backend.set(last_run_key, str(now_ts), ttl=int(max(3600.0, float(self._interval_seconds * 2))))
-                        # print(f"DEBUG: periodic task {self.func.__name__} coordination success")
+                        logger.debug("periodic task %s coordination success", self.func.__name__)
                         
                     except Exception as e:
                         logger.error("Coordilation error for periodic task '%s': %s", self.func.__name__, e)
@@ -440,10 +440,33 @@ class EdenBroker:
                 target_delays,
                 exponential_backoff=exponential_backoff
             )
-            print(f"DEBUG TASK REGISTER: registering {func.__name__} (was: {func})")
-            return self.broker.task(*args, **kwargs)(handler)
+            logger.debug("Task registered: %s", func.__name__)
+            taskiq_task = self.broker.task(*args, **kwargs)(handler)
+            
+            # Wrap the kiq method to automatically inject context labels
+            original_kiq = taskiq_task.kiq
+            
+            @functools.wraps(original_kiq)
+            def wrapped_kiq(*args: Any, **kwargs: Any) -> Any:
+                from eden.context import context_manager
+                
+                # Get current context snapshot
+                snapshot = context_manager.get_context_snapshot()
+                
+                # Merge into labels
+                labels = kwargs.get("labels", {})
+                for key, value in snapshot.items():
+                    if value is not None and key not in labels:
+                        labels[key] = str(value)
+                
+                kwargs["labels"] = labels
+                return original_kiq(*args, **kwargs)
+            
+            taskiq_task.kiq = wrapped_kiq
+            return taskiq_task
 
         return decorator
+
 
     def every(
         self,
@@ -493,15 +516,29 @@ class EdenBroker:
             correlation_id = str(uuid.uuid4())
             
             tiq_ctx = kwargs.pop("context", None)
+            correlation_id = str(uuid.uuid4())
+            user_id = None
+            tenant_id = None
+
             if tiq_ctx:
                 # Taskiq passes context if requested
                 task_id = getattr(tiq_ctx, "task_id", task_id)
-                # Labels can carry the original request_id
+                # Labels carry the propagated context
                 labels = getattr(tiq_ctx, "labels", {})
                 correlation_id = labels.get("correlation_id", correlation_id)
+                user_id = labels.get("user_id")
+                tenant_id = labels.get("tenant_id")
 
-            # Set correlation ID in context so all logs from this task share it
+            # 2. Restoration: Set restored context back into ContextVars
             token = set_request_id(correlation_id)
+            if tenant_id:
+                context_manager.set_tenant(tenant_id)
+            if user_id:
+                # We keep the raw ID in context for now as the 'user'
+                # Code requiring the full Model will have to fetch it,
+                # but many audit/RLS hooks only need the ID.
+                context_manager.set_user(user_id)
+
 
             # Use DependencyResolver with current app instance
             resolver = DependencyResolver()
@@ -526,7 +563,7 @@ class EdenBroker:
                 try:
                     # Record start for this attempt if first attempt
                     logger.debug("Executing task '%s' (attempt %d, ID %s)", func.__name__, attempt, task_id)
-                    print(f"DEBUG TASK: executing {func.__name__} attempt {attempt}")
+                    logger.debug("Executing task '%s' attempt %d", func.__name__, attempt)
 
                     if asyncio.iscoroutinefunction(func):
                         res = await func(*args, **final_kwargs)
@@ -550,7 +587,7 @@ class EdenBroker:
                     return res
 
                 except Exception as e:
-                    print(f"DEBUG TASK ERROR: {func.__name__} attempt {attempt} error: {e}")
+                    logger.debug("Task '%s' attempt %d error: %s", func.__name__, attempt, e)
                     attempt += 1
                     if attempt > max_retries:
                         logger.error(

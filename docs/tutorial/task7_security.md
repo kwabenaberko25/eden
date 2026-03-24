@@ -11,8 +11,13 @@ Eden includes enterprise-grade middleware that can be activated with a single li
 **File**: `app/__init__.py`
 
 ```python
+from eden import Eden
+
+# Secure configuration
+SECRET_KEY = "eden-insecure-secret-key"
+
 def create_app() -> Eden:
-    app = Eden(...)
+    app = Eden()
     
     # ── Security Suite ───────────────────────────────────────────────────
     
@@ -49,18 +54,21 @@ Use Eden's high-fidelity decorators to restrict access to specific views based o
 
 ```python
 from eden.auth import login_required, can_read, can_write
+from eden.routing import Router
+
+admin_router = Router(prefix="/admin")
 
 @admin_router.get("/metrics")
-@can_read("system_stats")  # Checks if user has 'read' permission for resource
+@can_read("system_stats")  # Checks if user has 'system_stats:read' permission
 async def dashboard_metrics():
     """Only admins with specific permissions can see system analytics."""
     return {"active_users": 450, "revenue": 12000}
 
 @admin_router.get("/profile")
-@login_required()
+@login_required
 async def user_profile(request):
     """Any authenticated user can see their profile."""
-    return {"user": request.user.name}
+    return {"user": request.user.email}
 ```
 
 ---
@@ -70,7 +78,11 @@ async def user_profile(request):
 Sometimes you need to check permissions inside your function logic rather than with a decorator.
 
 ```python
-from eden.auth import check_permission
+from eden.auth import check_permission, User
+from eden.exceptions import Forbidden
+from eden.routing import Router
+
+user_router = Router(prefix="/users")
 
 @user_router.delete("/{user_id}")
 async def remove_user(request, user_id: int):
@@ -79,7 +91,8 @@ async def remove_user(request, user_id: int):
         raise Forbidden("You do not have permission to delete this user.")
         
     user = await User.get(id=user_id)
-    await user.delete()
+    if user:
+        await user.delete()
     return {"status": "removed"}
 ```
 
@@ -93,7 +106,15 @@ async def remove_user(request, user_id: int):
 Use custom permission classes for granular row-level control:
 
 ```python
-from eden.auth import has_permission
+from eden.auth import check_permission
+from eden.exceptions import Forbidden
+from eden.routing import Router
+from eden.db import Model, f
+
+class Post(Model):
+    user_id: int = f()
+
+post_router = Router(prefix="/posts")
 
 class PostPermission:
     """Custom permission check for blog posts."""
@@ -102,7 +123,8 @@ class PostPermission:
     async def can_edit(user, post_id: int):
         """Only let users edit their own posts."""
         post = await Post.get(id=post_id)
-        return post.user_id == user.id or user.is_admin
+        if not post: return False
+        return post.user_id == user.id or getattr(user, "is_admin", False)
 
 # In your route:
 @post_router.put("/{post_id}")
@@ -113,7 +135,8 @@ async def edit_post(request, post_id: int):
     
     data = await request.json()
     post = await Post.get(id=post_id)
-    await post.update(**data)
+    if post:
+        await post.update(**data)
     return {"message": "Post updated"}
 ```
 
@@ -124,9 +147,13 @@ async def edit_post(request, post_id: int):
 Configure your session middleware properly:
 
 ```python
-# app/__init__.py
+from eden import Eden
+
+SECRET_KEY = "eden-insecure-secret-key"
+DEBUG = True
+
 def create_app():
-    app = Eden(...)
+    app = Eden()
     
     # Secure session configuration
     app.add_middleware(
@@ -147,13 +174,19 @@ def create_app():
 Then validate sessions in your middleware:
 
 ```python
+from eden import Eden
+from eden.responses import redirect
+
+app = Eden()
+
 # Custom middleware to check session validity
 @app.middleware("http")
 async def validate_session(request, call_next):
     """Validate user session on every request."""
-    if request.user and not request.user.is_active:
+    if hasattr(request, "user") and request.user and not request.user.is_active:
         # Log the user out
-        del request.session['user_id']
+        if hasattr(request, "session"):
+            del request.session['user_id']
         return redirect("/login")
     
     response = await call_next(request)
@@ -167,7 +200,13 @@ async def validate_session(request, call_next):
 Never store plain text passwords. Eden handles this automatically:
 
 ```python
-from eden.auth import hash_password, verify_password
+from eden.auth import hash_password, verify_password, User
+from eden.forms import Schema, field
+from eden.exceptions import Unauthorized
+from eden.routing import Router
+from pydantic import EmailStr
+
+auth_router = Router(prefix="/auth")
 
 class AuthSchema(Schema):
     email: EmailStr
@@ -181,10 +220,10 @@ async def register(request, credentials: AuthSchema):
     if existing:
         raise ValueError("Email already registered")
     
-    # Password is automatically hashed by Eden
-    user = await User.create(
+    # Password hashing manually for demonstration or via logic
+    user = await User.objects.create(
         email=credentials.email,
-        password=credentials.password  # Eden hashes this
+        password_hash=hash_password(credentials.password)
     )
     
     return {"message": "User registered successfully"}
@@ -194,14 +233,17 @@ async def login(request, credentials: AuthSchema):
     """Authenticate user and create session."""
     user = await User.filter(email=credentials.email).first()
     
-    if not user or not verify_password(credentials.password, user.password):
+    # In practice, user.password_hash is used
+    user_pass = getattr(user, "password_hash", None)
+    if not user or not verify_password(credentials.password, user_pass):
         raise Unauthorized("Invalid email or password")
     
-    # Set session (Eden handles cookie creation)
-    request.session['user_id'] = str(user.id)
-    request.session['user_email'] = user.email
+    # Set session
+    if hasattr(request, "session"):
+        request.session['user_id'] = str(user.id)
+        request.session['user_email'] = user.email
     
-    return {"message": "Logged in successfully", "user": user.to_dict()}
+    return {"message": "Logged in successfully", "user": user.model_dump()}
 ```
 
 ---
@@ -247,6 +289,11 @@ Log security-relevant events for compliance:
 
 ```python
 from datetime import datetime
+from eden import Eden
+from eden.db import Model, f
+from sqlalchemy.orm import Mapped
+
+app = Eden()
 
 class AuditLog(Model):
     """Track all user actions for compliance."""
@@ -264,9 +311,10 @@ async def audit_log_middleware(request, call_next):
     response = await call_next(request)
     
     # Log if user is authenticated and action is sensitive
-    if request.user and request.method in ["POST", "DELETE", "PUT"]:
-        await AuditLog.create(
-            user_id=request.user.id,
+    user = getattr(request, "user", None)
+    if user and request.method in ["POST", "DELETE", "PUT"]:
+        await AuditLog.objects.create(
+            user_id=user.id,
             action=request.method,
             resource=request.url.path,
             ip_address=request.client.host,

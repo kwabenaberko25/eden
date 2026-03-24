@@ -53,9 +53,7 @@ async def dashboard(request):
     return render_template("dashboard.html", user=request.user)
 
 # Pro-tip: Create your first user via the CLI or bootstrap script
-
 # await create_user(email="admin@example.com", password="secure_password")
-
 ```
 
 ---
@@ -84,12 +82,16 @@ class MyUser(BaseUser, Model):
 The user is automatically injected into the request object by the `AuthenticationMiddleware`.
 
 ```python
-
 # In your view
+from eden.responses import JsonResponse
 
-if request.user.is_authenticated:
-    print(f"User ID: {request.user.id}")
-    print(f"Roles: {request.user.roles}")
+async def my_view(request):
+    if request.user.is_authenticated:
+        print(f"User ID: {request.user.id}")
+        # Use get_roles() for tenant-aware roles or .roles attribute if using default User
+        roles = await request.user.get_roles()
+        print(f"Roles: {roles}")
+    return JsonResponse({"status": "ok"})
 ```
 
 ### High-Level Convenience Functions
@@ -99,15 +101,16 @@ Eden provides a unified set of actions for identity tasks in `eden.auth`. These 
 ```python
 from eden.auth import create_user, authenticate, login
 
-# Create a new user with hashed password (validates email & password strength)
-user = await create_user(email="alice@example.com", password="secure_password_123")
+async def auth_workflow(request):
+    # Create a new user with hashed password (validates email & password strength)
+    user = await create_user(email="alice@example.com", password="secure_password_123")
 
-# Verify credentials against the registered User model
-user = await authenticate(email="alice@example.com", password="password_123")
+    # Verify credentials against the registered User model
+    user = await authenticate(email="alice@example.com", password="secure_password_123")
 
-# Bind to the current request (Session/JWT) and set global context
-if user:
-    await login(request, user)
+    # Bind to the current request (Session/JWT) and set global context
+    if user:
+        await login(request, user)
 ```
 
 ---
@@ -133,8 +136,7 @@ jwt_backend = JWTBackend(
 )
 
 # Create a token manually
-
-token = jwt_backend.encode({"sub": user.id})
+token = jwt_backend.encode({"sub": "user_123"})
 ```
 
 ---
@@ -149,19 +151,16 @@ Eden's Role-Based Access Control (RBAC) supports **inheritance**. If a `manager`
 from eden.auth import default_rbac as rbac
 
 # Build the hierarchy
-
 rbac.add_role("employee")
 rbac.add_role("manager", parents=["employee"])
 rbac.add_role("admin", parents=["manager"])
 
 # Assign permissions
-
 rbac.add_permission("employee", "post:view")
 rbac.add_permission("manager", "post:edit")
 rbac.add_permission("admin", "post:delete")
 
 # 'admin' now has all 3 permissions
-
 ```
 
 Use decorators to enforce your RBAC rules at the entry point. Eden decorators are powerful: they support both function-based handlers and **Class-Based Views (CBVs)**.
@@ -169,10 +168,15 @@ Use decorators to enforce your RBAC rules at the entry point. Eden decorators ar
 ### Function-Based Views
 
 ```python
+from eden import Eden
+from eden.auth import require_role
+
+app = Eden()
+
 @app.get("/analytics")
 @require_role("manager")
 async def view_analytics(request):
-    ...
+    return {"stats": "..."}
 ```
 
 ### Class-Based Views
@@ -181,7 +185,7 @@ Use `view_decorator` to apply a guard to an entire class:
 
 ```python
 from eden.auth import view_decorator, login_required
-from eden import View
+from eden.routing import View
 
 @view_decorator(login_required)
 class ProtectedView(View):
@@ -199,9 +203,11 @@ class ProtectedView(View):
 Enable automatic protection across your entire application.
 
 ```python
+from eden import Eden
+app = Eden()
 
 # In your app configuration
-
+app.add_middleware("session")   # Required for CSRF
 app.add_middleware("security")  # Sets CSP, X-Frame-Options, HSTS
 app.add_middleware("csrf")      # Automatic CSRF protection for forms
 app.add_middleware("ratelimit") # Protect against brute force
@@ -244,13 +250,21 @@ app.add_middleware("ratelimit") # Protect against brute force
 Instead of checking permissions in the controller, filter the data at the database level based on the user's role.
 
 ```python
-from eden.auth import apply_rbac_filter
+from eden import Eden
+from eden.auth import apply_rbac_filter, login_required
+from eden.db import Model, f, Mapped
+
+app = Eden()
+
+class Document(Model):
+    __tablename__ = "documents"
+    title: Mapped[str] = f()
 
 @app.get("/documents")
 @login_required
 async def list_documents(request):
     # This automatically adds WHERE clauses to restrict access based on user roles
-    query = apply_rbac_filter(Document.query(), request.user)
+    query = await apply_rbac_filter(Document.query(), request.user)
     return await query.all()
 ```
 

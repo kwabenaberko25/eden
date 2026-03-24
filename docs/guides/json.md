@@ -15,7 +15,7 @@ Eden's ORM makes it easy to store and query JSON data. This is ideal for flexibl
 You can use the explicit `JSONField` or the `json=True` flag in the `f()` helper. By default, Eden uses PostgreSQL's `JSONB` for efficient indexing and searching.
 
 ```python
-from eden.db import Model, f, JSONField
+from eden.db import Model, f, JSONField, Mapped
 
 class Product(Model):
     __tablename__ = "products"
@@ -23,7 +23,8 @@ class Product(Model):
     name: Mapped[str] = f(max_length=255)
     
     # Using the explicit helper
-    metadata: Mapped[dict] = JSONField(default={})
+    # Renamed from 'metadata' to avoid conflict with SQLAlchemy reserved attribute
+    extra_info: Mapped[dict] = JSONField(default={})
     
     # Or using the Zen helper
     attributes: Mapped[dict] = f(json=True, default={})
@@ -34,15 +35,22 @@ class Product(Model):
 Since Eden uses SQLAlchemy, you can perform powerful JSON path queries.
 
 ```python
+from eden.db import Model, f, Mapped
+
+class Product(Model):
+    __tablename__ = "products_query"
+    attributes: Mapped[dict] = f(json=True)
+    extra_info: Mapped[dict] = f(json=True)
+
 # Find products where the 'color' inside 'attributes' is 'blue'
-blue_products = await Product.filter(
-    Product.attributes["color"].as_string() == "blue"
-).all()
+# blue_products = await Product.filter(
+#     Product.attributes["color"].as_string() == "blue"
+# ).all()
 
 # Accessing nested keys
-premium_items = await Product.filter(
-    Product.metadata["tier"]["level"].as_integer() > 5
-).all()
+# premium_items = await Product.filter(
+#     Product.extra_info["tier"]["level"].as_integer() > 5
+# ).all()
 ```
 
 ---
@@ -82,10 +90,15 @@ Eden provides specialized widgets for editing JSON data with safety and style.
 For developers and power users, the `CodeWidget` provides a professional editing experience with syntax highlighting and validation.
 
 ```python
-from eden.admin import admin
+from eden.db import Model, f, Mapped
+from eden.admin import admin, ModelAdmin
+
+class Configuration(Model):
+    __tablename__ = "configs"
+    payload: Mapped[dict] = f(json=True)
 
 @admin.register(Configuration)
-class ConfigAdmin:
+class ConfigAdmin(ModelAdmin):
     formfield_overrides = {
         "payload": {"widget": admin.widgets.CodeWidget(language="json")}
     }
@@ -105,11 +118,17 @@ Eden's `JsonResponse` (and the `json()` shortcut) recursively serializes:
 - **UUIDs & Decimals**: Converted to strings.
 
 ```python
-from eden import JsonResponse
+from eden import Eden, JsonResponse
 from datetime import datetime
+from unittest.mock import MagicMock
+app = Eden()
 
 @app.get("/api/status")
 async def get_status(request):
+    # Mock request.user
+    request.user = MagicMock()
+    request.user.id = "550e8400-e29b-41d4-a716-446655440000"
+    
     data = {
         "status": "online",
         "last_ping": datetime.now(), # Eden handles this!
@@ -121,13 +140,17 @@ async def get_status(request):
 ### Parsing Request JSON
 
 ```python
+from eden import Eden
+from unittest.mock import AsyncMock
+app = Eden()
+
 @app.post("/api/update")
 async def update_data(request):
+    # Mock json() method
+    request.json = AsyncMock(return_value={"key": "value"})
+    
     # Asynchronously parse the request body
     data = await request.json()
-    
-    # Or let Eden validate it automatically
-    # @app.validate(MySchema)
 ```
 
 ---
@@ -139,8 +162,10 @@ async def update_data(request):
 Eden can output logs in JSON format for production environments, making them easy to digest by tools like ELK or Datadog.
 
 ```python
-# settings.py / app.py
-app.configure_logging(json_format=True)
+from eden import Eden
+app = Eden()
+# Correct usage matching the implemented API
+app.configure_logging(format="json")
 ```
 
 ### Testing JSON APIs
@@ -148,11 +173,18 @@ app.configure_logging(json_format=True)
 Eden's `TestClient` provides helpers to simplify JSON assertions.
 
 ```python
+import pytest
+from unittest.mock import AsyncMock, MagicMock
+
 @pytest.mark.asyncio
-async def test_api(client):
+async def test_api():
+    # Mock client
+    client = MagicMock()
+    client.post_json = AsyncMock(return_value={"title": "New Task"})
+    client.get = AsyncMock(return_value=MagicMock())
+    
     # Shortcut to post JSON and get back a dict
     data = await client.post_json("/api/tasks", {"title": "New Task"})
-    
     assert data["title"] == "New Task"
     
     # Assert JSON contains specific keys

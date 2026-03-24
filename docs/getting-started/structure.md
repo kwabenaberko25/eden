@@ -60,6 +60,13 @@ For logic that spans multiple models or requires external integrations (e.g., St
 
 ```python
 
+from eden import Eden, Schema
+app = Eden()
+class UserSchema(Schema): pass
+class User: # Mock model
+    @staticmethod
+    async def create_from(data): return type('User', (), {'id': 1})()
+
 # services/user_service.py
 
 class UserService:
@@ -68,7 +75,8 @@ class UserService:
         # 1. Create Model
         user = await User.create_from(data)
         # 2. Trigger Side Effects
-        await app.task.kiq("send_welcome_email", user_id=user.id)
+        # In Eden, background tasks are handled via the broker
+        await app.broker.task.kiq("send_welcome_email", user_id=user.id)
         return user
 ```
 
@@ -78,16 +86,14 @@ As your API grows, decompose it into semantic routers.
 
 ```python
 
-# routes/users.py
-
-from eden import Router
+from eden import Eden, Router
+app = Eden()
 user_router = Router(prefix="/users")
 
 @user_router.get("/")
 async def list_users(): ...
 
 # In app.py
-
 app.include_router(user_router)
 ```
 

@@ -647,21 +647,35 @@ class BaseForm:
             exclude: Optional list of field names to skip during validation.
         """
         try:
-            data = self.data
+            data = self.data.copy()
             
+            # Integrate files into data for validation if not already present
+            if hasattr(self, "files") and self.files:
+                for key, file in self.files.items():
+                    if key not in data:
+                        # We pass the bytes data for validation
+                        data[key] = file.data
+
             # Implementation of Validation Groups:
-            # If include/exclude is provided, we create a temporary schema or 
-            # partial data for validation.
             if include or exclude:
-                # For now, we validate the whole thing but filter errors
-                # A more thorough implementation would use a partial schema
-                pass
+                include_set = set(include) if include else None
+                exclude_set = set(exclude) if exclude else set()
+                
+                # Check schema for required fields
+                fields = getattr(self.schema, "model_fields", {})
+                for field_name, field_def in fields.items():
+                    in_scope = (not include_set or field_name in include_set) and (field_name not in exclude_set)
+                    
+                    if not in_scope and field_name not in data:
+                        data[field_name] = None 
 
             # Pydantic 2.0+ uses model_validate
             if hasattr(self.schema, "model_validate"):
-                self.model_instance = self.schema.model_validate(data)
+                from_attr = not isinstance(data, dict)
+                self.model_instance = self.schema.model_validate(data, from_attributes=from_attr)
             else:
                 self.model_instance = self.schema(**data)
+                
             self.errors = {}
             return True
         except ValidationError as e:
@@ -670,17 +684,28 @@ class BaseForm:
             exclude_set = set(exclude) if exclude else set()
             
             for err in e.errors():
-                # Handle nested locations or missing loc
-                loc = err.get("loc", ["__all__"])
-                field_name = str(loc[0]) if loc else "__all__"
+                loc = err.get("loc", [])
+                if not loc:
+                    field_key = "__all__"
+                    root_field = "__all__"
+                else:
+                    # Fix: Join nested locations with dots (e.g. 'address.city')
+                    field_key = ".".join(str(p) for p in loc)
+                    root_field = str(loc[0])
                 
                 # Filter errors based on groups
-                if include_set and field_name not in include_set:
+                if include_set and root_field not in include_set:
                     continue
-                if field_name in exclude_set:
+                if root_field in exclude_set:
                     continue
                     
-                self.errors[field_name] = err.get("msg", "Validation error")
+                # We store the error under its full nested path
+                if field_key not in self.errors:
+                    self.errors[field_key] = err.get("msg", "Validation error")
+                
+                # ALSO attribute it to the root field so form['root'] can show it
+                if root_field != field_key and root_field not in self.errors:
+                    self.errors[root_field] = f"Error in {field_key}: {err.get('msg')}"
             
             return len(self.errors) == 0
 
@@ -753,16 +778,29 @@ class BaseForm:
         for key, value in multipart.items():
             # Starlette UploadFile has a .filename attribute
             if hasattr(value, "filename") and value.filename:
-                # Check file size if available before reading (Resource Protection)
+                # Check file size if available before reading (fast-path rejection)
                 size = getattr(value, "size", None)
                 if size and size > max_size:
                     raise ValueError(f"File '{value.filename}' exceeds maximum upload size of {max_size} bytes.")
                 
-                raw = await value.read()
+                # Chunked read to prevent OOM from malicious uploads
+                # We read in 64KB chunks and check the running total
+                chunks = []
+                total_read = 0
+                chunk_size = 64 * 1024  # 64KB chunks
                 
-                # Double check size after read as well
-                if len(raw) > max_size:
-                    raise ValueError(f"File '{value.filename}' exceeds maximum upload size of {max_size} bytes.")
+                while True:
+                    chunk = await value.read(chunk_size)
+                    if not chunk:
+                        break
+                    total_read += len(chunk)
+                    if total_read > max_size:
+                        raise ValueError(
+                            f"File '{value.filename}' exceeds maximum upload size of {max_size} bytes."
+                        )
+                    chunks.append(chunk)
+                
+                raw = b"".join(chunks)
 
                 content_type = (
                     getattr(value, "content_type", "application/octet-stream")
@@ -957,23 +995,28 @@ class Schema(BaseModel):
                         if not hasattr(cls, name):
                             setattr(cls, name, field)
                 
-                # Patch Pydantic 2.x internals to enable full validation on this subclass.
-                # Since Pydantic 2.0 generates its core schema/validator during type creation,
-                # we must carry over the generated engine components from the dynamic schema.
-                if hasattr(dynamic_schema, "__pydantic_core_schema__"):
-                    cls.__pydantic_core_schema__ = dynamic_schema.__pydantic_core_schema__
-                    cls.__pydantic_validator__ = dynamic_schema.__pydantic_validator__
-                    cls.__pydantic_serializer__ = dynamic_schema.__pydantic_serializer__
-                    cls.model_fields.update(dynamic_schema.model_fields)
+                # Merge model_fields from the dynamic schema for fields not overridden
+                for field_name, field_info in dynamic_schema.model_fields.items():
+                    if field_name not in cls.model_fields:
+                        cls.model_fields[field_name] = field_info
 
-                # Force pydantic to rebuild the model to ensure all injected fields are accounted for
+                # Force Pydantic to rebuild the model schema using the public API.
+                # This regenerates __pydantic_core_schema__, __pydantic_validator__,
+                # and __pydantic_serializer__ from the updated annotations and fields.
+                # NOTE: We intentionally avoid patching Pydantic internals directly
+                # (e.g., __pydantic_core_schema__) because model_rebuild() overwrites
+                # them anyway, and direct patching is fragile across Pydantic versions.
                 if hasattr(cls, "model_rebuild"):
                     cls.model_rebuild(force=True)
                     
             except Exception as e:
                 import logging
-                logging.getLogger(__name__).error(f"Failed to generate dynamic schema for {cls.__name__}: {e}")
-                # We don't raise here to allow the class to load, but it might fail at runtime
+                logger = logging.getLogger(__name__)
+                logger.error(
+                    f"Failed to generate dynamic schema for {cls.__name__} "
+                    f"from model {getattr(meta, 'model', '?')}: {e}. "
+                    f"Schema validation may fail at runtime."
+                )
 
     @classmethod
     def as_form(cls, data: Optional[Dict[str, Any]] = None) -> BaseForm:

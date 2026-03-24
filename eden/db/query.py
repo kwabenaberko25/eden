@@ -470,8 +470,8 @@ class QuerySet(Generic[T]):
         concatenated = func.concat_ws(" ", *cols)
         search_vector = func.to_tsvector(language, concatenated)
 
-        # Use plainto_tsquery for simple string input
-        search_query = func.plainto_tsquery(language, query)
+        # Use websearch_to_tsquery for advanced search-engine syntax support
+        search_query = func.websearch_to_tsquery(language, query)
 
         # Apply filter and ranking
         clone._stmt = clone._stmt.where(search_vector.op("@@")(search_query))
@@ -912,6 +912,16 @@ class QuerySet(Generic[T]):
             )
         return results[0] if results else None
 
+    async def create(self, **kwargs: Any) -> T:
+        """
+        Create a new instance of the model and save it to the database.
+        
+        This method ensures all lifecycle hooks, validation, and signals 
+        are correctly triggered by utilizing the instance's .save() method.
+        """
+        # We proxy to the classmethod create but bound to this QuerySet's session
+        return await self._model_cls.create(session=self._session, **kwargs)
+
     async def get_or_create(self, defaults: dict | None = None, **filters) -> tuple[T, bool]:
         """
         Fetch or create a record.
@@ -924,21 +934,22 @@ class QuerySet(Generic[T]):
             if existing:
                 return (existing, False)
             
-            # Create new instance
+            # Create new instance and save it to trigger hooks/signals
             create_data = {**filters}
             if defaults:
                 create_data.update(defaults)
             
             instance = self._model_cls(**create_data)
-            session.add(instance)
-            await session.flush()
-            await session.refresh(instance)
+            await instance.save(session=session)
             return (instance, True)
 
     async def bulk_create(self, objects: list[T], batch_size: int = 100) -> int:
         """
         Create multiple instances in batches.
         Returns the count of created objects.
+        
+        This method ensures all lifecycle hooks, validation, and signals 
+        are correctly triggered by utilizing the instance's .save() method.
         """
         db = self._model_cls._get_db()
         async with db.transaction(session=self._session) as session:
@@ -946,9 +957,14 @@ class QuerySet(Generic[T]):
             for i in range(0, len(objects), batch_size):
                 batch = objects[i : i + batch_size]
                 for obj in batch:
-                    session.add(obj)
+                    # We call .save() but without committing manually, 
+                    # as the outer transaction handles it.
+                    await obj.save(session=session, commit=False)
                     count += 1
+                
+                # Flush after each batch is technically done by .save(), 
+                # but we can add an extra flush here for safety if needed.
+                # Actually, .save() already flushes, so this is just for clarity.
                 await session.flush()
             
-            # Note: No explicit commit() here! db.transaction() handles it.
             return count

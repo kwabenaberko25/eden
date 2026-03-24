@@ -128,7 +128,7 @@ class Database:
 
     @contextlib.asynccontextmanager
     async def transaction(
-        self, isolation_level: str | None = None, session: AsyncSession | None = None
+        self, isolation_level: str | None = None, session: AsyncSession | None = None, commit: bool = True
     ) -> AsyncIterator[AsyncSession]:
         """
         Context manager for database transactions.
@@ -154,7 +154,7 @@ class Database:
                 yield target_session
                 # Ensure changes are flushed before exiting to capture errors early
                 await target_session.flush()
-                if is_owner:
+                if is_owner and commit:
                     await target_session.commit()
             except Exception:
                 if is_owner:
@@ -181,7 +181,8 @@ class Database:
             try:
                 async with new_session:
                     yield new_session
-                    await new_session.commit()
+                    if commit:
+                        await new_session.commit()
             except Exception:
                 await new_session.rollback()
                 raise
@@ -192,9 +193,14 @@ class Database:
             # We also need to set this session in context so nested calls can find it
             token = set_session(session)
             try:
-                # Start transaction explicitly so outer call owns it
-                async with session.begin():
+                await session.begin()
+                try:
                     yield session
+                    if commit:
+                        await session.commit()
+                except Exception:
+                    await session.rollback()
+                    raise
             except Exception:
                 # SQLAlchemy's async with session.begin() handles rollback
                 raise

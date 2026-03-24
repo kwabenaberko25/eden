@@ -129,22 +129,35 @@ async def create_user(
     email = result.value
     
     # Find user model
+    from eden.db import get_models
+    from eden.auth.models import User as DefaultUser
+    
     models = get_models()
+    
+    # 1. Find the first model that extends BaseUser (excluding framework default)
     user_model = next(
-        (m for m in models if issubclass(m, BaseUser)),
+        (m for m in models if issubclass(m, BaseUser) and m.__name__ != "User"),
         None
     )
+    
+    # 2. Fall back to framework's default User model
     if not user_model:
-        raise ValueError("No User model found. Define a model inheriting from BaseUser.")
+        user_model = DefaultUser
+        
+    if not user_model:
+        raise ValueError(
+            "No User model found. Ensure your User model inherits from "
+            "eden.auth.BaseUser and is registered."
+        )
     
     # Check email uniqueness
-    existing = await user_model.filter(email=email).first()
+    existing = await user_model.filter(email=email.lower()).first()
     if existing:
         raise ValueError(f"Email {email} already in use")
     
-    # Create user
-    user = await user_model.objects.create(
-        email=email,
+    # Create user via CrudMixin API
+    user = await user_model.create(
+        email=email.lower(),
         password_hash=hash_password(password),
         **kwargs
     )

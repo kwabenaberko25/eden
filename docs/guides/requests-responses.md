@@ -13,6 +13,9 @@ The `eden.Request` object provides helpers for common data extraction patterns.
 ### Body & Form Parsing
 
 ```python
+from eden import Eden
+app = Eden()
+
 @app.post("/submit")
 async def handle_submit(request):
     # 1. Parse JSON body
@@ -47,7 +50,8 @@ Eden provides several response classes and functional shortcuts to return data e
 Unlike standard frameworks, Eden's `JsonResponse` automatically handles **Pydantic models**.
 
 ```python
-from eden import JsonResponse
+from eden import Eden, JsonResponse
+app = Eden()
 
 @app.get("/api/user")
 async def get_user(request):
@@ -61,10 +65,12 @@ async def get_user(request):
 For cleaner code, use the functional shortcuts provided by the framework:
 
 ```python
-from eden import json, html, redirect
+from eden import Eden, json, html, redirect
+app = Eden()
 
 @app.get("/shortcuts")
 async def examples():
+    some_condition = True
     # Return JSON
     if some_condition:
         return json({"status": "ok"}, status_code=201)
@@ -84,7 +90,8 @@ Redirecting users safely is a common requirement in SaaS. Eden provides a specia
 A regular redirect can be exploited by attackers to send users to malicious external domains. `SafeRedirectResponse` restricts redirects to local paths unless external hosts are explicitly allowed.
 
 ```python
-from eden import redirect
+from eden import Eden, redirect
+app = Eden()
 
 @app.get("/login")
 async def login(request):
@@ -103,7 +110,8 @@ async def login(request):
 Stream files directly to the user with the `FileResponse`.
 
 ```python
-from eden import FileResponse
+from eden import Eden, FileResponse
+app = Eden()
 
 @app.get("/download/{id}")
 async def download_report(id: str):
@@ -122,6 +130,9 @@ async def download_report(id: str):
 Flash messages are stored in the session and displayed to the user on the next request (e.g., after a redirect).
 
 ```python
+from eden import Eden, redirect
+app = Eden()
+
 @app.post("/profile")
 async def update_profile(request):
     # logic ...

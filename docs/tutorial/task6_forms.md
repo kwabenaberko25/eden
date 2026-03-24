@@ -50,8 +50,17 @@ Eden provides an elegant `@app.validate` decorator. It automatically parses the 
 
 ```python
 from eden.routing import Router
-from app.schemas.user import UserCreateSchema
-from app.models.user import User
+from eden.forms import Schema, field, EmailStr
+from eden.db import Model
+
+class UserCreateSchema(Schema):
+    name: str = field(min_length=2)
+    email: EmailStr = field()
+
+class User(Model):
+    @classmethod
+    async def create_from(cls, data):
+        pass
 
 user_router = Router()
 
@@ -154,6 +163,11 @@ If your form directly maps to a database model, you can skip the manual schema d
 
 ```python
 from eden.forms import ModelForm
+from eden.db import Model
+from eden.routing import Router
+
+class User(Model):
+    pass
 
 class UserForm(ModelForm):
     class Meta:
@@ -162,12 +176,14 @@ class UserForm(ModelForm):
         # Override field metadata if needed
         help_texts = {"email": "We will never share your email."}
 
+app = Router()
+
 # In your route:
 @app.post("/users/quick-add")
 @app.validate(UserForm)
 async def quick_add(request, form: UserForm):
     await form.save()  # Automatically creates/updates the User model
-    return redirect("/users")
+    return request.app.redirect("/users")
 ```
 
 ---
@@ -180,6 +196,7 @@ For validation logic that spans multiple fields, use Pydantic's `@field_validato
 
 ```python
 from pydantic import field_validator
+from eden.forms import Schema, field
 
 class PasswordResetSchema(Schema):
     new_password: str = field(
@@ -196,6 +213,7 @@ class PasswordResetSchema(Schema):
     )
     
     @field_validator('confirm_password')
+    @classmethod
     def passwords_match(cls, v, info):
         """Ensure password confirmation matches."""
         if 'new_password' in info.data and v != info.data['new_password']:
@@ -210,6 +228,8 @@ class PasswordResetSchema(Schema):
 Create forms that change based on user input:
 
 ```python
+from eden.forms import Schema, field
+
 class PaymentSchema(Schema):
     payment_method: str = field(
         label="Payment Method",
@@ -257,7 +277,14 @@ document.getElementById('payment-method').addEventListener('change', (e) => {
 Handle file uploads securely with validation:
 
 ```python
-from eden.forms import Schema, FileField
+from eden.forms import Schema, FileField, field
+from eden.db import Model
+from eden.routing import Router
+
+class Document(Model):
+    pass
+
+document_router = Router()
 
 class DocumentUploadSchema(Schema):
     title: str = field(label="Document Title", max_length=100)
@@ -268,24 +295,20 @@ class DocumentUploadSchema(Schema):
     )
     is_public: bool = field(default=False, label="Make public")
 
-# In your route:
 @document_router.post("/upload")
 @document_router.validate(DocumentUploadSchema, template="upload.html")
 async def handle_upload(request, data: DocumentUploadSchema):
     """Upload and store a document."""
     file = data.document
     
-    # Save to storage
+    # Save to storage (mocked)
     file_path = f"uploads/{file.filename}"
-    with open(file_path, "wb") as f:
-        f.write(await file.read())
     
     # Create database record
     doc = await Document.create(
         title=data.title,
         file_path=file_path,
-        is_public=data.is_public,
-        user_id=request.user.id
+        is_public=data.is_public
     )
     
     return {"message": "Document uploaded successfully", "doc_id": doc.id}
@@ -298,6 +321,15 @@ async def handle_upload(request, data: DocumentUploadSchema):
 Build complex forms that span multiple pages:
 
 ```python
+from eden.forms import Schema, field
+from eden.routing import Router
+from eden.db import Model
+
+class User(Model):
+    pass
+
+onboarding_router = Router()
+
 # Step 1: Basic Info
 class OnboardingStep1(Schema):
     first_name: str = field(label="First Name")
@@ -318,7 +350,7 @@ async def step1_form(request):
 @onboarding_router.validate(OnboardingStep1, template="onboarding/step1.html")
 async def step1_submit(request, data: OnboardingStep1):
     # Store in session temporarily
-    request.session['onboarding_step1'] = data.dict()
+    request.session['onboarding_step1'] = data.model_dump()
     return request.app.redirect("/onboarding/step2")
 
 @onboarding_router.get("/step2")
@@ -332,7 +364,7 @@ async def step2_form(request):
 async def step2_submit(request, data: OnboardingStep2):
     # Combine with step 1 data
     step1_data = request.session.get('onboarding_step1', {})
-    combined = {**step1_data, **data.dict()}
+    combined = {**step1_data, **data.model_dump()}
     
     # Create user with all data
     await User.create(**combined)

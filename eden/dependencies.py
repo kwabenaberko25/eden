@@ -365,6 +365,18 @@ class DependencyResolver:
                 kwargs[name] = request
                 continue
 
+            # Inject current user from context
+            if name == "user":
+                from eden.context import context_manager
+                kwargs[name] = context_manager.get_user()
+                continue
+            
+            # Inject current tenant_id from context
+            if name == "tenant_id":
+                from eden.context import context_manager
+                kwargs[name] = context_manager.get_tenant_id()
+                continue
+
             # Inject application state
             if name == "state":
                 kwargs[name] = getattr(app, "state", None) if app else None
@@ -425,6 +437,11 @@ class DependencyResolver:
         Resolve a single dependency, with caching, sub-dependency support, and circular detection.
         """
         callable_fn = dep.dependency
+
+        # Check Overrides (e.g., from app.dependency_overrides in tests)
+        if app and hasattr(app, "dependency_overrides"):
+            if callable_fn in app.dependency_overrides:
+                callable_fn = app.dependency_overrides[callable_fn]
 
         # Handle Lazy Loading
         if dep.lazy and not force_eager:

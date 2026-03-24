@@ -1,49 +1,161 @@
-============================= test session starts =============================
-platform win32 -- Python 3.14.3, pytest-9.0.2, pluggy-1.6.0 -- C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\python.exe
-cachedir: .pytest_cache
-rootdir: C:\PROJECTS\eden-framework
-configfile: pyproject.toml
-plugins: anyio-4.12.1, asyncio-1.3.0
-asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
-collecting ... collected 7 items
+SCANNING RULES FOR FileReference
+  SCANNING BASE FileReference
+  SCANNING BASE Model
+  SCANNING BASE Base
+  SCANNING BASE DeclarativeBase
+  SCANNING BASE Inspectable
+  SCANNING BASE Generic
+  SCANNING BASE AccessControl
+  SCANNING BASE ValidatorMixin
+  SCANNING BASE LifecycleMixin
+  SCANNING BASE SerializationMixin
+  SCANNING BASE CrudMixin
+SCANNING RULES FOR AuditLog
+  SCANNING BASE AuditLog
+DISCOVERED INFO FOR user_id: {'max': 255}
+DISCOVERED INFO FOR action: {'max': 50, 'required': True}
+DISCOVERED INFO FOR model_name: {'max': 255, 'required': True}
+DISCOVERED INFO FOR record_id: {'max': 255, 'required': True}
+  SCANNING BASE Model
+  SCANNING BASE Base
+  SCANNING BASE DeclarativeBase
+  SCANNING BASE Inspectable
+  SCANNING BASE Generic
+  SCANNING BASE AccessControl
+  SCANNING BASE ValidatorMixin
+  SCANNING BASE LifecycleMixin
+  SCANNING BASE SerializationMixin
+  SCANNING BASE CrudMixin
+SCANNING RULES FOR Customer
+  SCANNING BASE Customer
+  SCANNING BASE Model
+  SCANNING BASE Base
+  SCANNING BASE DeclarativeBase
+  SCANNING BASE Inspectable
+  SCANNING BASE Generic
+  SCANNING BASE AccessControl
+  SCANNING BASE ValidatorMixin
+  SCANNING BASE LifecycleMixin
+  SCANNING BASE SerializationMixin
+  SCANNING BASE CrudMixin
+SCANNING RULES FOR Subscription
+  SCANNING BASE Subscription
+  SCANNING BASE Model
+  SCANNING BASE Base
+  SCANNING BASE DeclarativeBase
+  SCANNING BASE Inspectable
+  SCANNING BASE Generic
+  SCANNING BASE AccessControl
+  SCANNING BASE ValidatorMixin
+  SCANNING BASE LifecycleMixin
+  SCANNING BASE SerializationMixin
+  SCANNING BASE CrudMixin
+SCANNING RULES FOR PaymentEvent
+  SCANNING BASE PaymentEvent
+  SCANNING BASE Model
+  SCANNING BASE Base
+  SCANNING BASE DeclarativeBase
+  SCANNING BASE Inspectable
+  SCANNING BASE Generic
+  SCANNING BASE AccessControl
+  SCANNING BASE ValidatorMixin
+  SCANNING BASE LifecycleMixin
+  SCANNING BASE SerializationMixin
+  SCANNING BASE CrudMixin
+SCANNING RULES FOR User
+  SCANNING BASE User
+  SCANNING BASE Model
+  SCANNING BASE Base
+  SCANNING BASE DeclarativeBase
+  SCANNING BASE Inspectable
+  SCANNING BASE Generic
+  SCANNING BASE AccessControl
+  SCANNING BASE ValidatorMixin
+  SCANNING BASE LifecycleMixin
+  SCANNING BASE SerializationMixin
+  SCANNING BASE CrudMixin
+  SCANNING BASE BaseUser
+  SCANNING BASE BaseUser
+  SCANNING BASE CustomerMixin
+RESOLVING User for SocialAccount
+SCANNING RULES FOR SocialAccount
+  SCANNING BASE SocialAccount
+DISCOVERED INFO FOR user_id: {'on_delete': 'CASCADE', 'required': True, 'index': True, 'fk_type': None, 'back_populates': 'social_accounts', 'lazy': 'selectin', 'secondary': _RelationshipArg(name='secondary', argument=None, resolved=None)}
+  SCANNING BASE Model
+  SCANNING BASE Base
+  SCANNING BASE DeclarativeBase
+  SCANNING BASE Inspectable
+  SCANNING BASE Generic
+  SCANNING BASE AccessControl
+  SCANNING BASE ValidatorMixin
+  SCANNING BASE LifecycleMixin
+  SCANNING BASE SerializationMixin
+  SCANNING BASE CrudMixin
+SCANNING RULES FOR PasswordResetToken
+  SCANNING BASE PasswordResetToken
+DISCOVERED INFO FOR token: {'max': 255, 'required': True}
+  SCANNING BASE Model
+  SCANNING BASE Base
+  SCANNING BASE DeclarativeBase
+  SCANNING BASE Inspectable
+  SCANNING BASE Generic
+  SCANNING BASE AccessControl
+  SCANNING BASE ValidatorMixin
+  SCANNING BASE LifecycleMixin
+  SCANNING BASE SerializationMixin
+  SCANNING BASE CrudMixin
+SCANNING RULES FOR APIKey
+  SCANNING BASE APIKey
+  SCANNING BASE Model
+  SCANNING BASE Base
+  SCANNING BASE DeclarativeBase
+  SCANNING BASE Inspectable
+  SCANNING BASE Generic
+  SCANNING BASE AccessControl
+  SCANNING BASE ValidatorMixin
+  SCANNING BASE LifecycleMixin
+  SCANNING BASE SerializationMixin
+  SCANNING BASE CrudMixin
+SCANNING RULES FOR Tenant
+  SCANNING BASE Tenant
+  SCANNING BASE Model
+  SCANNING BASE Base
+  SCANNING BASE DeclarativeBase
+  SCANNING BASE Inspectable
+  SCANNING BASE Generic
+  SCANNING BASE AccessControl
+  SCANNING BASE ValidatorMixin
+  SCANNING BASE LifecycleMixin
+  SCANNING BASE SerializationMixin
+  SCANNING BASE CrudMixin
 
-tests/test_orm_enhanced.py::test_orm_json_field PASSED                   [ 14%]
-tests/test_orm_enhanced.py::test_queryset_aggregate_django_style PASSED  [ 28%]
-tests/test_orm_enhanced.py::test_queryset_annotate_complex PASSED        [ 42%]
-tests/test_orm_enhanced.py::test_orm_complex_lookups PASSED              [ 57%]
-tests/test_orm_enhanced.py::test_queryset_update_returning PASSED        [ 71%]
-tests/test_orm_enhanced.py::test_queryset_delete PASSED                  [ 85%]
-tests/test_orm_enhanced.py::test_orm_f_relationship_oneliner FAILED      [100%]
+--- Testing Versioning Integration ---
+SUCCESS: VersionedRouter mounted into Eden app
+SUCCESS: 2 API versions registered
+SUCCESS: VersionedMiddleware correctly injected into stack
 
-================================== FAILURES ===================================
-______________________ test_orm_f_relationship_oneliner _______________________
+--- Testing TenantMiddleware (Leak Fix & RLS) ---
+   DB Execute: SELECT set_config('app.current_tenant_id', :tid, true)
+   Dispatching request... Tenant in state: <Tenant(name='None', slug='acme')>
+SUCCESS: Database session correctly entered and EXITED (Leak fixed)
 
-    @pytest.mark.asyncio
-    async def test_orm_f_relationship_oneliner():
-        # Test that EnhancedChild model has parent_id automatically created
-        parent = await EnhancedParent.create(name="EnhancedParent 1")
-        child = await EnhancedChild.create(name="EnhancedChild 1", parent_id=parent.id)
-    
-        # Reload and check relationship
-        fetched_child = await EnhancedChild.query().prefetch("parent").filter(id=child.id).first()
-        assert fetched_child.parent.name == "EnhancedParent 1"
-        assert fetched_child.parent_id == parent.id
-    
-        # Check parent's children
-        fetched_parent = await EnhancedParent.query().prefetch("children").filter(id=parent.id).first()
->       assert len(fetched_parent.children) == 1
-E       assert 0 == 1
-E        +  where 0 = len([])
-E        +    where [] = <tests.test_orm_enhanced.EnhancedParent object at 0x000002171A048980>.children
+--- Testing Nested Form Validation ---
+Is Valid (Expected False): False
+Errors: {'address.city': 'String should have at least 3 characters', 'address': 'Error in address.city: String should have at least 3 characters'}
+SUCCESS: Nested error location 'address.city' correctly identified
+SUCCESS: Root field 'address' also has error summary: Error in address.city: String should have at least 3 characters
 
-tests\test_orm_enhanced.py:133: AssertionError
----------------------------- Captured stdout setup ----------------------------
-DEBUG: setup_db called
-DEBUG: Tables in metadata: ['file_references', 'eden_audit_logs', 'eden_customers', 'eden_subscriptions', 'eden_payment_events', 'eden_users', 'eden_social_accounts', 'password_reset_tokens', 'eden_api_keys', 'eden_tenants', 'enhanced_users', 'enhanced_parents', 'enhanced_childs']
--------------------------- Captured stdout teardown ---------------------------
-DEBUG: setup_db yielded
-=========================== short test summary info ===========================
-FAILED tests/test_orm_enhanced.py::test_orm_f_relationship_oneliner - assert 0 == 1
- +  where 0 = len([])
- +    where [] = <tests.test_orm_enhanced.EnhancedParent object at 0x000002171A048980>.children
-========================= 1 failed, 6 passed in 1.78s =========================
+--- Testing Search ranked SQL Generation ---
+SCANNING RULES FOR Article
+  SCANNING BASE Article
+  SCANNING BASE Model
+  SCANNING BASE Base
+  SCANNING BASE DeclarativeBase
+  SCANNING BASE Inspectable
+  SCANNING BASE Generic
+  SCANNING BASE AccessControl
+  SCANNING BASE ValidatorMixin
+  SCANNING BASE LifecycleMixin
+  SCANNING BASE SerializationMixin
+  SCANNING BASE CrudMixin
+SUCCESS: search_ranked uses websearch_to_tsquery

@@ -59,7 +59,10 @@ Eden provides a suite of decorators designed for readability and reliability. Th
 ### 1. Simple Role Guards
 
 ```python
+from eden import Eden
 from eden.auth import require_role, roles_required
+
+app = Eden()
 
 @app.get("/admin/logs")
 @require_role("admin")
@@ -70,7 +73,7 @@ async def view_logs(request):
 @app.get("/billing")
 @roles_required(["admin", "billing_manager"])
 async def billing_view(request):
-    ...
+    return {"billing": "..."}
 ```
 
 ### 2. Fine-Grained Permission Guards
@@ -78,12 +81,15 @@ async def billing_view(request):
 Avoid hardcoding roles in your logic. Instead, check for specific *permissions*. This makes your code more resilient to role structure changes.
 
 ```python
-from eden.auth import require_permission, permissions_required
+from eden import Eden
+from eden.auth import require_permission
+
+app = Eden()
 
 @app.post("/posts/delete/{id}")
 @require_permission("delete_posts")
 async def delete_post(request, id: int):
-    ...
+    return {"status": "deleted"}
 ```
 
 ### 3. Class-Based View (CBV) Protection
@@ -92,15 +98,16 @@ Secure an entire resource by applying decorators to the class.
 
 ```python
 from eden.auth import view_decorator, roles_required
+from eden.routing import View
 
 @view_decorator(roles_required(["admin"]))
 class AdminPanel(View):
     async def get(self, request):
-        return app.render("admin.html")
+        return {"admin": "panel"}
         
     async def post(self, request):
         # Also protected automatically
-        ...
+        return {"saved": True}
 ```
 
 ---
@@ -110,8 +117,17 @@ class AdminPanel(View):
 In SaaS, a user is rarely "just an Admin." They are an "Admin of Organization A" but perhaps only a "Member of Organization B." Eden's guards automatically call `request.user.get_roles_for_tenant(tenant_id)` to resolve roles in context.
 
 ```python
+from eden.db import Model, f, Mapped
+
+class Membership:
+    @classmethod
+    async def get_by(cls, **kwargs):
+        # Mocking membership retrieval
+        return type("Membership", (), {"role": "admin"})
+
 # In your User model
 class User(Model):
+    __tablename__ = "users_custom"
     async def get_roles_for_tenant(self, tenant_id: str) -> list[str]:
         # Fetch role from memberships table
         membership = await Membership.get_by(user_id=self.id, tenant_id=tenant_id)

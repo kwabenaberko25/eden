@@ -11,8 +11,12 @@ Eden's `Router` allows you to group related handlers into a single module, keepi
 **File**: `app/routes/user.py`
 
 ```python
-from eden import Router
-from app.models import User
+from eden import Router, Model, f
+from sqlalchemy.orm import Mapped
+
+# Define a minimal Model for the snippet
+class User(Model):
+    name: Mapped[str] = f(max_length=255)
 
 # Initialize the router with a namespace name
 user_router = Router(name="users")
@@ -21,7 +25,6 @@ user_router = Router(name="users")
 async def list_users():
     """Return a JSON list of all users."""
     users = await User.all()
-    # Eden automatically handles list/dict to JSON conversion
     return [user.to_dict() for user in users]
 ```
 
@@ -30,7 +33,9 @@ To make these routes active, we must include them in the **Main Router**:
 
 **File**: `app/routes/__init__.py`
 ```python
-from .user import user_router
+from eden import Router
+user_router = Router(name="users")
+main_router = Router()
 
 main_router.include_router(user_router, prefix="/users")
 ```
@@ -48,7 +53,13 @@ In your HTML templates, you can link to this route natively using:
 Eden supports flexible path parameters with automatic type conversion.
 
 ```python
-from eden import Response, status
+from eden import Response, Router, Model, f
+from eden import status
+from sqlalchemy.orm import Mapped
+
+user_router = Router()
+class User(Model):
+    pass
 
 @user_router.get("/{user_id}")
 async def get_details(user_id: int):
@@ -76,15 +87,17 @@ async def get_details(user_id: int):
 When building APIs, you'll need to handle incoming JSON payloads or form data.
 
 ```python
-from eden import Request
+from eden import Request, Response, Router, Model
+from eden import status
+
+user_router = Router()
+class User(Model):
+    pass
 
 @user_router.post("/")
 async def create_new(request: Request):
     """Create a new user from JSON data."""
-    # Efficiently parse incoming JSON
     data = await request.json()
-    
-    # Delegate to ORM
     new_user = await User.create(**data)
     
     return Response(
@@ -103,6 +116,13 @@ async def create_new(request: Request):
 Complete your CRUD implementation with update and delete handlers:
 
 ```python
+from eden import Request, Response, Router, Model
+from eden import status
+
+user_router = Router()
+class User(Model):
+    pass
+
 @user_router.put("/{user_id}")
 async def update_user(request: Request, user_id: int):
     """Update an existing user with new data."""
@@ -115,13 +135,8 @@ async def update_user(request: Request, user_id: int):
             status_code=status.HTTP_404_NOT_FOUND
         )
     
-    # Update only provided fields
     await user.update(**data)
-    
-    return {
-        "message": "User updated successfully",
-        "user": user.to_dict()
-    }
+    return {"message": "User updated", "user": user.to_dict()}
 
 @user_router.delete("/{user_id}")
 async def delete_user(user_id: int):
@@ -134,10 +149,7 @@ async def delete_user(user_id: int):
         )
     
     await user.delete()
-    return Response(
-        {"message": "User deleted"}, 
-        status_code=status.HTTP_204_NO_CONTENT
-    )
+    return Response({"message": "User deleted"}, status_code=status.HTTP_204_NO_CONTENT)
 ```
 
 ---
@@ -148,29 +160,28 @@ Use Pydantic schemas to automatically validate incoming data:
 
 ```python
 from pydantic import BaseModel, EmailStr
+from eden import Request, Response, Router, Model, status
+
+user_router = Router()
+class User(Model):
+    pass
 
 class UserCreateRequest(BaseModel):
-    name: str  # Required
-    email: EmailStr  # Validated email format
-    age: int | None = None  # Optional
+    name: str
+    email: EmailStr
+    age: int | None = None
 
 @user_router.post("/")
 async def create_user_validated(request: Request):
     """Create a user with automatic validation."""
     try:
         data = await request.json()
-        validated = UserCreateRequest(**data)  # Pydantic validates here
-    except ValueError as e:
-        return Response(
-            {"error": f"Invalid input: {str(e)}"}, 
-            status_code=status.HTTP_400_BAD_REQUEST
-        )
+        validated = UserCreateRequest(**data)
+    except Exception as e:
+        return Response({"error": str(e)}, status_code=400)
     
-    new_user = await User.create(**validated.dict())
-    return Response(
-        new_user.to_dict(),
-        status_code=status.HTTP_201_CREATED
-    )
+    new_user = await User.create(**validated.model_dump())
+    return Response(new_user.to_dict(), status_code=201)
 ```
 
 > [!TIP]
@@ -183,16 +194,15 @@ async def create_user_validated(request: Request):
 For larger applications, organize routes into logical modules:
 
 ```python
-# app/routes/__init__.py
 from eden import Router
-from .user import user_router
-from .post import post_router
-from .admin import admin_router
+user_router = Router(name="users")
+post_router = Router(name="posts")
+admin_router = Router(name="admin")
 
 main_router = Router()
-main_router.include_router(user_router, prefix="/users", name="users")
-main_router.include_router(post_router, prefix="/posts", name="posts")
-main_router.include_router(admin_router, prefix="/admin", name="admin")
+main_router.include_router(user_router, prefix="/users")
+main_router.include_router(post_router, prefix="/posts")
+main_router.include_router(admin_router, prefix="/admin")
 ```
 
 Now your routes are:

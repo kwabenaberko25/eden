@@ -123,7 +123,7 @@ class APIVersion:
         }
         
         if self.sunset_date:
-            headers[b"sunset"] = self.sunset_date.encode()
+            headers[b"sunset"] = str(self.sunset_date).encode()
         
         return headers
 
@@ -173,6 +173,41 @@ class VersionedRouter:
         if route_key in self.routes:
             return self.routes[route_key].get(version)
         return None
+
+    def mount(self, app: Any, prefix: str = ""):
+        """
+        Mount this versioned router into an Eden app.
+        Registers shim handlers that dispatch to the correct version at runtime.
+        """
+        from eden.responses import JsonResponse
+        
+        # Group routes by path and method
+        for route_key, version_map in self.routes.items():
+            method, path = route_key.split(":", 1)
+            full_path = f"{prefix.rstrip('/')}/{path.lstrip('/')}"
+            
+            # Create a localized shim for this specific route
+            # We capture version_map in the closure
+            async def shim(request: Any, v_map=version_map, m=method, p=full_path):
+                version = get_api_version(request.scope)
+                
+                handler = v_map.get(version)
+                if not handler:
+                    # Fallback to default version if specified in app
+                    default_version = getattr(app, "_default_api_version", "v1")
+                    handler = v_map.get(default_version)
+                
+                if not handler:
+                    return JsonResponse(
+                        {"error": f"Endpoint not available for API version {version}"}, 
+                        status_code=404
+                    )
+                
+                return await handler(request)
+
+            # Register the shim on the main app router
+            register_method = getattr(app, method.lower())
+            register_method(full_path)(shim)
 
 
 class VersionNegotiator:

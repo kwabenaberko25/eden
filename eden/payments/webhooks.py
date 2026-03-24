@@ -49,13 +49,17 @@ class WebhookRouter:
 
         return decorator
 
-    async def dispatch(self, event_type: str, event_data: dict) -> None:
-        """Dispatch an event to all registered handlers."""
+    async def dispatch(self, event_type: str, event_data: dict) -> bool:
+        """
+        Dispatch an event to all registered handlers.
+        Returns True if all handlers completed without unhandled exceptions.
+        """
         handlers = self._handlers.get(event_type, [])
         if not handlers:
             logger.info(f"No handler for event type: {event_type}")
-            return
+            return True
 
+        all_success = True
         for handler in handlers:
             try:
                 result = handler(event_data)
@@ -64,6 +68,9 @@ class WebhookRouter:
                     await result
             except Exception as e:
                 logger.error(f"Error in webhook handler for {event_type}: {e}")
+                all_success = False
+        
+        return all_success
 
     def build_route(self, path: str = "/webhooks/stripe"):
         """
@@ -124,11 +131,18 @@ class WebhookRouter:
 
                 # Dispatch to handlers
                 # Note: Handlers should ideally share the same transaction, or start their own savepoints
-                await router_ref.dispatch(event_type, event_data)
+                success = await router_ref.dispatch(event_type, event_data)
 
-                # Mark as processed
-                payment_event.processed = True
-                await tx_session.flush()
+                # Mark as processed only if all handlers succeeded
+                if success:
+                    payment_event.processed = True
+                    await tx_session.flush()
+                else:
+                    # Log failure but return 200/OK to prevent Stripe from bombarding us immediately
+                    # Standard practice is to mark as failure/retry-later if needed, but since we 
+                    # didn't set 'processed', the next attempt from Stripe will try again.
+                    # We return 500 to signal failure to Stripe so they retry.
+                    return JsonResponse({"status": "handler_failed"}, status_code=500)
 
             return JsonResponse({"status": "ok"})
 

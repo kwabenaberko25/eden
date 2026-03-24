@@ -53,11 +53,11 @@ class TemplateParser:
         i = 0
         while i < len(nodes):
             node = nodes[i]
-            if isinstance(node, DirectiveNode) and node.name in ("if", "unless", "for", "foreach"):
+            if isinstance(node, DirectiveNode) and node.name in ("if", "unless", "for", "foreach", "recursive"):
                 chain = node
                 curr = chain
                 # if/unless chain can have multiple elif/elseif/else_if and one else
-                # for/foreach chain can have one empty or else
+                # for/foreach/recursive chain can have one empty or else
                 valid_followers = ("else", "elif", "elseif", "else_if") if node.name in ("if", "unless") else ("empty", "else")
                 
                 while i + 1 < len(nodes):
@@ -71,7 +71,7 @@ class TemplateParser:
                                 curr = next_node
                                 i = next_idx + 1
                                 # For loops, we usually only have one else/empty, but let's allow it to continue
-                                if node.name in ("for", "foreach"):
+                                if node.name in ("for", "foreach", "recursive"):
                                     i = next_idx + 1
                                     break
                                 continue
@@ -79,7 +79,7 @@ class TemplateParser:
                         curr.orelse.append(maybe_ws)
                         curr = maybe_ws
                         i = next_idx
-                        if node.name in ("for", "foreach"):
+                        if node.name in ("for", "foreach", "recursive"):
                             break
                         continue
                     break
@@ -105,10 +105,11 @@ class TemplateParser:
                 "auth", "guest", "htmx", "non_htmx", "fragment", "push", "verbatim",
                 "section", "block", "slot", "component", "error", "messages",
                 "even", "odd", "first", "last", "can", "cannot", "role", "permission",
-                "form", "field", "button", "input", "php", "inject", "status", "reactive"
+                "form", "field", "button", "input", "php", "inject", "status", "reactive",
+                "recursive"
             )
             
-            standalone_directives = ("break", "continue")
+            standalone_directives = ("break", "continue", "child", "recurse")
             if directive_token.value in standalone_directives:
                 return DirectiveNode(
                     name=directive_token.value, 
@@ -126,19 +127,36 @@ class TemplateParser:
                 if self.peek().type == TokenType.BLOCK_OPEN:
                     self.advance() # consume {
                     body = []
+                    # Track nesting depth for proper brace matching
+                    depth = 1
                     # Safety guard: prevent infinite loops on malformed blocks
                     _last_pos = self.pos
-                    while self.peek().type != TokenType.BLOCK_CLOSE and self.peek().type != TokenType.EOF:
+                    while depth > 0 and self.peek().type != TokenType.EOF:
+                        # Check for nested opens/closes
+                        if self.peek().type == TokenType.BLOCK_OPEN:
+                            # This is an inner block — will be handled by recursive parse_node
+                            pass
+                        
+                        if self.peek().type == TokenType.BLOCK_CLOSE:
+                            depth -= 1
+                            if depth == 0:
+                                break
+                        
                         n = self.parse_node()
-                        if n: body.append(n)
+                        if n: 
+                            body.append(n)
                         
                         if self.pos == _last_pos: # Parser stalled
-                            self.advance()
+                            # Preserve the dropped token as text to avoid silent content loss
+                            stalled_token = self.advance()
+                            body.append(TextNode(content=stalled_token.value))
                         _last_pos = self.pos
                     
                     if self.peek().type == TokenType.EOF:
                         raise TemplateSyntaxError(
-                            f"Unclosed block for @{directive_token.value}",
+                            f"Unclosed block for @{directive_token.value}. "
+                            f"Expected '}}' but reached end of template. "
+                            f"Check for mismatched braces.",
                             line=directive_token.line,
                             column=directive_token.column
                         )

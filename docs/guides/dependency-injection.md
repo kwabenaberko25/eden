@@ -28,7 +28,15 @@ The `Depends()` marker tells Eden how to resolve a parameter.
 
 ### Simple Dependency
 ```python
+from eden import Eden
 from eden.dependencies import Depends
+from unittest.mock import AsyncMock, MagicMock
+
+app = Eden()
+async def get_session(): return AsyncMock()
+class User:
+    @staticmethod
+    async def query(session): return MagicMock(all=AsyncMock(return_value=[]))
 
 async def get_db_session():
     """Provider: Yields an active DB session with auto-cleanup."""
@@ -78,6 +86,11 @@ async def get_temp_file():
 Dependencies can themselves depend on other dependencies. Eden resolves the entire tree recursively and caches results per request.
 
 ```python
+from eden import Eden
+from eden.dependencies import Depends
+app = Eden()
+async def get_current_user(): return {"id": 1}
+
 @app.get("/me")
 async def show_me(user=Depends(get_current_user)):
     # get_current_user depends on get_db_session
@@ -92,7 +105,11 @@ async def show_me(user=Depends(get_current_user)):
 One of the most powerful features of Eden's DI is the ability to swap implementations during testing without modifying your business logic.
 
 ```python
-from eden.testing import TestClient
+from eden import Eden
+from eden.testing import EdenTestClient
+app = Eden()
+async def get_db_session(): pass
+class MockDatabase: pass
 
 # 1. Define your mock dependency
 async def use_mock_db():
@@ -102,7 +119,7 @@ async def use_mock_db():
 app.dependency_overrides[get_db_session] = use_mock_db
 
 # 3. All routes now use the Mock instead of the real DB!
-client = TestClient(app)
+client = EdenTestClient(app)
 ```
 
 ---

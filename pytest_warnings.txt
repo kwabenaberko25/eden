@@ -1,0 +1,17 @@
+============================= test session starts =============================
+platform win32 -- Python 3.14.3, pytest-9.0.2, pluggy-1.6.0
+rootdir: C:\PROJECTS\eden-framework
+configfile: pyproject.toml
+plugins: anyio-4.12.1, asyncio-1.3.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=session, asyncio_default_test_loop_scope=session
+collected 3 items
+
+tests\audit\test_tenancy_isolation.py ...                                [100%]
+
+============================== warnings summary ===============================
+tests/audit/test_tenancy_isolation.py: 24 warnings
+  C:\PROJECTS\eden-framework\eden\db\validation.py:194: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    if asyncio.iscoroutinefunction(self.clean):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 3 passed, 24 warnings in 0.31s ========================

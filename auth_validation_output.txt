@@ -1,0 +1,24 @@
+Validating: auth.md
+FAILED [L205] Snippet in docs/guides/auth.md:
+--- Error ---
+Traceback (most recent call last):
+  File "C:\Users\COBBY\AppData\Local\Temp\tmpdjg9721k.py", line 6, in <module>
+    app.add_middleware("csrf")      # Automatic CSRF protection for forms
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^
+  File "C:\PROJECTS\eden-framework\eden\app.py", line 580, in add_middleware
+    raise RuntimeError(
+    ...<5 lines>...
+    )
+RuntimeError: \u274c CRITICAL: CSRFMiddleware requires SessionMiddleware to be added first!
+
+Solution: Call add_middleware('session') before add_middleware('csrf')
+
+Why: CSRF tokens are stored in the session. Without SessionMiddleware,
+     CSRF protection silently fails (major security hole!).
+
+Recommended: Use app.setup_defaults() for automatic ordering.
+
+--------------
+Validating: auth-rbac.md
+Validating: auth-oauth.md
+FAILED

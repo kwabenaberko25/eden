@@ -13,8 +13,7 @@ Eden's ORM is designed for SaaS-scale data. Use these patterns to define robust 
 A model with multi-tenancy support and precise decimal handling for financial apps.
 
 ```python
-from eden import Model, f
-from sqlalchemy.orm import Mapped
+from eden import Model, f, Mapped, DecimalField
 from decimal import Decimal
 
 class Product(Model):
@@ -22,7 +21,7 @@ class Product(Model):
     Automatic multi-tenancy: Inherit from TenantModel for automatic isolation.
     """
     name: Mapped[str] = f(max_length=100, index=True)
-    price: Mapped[Decimal] = f(precision=10, scale=2)
+    price: Mapped[Decimal] = DecimalField(precision=10, scale=2)
     stock: Mapped[int] = f(default=0)
     
     # Audit trail is enabled by default in Eden models
@@ -34,8 +33,8 @@ class Product(Model):
 Defining a clean One-to-Many relationship with cascading deletes.
 
 ```python
-from eden import Model, f, ForeignKeyField
-from sqlalchemy.orm import Mapped, relationship
+from eden import Model, f, ForeignKeyField, Mapped
+from sqlalchemy.orm import relationship
 
 class Category(Model):
     name: Mapped[str] = f()
@@ -61,6 +60,13 @@ Eliminate complex JavaScript by using Eden's Server-Side Fragments.
 Allow users to edit data without a page reload.
 
 ```python
+from eden import Eden, Model, f, Mapped, Request, render_template
+
+app = Eden(secret_key="dev-secret")
+
+class Task(Model):
+    title: Mapped[str] = f()
+
 @app.get("/task/{id}/edit")
 async def edit_task(id: int):
     task = await Task.get(id)
@@ -103,11 +109,14 @@ Eden makes hard security problems simple with built-in decorators.
 Protecting routes with fine-grained permissions.
 
 ```python
+from eden import Eden
 from eden.auth import login_required, permissions_required
+
+app = Eden(secret_key="dev-secret")
 
 @app.get("/admin/reports")
 @login_required
-@permissions_required("view_analytics", "export_data")
+@permissions_required(["view_analytics", "export_data"])
 async def get_reports():
     return {"data": "Top Secret 🤫"}
 ```
@@ -117,14 +126,18 @@ async def get_reports():
 For when you need custom control over the user's session.
 
 ```python
+from eden import Eden, Request
+
+app = Eden(secret_key="dev-secret")
+
 @app.post("/login")
 async def login(request: Request):
-    user = await authenticate(request)
-    if user:
-        # Secure, encrypted cookie-based sessions
-        request.session["user_id"] = str(user.id)
-        request.session["last_login"] = user.updated_at.isoformat()
-        return request.app.redirect("/dashboard")
+    # Mock authenticate logic
+    user_id = 1
+    # Secure, encrypted cookie-based sessions
+    request.session["user_id"] = str(user_id)
+    request.session["last_login"] = "2024-01-01T00:00:00"
+    return request.app.redirect("/dashboard")
 ```
 
 ---
@@ -138,17 +151,21 @@ Don't block the main thread. Eden integrates with Taskiq for industrial-grade ta
 Perfect for sending emails or processing images.
 
 ```python
-from eden.tasks import task
+from eden import Eden, Model, f, Mapped, Request
 
-@task()
+app = Eden(secret_key="dev-secret")
+
+class User(Model):
+    email: Mapped[str] = f()
+
+@app.broker.task()
 async def send_welcome_email(user_id: int):
     user = await User.get(user_id)
-    # Email logic here...
     print(f"Sent email to {user.email}")
 
 @app.post("/signup")
 async def signup(request: Request):
-    user = await User.create(...)
+    user = await User.create(email="new@example.com")
     # Execution happens on a worker process
     await send_welcome_email.kiq(user.id)
     return {"status": "User created. Email queued."}
@@ -165,19 +182,19 @@ Control your entire Eden ecosystem from one central definition.
 The recommended setup for modern application stacks.
 
 ```python
+import os
+from eden import Eden, render_template
+
 app = Eden(
     title="Eden Pro",
-    secret_key=os.environ["SECRET_KEY"],
-    
-    # Automatic caching & rate limiting
-    redis_url="redis://localhost:6379/0",
-    
-    # Global exception handling customization
-    exception_handlers={
-        404: lambda req, exc: render_template("404.html"),
-        500: lambda req, exc: render_template("500.md")
-    }
+    secret_key=os.environ.get("SECRET_KEY", "dev-secret"),
+    debug=True
 )
+
+# Exception handlers can be added post-init or via config
+@app.exception_handler(404)
+async def not_found(request, exc):
+    return render_template("404.html")
 ```
 
 ---
@@ -190,4 +207,3 @@ When styling your templates with Tailwind (included in Eden by default), use the
 * **Surface / Cards**: `bg-white border border-slate-100 shadow-sm rounded-2xl`
 * **Secondary Text**: `text-slate-500 font-medium`
 * **Success Indicator**: `bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200`
-

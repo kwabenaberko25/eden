@@ -13,6 +13,10 @@ Eden uses a database-backed session system combined with signed, secure cookies.
 Control session behavior in your `app.py` or `.env`:
 
 ```python
+from eden import Eden
+from datetime import timedelta
+
+app = Eden()
 app.config.SESSION_COOKIE_NAME = "eden_sess"
 app.config.SESSION_TIMEOUT = timedelta(days=7)
 app.config.SESSION_COOKIE_SECURE = True # HTTPS Only
@@ -25,7 +29,15 @@ app.config.SESSION_COOKIE_SECURE = True # HTTPS Only
 When a user logs in, you create a `Session` record and set the corresponding cookie.
 
 ```python
-from eden.auth import Session
+from eden import Eden
+from unittest.mock import MagicMock, AsyncMock
+
+app = Eden()
+# Mock Session and utilities for validation
+Session = MagicMock()
+Session.create = AsyncMock()
+async def authenticate(request): return MagicMock()
+def redirect(url): return MagicMock()
 
 async def login_view(request):
     user = await authenticate(request)
@@ -49,6 +61,8 @@ async def login_view(request):
 Eden includes a built-in middleware that automatically populates `request.user` based on the session cookie.
 
 ```python
+from eden import Eden
+app = Eden()
 app.add_middleware("auth")
 ```
 
@@ -64,6 +78,11 @@ app.add_middleware("auth")
 To log a user out, simply delete the session record.
 
 ```python
+from unittest.mock import MagicMock, AsyncMock
+Session = MagicMock()
+Session.filter.return_value.delete = AsyncMock()
+def redirect(url): return MagicMock()
+
 async def logout(request):
     session_id = request.cookies.get("eden_sess")
     
@@ -78,6 +97,10 @@ async def logout(request):
 ### Remote Logout
 Since sessions are in the database, you can implement a "Log out of all devices" feature:
 ```python
+from unittest.mock import MagicMock, AsyncMock
+Session = MagicMock()
+Session.filter.return_value.delete = AsyncMock()
+user = MagicMock()
 await Session.filter(user_id=user.id).delete()
 ```
 

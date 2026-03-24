@@ -102,6 +102,10 @@ nav:
     - API Standards: guides/api.md
     - OpenAPI & Swagger: guides/openapi.md
     - Payment Integration: guides/payments.md
+  - 🍱 Elite Recipes:
+    - Real-time UI Updates: recipes/realtime-updates.md
+    - OAuth Social Auth: recipes/social-auth.md
+    - Multi-Tenant Isolation: recipes/tenant-isolation.md
   - Tutorial (Task-Based):
     - 1. Environment Setup: tutorial/task1_setup.md
     - 2. App Configuration: tutorial/task2_core.md

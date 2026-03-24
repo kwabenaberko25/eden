@@ -14,13 +14,24 @@ class Signal:
     """
     A decoupled signal system for Eden models.
     Supports both sync and async receivers.
+    
+    Storage format for _live_receivers:
+        Each entry is a tuple of:
+        (receiver_id: int, receiver_ref: Any, sender_ref: Any, dispatch_uid: str|None)
+        
+        - receiver_id: The id() of the original receiver for stable identity comparison
+        - receiver_ref: Either the raw callable (strong) or a weakref to it
+        - sender_ref: Either None (match all senders) or a weakref to the sender class
+        - dispatch_uid: Optional unique identifier for deduplication
     """
 
     def __init__(self, name: str):
         self.name = name
-        self._receivers: List[weakref.KeyedRef] = []
-        # Use a list of tuples: (receiver_ref, sender_id, dispatch_uid)
+        # Each entry: (receiver_id, receiver_ref, sender_ref, dispatch_uid)
         self._live_receivers: List[tuple] = []
+        # Strong reference set to prevent GC of receivers that can't be weakref'd
+        # or that are explicitly connected with weak=False
+        self._strong_refs: set = set()
 
     def connect(
         self,
@@ -38,24 +49,20 @@ class Signal:
             weak: Whether to use a weak reference to the receiver.
             dispatch_uid: A unique identifier for the receiver to prevent duplicates.
         """
+        r_id = id(receiver)
+        r_ref = self._make_ref(receiver, weak)
+        s_ref = self._make_sender_ref(sender)
+        
+        entry = (r_id, r_ref, s_ref, dispatch_uid)
+        
         if dispatch_uid:
-            # Check for existing receiver with same dispatch_uid
-            for i, (r, s, uid) in enumerate(self._live_receivers):
+            # Replace existing receiver with same dispatch_uid
+            for i, (_, _, _, uid) in enumerate(self._live_receivers):
                 if uid == dispatch_uid:
-                    self._live_receivers[i] = (
-                        self._make_id(receiver, weak),
-                        self._make_id(sender, True) if sender else None,
-                        dispatch_uid,
-                    )
+                    self._live_receivers[i] = entry
                     return
 
-        self._live_receivers.append(
-            (
-                self._make_id(receiver, weak),
-                self._make_id(sender, True) if sender else None,
-                dispatch_uid,
-            )
-        )
+        self._live_receivers.append(entry)
 
     def disconnect(
         self,
@@ -63,43 +70,54 @@ class Signal:
         sender: Optional[Type[Any]] = None,
         dispatch_uid: Optional[str] = None,
     ) -> bool:
-        """Disconnect a receiver from this signal."""
+        """
+        Disconnect a receiver from this signal.
+        
+        Matches by dispatch_uid first (if provided), then by receiver identity
+        (using id() for stable comparison even with weakrefs).
+        """
         disconnected = False
         to_remove = []
+        target_id = id(receiver) if receiver else None
 
-        for i, (r_id, s_id, uid) in enumerate(self._live_receivers):
+        for i, (r_id, r_ref, s_ref, uid) in enumerate(self._live_receivers):
             if dispatch_uid and uid == dispatch_uid:
                 to_remove.append(i)
                 disconnected = True
                 continue
             
-            if receiver and self._make_id(receiver, False) == r_id:
-                if sender is None or self._make_id(sender, True) == s_id:
+            if target_id is not None and r_id == target_id:
+                if sender is None or self._sender_matches(s_ref, sender):
                     to_remove.append(i)
                     disconnected = True
         
         for i in reversed(to_remove):
-            self._live_receivers.pop(i)
+            _, r_ref, _, _ = self._live_receivers.pop(i)
+            # Clean up strong reference if we held one
+            self._strong_refs.discard(r_ref)
             
         return disconnected
 
-    async def send(self, sender: Type[Any], instance: Any, **kwargs: Any) -> List[tuple[Callable, Any]]:
+    async def send(self, sender: Optional[Type[Any]], instance: Any, **kwargs: Any) -> List[tuple[Callable, Any]]:
         """
         Notify all connected receivers.
         Returns a list of (receiver, response) tuples.
         """
         responses = []
-        sender_id = self._make_id(sender, True)
-        
-        # Clean up dead weakrefs if any (though we handle it during iteration)
         to_remove = []
         
-        for i, (r_id, s_id, uid) in enumerate(self._live_receivers):
+        for i, (r_id, r_ref, s_ref, uid) in enumerate(self._live_receivers):
             # Check sender filter
-            if s_id is not None and s_id != sender_id:
-                continue
+            if s_ref is not None:
+                actual_sender = self._resolve_ref(s_ref)
+                if actual_sender is None:
+                    # Sender was GC'd, remove this entry
+                    to_remove.append(i)
+                    continue
+                if actual_sender is not sender:
+                    continue
 
-            receiver = self._get_receiver(r_id)
+            receiver = self._resolve_ref(r_ref)
             if receiver is None:
                 to_remove.append(i)
                 continue
@@ -115,21 +133,61 @@ class Signal:
                 responses.append((receiver, e))
 
         for i in reversed(to_remove):
-            self._live_receivers.pop(i)
+            _, r_ref, _, _ = self._live_receivers.pop(i)
+            self._strong_refs.discard(r_ref)
             
         return responses
 
-    def _make_id(self, target: Any, weak: bool) -> Any:
-        if weak:
-            if inspect.ismethod(target):
-                return weakref.WeakMethod(target)
-            return weakref.ref(target)
+    def _make_ref(self, target: Any, weak: bool) -> Any:
+        """
+        Create a reference to a receiver.
+        
+        For bound methods (weak=True), uses WeakMethod to allow GC of the
+        owning instance. For all other receivers (functions, lambdas, closures),
+        stores a strong reference to prevent unexpected GC.
+        
+        Rationale: Standalone functions and lambdas have no natural "owner"
+        that holds a reference to them. If we weakref them, they get GC'd
+        immediately upon connect() return since the signal is often the only 
+        holder. This matches Django's practical behavior.
+        """
+        if not weak:
+            self._strong_refs.add(target)
+            return target
+            
+        if target is None:
+            return target
+            
+        # Only use weakref for bound methods — they have a natural owner (self)
+        if inspect.ismethod(target):
+            return weakref.WeakMethod(target)
+        
+        # For everything else (functions, lambdas, closures), use strong ref
+        # to prevent immediate GC
+        self._strong_refs.add(target)
         return target
 
-    def _get_receiver(self, r_id: Any) -> Optional[Callable]:
-        if isinstance(r_id, (weakref.ReferenceType, weakref.WeakMethod)):
-            return r_id()
-        return r_id
+    def _make_sender_ref(self, sender: Optional[Type[Any]]) -> Any:
+        """Create a weak reference to a sender class, if provided."""
+        if sender is None:
+            return None
+        try:
+            return weakref.ref(sender)
+        except TypeError:
+            return sender
+
+    def _resolve_ref(self, ref: Any) -> Any:
+        """Dereference a weakref or return the strong reference directly."""
+        if isinstance(ref, (weakref.ReferenceType, weakref.WeakMethod)):
+            return ref()
+        return ref
+
+    def _sender_matches(self, s_ref: Any, sender: Type[Any]) -> bool:
+        """Check if a stored sender reference matches the given sender."""
+        if s_ref is None:
+            return True
+        actual = self._resolve_ref(s_ref)
+        return actual is sender
 
 # Global Signals
 pre_init = Signal("pre_init")

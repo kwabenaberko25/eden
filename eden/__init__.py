@@ -72,7 +72,7 @@ from eden.db import (
     FileField,
     ForeignKeyField,
     Relationship,
-    SoftDeleteMixin,
+     SoftDeleteMixin,
     ValidatorMixin,
     ValidationErrors,
     MigrationManager,
@@ -90,6 +90,7 @@ from eden.db import (
     desc,
     asc,
     JSON,
+    Mapped,
 )
 
 # ── WebSocket & Realtime ──────────────────────────────────────────────────
@@ -146,6 +147,13 @@ from eden.htmx import HtmxResponse, is_htmx
 
 # ── Services (Business Logic) ─────────────────────────────────────────────
 from eden.services import Service
+
+# ── Background Tasks ──────────────────────────────────────────────────────
+from eden.tasks import EdenBroker, create_broker
+
+# ── Email & Messaging ─────────────────────────────────────────────────────
+from eden.mail import send_mail, EmailMessage, SMTPBackend
+from eden.messages import success, error, info, warning, debug
 
 # ── Logging ───────────────────────────────────────────────────────────────
 from eden.logging import get_logger, setup_logging
@@ -266,6 +274,7 @@ __all__ = [
     "desc",
     "asc",
     "JSON",
+    "Mapped",
     
     # ── WebSocket & Realtime ──────────────────────────────────────────────
     "WebSocketRouter",
@@ -323,6 +332,20 @@ __all__ = [
     
     # ── Services ──────────────────────────────────────────────────────────
     "Service",
+    
+    # ── Background Tasks ──────────────────────────────────────────────────
+    "EdenBroker",
+    "create_broker",
+    
+    # ── Email & Messaging ─────────────────────────────────────────────────
+    "send_mail",
+    "EmailMessage",
+    "SMTPBackend",
+    "success",
+    "error",
+    "info",
+    "warning",
+    "debug",
     
     # ── Logging ───────────────────────────────────────────────────────────
     "get_logger",

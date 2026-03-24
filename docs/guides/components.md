@@ -42,7 +42,7 @@ class UserCard(Component):
 Actions allow your components to handle interactions like button clicks or form submissions. Use the `@action` decorator to define them.
 
 ```python
-from eden.components import action
+from eden.components import Component, register, action
 
 @register("counter")
 class Counter(Component):
@@ -111,6 +111,8 @@ Pass data directly to your action method:
 #### C. In Python Logic
 Inside your component class, use `self.url()`:
 ```python
+from eden.components import Component
+
 class MyComponent(Component):
     def render(self):
         delete_url = self.action_url("delete", id=123)
@@ -125,7 +127,13 @@ Let's see how SSCs shine in a real-world scenario. Imagine a teacher's dashboard
 
 ```python
 from eden.components import Component, register, action
-from models import Student, Grade
+from eden.db import Model, IntField, StringField
+
+# Mock models for documentation example
+class Student(Model):
+    name: str = StringField()
+    current_grade: int = IntField()
+    async def update_grade(self, val): pass
 
 @register("grade-editor")
 class GradeEditor(Component):

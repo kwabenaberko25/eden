@@ -4,6 +4,7 @@ Eden — Payment Providers
 Abstract payment provider interface and Stripe implementation.
 """
 
+import asyncio
 from abc import ABC, abstractmethod
 
 
@@ -72,6 +73,12 @@ class StripeProvider(PaymentProvider):
             webhook_secret="whsec_...",
         )
         app.configure_payments(provider)
+
+    Implementation Notes:
+        All Stripe SDK calls are synchronous (network I/O). They are wrapped
+        in ``asyncio.to_thread()`` to avoid blocking the event loop. Under
+        load, a single Stripe API call can take 200-500ms — blocking the
+        loop would stall all concurrent requests on the same worker.
     """
 
     def __init__(
@@ -90,14 +97,20 @@ class StripeProvider(PaymentProvider):
 
         self.api_key = api_key
         self.webhook_secret = webhook_secret
-        stripe.api_key = api_key
-        stripe.api_version = api_version
+        
+        # We use StripeClient to avoid global stripe.api_key leaks
+        # which would break multi-tenant environments.
+        self._client = stripe.StripeClient(
+            api_key=api_key,
+            stripe_version=api_version
+        )
         self._stripe = stripe
 
     async def create_customer(
         self, email: str, name: str = "", metadata: dict = None
     ) -> str:
-        customer = self._stripe.Customer.create(
+        customer = await asyncio.to_thread(
+            self._client.customers.create,
             email=email,
             name=name or None,
             metadata=metadata or {},
@@ -113,7 +126,8 @@ class StripeProvider(PaymentProvider):
         mode: str = "subscription",
         metadata: dict = None,
     ) -> str:
-        session = self._stripe.checkout.Session.create(
+        session = await asyncio.to_thread(
+            self._client.checkout.sessions.create,
             customer=customer_id,
             line_items=[{"price": price_id, "quantity": 1}],
             mode=mode,
@@ -126,7 +140,8 @@ class StripeProvider(PaymentProvider):
     async def create_portal_session(
         self, customer_id: str, return_url: str
     ) -> str:
-        session = self._stripe.billing_portal.Session.create(
+        session = await asyncio.to_thread(
+            self._client.billing_portal.sessions.create,
             customer=customer_id,
             return_url=return_url,
         )
@@ -134,13 +149,17 @@ class StripeProvider(PaymentProvider):
 
     async def cancel_subscription(self, subscription_id: str) -> bool:
         try:
-            self._stripe.Subscription.cancel(subscription_id)
+            await asyncio.to_thread(
+                self._client.subscriptions.cancel, subscription_id
+            )
             return True
         except Exception:
             return False
 
     async def get_subscription(self, subscription_id: str) -> dict:
-        sub = self._stripe.Subscription.retrieve(subscription_id)
+        sub = await asyncio.to_thread(
+            self._client.subscriptions.retrieve, subscription_id
+        )
         return {
             "id": sub.id,
             "status": sub.status,
@@ -149,7 +168,10 @@ class StripeProvider(PaymentProvider):
         }
 
     def verify_webhook_signature(self, payload: bytes, signature: str) -> dict:
+        """Verify webhook signature. This is synchronous intentionally —
+        it's CPU-bound crypto, not network I/O, and is very fast."""
         event = self._stripe.Webhook.construct_event(
             payload, signature, self.webhook_secret
         )
         return dict(event)
+

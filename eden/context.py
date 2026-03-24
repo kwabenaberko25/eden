@@ -70,6 +70,10 @@ class ContextManager:
         >>> await manager.on_request_end()
     """
 
+    def __init__(self):
+        # Store tokens for proper context reset
+        self._tokens: dict[str, contextvars.Token] = {}
+
     async def on_request_start(
         self, request: "Request", app: Any
     ) -> None:
@@ -86,16 +90,17 @@ class ContextManager:
         Implementation Notes:
             - Generates unique request_id for this request (for logging correlation)
             - Sets app and request in context
+            - Saves tokens from set() for proper cleanup via reset()
             - User/tenant remain unset until explicitly set by auth/tenancy middleware
             - Safe to call multiple times (idempotent per context copy)
         """
         # Generate unique request ID for correlation across logs
         request_id = str(uuid.uuid4())
 
-        # Set context vars in this context (ContextVars are thread/task-local)
-        _request_id_ctx.set(request_id)
-        _app_ctx.set(app)
-        _request_ctx.set(request)
+        # Set context vars and save tokens for proper reset on cleanup
+        self._tokens["request_id"] = _request_id_ctx.set(request_id)
+        self._tokens["app"] = _app_ctx.set(app)
+        self._tokens["request"] = _request_ctx.set(request)
         # User and tenant remain None until explicitly set
 
         logger.debug(
@@ -106,9 +111,10 @@ class ContextManager:
         """
         Cleanup context at request end.
 
-        Resets all context vars to their default values. Prevents context leaks
-        when using thread pools or task reuse. Should be called from middleware
-        in a finally block.
+        Uses token.reset() to properly revert context vars to their state
+        before on_request_start() was called. This is critical for correct
+        behavior with asyncio child tasks — set(None) would actively set
+        None in the current scope, while reset() properly reverts the value.
 
         Implementation Notes:
             - Safe to call even if context wasn't initialized
@@ -127,12 +133,24 @@ class ContextManager:
                     f"user={getattr(user, 'id', user)}, tenant_id={tenant_id}"
                 )
 
-            # Reset all context vars to defaults
-            _app_ctx.set(None)
-            _request_ctx.set(None)
+            # Reset context vars using saved tokens (proper ContextVar cleanup)
+            for key in ("request_id", "app", "request"):
+                token = self._tokens.pop(key, None)
+                if token is not None:
+                    try:
+                        {
+                            "request_id": _request_id_ctx,
+                            "app": _app_ctx,
+                            "request": _request_ctx,
+                        }[key].reset(token)
+                    except ValueError:
+                        # Token already used or from different context — safe to ignore
+                        pass
+            
+            # These may have been set by other middleware (auth, tenancy)
+            # Reset to defaults since we don't have tokens for them
             _user_ctx.set(None)
             _tenant_id_ctx.set(None)
-            _request_id_ctx.set("")
 
             # Sync cleanup with internal tenancy context for ORM isolation
             try:
@@ -273,6 +291,45 @@ class ContextManager:
             # Safely restore old context to garbage-collect mapping mutations
             for ctx_var, token in tokens:
                 ctx_var.reset(token)
+
+    def get_context_snapshot(self) -> dict[str, Any]:
+        """
+        Capture a snapshot of the current context for propagation.
+        
+        Returns:
+            Dictionary containing user_id, tenant_id, and correlation_id.
+        """
+        user = self.get_user()
+        return {
+            "user_id": getattr(user, "id", None) if hasattr(user, "id") else (user if isinstance(user, (str, int)) else None),
+            "tenant_id": self.get_tenant_id(),
+            "correlation_id": self.get_request_id(),
+        }
+
+    def restore_context(self, snapshot: dict[str, Any]) -> list[contextvars.Token]:
+        """
+        Restore context from a previously captured snapshot.
+        
+        Args:
+            snapshot: Context data to restore.
+            
+        Returns:
+            List of tokens for resetting the context later.
+        """
+        tokens = []
+        if snapshot.get("correlation_id"):
+            tokens.append(_request_id_ctx.set(snapshot["correlation_id"]))
+        
+        if snapshot.get("tenant_id"):
+            # This also syncs with tenancy context
+            self.set_tenant(snapshot["tenant_id"])
+            # Note: set_tenant doesn't return a token we can reset easily here 
+            # as it affects multiple vars.
+            
+        if snapshot.get("user_id"):
+            tokens.append(_user_ctx.set(snapshot["user_id"]))
+            
+        return tokens
 
 
 # Global singleton instance

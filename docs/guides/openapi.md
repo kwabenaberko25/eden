@@ -16,17 +16,17 @@ Eden exposes your API documentation at:
 from eden import Eden
 
 app = Eden(
-    title=\"My API\",
-    version=\"1.0.0\",
-    description=\"A description of your API\",
+    title="My API",
+    version="1.0.0",
+    description="A description of your API",
     contact={
-        \"name\": \"API Support\",
-        \"url\": \"https://example.com/support\",
-        \"email\": \"support@example.com\"
+        "name": "API Support",
+        "url": "https://example.com/support",
+        "email": "support@example.com"
     },
     license_info={
-        \"name\": \"Apache 2.0\",
-        \"url\": \"https://www.apache.org/licenses/LICENSE-2.0.html\"
+        "name": "Apache 2.0",
+        "url": "https://www.apache.org/licenses/LICENSE-2.0.html"
     }
 )
 ```
@@ -34,20 +34,26 @@ app = Eden(
 ## Route Documentation
 
 ```python
-@app.get(\"/users/{user_id}\", 
-    summary=\"Get a specific user\",
-    description=\"Retrieve detailed information about a user\",
-    tags=[\"users\"],
+from eden import Eden
+from unittest.mock import MagicMock
+
+app = Eden()
+User = MagicMock()
+
+@app.get("/users/{user_id}", 
+    summary="Get a specific user",
+    description="Retrieve detailed information about a user",
+    tags=["users"],
     responses={
-        200: {\"description\": \"User found\"},
-        404: {\"description\": \"User not found\"}
+        200: {"description": "User found"},
+        404: {"description": "User not found"}
     }
 )
 async def get_user(user_id: int):
-    \"\"\"Get user by ID.\"\"\"
+    """Get user by ID."""
     user = await User.get(user_id)
     if not user:
-        return {\"error\": \"Not found\"}, 404
+        return {"error": "Not found"}, 404
     return user.to_dict()
 ```
 
@@ -56,7 +62,12 @@ async def get_user(user_id: int):
 Eden automatically documents request/response schemas:
 
 ```python
+from eden import Eden
 from pydantic import BaseModel
+from unittest.mock import MagicMock
+
+app = Eden()
+User = MagicMock()
 
 class UserCreate(BaseModel):
     name: str
@@ -64,15 +75,15 @@ class UserCreate(BaseModel):
     
     class Config:
         json_schema_extra = {
-            \"example\": {
-                \"name\": \"John Doe\",
-                \"email\": \"john@example.com\"
+            "example": {
+                "name": "John Doe",
+                "email": "john@example.com"
             }
         }
 
-@app.post(\"/users\", response_model=dict)
+@app.post("/users", response_model=dict)
 async def create_user(data: UserCreate):
-    \"\"\"Create a new user.\"\"\"
+    """Create a new user."""
     user = await User.create(**data.dict())
     return user.to_dict()
 ```

@@ -81,6 +81,11 @@ class Eden:
         debug: bool = False,
         description: str | None = None,
         secret_key: str | None = None,
+        contact: dict[str, str] | None = None,
+        license_info: dict[str, str] | None = None,
+        openapi_url: str | None = "/openapi.json",
+        docs_url: str | None = "/docs",
+        redoc_url: str | None = "/redoc",
         config: dict[str, Any] | Config | None = None,
         static_dir: str = "static",
         static_url: str = "/static",
@@ -104,6 +109,11 @@ class Eden:
         self.title = title or self.config.title or "Eden App"
         self.version = version or self.config.version or "0.1.0"
         self.description = description or getattr(self.config, "description", None)
+        self.contact = contact
+        self.license_info = license_info
+        self.openapi_url = openapi_url
+        self.docs_url = docs_url
+        self.redoc_url = redoc_url
         self.secret_key = secret_key or self.config.secret_key or "eden-insecure-secret-key"
         
         # debug is special as it's a bool
@@ -198,7 +208,13 @@ class Eden:
 
         # Caching
         self.cache: Optional["CacheBackend"] = None
+        self.dependency_overrides: dict[Callable[..., Any], Callable[..., Any]] = {}
         
+        # API Versioning Context
+        self._api_versions: list[APIVersion] = []
+        self._default_api_version: str = "v1"
+        self._version_transformers: dict[str, Any] = {}
+
         self.setup_defaults()
 
     def _apply_config(self) -> None:
@@ -284,8 +300,10 @@ class Eden:
             # Database check
             try:
                 from eden.db import Model
-                db = getattr(Model, "_db", None)
-                if db:
+                # Check app state first, then fallback to global Model._db
+                # This prevents cross-app loop issues in tests.
+                db = getattr(self.state, "db", None) or getattr(Model, "_db", None)
+                if db and hasattr(db, "engine"):
                     async with db.engine.connect() as conn:
                         from sqlalchemy import text
                         await conn.execute(text("SELECT 1"))
@@ -469,11 +487,22 @@ class Eden:
 
     # ── Sub-Router ───────────────────────────────────────────────────────
 
-    def include_router(self, router: Router, prefix: str = "") -> None:
+    def include_router(self, router: Union[Router, Any], prefix: str = "") -> None:
+        """
+        Include a router in the application.
+        Supports standard Eden Router, WebSocketRouter, and VersionedRouter.
+        """
         from eden.websocket.router import WebSocketRouter
+        from eden.versioning import VersionedRouter
+        
         if isinstance(router, WebSocketRouter):
             router.mount(self)
             return
+            
+        if isinstance(router, VersionedRouter):
+            router.mount(self, prefix=prefix)
+            return
+            
         self._router.include_router(router, prefix=prefix)
 
     def add_view(self, path: str, view_class: type, **kwargs: Any) -> None:
@@ -495,6 +524,29 @@ class Eden:
             })
         return routes_info
 
+    # ── Versioning ───────────────────────────────────────────────────────
+
+    def register_api_version(self, version: APIVersion) -> None:
+        """
+        Register an API version for negotiation and documentation.
+        
+        Args:
+            version: APIVersion instance (defines name, default, deprecated)
+        """
+        self._api_versions.append(version)
+        if version.default:
+            self._default_api_version = version.name
+
+    def set_version_transformer(self, type_name: str, transformer: Any) -> None:
+        """
+        Set a transformer for converting between API versions for a specific model.
+        
+        Args:
+            type_name: Name of the model/type (e.g. "User")
+            transformer: Transformer object or callable
+        """
+        self._version_transformers[type_name] = transformer
+
     # ── SaaS Features ────────────────────────────────────────────────────
 
     def mount_admin(self, path: str = "/admin", admin_site=None) -> None:
@@ -508,9 +560,50 @@ class Eden:
         self.mail = backend
         _configure_mail(backend)
 
+    def configure_logging(
+        self,
+        level: str = "INFO",
+        format: str = "text",
+        request_id: bool = True,
+        loggers: dict[str, str] | None = None,
+    ) -> None:
+        """
+        Configure the application's logging system.
+
+        Args:
+            level: The default logging level (e.g., "INFO", "DEBUG").
+            format: Output format, either "text" (default) or "json".
+            request_id: If True, automatically adds the RequestLoggingMiddleware.
+            loggers: Optional dictionary of logger overrides.
+        """
+        from eden.logging import setup_logging
+        
+        json_format = format.lower() == "json"
+        setup_logging(level=level, json_format=json_format, loggers=loggers)
+        
+        if request_id:
+            # Check if already added to avoid duplicates
+            from eden.logging import RequestLoggingMiddleware
+            already_added = any(
+                m[0] is RequestLoggingMiddleware
+                for m in self._middleware_stack
+            )
+            if not already_added:
+                self.add_middleware("logging")
+
     @property
     def task(self) -> EdenBroker:
         return self._eden_broker
+
+    @task.setter
+    def task(self, value: Any) -> None:
+        from eden.tasks import EdenBroker
+        if isinstance(value, EdenBroker):
+            self._eden_broker = value
+        else:
+            # If a raw broker is passed, wrap it
+            self._eden_broker = EdenBroker(value)
+        self._eden_broker.app = self
 
     # ── Middleware ───────────────────────────────────────────────────────
 
@@ -580,6 +673,62 @@ class Eden:
             (hasattr(self.config, "is_test") and self.config.is_test() if callable(getattr(self.config, "is_test", None)) else getattr(self.config, "is_test", False)) or
             "pytest" in sys.modules
         )
+
+    def middleware(self, middleware_type: str) -> Callable:
+        """
+        Decorator to add a functional middleware.
+        Only 'http' type is currently supported for direct decorators.
+        """
+        def decorator(func: Callable) -> Callable:
+            self.add_middleware(func)
+            return func
+        return decorator
+
+    def configure_mail(self, backend: Any) -> None:
+        """Configure the default mail backend."""
+        from eden.mail import configure_mail
+        configure_mail(backend)
+
+    def configure_payments(self, provider: Any) -> None:
+        """Configure the default payment provider."""
+        self.payments = provider
+
+
+    @property
+    def routes(self) -> list[Any]:
+        """Expose the root router routes."""
+        return self._router.routes
+
+
+    def mount_admin(self, path: str = "/admin") -> None:
+        """Mount the admin panel router at the specified path."""
+        from eden.admin import admin
+        self.include_router(admin.build_router(prefix=path))
+
+    def mount_webhooks(self, path: str, router: Any) -> None:
+        """Mount a webhook router at the specified path."""
+        if hasattr(router, "build_route"):
+            self._router.routes.append(router.build_route(path=path))
+        else:
+            self.include_router(router, prefix=path)
+
+    def enable_logging(
+        self,
+        level: str = "INFO",
+        format: str = "text",
+        loggers: dict[str, str] | None = None,
+    ) -> None:
+        """
+        Configure structured logging for the application.
+        
+        Args:
+            level: The log level (DEBUG, INFO, etc.).
+            format: The log format ('text' or 'json').
+            loggers: A dictionary of logger names and their levels.
+        """
+        from eden.logging import setup_logging
+        json_format = format.lower() == "json"
+        setup_logging(level=level, json_format=json_format, loggers=loggers)
 
     def setup_defaults(self) -> None:
         """Register recommended default middleware in correct execution order."""
@@ -722,6 +871,18 @@ class Eden:
             (get_middleware_class("request"), {}, self.PRIORITY_CORE + 1),
             (ErrorHandlerMiddleware, {}, self.PRIORITY_CORE + 2),
         ]
+        
+        # Inject Versioning Middleware if versions are registered
+        if self._api_versions:
+            from eden.versioning import VersionedMiddleware
+            final_stack.append((
+                VersionedMiddleware, 
+                {
+                    "versions": self._api_versions,
+                    "default_version": self._default_api_version
+                },
+                self.PRIORITY_CORE + 5
+            ))
         
         # Add user stack
         final_stack.extend(self._middleware_stack)

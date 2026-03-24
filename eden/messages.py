@@ -253,11 +253,39 @@ def get_messages(request: Optional[Any] = None) -> MessageContainer:
         request = get_request()
     
     if not request:
-        # Fallback for when no request is available
         return MessageContainer(None)
         
-    # Standardize on scope-based storage to ensure all Request instances share it
     if "_eden_messages" not in request.scope:
         request.scope["_eden_messages"] = MessageContainer(request)
         
     return request.scope["_eden_messages"]
+
+
+def add_message(message: str, level: int = INFO, request: Optional[Any] = None, **kwargs: Any) -> None:
+    """Add a message to the container."""
+    get_messages(request).add(message, level=level, **kwargs)
+
+
+def debug(message: str, request: Optional[Any] = None, **kwargs: Any) -> None:
+    """Add a debug message."""
+    add_message(message, level=DEBUG, request=request, **kwargs)
+
+
+def info(message: str, request: Optional[Any] = None, **kwargs: Any) -> None:
+    """Add an info message."""
+    add_message(message, level=INFO, request=request, **kwargs)
+
+
+def success(message: str, request: Optional[Any] = None, **kwargs: Any) -> None:
+    """Add a success message."""
+    add_message(message, level=SUCCESS, request=request, **kwargs)
+
+
+def warning(message: str, request: Optional[Any] = None, **kwargs: Any) -> None:
+    """Add a warning message."""
+    add_message(message, level=WARNING, request=request, **kwargs)
+
+
+def error(message: str, request: Optional[Any] = None, **kwargs: Any) -> None:
+    """Add an error message."""
+    add_message(message, level=ERROR, request=request, **kwargs)

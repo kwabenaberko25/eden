@@ -29,13 +29,73 @@ class CrudMixin:
 
     @classmethod
     async def get(
-        cls, session: Optional[Any] = None, id: Union[uuid.UUID, str, None] = None
+        cls, 
+        *args,
+        session: Optional[Any] = None, 
+        id: Union[uuid.UUID, str, None] = None,
+        **kwargs
     ) -> Optional[Any]:
-        """Fetch a single record by primary key."""
-        if id is None and session is not None and not hasattr(session, "execute"):
-            id = session
-            session = None
-        return await cls.query(session=session).filter(id=id).first()
+        """
+        Fetch a single record by primary key or by filter criteria.
+        
+        Preferred usage (explicit keyword):
+            user = await User.get(id=user_id)
+            user = await User.get(id=user_id, session=session)
+        
+        Legacy positional usage (still supported, but deprecated):
+            user = await User.get(some_id)
+        
+        Filter by non-PK fields:
+            user = await User.get(email="alice@example.com")
+        
+        Args:
+            id: Primary key value to look up.
+            session: Optional database session.
+            **kwargs: Additional filter criteria (e.g., email="...").
+        
+        Returns:
+            The model instance or None if not found.
+        
+        Raises:
+            TypeError: If called with ambiguous positional arguments.
+        """
+        import warnings
+        
+        if args:
+            if len(args) == 1:
+                # Legacy positional: Model.get(some_id)
+                # We treat the single positional arg as the ID
+                if id is not None:
+                    raise TypeError(
+                        f"{cls.__name__}.get() received both a positional argument "
+                        f"and id={id!r}. Use keyword argument only: "
+                        f"{cls.__name__}.get(id=...)"
+                    )
+                warnings.warn(
+                    f"{cls.__name__}.get(value) positional form is deprecated. "
+                    f"Use {cls.__name__}.get(id=value) instead.",
+                    FutureWarning,
+                    stacklevel=2,
+                )
+                id = args[0]
+            else:
+                raise TypeError(
+                    f"{cls.__name__}.get() takes at most 1 positional argument "
+                    f"({len(args)} given). Use keyword arguments: "
+                    f"{cls.__name__}.get(id=..., session=...)"
+                )
+        
+        qs = cls.query(session=session)
+        
+        if id is not None:
+            return await qs.filter(id=id).first()
+        elif kwargs:
+            return await qs.filter(**kwargs).first()
+        else:
+            raise TypeError(
+                f"{cls.__name__}.get() requires at least an 'id' or filter criteria. "
+                f"Usage: {cls.__name__}.get(id=...) or {cls.__name__}.get(email=...)"
+            )
 
     @classmethod
     async def all(cls, *args, **kwargs) -> List[Any]:
@@ -53,10 +113,10 @@ class CrudMixin:
 
     @classmethod
     async def get_or_404(
-        cls, session: Optional[Any] = None, id: Union[uuid.UUID, str, None] = None
+        cls, *args, session: Optional[Any] = None, id: Union[uuid.UUID, str, None] = None
     ) -> Any:
         """Fetch a single record by primary key or raise NotFound."""
-        record = await cls.get(session, id)
+        record = await cls.get(*args, session=session, id=id)
         if not record:
             from eden.exceptions import NotFound
             raise NotFound(detail=f"{cls.__name__} with ID {id} not found.")
@@ -138,10 +198,19 @@ class CrudMixin:
         return await self.save(session=session, commit=commit)
 
     @classmethod
-    async def create(cls, session: Optional[Any] = None, **kwargs) -> Any:
-        """Create a new record and save it to the database."""
+    async def create(cls, session: Optional[Any] = None, commit: bool = True, validate: bool = True, **kwargs) -> Any:
+        """
+        Create a new record and save it to the database.
+        
+        Args:
+            session: Optional existing session to use.
+            commit: Whether to commit the transaction (default: True).
+            validate: Whether to run validation before saving (default: True).
+            **kwargs: Attributes for the new instance.
+        """
         instance = cls(**kwargs)
-        await instance.save(session)
+        # Note: instance.save() is available via LifecycleMixin
+        await instance.save(session=session, commit=commit, validate=validate)
         return instance
 
     @classmethod

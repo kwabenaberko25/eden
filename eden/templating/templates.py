@@ -109,10 +109,20 @@ class EdenTemplates(StarletteJinja2Templates):
         # Core Eden Extensions
         required_exts = [
             EdenDirectivesExtension,
-            "eden.components.ComponentExtension",
             "jinja2.ext.loopcontrols",
             "jinja2.ext.do",
         ]
+        
+        # Attempt to add the component extension — degrade gracefully if unavailable
+        try:
+            from eden.components import ComponentExtension  # noqa: F401
+            required_exts.append("eden.components.ComponentExtension")
+        except ImportError:
+            import logging
+            logging.getLogger("eden.templating").warning(
+                "eden.components.ComponentExtension unavailable. "
+                "Template engine will work without component support."
+            )
         
         for ext in required_exts:
             if ext not in kwargs["extensions"] and str(ext) not in [str(e) for e in kwargs["extensions"]]:
@@ -121,7 +131,25 @@ class EdenTemplates(StarletteJinja2Templates):
         # To avoid Starlette deprecation warnings, we create the environment explicitly
         from jinja2 import FileSystemLoader
         loader = FileSystemLoader(directory)
-        env = Environment(loader=loader, **kwargs)
+        
+        # Wrap Environment creation so a single broken extension doesn't prevent
+        # the entire template engine from loading.
+        try:
+            env = Environment(loader=loader, **kwargs)
+        except Exception as ext_err:
+            import logging
+            log = logging.getLogger("eden.templating")
+            log.warning(
+                f"Jinja2 Environment creation failed with extensions: {ext_err}. "
+                f"Retrying with only core extensions."
+            )
+            # Retry with minimal extensions
+            kwargs["extensions"] = [
+                EdenDirectivesExtension,
+                "jinja2.ext.loopcontrols",
+                "jinja2.ext.do",
+            ]
+            env = Environment(loader=loader, **kwargs)
         
         super().__init__(env=env)
 
@@ -169,39 +197,53 @@ class EdenTemplates(StarletteJinja2Templates):
         self.env.globals["class_names"] = filters.class_names
         
         # ── Design System & HTMX filters ─────────────────────────────────────
-        from eden.design import eden_color, eden_bg, eden_text, eden_border, eden_shadow, eden_font
-        from eden.htmx import hx_vals, hx_headers
-        
-        self.env.filters["eden_color"] = eden_color
-        self.env.filters["eden_bg"] = eden_bg
-        self.env.filters["eden_text"] = eden_text
-        self.env.filters["eden_border"] = eden_border
-        self.env.filters["eden_shadow"] = eden_shadow
-        self.env.filters["eden_font"] = eden_font
-        self.env.filters["hx_vals"] = hx_vals
-        self.env.filters["hx_headers"] = hx_headers
+        try:
+            from eden.design import eden_color, eden_bg, eden_text, eden_border, eden_shadow, eden_font
+            from eden.htmx import hx_vals, hx_headers
+            
+            self.env.filters["eden_color"] = eden_color
+            self.env.filters["eden_bg"] = eden_bg
+            self.env.filters["eden_text"] = eden_text
+            self.env.filters["eden_border"] = eden_border
+            self.env.filters["eden_shadow"] = eden_shadow
+            self.env.filters["eden_font"] = eden_font
+            self.env.filters["hx_vals"] = hx_vals
+            self.env.filters["hx_headers"] = hx_headers
+        except ImportError as e:
+            import logging
+            logging.getLogger("eden.templating").warning(
+                f"Design/HTMX filters unavailable: {e}. "
+                f"Template engine will work without design system filters."
+            )
         
         # ── Imports for assets ───────────────────────────────────────────────
-        from eden.assets import (
-            ALPINE_VERSION,
-            HTMX_VERSION,
-            TAILWIND_VERSION,
-            eden_head,
-            eden_scripts,
-            eden_toasts,
-        )
-        self.env.globals["ALPINE_VERSION"] = ALPINE_VERSION
-        self.env.globals["HTMX_VERSION"] = HTMX_VERSION
-        self.env.globals["TAILWIND_VERSION"] = TAILWIND_VERSION
-        
-        # Low-case aliases for tests/convenience
-        self.env.globals["alpine_version"] = ALPINE_VERSION
-        self.env.globals["htmx_version"] = HTMX_VERSION
-        self.env.globals["tailwind_version"] = TAILWIND_VERSION
-        
-        self.env.globals["eden_head"] = eden_head
-        self.env.globals["eden_scripts"] = eden_scripts
-        self.env.globals["eden_toasts"] = eden_toasts
+        try:
+            from eden.assets import (
+                ALPINE_VERSION,
+                HTMX_VERSION,
+                TAILWIND_VERSION,
+                eden_head,
+                eden_scripts,
+                eden_toasts,
+            )
+            self.env.globals["ALPINE_VERSION"] = ALPINE_VERSION
+            self.env.globals["HTMX_VERSION"] = HTMX_VERSION
+            self.env.globals["TAILWIND_VERSION"] = TAILWIND_VERSION
+            
+            # Low-case aliases for tests/convenience
+            self.env.globals["alpine_version"] = ALPINE_VERSION
+            self.env.globals["htmx_version"] = HTMX_VERSION
+            self.env.globals["tailwind_version"] = TAILWIND_VERSION
+            
+            self.env.globals["eden_head"] = eden_head
+            self.env.globals["eden_scripts"] = eden_scripts
+            self.env.globals["eden_toasts"] = eden_toasts
+        except ImportError as e:
+            import logging
+            logging.getLogger("eden.templating").warning(
+                f"Asset helpers unavailable: {e}. "
+                f"Template engine will work without asset versions/helpers."
+            )
         
         # Register helpers as globals for directive availability
         self.env.globals["csrf_token"] = self._csrf_token_helper
@@ -209,12 +251,18 @@ class EdenTemplates(StarletteJinja2Templates):
         self.env.globals["vite"] = self._vite_helper
         self.env.globals["eden_dump"] = self._dump_helper
         
-        from eden.context import is_active
-        self.env.globals["is_active"] = is_active
+        try:
+            from eden.context import is_active
+            self.env.globals["is_active"] = is_active
+        except ImportError:
+            pass
         
         # Ensure eden_messages is available as a global function
-        from eden.messages import get_messages
-        self.env.globals["eden_messages"] = get_messages
+        try:
+            from eden.messages import get_messages
+            self.env.globals["eden_messages"] = get_messages
+        except ImportError:
+            pass
         
         # Core Stacking & DI Helpers
         self.env.globals["eden_push"] = self._push_helper

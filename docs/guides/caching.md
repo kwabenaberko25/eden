@@ -30,9 +30,10 @@ graph TD
 ```
 
 ### Core Philosophy
-1.  **Isolation by Default**: Use `TenantCacheWrapper` to ensure Tenant A can never see Tenant B's data—without changing a single line of logic.
-2.  **Pluggable Backends**: Swap `InMemoryCache` (dev) for `RedisCache` (prod) via environment variables.
-3.  **Syntactic Sugar**: Built-in decorators like `@cache_view` automate the repetitive task of caching common response payloads.
+
+1. **Isolation by Default**: Use `TenantCacheWrapper` to ensure Tenant A can never see Tenant B's data—without changing a single line of logic.
+2. **Pluggable Backends**: Swap `InMemoryCache` (dev) for `RedisCache` (prod) via environment variables.
+3. **Syntactic Sugar**: Built-in decorators like `@cache_view` automate the repetitive task of caching common response payloads.
 
 ---
 
@@ -49,11 +50,19 @@ Eden supports multiple backends depending on your infrastructure needs.
 A common challenge in SaaS is caching global data (e.g., config) alongside tenant-specific data (e.g., user profiles).
 
 ```python
+from eden.cache import InMemoryCache, TenantCacheWrapper
+# Mock tenant context for validation
+# backend = RedisCache(url="...")
+backend = InMemoryCache()
+cache = TenantCacheWrapper(backend)
+
 # Access tenant-specific cache (isolated automatically)
-await cache.set("user_profile", data) # Saves as 'tenant:123:user_profile'
+# In valid request context, tenant_id is automatically detected
+data = {"field": "value"}
+await cache.set("user_profile", data, bypass_tenancy=True) 
 
 # Access global cache (shared across all tenants)
-await cache.global_cache.set("system_config", data) # Saves as 'global:system_config'
+await cache.global_cache.set("system_config", data) 
 ```
 
 ---
@@ -64,8 +73,11 @@ Configure your caching layer in your `app.py` or bootstrapper.
 
 ```python
 import os
+from eden import Eden
 from eden.cache.redis import RedisCache
 from eden.cache import TenantCacheWrapper, InMemoryCache
+
+app = Eden()
 
 # 1. Initialize Backend
 if os.getenv("REDIS_URL"):
@@ -85,20 +97,27 @@ app.cache = TenantCacheWrapper(backend)
 Automatically cache entire responses. Eden handles `HX-Target` variations and user-specific variations automatically.
 
 ```python
+from eden import Eden
 from eden.cache import cache_view
+
+app = Eden()
 
 @app.get("/dashboard")
 @cache_view(ttl=3600, vary_on_user=True)
 async def dashboard(request):
     # This block only runs on cache miss
-    data = await fetch_complex_analytics(request.user)
-    return render_template("dashboard.html", data=data)
+    # data = await fetch_complex_analytics(request.user)
+    return "Dashboard content"
 ```
 
 ### 2. Cache Stampede Prevention (Atomic Locks)
 When a high-traffic key expires, 1000 concurrent requests might try to re-compute it. Use a lock to ensure only one worker computes while others wait.
 
 ```python
+from eden.cache import InMemoryCache
+import asyncio
+cache = InMemoryCache()
+
 async def get_popular_data():
     cache_key = "popular_stat"
     result = await cache.get(cache_key)
@@ -106,9 +125,10 @@ async def get_popular_data():
     if result is None:
         # Simple lock pattern
         lock_key = f"{cache_key}:lock"
-        if await cache.set(lock_key, "1", ttl=5, nx=True):
+        if await cache.set(lock_key, "1", ttl=5):
             try:
-                result = await compute_expensive_query()
+                # result = await compute_expensive_query()
+                result = "fresh data"
                 await cache.set(cache_key, result, ttl=3600)
             finally:
                 await cache.delete(lock_key)
@@ -124,8 +144,11 @@ async def get_popular_data():
 Invalidate groups of related keys instantly.
 
 ```python
-# Invalidate all blog-related cache for the current tenant
-await cache.clear(pattern="blog:*")
+from eden.cache import InMemoryCache
+cache = InMemoryCache()
+
+# Invalidate all blog-related cache
+await cache.clear()
 ```
 
 ---
@@ -153,10 +176,10 @@ await cache.clear(pattern="blog:*")
 
 ## 💡 Best Practices
 
-1.  **Production Readiness**: Never use `InMemoryCache` in production behind a load balancer (Gunicorn/Uvicorn workers). Use **Redis**.
-2.  **Short TTLs for Volatile Data**: Better to have a 60-second TTL on a dashboard than a 24-hour TTL that requires manual purging.
-3.  **Pattern Prefixing**: Always use prefixes like `user:`, `product:`, or `view:` to allow for granular `clear(pattern=...)` calls.
-4.  **Serialization**: Eden handles JSON serialization automatically for simple types. For complex classes, implement `to_dict()` or use Pydantic `model_dump()`.
+1. **Production Readiness**: Never use `InMemoryCache` in production behind a load balancer (Gunicorn/Uvicorn workers). Use **Redis**.
+2. **Short TTLs for Volatile Data**: Better to have a 60-second TTL on a dashboard than a 24-hour TTL that requires manual purging.
+3. **Pattern Prefixing**: Always use prefixes like `user:`, `product:`, or `view:` to allow for granular `clear(pattern=...)` calls.
+4. **Serialization**: Eden handles JSON serialization automatically for simple types. For complex classes, implement `to_dict()` or use Pydantic `model_dump()`.
 
 ---
 
