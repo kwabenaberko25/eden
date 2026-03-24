@@ -214,7 +214,7 @@ def generate_flat(project_dir: Path, name: str):
     
     (project_dir / "eden.json").write_text(json.dumps({
         "name": name,
-        "version": "0.1.0",
+        "version": "1.0.0",
         "scale": "flat"
     }, indent=2))
 
@@ -289,7 +289,7 @@ def create_new_project(project_name: str, target_path: Optional[Path] = None):
         # Common files
         (target_path / "eden.json").write_text(json.dumps({
             "name": project_name,
-            "version": "0.1.0",
+            "version": "1.0.0",
             "db": db_type.lower(),
             "scale": "minimal" if scale.startswith("Minimal") else "complete",
             "features": extras

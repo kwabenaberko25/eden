@@ -40,7 +40,7 @@ class EdenSatellite(Router):
     def __init__(
         self,
         title: str = "Eden Satellite",
-        version: str = "0.1.0",
+        version: str = "1.0.0",
         debug: bool = False,
     ) -> None:
         super().__init__()
@@ -95,7 +95,7 @@ class EdenSatellite(Router):
             added_middleware_names.add(name)
         
         # SessionMiddleware MUST come before CSRF and Messages
-        if middleware_name == "csrf" and "SessionMiddleware" not in added_middleware_names:
+        if middleware_name == "CSRFMiddleware" and "SessionMiddleware" not in added_middleware_names:
             raise RuntimeError(
                 "❌ CRITICAL: CSRFMiddleware requires SessionMiddleware to be added first!\n\n"
                 "Solution: Call add_middleware('session') before add_middleware('csrf')\n\n"

@@ -1,8 +1,8 @@
 site_name: Eden Framework
 site_description: A batteries-included async Python web framework
 site_url: https://eden-framework.dev
-repo_url: https://github.com/eden-framework/eden
-repo_name: eden-framework/eden
+repo_url: https://github.com/kwabenaberko25/eden
+repo_name: kwabenaberko25/eden
 use_directory_urls: false
 
 theme:

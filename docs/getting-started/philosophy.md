@@ -20,7 +20,7 @@ class User(Model):
 
 async def get_active_users():
     # Eden supports clean ActiveRecord selection
-    return await User.select().where(User.is_active == True).all()
+    return await User.filter(is_active=True).all()
 ```
 
 ### II. The Forge (Developer Joy)
@@ -61,40 +61,39 @@ Security isn't a checkbox; it's the foundation. Argon2 password hashing, automat
 
 ---
 
-## 🔬 Contrast: Traditional vs. Eden
+## 🧠 The Unified Context
+
+Eden merges the Backend, Database, and Frontend into a single **Unified Context**. This eliminates the "Data Mismatch" between serializing objects for an API and deserializing them in a frontend framework.
+
+```mermaid
+sequenceDiagram
+    participant U as User (Browser)
+    participant E as Eden Engine
+    participant O as ORM (SQLAlchemy)
+    participant D as Database
+
+    U->>E: POST /register (HTMX)
+    E->>E: Schema Validation (Pydantic v2)
+    E->>E: Transaction Start
+    E->>O: User.create()
+    O->>D: INSERT INTO users...
+    D-->>O: Success (ID: 101)
+    E->>E: Transaction Commit
+    E->>E: Render Fragment (@fragment)
+    E-->>U: Updated UI (HTML Partial)
+```
+
+---
+
+## 🎓 The Eden Way vs. Traditional
 
 ### User Registration Pattern
-
-**Traditional Approach** ❌ (Boilerplate-heavy, manual security)
-
-```python
-from unittest.mock import MagicMock
-from eden import Eden, Request, Model
-app = Eden(secret_key="dev-secret")
-class User(Model): pass
-db = MagicMock() # Mock SQLAlchemy db for illustration
-
-# Manual validation, weak hashing, no N+1 protection
-@app.route("/register", methods=["POST"])
-async def register(request: Request):
-    data = await request.json()
-    if not data.get("email"): return {"error": "Email required"}, 400
-    
-    # Mocking hashed password for illustration
-    hashed = data["password"] + "_hashed" 
-    user = User(email=data["email"], password=hashed)
-    # Manual DB session handling
-    async with db.session() as session:
-        session.add(user)
-        await session.commit()
-    return {"user": user.to_dict()}, 201
-```
 
 **The Eden Way** ✅ (Unified, secure, high-performance)
 
 ```python
 from eden import Eden, Model, f, Mapped
-from eden.forms import Schema, field, EmailStr
+from eden.validators import Schema, field, EmailStr
 
 app = Eden(secret_key="dev-secret")
 
@@ -106,36 +105,14 @@ class RegisterSchema(Schema):
     password: str = field(min_length=8)
 
 @app.post("/register")
-@app.validate(RegisterSchema)
 async def register(request, credentials: RegisterSchema):
     # Validation, CSRF, and Password Hashing are all handled automatically
-    user = await User.create(email=credentials.email, password=credentials.password)
+    user = await User.create(
+        email=credentials.email, 
+        password=credentials.password
+    )
     return {"user": user.to_dict()}
 ```
-
----
-
-## 🧠 Philosophy: What We Believe
-
-### 1. Multi-Tenancy is Not a Plugin
-
-SaaS is the default mode of modern software. Tenant isolation shouldn't be a library you find on GitHub; it should be the air your application breathes.
-
-```python
-from eden import Model, f, Mapped
-
-class Document(Model):
-    title: Mapped[str] = f()
-    tenant_id: Mapped[int] = f() # Automatically scoped by the engine
-```
-
-### 2. Validation is the Source of Truth
-
-One schema should power your API validation, your form rendering, and your database constraints. Why define your data structure three times?
-
-### 3. The "Unified Context"
-
-The wall between the Backend and the Frontend is a relic of the past. Eden's **HTMX-powered Fragments** allow you to build interactive, stateful UIs without leaving the Python ecosystem.
 
 ---
 
@@ -143,9 +120,9 @@ The wall between the Backend and the Frontend is a relic of the past. Eden's **H
 
 Eden is powerful but opinionated. You might prefer specialized alternatives if:
 
-- **Total Flexibility**: If you need to manually manage every byte of the HTTP socket, a low-level library like Starlette or raw Flask might be better.
-- **Deep SQL Specialization**: For recursive CTEs or extreme window function logic, you can drop to raw SQLAlchemy within Eden, but the framework is optimized for **Industrial Web Patterns**.
-- **Legacy Migrations**: If you are tied to a manual, hand-written migration history that cannot be mapped to Eden's automated evolution engine.
+- **Total Flexibility**: If you need to manually manage every byte of the HTTP socket.
+- **Micro-Optimization**: If you need to write low-level C-extensions for your core routing logic.
+- **Legacy Persistence**: If you are tied to a database schema that cannot be mapped to modern ORM principles.
 
 ---
 

@@ -105,6 +105,11 @@ class AccessControl:
         """
         rule = cls.__rbac__.get(action)
         if not rule:
-            return False  # Deny by default if AccessControl is implemented but action is not defined
+            # If no rules are defined at all for this model, we allow access by default.
+            # This ensures that basic models don't require boilerplate RBAC to function,
+            # while still allowing explicit 'Deny' or 'Owner' rules to be enforced.
+            if not cls.__rbac__:
+                return True
+            return False
         
         return rule.resolve(cls, user)

@@ -251,7 +251,9 @@ my_project/
 - [x] **Admin Panel:** Premium auto-generated CRUD interface.
 - [x] **Payment Integration:** Stripe-first billing primitives.
 - [x] **S3 Storage:** Async cloud storage backend.
-- [ ] **Eden CLI:** Scaffolding and automated migrations.
+- [x] **Supabase Storage:** Direct Supabase storage integration.
+- [x] **Task Scheduling:** Cron-based advanced background tasks.
+- [ ] **Eden CLI:** Scaffolding and automated migrations (Work in progress).
 - [ ] **Native HTMX Integration:** Deeply integrated partial rendering and fragment control.
 - [ ] **Real-time:** Native WebSocket support for reactive UIs.
 

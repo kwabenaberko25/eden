@@ -116,7 +116,7 @@ def generate_openapi_spec(
         "openapi": "3.1.0",
         "info": {
             "title": title or getattr(app, "title", "Eden API"),
-            "version": version or getattr(app, "version", "0.1.0"),
+            "version": version or getattr(app, "version", "1.0.0"),
             "description": description or getattr(app, "description", ""),
         },
         "paths": {},

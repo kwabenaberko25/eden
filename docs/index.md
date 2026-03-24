@@ -1,8 +1,10 @@
-# 🌿 Eden Framework
+# 🌿 The Eden Master Class
 
 **The Premium, Developer-First Python Web Framework.**
 
-Welcome to the official documentation for the **Eden Framework**. Eden is a high-performance, async-first web framework designed for developers who value aesthetics, security, and developer experience.
+Welcome to the definitive documentation for the **Eden Framework**. Eden is a high-performance, async-first web framework designed for developers who value aesthetics, industrial security, and unparalleled developer experience.
+
+---
 
 ## 🌈 The Eden Philosophy
 
@@ -16,55 +18,60 @@ Built on top of **Starlette** and **SQLAlchemy 2.0**, Eden provides a curated su
 
 ---
 
-## 🚀 Getting Started
+## 🎓 Start Here
 
-Ready to dive in? Follow these steps to get your first Eden application up and running.
+Ready to dive in? We recommend following our structured **[Learning Path](getting-started/learning-path.md)** to master the framework in tiers.
 
-1. **[Philosophy](getting-started/philosophy.md)**: Understand the "Elite-First" mindset behind Eden.
-2. **[Installation](getting-started/installation.md)**: Set up your environment.
-3. **[Tutorial (Step-by-Step)](tutorial/task1_setup.md)**: Build a professional SaaS engine in 10 tasks.
-4. **[Quick Start](getting-started/quickstart.md)**: Build your first "Hello World" in 60 seconds.
+1. **[The Eden Zen](getting-started/philosophy.md)**: Understand the "Elite-First" mindset.
+2. **[Standard Setup](getting-started/installation.md)**: Get your engine running in under 60 seconds.
+3. **[Tutorial (Step-by-Step)](tutorial/task1_setup.md)**: Follow a 10-task path to build a SaaS application.
+4. **[Fastest Quick Start](getting-started/quickstart.md)**: Build your first "Hello World" Task Manager.
 
 ---
 
-## 📚 Specialized Guides (Premium Standard)
+## 📚 Specialized Guides (The "Premium" Standard)
 
-Explore the advanced capabilities of the Eden framework through our newly upgraded "Premium" documentation suite.
+Explore the advanced capabilities of Eden through our "Master Class" guides.
 
 ### ⚛️ Core Ecosystem
 
 | Feature | Description |
 | :--- | :--- |
-| **[Routing 🚦](guides/routing.md)** | Modern, decorator-driven routing with sub-router support. |
-| **[API Versioning 🛰️](guides/api-versioning.md)** | Clean version negotiation via URL, path, or headers. |
-| **[Service Layer 🏛️](guides/service-layer.md)** | Domain isolation pattern for scalable business logic. |
+| **[Routing & Versioning 🚦](guides/routing.md)** | Modern, version-aware, decorator-driven routing. |
 | **[ORM & Database 🗄️](guides/orm.md)** | Fluent, async-first ORM with automatic session management. |
-| **[Templating 🎨](guides/templating.md)** | Clean, directive-based syntax built on Jinja2. |
-| **[Forms & Validation 📋](guides/forms.md)** | Pydantic v2-powered validation and rapid rendering. |
+| **[Templating 🎨](guides/templating.md)** | Directives-first UI syntax with premium typography support. |
+| **[High-Fidelity UI System 💎](guides/ui-components.md)** | Premium, components-first UI with Python/HTMX/Alpine integration. |
+| **[Full-Stack UI Recipes 🍳](guides/recipes.md)** | Verified, end-to-end SaaS patterns (AI Search, Payments, Storage). |
+| **[Forms & Professional Validation 📋](guides/forms.md)** | Pydantic v2-powered validation and rapid rendering. |
 
 ### 🏢 SaaS & Scaling
 
 | Feature | Description |
 | :--- | :--- |
-| **[AI & Semantic Search 🤖](guides/ai-search.md)** | Native pgvector support for embeddings and RAG. |
-| **[Multi-Tenancy 🏗️](guides/tenancy.md)** | Native tenant isolation and automatic data scoping. |
-| **[Payments & Billing 💳](guides/payments.md)** | Provider-agnostic SaaS payments and Stripe integration. |
-| **[Real-time Sync 📡](guides/realtime.md)** | Live push updates from the ORM directly to the UI. |
-| **[Background Tasks ⚙️](guides/background-tasks.md)** | Resilient queuing with Taskiq and periodic scheduling. |
+| **[Multi-Tenancy 🏗️](guides/tenancy.md)** | Native isolation and automatic data scoping for multi-tenant apps. |
+| **[Payments & Billing 💳](guides/payments.md)** | Subscriptions, webhooks, and Stripe integration out of the box. |
+| **[Background Workers ⚙️](guides/background-tasks.md)** | Resilient queuing with Taskiq and periodic scheduling. |
+| **[AI & Search 🤖](guides/ai-search.md)** | Native vector embeddings and RAG with pgvector. |
 
-### 🛡️ Auth & Professional Admin
+### 🛡️ Auth & Enterprise Admin
 
 | Feature | Description |
 | :--- | :--- |
-| **[Social Login (OAuth) 🔑](guides/auth-oauth.md)** | Google, GitHub, and automated account linking. |
-| **[RBAC & Security 🛡️](guides/auth-rbac.md)** | Hierarchical roles and deep permission management. |
-| **[Admin Panel 🛠️](guides/admin.md)** | Zero-config, auto-generated Low-Code dashboard. |
-| **[Elite Forge CLI 🔨](guides/cli.md)** | Rapid scaffolding and auto-registration engine. |
+| **[Auth & Identity 🛡️](guides/auth.md)** | Hierarchical roles, social login, and deep RBAC. |
+| **[Admin Dashboard 🛠️](guides/admin.md)** | Manage your production data with a premium, low-code control room. |
+| **[Audit Trails 🛡️](guides/audit.md)** | Industrial-grade change tracking for every model operation. |
+| **[Elite Forge CLI 🔨](guides/cli.md)** | Rapid scaffolding, migrations, and auto-registration. |
 
 ---
 
-## 🏗️ Community & Support
+## 🏗️ Community & Mastery
 
-- **GitHub**: [eden-framework/eden](https://github.com/eden-framework/eden)
-- **Found a bug?**: [Report an issue](https://github.com/eden-framework/eden/issues)
+- **GitHub**: [kwabenaberko25/eden](https://github.com/kwabenaberko25/eden)
+- **Found a bug?**: [Report an issue](https://github.com/kwabenaberko25/eden/issues)
 - **License**: MIT
+- **Contribute**: [Join the Eden Elite](CONTRIBUTING.md)
+
+---
+
+> [!IMPORTANT]
+> **Production Note**: Eden is built for high-scale SaaS. All code examples in these guides are **verified for zero-regression** using the `EdenDoc` engine.

@@ -7,7 +7,7 @@ Tests for S3StorageBackend using aioboto3 mocking.
 import pytest
 from unittest.mock import MagicMock, AsyncMock, patch
 
-from eden.storage.s3 import S3StorageBackend
+from eden.storage_backends.s3 import S3StorageBackend
 
 
 pytest.importorskip("aioboto3")

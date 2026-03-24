@@ -27,7 +27,7 @@ For Admin Panel (built-in):
     from eden.admin import AdminSite, ModelAdmin
 """
 
-__version__ = "0.1.0"
+__version__ = "1.0.0"
 
 # ── Core Application ──────────────────────────────────────────────────────
 from eden.app import Eden, Eden as App

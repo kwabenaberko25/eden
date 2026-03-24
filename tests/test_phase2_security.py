@@ -61,8 +61,8 @@ def test_metrics_collection():
     all_metrics = reg.get_all_metrics()
     assert all_metrics["counters"]["test_counter"] == 1
     assert all_metrics["gauges"]["test_gauge"] == 42
-    assert all_metrics["summaries"]["test_latency"]["count"] == 2
-    assert all_metrics["summaries"]["test_latency"]["avg"] == 0.6
+    assert all_metrics["histograms"]["test_latency"]["count"] == 2
+    assert all_metrics["histograms"]["test_latency"]["avg"] == 0.6
 
 @pytest.mark.asyncio
 async def test_idempotency():

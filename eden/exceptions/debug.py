@@ -373,7 +373,7 @@ def render_premium_debug_page(
                                 Need help? The Eden community is here to assist you with template issues and architectural patterns.
                             </p>
                             <div class="flex flex-col gap-2">
-                                <a href="https://github.com/eden-framework/eden" target="_blank" class="flex items-center justify-between group p-3 bg-blue-600/20 rounded-xl hover:bg-blue-600/30 transition-all border border-blue-500/20">
+                                <a href="https://github.com/kwabenaberko25/eden" target="_blank" class="flex items-center justify-between group p-3 bg-blue-600/20 rounded-xl hover:bg-blue-600/30 transition-all border border-blue-500/20">
                                     <span class="text-xs font-semibold text-blue-300 tracking-wide">Documentation</span>
                                     <svg class="w-3.5 h-3.5 text-blue-400 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
                                 </a>
@@ -386,7 +386,7 @@ def render_premium_debug_page(
                         <div class="bg-slate-900/30 rounded-2xl border border-white/5 p-5">
                             <div class="text-[10px] text-slate-500 font-semibold mb-3 tracking-widest uppercase">Version</div>
                             <div class="text-lg font-bold text-white flex items-center gap-2">
-                                🌿 Eden <span class="text-blue-500">v0.1.0</span>
+                                🌿 Eden <span class="text-blue-500">v1.0.0</span>
                             </div>
                         </div>
                     </div>

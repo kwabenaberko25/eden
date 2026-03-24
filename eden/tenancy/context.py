@@ -36,6 +36,16 @@ def get_current_tenant_id() -> Optional[uuid.UUID]:
     """Get the current tenant's ID from context."""
     val = _tenant_ctx.get()
     if val is None:
+        # Fallback to user's active org if no explicit tenant set (Eden Secure-by-Default)
+        try:
+            from eden.context import get_user
+            user = get_user()
+            if user and hasattr(user, "active_org_id"):
+                val = user.active_org_id
+        except (ImportError, AttributeError):
+            pass
+            
+    if val is None:
         return None
     
     # If it's a Tenant instance (B3/B4 compat)

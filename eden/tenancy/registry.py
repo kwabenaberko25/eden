@@ -70,5 +70,25 @@ class TenancyRegistry:
     def strict_mode(self) -> bool:
         return self._strict_mode
 
+def tenant_isolated(enabled: bool = True):
+    """
+    Decorator to mark a model class as tenant-isolated (or not).
+    
+    This is an alternative to setting `__tenant_isolated__ = True/False` 
+    directly on the class.
+    
+    Example:
+        @tenant_isolated(enabled=False)
+        class GlobalReport(Model):
+            ...
+    """
+    def decorator(model_cls: Type[Any]):
+        setattr(model_cls, "__tenant_isolated__", enabled)
+        # If enabled, ensure it's in the registry
+        if enabled:
+            tenancy_registry.register(model_cls)
+        return model_cls
+    return decorator
+
 # Global singleton
 tenancy_registry = TenancyRegistry()

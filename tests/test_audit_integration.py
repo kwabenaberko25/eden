@@ -24,7 +24,7 @@ class TestImportCleanliness:
 
     def test_top_level_import_succeeds(self):
         import eden
-        assert eden.__version__ == "0.1.0"
+        assert eden.__version__ == "1.0.0"
 
     def test_all_exports_are_importable(self):
         """Every name in __all__ must be a real attribute on the eden module."""
@@ -111,9 +111,10 @@ class TestEdenApp:
 
     def test_eden_instantiation(self):
         from eden import Eden
-        app = Eden(title="Test", version="1.0", debug=True, secret_key="s3cret")
-        assert app.title == "Test"
-        assert app.version == "1.0"
+        payload = {"title": "Eden", "version": "1.0.0"}
+        app = Eden(**payload, debug=True, secret_key="s3cret")
+        assert app.title == "Eden"
+        assert app.version == "1.0.0"
         assert app.debug is True
         assert app.secret_key == "s3cret"
 

@@ -104,10 +104,16 @@ class TestIdempotencyLocking:
     async def test_lock_release_without_acquire_warns(self, manager, caplog):
         """Releasing a lock that was never acquired should warn, not crash."""
         import logging
-        with caplog.at_level(logging.WARNING, logger="eden.idempotency"):
-            await manager.release_lock("never-acquired")
-        
-        assert "No lock identifier found" in caplog.text
+        eden_logger = logging.getLogger("eden")
+        old_propagate = eden_logger.propagate
+        eden_logger.propagate = True  # Enable so caplog can capture
+        try:
+            with caplog.at_level(logging.WARNING, logger="eden.idempotency"):
+                await manager.release_lock("never-acquired")
+            
+            assert "No lock identifier found" in caplog.text
+        finally:
+            eden_logger.propagate = old_propagate
     
     @pytest.mark.asyncio
     async def test_concurrent_lock_fails(self, manager):

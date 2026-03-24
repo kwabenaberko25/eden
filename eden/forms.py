@@ -934,7 +934,86 @@ class BaseForm:
 
 
 
-class Schema(BaseModel):
+try:
+    from pydantic._internal._model_construction import ModelMetaclass
+except ImportError:
+    # Use standard metaclass if Pydantic internal API is missing
+    ModelMetaclass = type(BaseModel)
+
+
+class SchemaMeta(ModelMetaclass):
+    """
+    Metaclass for Schema that enables seamless integration with ORM models
+    via 'class Meta: model = MyModel'.
+    
+    This metaclass injects fields and annotations during class creation so that 
+    Pydantic's core schema generator correctly incorporates all validation 
+    constraints (like max_length, gt, etc.).
+    """
+
+    def __new__(mcs, name, bases, namespace, **kwargs):
+        # Skip logic for the base Schema class itself
+        if name == "Schema" and not any(isinstance(b, mcs) for b in bases):
+            return super().__new__(mcs, name, bases, namespace, **kwargs)
+
+        # 1. Handle explicit annotations and 'f()' helper attributes
+        # This ensures descriptors from eden.db.f are replaced by FieldInfo
+        # before Pydantic's ModelMetaclass processes them.
+        annotations = namespace.get("__annotations__", {})
+        from pydantic import Field
+        
+        for fname in list(annotations.keys()):
+            val = namespace.get(fname, ...)
+            if hasattr(val, "column") and hasattr(val.column, "info"):
+                # Convert SQLAlchemy column metadata into Pydantic Field
+                meta = val.column.info
+                field_kwargs = {"json_schema_extra": meta}
+                if "label" in meta:
+                    field_kwargs["description"] = meta["label"]
+                # Replace the descriptor with a Field instance
+                namespace[fname] = Field(**field_kwargs)
+
+        # 2. Declarative Model Integration (Meta.model)
+        meta = namespace.get("Meta", None)
+        if meta and hasattr(meta, "model"):
+            try:
+                model = meta.model
+                include = getattr(meta, "include", None)
+                exclude = getattr(meta, "exclude", None)
+                if exclude is not None:
+                    exclude = list(exclude)
+                
+                # Fetch the dynamic schema (already processed by SchemaInferenceEngine)
+                dynamic_schema = model.to_schema(include=include, exclude=exclude)
+                
+                from pydantic_core import PydanticUndefined
+                if "__annotations__" not in namespace:
+                    namespace["__annotations__"] = {}
+                target_annotations = namespace["__annotations__"]
+                
+                for f_name, f_info in dynamic_schema.model_fields.items():
+                    # Only inject if not already present in class definition
+                    if f_name not in target_annotations and f_name not in namespace:
+                        target_annotations[f_name] = f_info.annotation
+                        
+                        # Strip ORM descriptors from defaults to avoid validation issues
+                        fdef = f_info.default
+                        if fdef is not None and (
+                            hasattr(fdef, "column") or 
+                            hasattr(fdef, "mapper") or 
+                            hasattr(fdef, "prop")
+                        ):
+                            f_info.default = PydanticUndefined
+                        namespace[f_name] = f_info
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).error(f"Schema Meta injection for {name} failed: {e}")
+
+        # Let Pydantic build the class normally with our modified namespace
+        return super().__new__(mcs, name, bases, namespace, **kwargs)
+
+
+class Schema(BaseModel, metaclass=SchemaMeta):
     """
     Unified Schema for Eden.
     Combines Pydantic validation with Eden Form rendering.
@@ -956,71 +1035,10 @@ class Schema(BaseModel):
     model_config = {"extra": "ignore", "arbitrary_types_allowed": True}
 
     def __init_subclass__(cls, **kwargs):
+        # Prevent annotation dictionary sharing
+        if "__annotations__" not in cls.__dict__:
+            setattr(cls, "__annotations__", {})
         super().__init_subclass__(**kwargs)
-
-        # Handle f() helper defaults for Schema fields (Fallback for DB fields)
-        # This allows: email: str = f(widget="email") using eden.db.f
-        if hasattr(cls, "model_fields"):
-            for name, field in cls.model_fields.items():
-                default = field.default
-
-                # Check if the default value is a mapped_column (from eden.db.f)
-                if hasattr(default, "column") and hasattr(default.column, "info"):
-                    col = default.column
-                    if col.info:
-                        # Transfer info to pydantic field metadata
-                        if field.json_schema_extra is None:
-                            field.json_schema_extra = {}
-
-                        # Merge metadata
-                        if isinstance(field.json_schema_extra, dict):
-                            field.json_schema_extra.update(col.info)
-                        else:
-                            field.json_schema_extra = dict(col.info)
-
-                        # Clear the DB-specific default value to avoid Pydantic errors 
-                        # if the default is not serializable or valid for the type
-                        if field.default is default:
-                            field.default = None
-
-        # Declarative Model Integration
-        # This handles 'class Meta: model = MyModel' patterns
-        meta = getattr(cls, "Meta", None)
-        if meta and hasattr(meta, "model"):
-            model = meta.model
-            include = getattr(meta, "include", None)
-            exclude = set(getattr(meta, "exclude", []))
-
-            # Generate dynamic pydantic model from ORM model
-            try:
-                dynamic_schema = model.to_schema(include=include, exclude=exclude)
-                
-                # Transfer fields that aren't manually overridden in the class
-                # We use annotations and setattr to avoid direct model_fields mutation
-                # which can cause pollution in Pydantic 2.x
-                for name, field_info in dynamic_schema.model_fields.items():
-                    if name not in cls.__annotations__ and not hasattr(cls, name):
-                        cls.__annotations__[name] = field_info.annotation
-                        # Set as class attribute so Pydantic sees it during discovery in model_rebuild
-                        setattr(cls, name, field_info)
-                
-                # Force Pydantic to rebuild the model schema using the public API.
-                # This regenerates __pydantic_core_schema__, __pydantic_validator__,
-                # and __pydantic_serializer__ from the updated annotations and fields.
-                # NOTE: We intentionally avoid patching Pydantic internals directly
-                # (e.g., __pydantic_core_schema__) because model_rebuild() overwrites
-                # them anyway, and direct patching is fragile across Pydantic versions.
-                if hasattr(cls, "model_rebuild"):
-                    cls.model_rebuild(force=True)
-                    
-            except Exception as e:
-                import logging
-                logger = logging.getLogger(__name__)
-                logger.error(
-                    f"Failed to generate dynamic schema for {cls.__name__} "
-                    f"from model {getattr(meta, 'model', '?')}: {e}. "
-                    f"Schema validation may fail at runtime."
-                )
 
     @classmethod
     def as_form(cls, data: Optional[Dict[str, Any]] = None) -> BaseForm:

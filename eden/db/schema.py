@@ -838,8 +838,8 @@ class SchemaInferenceEngine:
             default = ...
             if name in model_cls.__dict__:
                 val = model_cls.__dict__[name]
-                # If it's a mapped_column or similar, don't use it as default
-                if not hasattr(val, "column") and not hasattr(val, "mapper"):
+                # If it's a mapped_column, InstrumentedAttribute, or similar, don't use it as default
+                if not hasattr(val, "column") and not hasattr(val, "mapper") and not hasattr(val, "prop"):
                     default = val
             
             # Required status
@@ -857,6 +857,22 @@ class SchemaInferenceEngine:
 class ValidationScanner:
     """Discovers validation rules from model attributes."""
     
+    @classmethod
+    def _has_default(cls, attr: Any) -> bool:
+        """Check if attribute has a default or server_default."""
+        col = None
+        if hasattr(attr, "prop") and hasattr(attr.prop, "columns") and attr.prop.columns:
+            col = attr.prop.columns[0]
+        elif hasattr(attr, "column"):
+            col = attr.column
+        elif hasattr(attr, "mapped_column") and hasattr(attr, "column"):
+            col = attr.column
+            
+        if col is not None:
+            return (hasattr(col, "default") and col.default is not None) or \
+                   (hasattr(col, "server_default") and col.server_default is not None)
+        return False
+
     @classmethod
     def _is_numeric_attr(cls, attr: Any) -> bool:
         """Check if attribute represents a numeric field."""
@@ -918,7 +934,7 @@ class ValidationScanner:
                 if "min" in info:
                     meth = model_cls.rule_min_value if is_numeric else model_cls.rule_min_length
                     discovered_rules.append((meth, name, info["min"]))
-                if "required" in info and info["required"]:
+                if info.get("required") and not cls._has_default(attr):
                     if not info.get("is_reference") and not info.get("is_m2m"):
                         discovered_rules.append((model_cls.rule_required, name, None))
                 if "choices" in info:

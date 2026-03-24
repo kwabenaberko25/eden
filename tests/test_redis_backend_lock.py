@@ -36,11 +36,11 @@ async def test_redis_lock_release_bug():
         
         assert num_keys == 1
         assert "eden:lock:test_lock" in key
-        assert identifier == "my_id"
+        assert identifier == b"my_id"
         
         # Check script for common pitfalls (like leading indentation in multi-line string if not dedented)
         # Lua is sensitive to syntax. Multiple spaces are fine, but let's ensure it's clean.
-        assert 'if redis.call("get", KEYS[1]) == ARGV[1] then' in script
+        assert "if redis.call('get', KEYS[1]) == ARGV[1] then" in script
 
 def test_redis_backend_init():
     """Check init logic with host/port."""

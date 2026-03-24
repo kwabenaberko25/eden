@@ -4,36 +4,28 @@
 
 ---
 
-## 🧠 Conceptual Overview
+## 🧠 The Eden Security Pipeline
 
-Security in Eden is built on a "Three Pillars" architecture. Each layer is independent yet works in harmony to provide end-to-end protection.
-
-### The Security Lifecycle
+Security in Eden is built on a "Three Pillars" architecture. Each layer is independent yet works in harmony to provide end-to-end protection from the edge to the database.
 
 ```mermaid
 graph TD
-    A["Incoming Request"] --> B["AuthenticationMiddleware"]
-    B --> C{"Detect Backend"}
-    C -- "Authorization: Bearer" --> D["JWTBackend"]
-    C -- "Cookie: session" --> E["SessionBackend"]
-    C -- "X-API-Key" --> F["APIKeyBackend"]
+    A["Incoming Request"] --> B["AuthenticationStack"]
+    B --> C{"Identity Backend"}
+    C -- "Bearer Token" --> D["JWT Engine"]
+    C -- "Session Cookie" --> E["Distributed Session"]
+    C -- "API Key" --> F["Key Registry"]
     
-    D & E & F --> G["Identity Resolution: User Model"]
-    G --> H["Request Context: request.user"]
+    D & E & F --> G["Identity Resolution (User)"]
+    G --> H["Request Context (request.user)"]
     H --> I["Authorization Guards"]
     
-    I -- "@login_required"--> J{"Is Authenticated?"}
-    I -- "@require_permission"--> K{"Has Role/Perm?"}
+    I -- "@login_required" --> J{"Is Authenticated?"}
+    I -- "@require_permission" --> K{"Has Scope?"}
     
-    J & K -- "Success"--> L["Route Handler"]
-    J & K -- "Failure"--> M["401 Unauthorized / 403 Forbidden"]
+    J & K -- "Authorized" --> L["Route Handler / Service"]
+    J & K -- "Denied" --> M["401 / 403 Response"]
 ```
-
-### Core Philosophy
-
-1. **Identity is Pluggable**: Use the default `User` model or roll your own by extending `BaseUser`.
-2. **Multi-Backend Support**: Protect your API with JWT and your admin panel with Sessions simultaneously.
-3. **Hierarchical Authorization**: Roles inherit permissions from parents, reducing boilerplate in complex RBAC systems.
 
 ---
 
@@ -42,240 +34,158 @@ graph TD
 Ready to protect your first route? Follow this pattern to bootstrap a fully secure endpoint in under a minute.
 
 ```python
-from eden import Eden, render_template
-from eden.auth import login_required, create_user
+from eden import Eden
+from eden.auth import login_required
 
-app = Eden()
+app = Eden(secret_key="top-secret")
 
-@app.get("/secret-dashboard")
-@login_required # 🛡️ The core guard
-async def dashboard(request):
-    return render_template("dashboard.html", user=request.user)
-
-# Pro-tip: Create your first user via the CLI or bootstrap script
-# await create_user(email="admin@example.com", password="secure_password")
+@app.get("/vault")
+@login_required # 🛡️ The core guard — simple but powerful
+async def secret_vault(request):
+    return {"data": "This is accessible only to authenticated users."}
 ```
+
+> [!IMPORTANT]
+> **Automatic Security**: By simply adding `login_required`, Eden automatically handles the 401 Unauthorized redirect or response, depending on the request's `Accept` header.
 
 ---
 
 ## 👤 Identity: The `User` Model
 
-All security revolves around the `User` model. Eden provides a standard implementation using SQLAlchemy, but you can customize it easily by extending `BaseUser`.
+All security revolves around the `User` model. Eden provides a standard implementation, but you can customize it easily by extending `BaseUser` and `Model`.
 
 ```python
-from eden.auth import BaseUser, User
+from eden.auth import BaseUser
 from eden.db import Model, f, Mapped
 
-# Example: Custom User extending the framework's identity base
-
-class MyUser(BaseUser, Model):
+class UserAccount(BaseUser, Model):
     __tablename__ = "users"
-    phone: Mapped[str] = f(nullable=True)
     
-    # Custom role resolution logic
-    async def get_roles(self):
-        return ["member"]
+    # Custom industrial-scale fields
+    full_name: Mapped[str] = f(max_length=150)
+    is_corporate: Mapped[bool] = f(default=False)
 ```
 
-### Accessing the Current User
-
-The user is automatically injected into the request object by the `AuthenticationMiddleware`.
-
-```python
-# In your view
-from eden.responses import JsonResponse
-
-async def my_view(request):
-    if request.user.is_authenticated:
-        print(f"User ID: {request.user.id}")
-        # Use get_roles() for tenant-aware roles or .roles attribute if using default User
-        roles = await request.user.get_roles()
-        print(f"Roles: {roles}")
-    return JsonResponse({"status": "ok"})
-```
-
-### High-Level Convenience Functions
-
-Eden provides a unified set of actions for identity tasks in `eden.auth`. These handle password hashing, session binding, and database persistence in one call, ensuring a consistent security posture across the framework.
+### High-Level Auth Actions
+Eden provides a unified set of actions in `eden.auth.actions`. These handle password hashing (Argon2), validation, and database persistence in one call.
 
 ```python
 from eden.auth import create_user, authenticate, login
 
-async def auth_workflow(request):
-    # Create a new user with hashed password (validates email & password strength)
-    user = await create_user(email="alice@example.com", password="secure_password_123")
-
-    # Verify credentials against the registered User model
-    user = await authenticate(email="alice@example.com", password="secure_password_123")
-
-    # Bind to the current request (Session/JWT) and set global context
-    if user:
-        await login(request, user)
+async def handle_signup(request):
+    # 1. Create a secure user (hashed with Argon2id)
+    user = await create_user(email="alice@example.com", password="SecurePassword123!")
+    
+    # 2. Verify credentials
+    authenticated_user = await authenticate(email="alice@example.com", password="SecurePassword123!")
+    
+    # 3. Bind to the session/JWT context
+    if authenticated_user:
+        await login(request, authenticated_user)
 ```
 
 ---
 
-## 🔑 Authentication Backends
-
-Eden supports multiple concurrent authentication methods.
-
-| Backend | Logic | Use Case |
-| :--- | :--- | :--- |
-| **`JWTBackend`** | Stateless tokens (Bearer) | Mobile apps, SPA, Public APIs. |
-| **`SessionBackend`** | Stateful cookies | Traditional Web Apps, Admin Panels. |
-| **`APIKeyBackend`** | Header-based keys | Server-to-server communication, Webhooks. |
-
-### Configuring JWT
-
-```python
-from eden.auth import JWTBackend
-
-jwt_backend = JWTBackend(
-    secret="top-secret-key",
-    access_token_expire_minutes=60
-)
-
-# Create a token manually
-token = jwt_backend.encode({"sub": "user_123"})
-```
-
----
-
-## 🛡️ Authorization & RBAC
+## 🛡️ Industrial RBAC (Hierarchy & Inheritance)
 
 Eden's Role-Based Access Control (RBAC) supports **inheritance**. If a `manager` inherits from `employee`, they automatically gain all `employee` permissions.
 
-### Defining Hierarchy
-
+### Defining Your Hierarchy
 ```python
-from eden.auth import default_rbac as rbac
+from eden.auth import rbac
 
-# Build the hierarchy
+# Build the structural tree
 rbac.add_role("employee")
 rbac.add_role("manager", parents=["employee"])
 rbac.add_role("admin", parents=["manager"])
 
-# Assign permissions
-rbac.add_permission("employee", "post:view")
-rbac.add_permission("manager", "post:edit")
-rbac.add_permission("admin", "post:delete")
+# Assign functional permissions
+rbac.add_permission("employee", "posts:view")
+rbac.add_permission("manager", "posts:edit")
+rbac.add_permission("admin", "posts:delete")
 
-# 'admin' now has all 3 permissions
+# Result: 'admin' has all 3 permissions automatically.
 ```
 
-Use decorators to enforce your RBAC rules at the entry point. Eden decorators are powerful: they support both function-based handlers and **Class-Based Views (CBVs)**.
-
-### Function-Based Views
-
-```python
-from eden import Eden
-from eden.auth import require_role
-
-app = Eden()
-
-@app.get("/analytics")
-@require_role("manager")
-async def view_analytics(request):
-    return {"stats": "..."}
-```
-
-### Class-Based Views
-
-Use `view_decorator` to apply a guard to an entire class:
+### Enforcing Permissions
+Use decorators to protect your functions or Class-Based Views (CBVs).
 
 ```python
-from eden.auth import view_decorator, login_required
-from eden.routing import View
+from eden.auth import require_role, require_permission
 
-@view_decorator(login_required)
-class ProtectedView(View):
-    async def get(self, request):
-        return {"data": "secret"}
-```
+@app.get("/admin/metrics")
+@require_role("admin")
+async def view_metrics(request):
+    return {"metrics": "..."}
 
-> [!TIP]
-> **Superuser Bypass**: All decorators automatically bypass checks for users with `is_superuser=True`, ensuring your admins never get locked out.
-
----
-
-## 🏗️ Audit & Security Middleware
-
-Enable automatic protection across your entire application.
-
-```python
-from eden import Eden
-app = Eden()
-
-# In your app configuration
-app.add_middleware("session")   # Required for CSRF
-app.add_middleware("security")  # Sets CSP, X-Frame-Options, HSTS
-app.add_middleware("csrf")      # Automatic CSRF protection for forms
-app.add_middleware("ratelimit") # Protect against brute force
+@app.post("/posts/create")
+@require_permission("posts:edit")
+async def create_post(request):
+    return {"status": "Post Created"}
 ```
 
 ---
 
-## 📖 API Reference
+## 🛰️ Social Login (OAuth Strategy)
 
-### Core Functions (`eden.auth`)
+Eden supports Google, GitHub, and custom OAuth providers out of the box with automated account linking.
 
-| Function | Parameters | Return Type | Description |
-| :--- | :--- | :--- | :--- |
-| `authenticate` | `email, password, user_model=None` | `User \| None` | Validates credentials. Auto-detects custom User models. |
-| `login` | `request, user` | `None` | Binds user to request and setting global context. |
-| `logout` | `request` | `None` | Clears request, context, and session identity. |
-| `create_user` | `email, password, **kwargs` | `User` | Creates user, hashes password, and persists to DB. |
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant E as Eden App
+    participant G as Google OAuth
+    participant D as Database
 
-### Authorization Guards
+    U->>E: GET /login/google
+    E-->>U: Redirect to Google
+    U->>G: Authorize App
+    G-->>E: Callback with Code
+    E->>G: Exchange Code for Profile
+    E->>D: Find/Create User by Social ID
+    D-->>E: User Instance
+    E->>E: Start Session (JWT)
+    E-->>U: Redirect to Dashboard
+```
 
-| Decorator | Argument | Description |
-| :--- | :--- | :--- |
-| `@login_required` | - | Requires any authenticated user. |
-| `@require_role` | `role: str` | Requires user to have specific role (supports hierarchy). |
-| `@require_permission` | `perm: str` | Requires specific functional permission (e.g. "user:read"). |
-| `@staff_required` | - | Shorthand for users with `is_staff=True`. |
+To enable:
+```python
+from eden.auth.oauth import GoogleProvider
 
-### `EdenRBAC` (Role Manager)
-
-| Method | Parameters | Description |
-| :--- | :--- | :--- |
-| `add_role` | `name, parents=None` | Register a role and its inheritance tree. |
-| `add_permission` | `role, permission` | Bind an atomic permission to a specific role. |
-| `has_permission` | `user_roles, perm` | Recursively check permissions across hierarchy. |
+app.security.add_oauth_provider(
+    GoogleProvider(
+        client_id="YOUR_ID",
+        client_secret="YOUR_SECRET"
+    )
+)
+```
 
 ---
 
-## ⚡ Elite Pattern: Query-Level Protection
+## 🔒 Security Middleware Stack
 
-Instead of checking permissions in the controller, filter the data at the database level based on the user's role.
+Protect your application from common web vulnerabilities by enabling the middleware suite.
 
 ```python
-from eden import Eden
-from eden.auth import apply_rbac_filter, login_required
-from eden.db import Model, f, Mapped
-
-app = Eden()
-
-class Document(Model):
-    __tablename__ = "documents"
-    title: Mapped[str] = f()
-
-@app.get("/documents")
-@login_required
-async def list_documents(request):
-    # This automatically adds WHERE clauses to restrict access based on user roles
-    query = await apply_rbac_filter(Document.query(), request.user)
-    return await query.all()
+app = Eden(
+    # ...
+    middleware=[
+        "eden.middleware.SessionMiddleware",
+        "eden.middleware.CSRFMiddleware",       # Anti-Replay
+        "eden.middleware.SecurityMiddleware",   # CSP, HSTS, XSS protection
+        "eden.middleware.RateLimitMiddleware",  # Brute-Force prevention
+    ]
+)
 ```
 
 ---
 
 ## 💡 Best Practices
 
-1. **Use Hierarchy**: Don't manually add 50 permissions to an `admin` role. Add them to sub-roles and have `admin` inherit them.
-2. **Stateless First**: Use `JWTBackend` for your API to ensure global scalability.
-3. **Always Secure Cookies**: In production, ensure `SESSION_COOKIE_SECURE=True` is enabled.
+1. **Principle of Least Privilege**: Assign users the most restrictive roles possible.
+2. **Stateless APIs**: Use JWT for mobile and external APIs to ensure horizontal scalability.
+3. **Audit Everything**: Use the `AuditTrail` engine to track sensitive authentication events (login failures, password changes).
 
 ---
 
-**Next Steps**: [Database & ORM](orm.md)
+**Next Steps**: [Database & ORM](orm.md) | [SaaS Multi-Tenancy](tenancy.md)

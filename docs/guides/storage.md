@@ -4,48 +4,45 @@
 
 ---
 
-## 🧠 Conceptual Overview
+## 🧠 The Eden Storage Pipeline
 
-The storage system is built around a **Pluggable Backend** architecture. Your application interacts with a standard `StorageManager` that routes operations to the active provider (Local, S3, or Supabase).
-
-### The Storage Lifecycle
+The storage system is built around a **Pluggable Backend** architecture. Your application interacts with a standard `StorageManager` that routes operations to the active provider (Local, S3, or Supabase) while enforcing security and atomicity.
 
 ```mermaid
 graph TD
     A["Incoming Upload"] --> B["FileUploadValidator"]
     B -- "Size/MIME Check" --> C{"Atomic Transaction?"}
-    C -- "Yes" --> D["Upload to Backend"]
-    D --> E["Update Database"]
-    E -- "Failure" --> F["Rollback: Delete File"]
-    E -- "Success" --> G["Return URL/Key"]
-    C -- "No" --> H["Direct Upload"]
+    C -- "Yes" --> D["Upload to Backend (S3/Local)"]
+    D --> E["Update Database (ORM)"]
+    E -- "Rollback" --> F["Delete File from Backend"]
+    E -- "Commit" --> G["Return Public ID/Key"]
 ```
 
 ---
 
 ## 🏗️ Storage Backends
 
-Eden supports multiple backends out of the box. You can register multiple backends and switch between them dynamically.
+Eden supports multiple backends. You can register several and switch between them dynamically (e.g., `local` for dev, `s3` for prod).
 
-| Backend | Typical Use | Configuration |
+| Backend | Typical Use | Driver |
 | :--- | :--- | :--- |
-| **`LocalStorage`** | Dev / Single Server | Base path on disk. |
-| **`S3Storage`** | Production / Scalable | AWS S3 or MinIO. |
-| **`SupabaseStorage`**| Serverless / Mobile | Supabase Storage API. |
+| **`LocalStorageBackend`** | Local development / Single server | `aiofiles` |
+| **`S3StorageBackend`** | Production / Scalable / SaaS | `aioboto3` |
 
-### Registering Backends
-Register your backends during app initialization (usually in `app.py`).
+### Registration Pattern
+Register backends during your application bootstrap.
 
 ```python
-from eden.storage import storage, LocalStorageBackend, S3StorageBackend
+from eden.storage import storage, LocalStorageBackend
+from eden.storage_backends import S3StorageBackend
 
-# Register Local for development
-storage.register("local", LocalStorageBackend(path="./media"), default=True)
+# 1. Dev: Save to local disk
+storage.register("local", LocalStorageBackend(base_path="./media"), default=True)
 
-# Register S3 for production
+# 2. Prod: Save to high-performance S3
 if app.env == "production":
     storage.register("s3", S3StorageBackend(
-        bucket="my-app-uploads",
+        bucket="my-data-bucket",
         region="us-east-1"
     ), default=True)
 ```
@@ -54,61 +51,64 @@ if app.env == "production":
 
 ## 🛡️ Industrial Security: `FileUploadValidator`
 
-Never trust user-supplied files. Eden's validator provides deep inspection before a single byte hits your storage.
+Never trust user-supplied files. Eden's validator provides deep inspection—including size limits, type whitelists, and optional virus scanning—before a single byte hits your storage.
 
 ```python
 from eden.storage import FileUploadValidator
 
-validator = FileUploadValidator(
-    max_size_bytes=10 * 1024 * 1024,  # 10MB
-    allowed_types={"image/jpeg", "image/png", "application/pdf"},
-    enable_virus_scan=True  # Optional ClamAV integration
+# Create a strict policy for profile images
+policy = FileUploadValidator(
+    max_size_bytes=5 * 1024 * 1024,  # 5MB Max
+    allowed_types={"image/jpeg", "image/png", "image/webp"},
+    enable_virus_scan=True  # Optional: Requires pyclamd + ClamAV
 )
 
-# Usage in a view
-await storage.save(request.files['avatar'], validator=validator)
+# Usage in your view
+file_key = await storage.get().save(request.files['avatar'], validator=policy)
 ```
 
 ---
 
-## ⚡ Elite Patterns
+## ⚡ Elite Usage Patterns
 
-### 1. Atomic Storage Transactions (`AtomicStorageTransaction`)
-A common "Gotcha" in web apps: a file is uploaded to S3, but the database saves fails, leaving an orphaned file. Eden solves this with atomic transactions.
+### 1. Atomic Storage Transactions
+A common "Gotcha" in web apps: a file is uploaded to S3, but the database save fails, leaving an orphaned file. Eden's `AtomicStorageTransaction` ensures that if your database save fails, the file is automatically deleted from storage.
 
 ```python
 async with storage.transaction() as txn:
-    # 1. Upload file (tracked by transaction)
-    file_key = await txn.save(upload_file, folder="invoices")
+    # 1. Save file (tracked by transaction)
+    key = await txn.save(upload_file, folder="invoices")
     
-    # 2. Save to Database
-    invoice = await Invoice.create(file_path=file_key, ...)
-    
-    # If any exception occurs here, file_key is automatically 
-    # deleted from the storage backend!
+    # 2. Update Database
+    invoice = await Invoice.create(file_key=key, amount=100.0)
+    # If an error happens here, 'key' is auto-deleted from S3!
 ```
 
-### 2. Large File Progress Tracking
-Provide real-time feedback for large uploads using the `ProgressCallback` protocol.
+### 2. High-Performance: Client-Side Direct Uploads
+For high-traffic apps, don't proxy files through your server. Generate a **Presigned URL** and let the user's browser upload directly to S3.
 
 ```python
-async def on_progress(bytes_written: int, total_bytes: int | None):
-    if total_bytes:
-        percent = (bytes_written / total_bytes) * 100
-        print(f"Uploaded: {percent:.1f}%")
-
-await storage.save(large_file, progress=on_progress)
+@app.get("/storage/presign")
+async def get_upload_url(request):
+    # Generates a temporary URL valid for 1 hour
+    url = await storage.get().presigned_url(
+        name=f"uploads/{uuid.uuid4().hex}.jpg",
+        expires_in=3600
+    )
+    return {"upload_url": url}
 ```
 
-### 3. Private Files & Presigned URLs
-Keep sensitive data secure by storing files in private buckets and generating time-limited access URLs.
+### 3. Protected Content: Private URLs
+Keep sensitive documents (PDFs, Invoices) in a private bucket and only grant temporary access via presigned download links.
 
 ```python
-# Generate a URL that expires in 1 hour
-secure_url = await storage.get().get_presigned_url(
-    "contracts/signed_123.pdf", 
-    expires_in=3600
-)
+@app.get("/invoices/{id}/download")
+async def download_invoice(request, id: int):
+    invoice = await Invoice.get(id=id)
+    # Return a 5-minute temporary link
+    return RedirectResponse(
+        await storage.get().presigned_url(invoice.file_key, expires_in=300)
+    )
 ```
 
 ---
@@ -117,30 +117,21 @@ secure_url = await storage.get().get_presigned_url(
 
 ### `StorageManager` (`eden.storage.storage`)
 
-| Method | Parameters | Description |
+| Method | Returns | Description |
 | :--- | :--- | :--- |
-| `save` | `content, name, folder` | Saves a file to the default backend. Returns the file key. |
-| `url` | `key` | Returns the public URL for a given key. |
-| `delete` | `key` | Permanently removes a file from storage. |
-| `transaction` | `backend_name` | Context manager for atomic storage operations. |
-
-### `FileUploadValidator`
-
-| Init Parameter | Default | Description |
-| :--- | :--- | :--- |
-| `max_size_bytes` | `50MB` | Reject files larger than this size. |
-| `allowed_types` | `Common Media` | Set of allowed MIME types. |
-| `enable_virus_scan`| `False` | Scan files using connected ClamAV daemon. |
+| `save(content, **kwargs)` | `str` | Saves file to default backend and returns the primary key. |
+| `url(key)` | `str` | Returns the absolute public URL for a given file key. |
+| `delete(key)` | `None` | Permanently removes a file from the backend. |
+| `presigned_url(key, expires_in)` | `str` | Generates a temporary signed URL for binary data. |
 
 ---
 
 ## 💡 Best Practices
 
-1.  **Unique Keys**: Eden automatically generates unique filenames by default to prevent collisions. Always rely on these rather than user-provided names.
-2.  **CDN Integration**: For public assets, point your CDN to the `base_url` of your storage backend for optimal performance.
-3.  **Cleanup**: Use `AtomicStorageTransaction` for any upload tied to a database record.
-4.  **Folder Partitioning**: Use the `folder` parameter in `.save()` to organize files (e.g., `users/123/avatars/`).
+1. **Unique Keys**: Eden auto-generates unique names to prevent collisions. Do not use raw user filenames.
+2. **Partitioning**: Use the `folder` parameter (e.g., `folder="users/avatars"`) to organize your buckets cleanly.
+3. **N+1 Prevention**: In your ORM, store only the `file_key`. Use a property to resolve the absolute URL on-the-fly: `self.storage.url(self.avatar_key)`.
 
 ---
 
-**Next Steps**: [Background Tasks & Task Queues](background-tasks.md)
+**Next Steps**: [Background Tasks & Task Queues](background-tasks.md) | [SaaS Multi-Tenancy](tenancy.md)

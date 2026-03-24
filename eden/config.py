@@ -232,7 +232,7 @@ class Config(BaseModel):
         description="Application title"
     )
     version: str = Field(
-        default="0.1.0",
+        default="1.0.0",
         description="Application version"
     )
     log_level: str = Field(
@@ -478,7 +478,7 @@ class ConfigManager:
             redis_url=os.getenv("REDIS_URL", "redis://localhost:6379"),
             cache_ttl=int(os.getenv("CACHE_TTL", "3600")),
             title=os.getenv("EDEN_TITLE", os.getenv("TITLE", "Eden")),
-            version=os.getenv("EDEN_VERSION", os.getenv("VERSION", "0.1.0")),
+            version=os.getenv("EDEN_VERSION", os.getenv("VERSION", "1.0.0")),
             log_level=os.getenv("LOG_LEVEL", "INFO"),
             allowed_hosts=os.getenv("ALLOWED_HOSTS", "*").split(","),
             cors_origins=os.getenv("CORS_ORIGINS", "").split(",") if os.getenv("CORS_ORIGINS") else [],

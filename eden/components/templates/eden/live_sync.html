@@ -1,0 +1,45 @@
+{# Eden — Live Sync Status Indicator #}
+@props(['channel' => '', 'show_text' => false, 'class' => ''])
+
+<div 
+    x-data="{ 
+        syncing: false, 
+        lastUpdate: null, 
+        init() {
+            window.addEventListener('eden:sync', (e) => {
+                if (!'{{ channel }}' || e.detail.channel === '{{ channel }}') {
+                    this.syncing = true;
+                    this.lastUpdate = new Date().toLocaleTimeString();
+                    setTimeout(() => { this.syncing = false }, 2000);
+                }
+            });
+        }
+    }"
+    class="flex items-center gap-2 {{ class }}"
+>
+    <div class="relative flex items-center justify-center h-3 w-3">
+        {# Ambient Pulse #}
+        <span 
+            x-show="syncing"
+            x-transition:enter="transition ease-out duration-500"
+            x-transition:enter-start="scale-50 opacity-0"
+            x-transition:enter-end="scale-150 opacity-100"
+            class="absolute inline-flex h-full w-full rounded-full bg-lime-400 opacity-75 animate-ping"
+        ></span>
+        
+        {# Main Dot #}
+        <span 
+            class="relative inline-flex rounded-full h-2 w-2 transition-colors duration-500"
+            :class="syncing ? 'bg-lime-400 shadow-[0_0_10px_rgba(163,230,53,0.8)]' : 'bg-slate-600'"
+        ></span>
+    </div>
+
+    @if (show_text) {
+    <span 
+        class="text-[10px] uppercase tracking-widest font-bold transition-colors duration-500"
+        :class="syncing ? 'text-lime-400' : 'text-slate-500'"
+    >
+        <span x-text="syncing ? 'Live Syncing' : 'Live Mode'">Live Mode</span>
+    </span>
+    }
+</div>

@@ -8,7 +8,7 @@ async def test_session_middleware_not_present_without_secret():
     class MockConfig:
         secret_key = None
         title = "Eden"
-        version = "0.1.0"
+        version = "1.0.0"
         debug = False
         browser_reload = False
 

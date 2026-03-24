@@ -6,7 +6,7 @@
 
 ## 🏗️ The Eden Lifecycle: From Request to Render
 
-Before we write code, understand how Eden handles your application. It abstracts the complexity of ASGI, database management, and middleware into a unified, high-performance pipeline.
+Understand how Eden handles your application. It abstracts the complexity of ASGI, database management, and middleware into a unified, high-performance pipeline.
 
 ```mermaid
 graph TD
@@ -57,6 +57,7 @@ Add this task model to your `app.py`:
 from eden import Eden, Model, f, Mapped, Request
 
 app = Eden(secret_key="dev-secret")
+# Pre-set sqlite configuration for quick-start
 app.state.database_url = "sqlite+aiosqlite:///tasks.db"
 
 class Task(Model):
@@ -71,15 +72,16 @@ class Task(Model):
 # List all tasks
 @app.get("/tasks")
 async def list_tasks():
+    # Eden supports clean ActiveRecord selection
     tasks = await Task.all()
-    return {"count": len(tasks), "tasks": tasks}
+    return {"count": len(tasks), "tasks": [t.to_dict() for t in tasks]}
 
 # Create a task from a JSON request
 @app.post("/tasks")
 async def create_task(request: Request):
     data = await request.json()
     task = await Task.create(**data)
-    return task, 201
+    return task.to_dict(), 201
 ```
 
 > [!TIP]
@@ -92,7 +94,6 @@ async def create_task(request: Request):
 Eden's templating engine is built for "Visual Excellence." It allows you to build interactive UIs using only Python and HTML, powered by built-in **HTMX** integration.
 
 ### Create `templates/base.html`
-
 We use a global layout with modern typography and a subtle glassmorphism header.
 
 ```html
@@ -101,8 +102,9 @@ We use a global layout with modern typography and a subtle glassmorphism header.
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>@span(title | default("Eden Tasks"))</title>
+    <title>@yield("title", "Eden Tasks")</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
 </head>
 <body class="bg-slate-50 text-slate-900 font-sans">
     <nav class="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200 py-4 mb-8">
@@ -119,8 +121,7 @@ We use a global layout with modern typography and a subtle glassmorphism header.
 ```
 
 ### Create `templates/tasks.html`
-
-Use the `@fragments` directive to allow HTMX to update only parts of the page.
+Use the `@fragment` directive to allow HTMX to update only parts of the page.
 
 ```html
 @extends("base")
@@ -176,6 +177,7 @@ app = Eden(secret_key="dev-secret")
 
 class Task(Model):
     title: Mapped[str] = f()
+    completed: Mapped[bool] = f(default=False)
 
 @app.get("/view")
 async def view_tasks():
@@ -199,17 +201,17 @@ async def create_task_htmx(request: Request):
 
 ## 🚀 Next Steps: Master the Framework
 
-You've just built a modern, reactive application. Now, dive deeper into the systems that make Eden the platform of choice for SaaS and Enterprise apps.
+Now, dive deeper into the systems that make Eden the platform of choice for SaaS and Enterprise apps.
 
 | Module | Purpose | Guide |
 | :--- | :--- | :--- |
-| **Project Structure** | Scale from one file to a Domain-Driven Monolith. | [Structure Guide](../getting-started/structure.md) |
+| **Learning Path** | Step-by-step Mastery | [Path Guide](../getting-started/learning-path.md) |
 | **Authentication** | Multi-backend support (JWT, Session, OAuth). | [Security Guide](../guides/auth.md) |
-| **Reactive ORM** | Real-time updates without writing a single line of JS. | [ORM Guide](../guides/orm.md) |
-| **DI System** | Enterprise-grade Dependency Injection. | [DI Guide](../guides/dependency-injection.md) |
-| **Audit Trails** | Automatic tracking of every database change. | [Audit Guide](../guides/audit.md) |
+| **ActiveRecord ORM** | Industrial data management without the boilerplate. | [ORM Guide](../guides/orm.md) |
+| **Multi-Tenancy** | First-class row-level isolation. | [Tenancy Guide](../guides/tenancy.md) |
+| **SaaS Payments** | Revenue-ready integration with Stripe. | [Payments Guide](../guides/payments.md) |
 
 ---
 
 > [!TIP]
-> **Elite Tip**: Check out the [Killer Features](../guides/killer-features.md) guide to see how to enable "Automatic Dashboards" and "Reactive WebSockets" with a single line of configuration.
+> **Elite Tip**: Check out the **[Killer Features](../guides/killer-features.md)** guide to see how to enable "Automatic Dashboards" and "Reactive WebSockets" with a single line of configuration.

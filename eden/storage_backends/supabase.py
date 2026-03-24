@@ -31,7 +31,7 @@ import logging
 import mimetypes
 import os
 import uuid
-from typing import Optional
+from typing import Any, Optional
 
 from starlette.datastructures import UploadFile
 
@@ -102,7 +102,7 @@ class SupabaseStorageBackend(StorageBackend):
                 "Install it with: uv add supabase"
             )
 
-        self.url = url.rstrip("/")
+        self.base_url = url.rstrip("/")
         self.key = key
         self.bucket = bucket
         self.public = public
@@ -132,7 +132,7 @@ class SupabaseStorageBackend(StorageBackend):
 
                 # Run blocking client creation in thread pool
                 self._client = await asyncio.to_thread(
-                    create_client, self.url, self.key
+                    create_client, self.base_url, self.key
                 )
                 logger.info(f"Initialized Supabase client for bucket '{self.bucket}'")
                 return self._client
@@ -252,8 +252,36 @@ class SupabaseStorageBackend(StorageBackend):
             Supabase Storage URL (public or requires signed URL for private access)
         """
         if self.public:
-            return f"{self.url}/storage/v1/object/public/{self.bucket}/{name}"
-        return f"{self.url}/storage/v1/object/{self.bucket}/{name}"
+            return f"{self.base_url}/storage/v1/object/public/{self.bucket}/{name}"
+        return f"{self.base_url}/storage/v1/object/{self.bucket}/{name}"
+
+    async def exists(self, name: str) -> bool:
+        """Check if an object exists in Supabase Storage."""
+        try:
+            client = await self._get_client()
+
+            def _list():
+                # list() returns items in the folder. We check for exact match.
+                folder = os.path.dirname(name)
+                basename = os.path.basename(name)
+                res = client.storage.from_(self.bucket).list(path=folder)
+                return any(item["name"] == basename for item in res)
+
+            return await asyncio.to_thread(_list)
+        except Exception:
+            return False
+
+    async def presigned_url(self, name: str, expires_in: int = 3600) -> str:
+        """Generate a pre-signed URL (alias for get_signed_url)."""
+        return await self.get_signed_url(name, expires_in)
+
+    def open(self, name: str) -> Any:
+        """
+        Open a file-like object for reading from Supabase.
+        
+        Returns an async context manager that provides the file bytes.
+        """
+        return SupabaseFileContext(self, name)
 
     async def get_signed_url(self, name: str, expires_in: int = 3600) -> str:
         """
@@ -298,3 +326,23 @@ class SupabaseStorageBackend(StorageBackend):
         except Exception as e:
             logger.error(f"Signed URL generation failed for {name}: {e}")
             raise IOError(f"Failed to generate signed URL: {str(e)}") from e
+
+
+class SupabaseFileContext:
+    """Helper for async file reading from Supabase."""
+    def __init__(self, backend: "SupabaseStorageBackend", key: str):
+        self.backend = backend
+        self.key = key
+
+    async def __aenter__(self):
+        client = await self.backend._get_client()
+
+        def _download():
+            return client.storage.from_(self.backend.bucket).download(self.key)
+
+        data = await asyncio.to_thread(_download)
+        import io
+        return io.BytesIO(data)
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        pass

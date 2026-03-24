@@ -110,12 +110,11 @@ def _trigger_audit(target: Any, action: str):
                 changes[column.key] = {"old": None, "new": _make_json_safe(val)}
 
     # Capture context for background task
+    from eden.context import get_user, get_tenant_id, get_request_id
     user = get_user()
     user_id = str(getattr(user, "id", user)) if user else None
     tenant_id = get_tenant_id()
-
-    # Mask sensitive changes
-    changes = mask_sensitive_data(changes)
+    correlation_id = get_request_id()
 
     # Trigger background task for logging
     try:
@@ -124,20 +123,28 @@ def _trigger_audit(target: Any, action: str):
         
         async def _do_log():
             from eden.db.session import reset_session
-            # Clear session context in the background task so it opens its own session
-            # and doesn't try to reuse the one that is currently flushing.
+            from eden.context import set_tenant, set_request_id
+            
+            # 1. Mask sensitive changes in the background to avoid blocking the flush event
+            masked_changes = mask_sensitive_data(changes)
+            
+            # 2. Clear session context in the background task
             reset_session() 
             
-            # Restore tenant context for Postgres RLS/isolation
+            # 3. Restore tenant and correlation context
             if tenant_id:
                 set_tenant(tenant_id)
+            if correlation_id:
+                set_request_id(correlation_id)
+                
             try:
                 await AuditLog.log(
                     user_id=user_id,
                     action=action,
                     model=target.__class__,
                     record_id=record_id,
-                    changes=changes
+                    changes=masked_changes,
+                    correlation_id=correlation_id
                 )
             except Exception as exc:
                 logger.warning(f"Background audit log failed: {exc}")

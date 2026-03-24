@@ -1,130 +1,143 @@
-# AI & Semantic Search 🤖
+# 🤖 AI & Semantic Search
 
-The Eden AI extension provides first-class support for vector embeddings and semantic search powered by **pgvector** and PostgreSQL. It allows you to build modern AI features like recommendation engines, semantic document search, and RAG (Retrieval-Augmented Generation) systems directly within the Eden ORM.
-
----
-
-## Overview
-
-Unlike traditional keyword search that relies on exact word matches, **semantic search** understands the meaning behind the query. It uses vector embeddings—mathematical representations of text—to find content that is "conceptually similar."
-
-### How Semantic Search Works in Eden:
-
-1. **Embed**: Convert your content (e.g., product descriptions, blog posts) into a high-dimensional vector using an AI model (like OpenAI or HuggingFace).
-2. **Store**: Save these vectors in a PostgreSQL `VectorField`.
-3. **Search**: When a user queries, embed the query and use `semantic_search()` to find the nearest neighbors in vector space.
+**Eden's AI extension provides first-class, industrial-grade support for vector embeddings and high-performance semantic search powered by `pgvector` and PostgreSQL.**
 
 ---
 
-## Foundational: Defining Vector Models
+## 🧠 The Eden AI Pipeline
 
-To enable semantic search on a model, inherit from `VectorModel`. Use the `VectorField` to define the column where embeddings will be stored.
+Unlike traditional keyword search (Lexical), **Semantic Search** understands the intent and meaning behind a query—finding content that is "conceptually similar" even without exact word matches.
+
+```mermaid
+graph TD
+    A["Raw Data (Docs/IMG)"] --> B["AI Model (OpenAI/Mistral)"]
+    B --> C["1536d Vector (Embedding)"]
+    C --> D["Eden 'VectorField'"]
+    D --> E["PostgreSQL (pgvector)"]
+    
+    F["User Query: 'How to build SaaS?'"] --> G["AI Model"]
+    G --> H["Query Vector"]
+    H --> I["Eden 'semantic_search()'"]
+    I --> J["Top N Results (by Distance)"]
+```
+
+---
+
+## ⚡ 60-Second AI Setup
+
+Enable semantic search on any model by inheriting from `VectorModel`.
 
 ```python
 from eden.db import f, Mapped
 from eden.db.ai import VectorModel, VectorField
 
-class Document(VectorModel):
-    __tablename__ = "documents"
+class Article(VectorModel):
+    __tablename__ = "articles"
     
     title: Mapped[str] = f(max_length=255)
     content: Mapped[str] = f()
     
-    # 1536 is the default dimension for OpenAI's text-embedding-3-small
+    # 🌟 VectorField handles the complex pgvector interaction
     embedding: Mapped[list[float]] = VectorField(dimensions=1536)
+
+# 🔎 Searching in your View
+async def search(query_vector: list[float]):
+    results = await Article.semantic_search(embedding=query_vector, limit=5)
+    return results
 ```
 
 > [!IMPORTANT]
-> **Dependencies Required**
-> You must have the `pgvector` extension installed in your PostgreSQL database and the `pgvector` package in your Python environment:
-> ```bash
-> pip install eden-framework[ai]
-> ```
+> **Dependencies**: You must have `pgvector` extension installed in PostgreSQL and `pip install eden-framework[ai]` in your environment.
 
 ---
 
-## Integration: Search Lifecycle
+## 🚀 Industrial Case Study: E-commerce Recommendations
 
-The following sequence traces the lifecycle of a semantic search request through the Eden layers:
+A common real-world use case for AI search is a **"People Also Viewed"** or **Recommendation Engine**.
 
-```mermaid
-sequenceDiagram
-    participant User as User/Client
-    participant App as Eden App
-    participant AI as OpenAI/AI Provider
-    participant DB as PostgreSQL (pgvector)
-
-    User->>App: GET /search?q="machine learning"
-    App->>AI: generate_embedding("machine learning")
-    AI-->>App: returns [v1, v2, ..., v1536]
-    App->>DB: Document.semantic_search(query_vector)
-    DB-->>App: returns results ordered by cosine distance
-    App-->>User: returns JSON results
-```
-
----
-
-## Advanced Usage: RAG Pattern
-
-RAG (Retrieval-Augmented Generation) is a technique where you retrieve relevant documents and pass them as "context" to an LLM to generate an accurate answer.
-
-### Sample Recipe: Knowledge Base RAG
+### 1. Finding Similar Products
+Users who view one product often want similar items based on visual or functional descriptions.
 
 ```python
-import openai
 from eden.db.ai import VectorModel, VectorField
+from sqlalchemy import select
 
-class KnowledgeBase(VectorModel):
-    content: Mapped[str] = f()
-    embedding: Mapped[list[float]] = VectorField(dimensions=1536)
+class Product(VectorModel):
+    __tablename__ = "products"
+    name: Mapped[str] = f()
+    description_embedding: Mapped[list[float]] = VectorField(dimensions=1536)
 
-async def ask_question(question: str):
-    # 1. Embed the question
-    resp = await openai.embeddings.create(
-        input=[question],
-        model="text-embedding-3-small"
-    )
-    q_vector = resp.data[0].embedding
+async def recommend_similar(product_id: int):
+    # 1. Fetch the source product's embedding
+    target = await Product.get(id=product_id)
     
-    # 2. Retrieve relevant context (Semantic Search)
-    context_docs = await KnowledgeBase.semantic_search(
-        embedding=q_vector,
-        limit=3
+    # 2. Find closest neighbors in vector space (Cosine Distance: <=>)
+    return await Product.semantic_search(
+        embedding=target.description_embedding, 
+        limit=4
     )
-    context_text = "\n\n".join([d.content for d in context_docs])
-    
-    # 3. Generate Answer with Context
-    prompt = f"Using the context below, answer the question: {question}\n\nContext: {context_text}"
-    answer = await openai.chat.completions.create(
-        messages=[{"role": "user", "content": prompt}],
-        model="gpt-4o"
-    )
-    
-    return answer.choices[0].message.content
 ```
 
 ---
 
-## Scalability: Performance Tuning
+## 🏗️ Elite Pattern: Hybrid Search (RAG Ready)
 
-Semantic search over millions of records can be slow without indexing. Eden supports standard PostgreSQL vector indexes.
+For high-precision systems, we combine **Lexical (Keyword)** and **Semantic (Meaning)** search. This ensures that specific product codes or names are found while still supporting conceptual queries.
 
-### Adding an Index (Recommended for >10k rows)
+```python
+from sqlalchemy import or_
 
-Add an HNSW (Hierarchical Navigable Small World) index to your migration for ultra-fast approximate search:
+async def hybrid_search(query_text: str, query_vector: list[float]):
+    # Combining keyword match and semantic distance
+    # 1. Keyword filter (Lexical)
+    base_query = Product.query().filter(Product.name.ilike(f"%{query_text}%"))
+    
+    # 2. Semantic re-order (Meaning)
+    return await base_query.order_by(
+        Product.description_embedding.cosine_distance(query_vector)
+    ).limit(10).all()
+```
+
+---
+
+## 📡 RAG (Retrieval-Augmented Generation)
+
+Eden is perfectly suited for RAG architectures. Use the ORM to retrieve "context" and pass it to your LLM for grounded, accurate generation.
+
+```python
+async def ask_knowledge_base(question: str):
+    # 1. Retrieve most relevant context via semantic search
+    context_docs = await KB.semantic_search(embedding=await get_vec(question), limit=3)
+    
+    # 2. Construct context-aware prompt
+    context_str = "\n".join([d.text for d in context_docs])
+    prompt = f"Using this context: {context_str}\n\nAnswer: {question}"
+    
+    # 3. Ask the LLM (GPT-4 / Claude 3)
+    return await llm.complete(prompt)
+```
+
+---
+
+## ⚡ Performance Tuning (HNSW Indexes)
+
+For datasets with >50,000 records, default linear scans become slow. Eden recommends adding an **HNSW** (Hierarchical Navigable Small World) index for O(log n) approximate search performance.
 
 ```sql
-CREATE INDEX ON documents USING hnsw (embedding vector_cosine_ops);
+-- In your Eden Migration
+CREATE INDEX ON articles 
+USING hnsw (embedding vector_cosine_ops)
+WITH (m = 16, ef_construction = 64);
 ```
-
-> [!TIP]
-> **Cosine vs Europe Distance**
-> Eden defaults to **cosine distance** (`<=>` in PostgreSQL), which is standardized for most LLM embeddings. If your model requires Euclidean distance, you can customize the query builder.
 
 ---
 
-## Related Guides
+## 💡 Best Practices
 
-- [ORM Querying](orm-querying.md)
-- [Optional Extras](optional-extras.md)
-- [Background Tasks](background-tasks.md)
+1. **Normalization**: Ensure your embeddings are normalized (typically handled by OpenAI/Mistral) for consistent cosine similarity.
+2. **Dimension Sync**: Ensure your `dimensions` (e.g., 1536) exactly match the output of your embedding provider.
+3. **Partitioning**: For multi-tenant SaaS, always use `TenantModel` with vectors to ensure cross-tenant data isolation at the index level.
+
+---
+
+**Next Steps**: [Multi-Tenancy Guide](tenancy.md) | [Background Tasks](background-tasks.md)

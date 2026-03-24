@@ -636,6 +636,6 @@ If you get stuck:
 
 1. **Check logs** - Eden logs detailed error messages
 2. **Search documentation** - Most issues are documented
-3. **Search GitHub issues** - https://github.com/eden-framework/eden/issues
+3. **Search GitHub issues** - https://github.com/kwabenaberko25/eden/issues
 4. **Ask community** - GitHub Discussions or Discord
 5. **Provide minimal reproduction** - Code example that fails reliably

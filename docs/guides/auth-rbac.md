@@ -183,6 +183,32 @@ All checks include a "God Mode" bypass. If `request.user.is_superuser` is `True`
 
 ---
 
+## 🔐 Interaction with Multi-Tenancy (RLS)
+
+Eden's RBAC system works in tandem with the **Row-Level Security (RLS)** layer. When a user is authenticated and a tenant context is established, the following handshake occurs:
+
+1.  **Identity Resolution**: The RBAC layer verifies the user has the correct `role` or `permission` for the current tenant.
+2.  **Automatic Filtering**: Even if a user has "Admin" permissions, the database layer automatically injects a `tenant_id` filter into every query if the model is marked as tenant-isolated.
+3.  **Cross-Tenant Prevention**: This ensures that even a malicious request or a bug in a custom query cannot accidentally leak data from Tenant A to an Admin of Tenant B.
+
+### Hybrid Tenancy (Opt-Out)
+
+For models that should be globally accessible (e.g., shared `ProductCatalog` or `GlobalSettings`), you can explicitly opt-out of isolation to prevent the automatic `tenant_id` filter from being applied.
+
+```python
+from eden.db import Model
+from eden.tenancy import tenant_isolated
+
+@tenant_isolated(enabled=False)
+class GlobalProduct(Model):
+    # This model will NOT be filtered by the current tenant context
+    name: str = StringField(max_length=255)
+```
+
+For more details on data isolation, see the [Multi-Tenancy Guide](./tenancy.md).
+
+---
+
 ## 💡 Best Practices
 
 1. **Prefer Permissions over Roles**: Check for `@can("edit_settings")` rather than `@auth("admin")`. This allows you to create custom roles later without changing your code.

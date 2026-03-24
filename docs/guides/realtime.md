@@ -4,30 +4,36 @@
 
 ---
 
-## 🧠 Conceptual Overview
+## 🧠 The Real-time Pipeline
 
 Eden employs a dual-layer approach to real-time communication:
 
 1.  **Eden Sync (High-Level)**: Automatic, event-driven broadcasts triggered by ORM model changes. Ideal for lists, status indicators, and live dashboards.
 2.  **WebSocket Engine (Low-Level)**: A distributed, security-hardened `ConnectionManager` for custom bi-directional logic like chat, gaming, or collaborative editing.
 
-### The Real-time Pipeline
-
 ```mermaid
-graph LR
-    A["DB Change: Project Updated"] --> B["Eden Sync Hub"]
-    B --> C["Redis / Distributed Backend"]
-    C --> D["Worker 1: WebSocket"]
-    C --> E["Worker 2: WebSocket"]
-    D --> F["User A: Browser UI"]
-    E --> G["User B: Browser UI"]
+sequenceDiagram
+    participant D as Database
+    participant S as Eden Sync (Listeners)
+    participant B as Distributed Backend (Redis)
+    participant W1 as Worker Instance A
+    participant W2 as Worker Instance B
+    participant U1 as User A (Browser)
+    participant U2 as User B (Browser)
+    
+    D->>S: Model Update (Project #123)
+    S->>B: Publish "Update" to redis channel
+    B->>W1: Synchronize
+    B->>W2: Synchronize
+    W1->>U1: WebSocket: {event: 'updated', data: {...}}
+    W2->>U2: WebSocket: {event: 'updated', data: {...}}
 ```
 
 ---
 
 ## 🛠️ Eden Sync: Reactive UI with Zero Boilerplate
 
-Eden Sync eliminates the need for manual WebSocket orchestration. By marking a model as reactive, the framework will automatically broadcast `created`, `updated`, and `deleted` events to all connected clients.
+Eden Sync eliminates the need for manual WebSocket orchestration. By marking a model as reactive, the framework automatically broadcasts `created`, `updated`, and `deleted` events to all connected clients.
 
 ### 1. Activating the Model
 Simply set `__reactive__ = True` in your model class.
@@ -48,10 +54,11 @@ class Task(Model):
         return [f"tenant:{self.tenant_id}:tasks"]
 ```
 
-### 2. The Frontend: `hx-sync`
-Using Eden's frontend runtime (included via `@eden_scripts`), you can subscribe to these events using HTMX and Alpine.js.
+### 2. Frontend Consumption
+Use Eden's high-level `hx-sync` attribute (powered by HTMX and Alpine.js) to live-update your UI.
 
 ```html
+<!-- Automatically subscribe to the tasks channel -->
 <div x-data="{ tasks: [] }" 
      hx-sync="tenant:123:tasks" 
      @sync:created="tasks.push($event.detail.data)"
@@ -68,17 +75,17 @@ Using Eden's frontend runtime (included via `@eden_scripts`), you can subscribe 
 
 ---
 
-## 🏰 The `ConnectionManager`: Enterprise WebSocket Infrastructure
+## 🏰 The `ConnectionManager`
 
-For custom bi-directional logic, use the `connection_manager`. It is designed for security (CSRF/Origin checks) and distributed scale (worker synchronization).
+For custom bi-directional logic, use the unified `connection_manager`. It handles security (Origin/CSRF) and distributed scale out-of-the-box.
 
-### Custom WebSocket Endpoint
+### Custom WebSocket Handler
 ```python
 from eden.websocket import connection_manager
 
 @app.websocket("/ws/project/{project_id}")
-async def project_ws(websocket, project_id: str):
-    # 1. Accept and Validate (Origin & CSRF checked automatically)
+async def project_collaboration(websocket, project_id: str):
+    # 1. Accept and Validate (Security checks handled automatically)
     await connection_manager.connect(websocket, user_id=request.user.id)
     
     # 2. Subscribe to a specific channel
@@ -86,10 +93,10 @@ async def project_ws(websocket, project_id: str):
     
     try:
         while True:
-            # 3. Handle messages
+            # 3. Receive collaboration events (e.g. cursor moves)
             data = await websocket.receive_json()
             
-            # 4. Broadcast to the channel (syncs across all worker instances!)
+            # 4. Global broadcast (reaches all users across all workers)
             await connection_manager.broadcast(
                 {"event": "cursor_move", "user": request.user.name, "coords": data},
                 channel=f"project:{project_id}"
@@ -103,10 +110,10 @@ async def project_ws(websocket, project_id: str):
 ## ⚡ Elite Patterns
 
 ### 1. The "Toast" System
-Broadcast global notifications directly to a user's browser from anywhere in your backend (views, tasks, or CLI).
+Broadcast global notifications directly to a user's browser, even if they aren't on a specific page.
 
 ```python
-# From a view or background task
+# From a background task or view
 await connection_manager.send_to_user(target_user_id, {
     "type": "notification",
     "title": "Build Complete",
@@ -115,51 +122,39 @@ await connection_manager.send_to_user(target_user_id, {
 })
 ```
 
-### 2. Distributed Mode (Scaling Out)
-If you run multiple server instances behind a load balancer, connect them via Redis to ensure a broadcast from Worker A reaches a user connected to Worker B.
+### 2. Distributed Scale (Redis)
+Ensure a broadcast from Worker A reaches a user connected to Worker B by enabling the Redis backend.
 
 ```python
-# During app startup
 from eden.core.backends.redis import RedisBackend
 from eden.websocket import connection_manager
 
-backend = RedisBackend(url="redis://localhost:6379")
-await connection_manager.set_distributed_backend(backend)
+await connection_manager.set_distributed_backend(
+    RedisBackend(url="redis://localhost:6379")
+)
 ```
-
-### 3. Graceful Shutdown
-Eden ensures all connections are notified and closed cleanly during server shutdown to prevent client-side "unclean hang" errors.
 
 ---
 
 ## 📄 API Reference
 
-### `ConnectionManager` Methods
+### `ConnectionManager`
 
 | Method | Parameters | Description |
 | :--- | :--- | :--- |
-| `broadcast` | `message, channel, exclude` | Sends to all subscribers of a channel. Syncs across workers if distributed. |
-| `send_to_user` | `user_id, message` | Sends to *all* active sockets owned by a specific user ID. |
+| `broadcast` | `message, channel, exclude` | Sens to all subscribers of a channel. Distributed by default. |
+| `send_to_user`| `user_id, message` | Sends to *all* active sockets owned by a specific user. |
 | `subscribe` | `websocket, channel` | Adds a socket to a named room/channel. |
-| `count` | - | Returns number of active connections on the current worker. |
-
-### Eden Sync Events (Browser)
-
-| Event Name | Data Payload | Description |
-| :--- | :--- | :--- |
-| `@sync:created` | `detail.data` | Triggered when a reactive model is inserted. |
-| `@sync:updated` | `detail.data` | Triggered when a reactive model is updated. |
-| `@sync:deleted` | `detail.data` | Triggered when a reactive model is deleted. |
 
 ---
 
 ## 💡 Best Practices
 
-1.  **Security First**: Always use `require_role` or custom auth checks inside your `@app.websocket` handler before calling `connection_manager.connect()`.
-2.  **Isolate Channels**: Use scoped channels like `tenant:{id}:model` instead of global ones to prevent data leakage.
-3.  **JSON Standard**: Always broadcast dicts/JSON for interoperability with Alpine.js and other frontend frameworks.
-4.  **Heartbeats**: Eden handles basic connection liveness, but for mission-critical apps, implement a custom "Ping" logic within your `while True` loop.
+1. **Explicit Security**: Always wrap your `@app.websocket` handler in an auth check before calling `connect()`.
+2. **Channel Isolation**: Use scoped names like `tenant:{id}:model` instead of global IDs to prevent cross-tenant data leakage.
+3. **Lean Payload**: Send the model ID and minimal changed fields via sync broadcasts. Let the frontend fetch full updates if needed.
+4. **JSON Only**: Always broadcast standard Python dictionaries to ensure seamless integration with the frontend Alpine.js runtime.
 
 ---
 
-**Next Steps**: [Asset Management & Pipelines](assets.md)
+**Next Steps**: [Admin Dashboard](admin.md) | [Background Tasks](background-tasks.md)

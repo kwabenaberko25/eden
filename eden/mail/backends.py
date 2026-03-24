@@ -4,6 +4,7 @@ Eden — Email Backends
 Pluggable email sending backends: ConsoleBackend (dev) and SMTPBackend (production).
 """
 
+import asyncio
 import logging
 import urllib.parse
 from abc import ABC, abstractmethod
@@ -145,6 +146,7 @@ class SMTPBackend(EmailBackend):
         )
 
     async def send(self, message: EmailMessage) -> bool:
+        """Send a single email message."""
         try:
             import aiosmtplib
         except ImportError:
@@ -153,9 +155,99 @@ class SMTPBackend(EmailBackend):
                 "Install it with: uv add aiosmtplib"
             )
 
+        mime_msg = self._build_mime_message(message)
+
+        try:
+            await aiosmtplib.send(
+                mime_msg,
+                hostname=self.host,
+                port=self.port,
+                username=self.username,
+                password=self.password,
+                start_tls=self.use_tls,
+                timeout=self.timeout,
+                recipients=message.recipients,
+            )
+            logger.info(f"Email sent to {message.to}: {message.subject}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to send email to {message.to}: {e}")
+            return False
+
+    async def send_bulk(self, messages: list[EmailMessage]) -> list[bool]:
+        """
+        Send multiple messages using a single persistent connection.
+        Provides significant performance improvement for batch operations.
+        """
+        try:
+            import aiosmtplib
+        except ImportError:
+            raise ImportError("aiosmtplib is required for SMTPBackend.")
+
+        results = [False] * len(messages)
+        
+        # Use exponential backoff for connection retries
+        max_retries = 3
+        retry_delay = 1.0 # Base seconds
+
+        smtp = aiosmtplib.SMTP(
+            hostname=self.host,
+            port=self.port,
+            use_tls=False, # We use starttls manually if needed
+            timeout=self.timeout
+        )
+
+        try:
+            # 1. Connect and Authenticate (with retries)
+            connected = False
+            for attempt in range(max_retries):
+                try:
+                    await smtp.connect()
+                    if self.use_tls:
+                        await smtp.starttls()
+                    
+                    if self.username and self.password:
+                        await smtp.login(self.username, self.password)
+                    
+                    connected = True
+                    break
+                except (aiosmtplib.SMTPException, OSError, asyncio.TimeoutError) as e:
+                    logger.warning(f"SMTP connection attempt {attempt + 1} failed: {e}")
+                    if attempt < max_retries - 1:
+                        await asyncio.sleep(retry_delay * (2 ** attempt))
+                    else:
+                        logger.error("SMTP connection failed after all retries.")
+                        return results # All False
+
+            # 2. Send messages sequentially over the open connection
+            if connected:
+                for i, message in enumerate(messages):
+                    try:
+                        mime_msg = self._build_mime_message(message)
+                        await smtp.send_message(mime_msg)
+                        results[i] = True
+                        logger.debug(f"Bulk email sent to {message.to}")
+                    except Exception as e:
+                        logger.error(f"Failed to send bulk message {i} to {message.to}: {e}")
+                        # Move to next message, don't kill the whole batch
+        
+        finally:
+            try:
+                if smtp.is_connected:
+                    await smtp.quit()
+            except Exception:
+                # Connection might already be closed/dead — safe to ignore on cleanup
+                pass
+
+        success_count = sum(results)
+        logger.info(f"Bulk email completed: {success_count}/{len(messages)} sent successfully.")
+        return results
+
+    def _build_mime_message(self, message: EmailMessage) -> MIMEMultipart:
+        """Helper to build a MIME message from an EmailMessage object."""
         from_email = message.from_email or self.default_from
 
-        # Build MIME message
+        # Build MIME message structure
         if message.attachments:
             # "mixed" container for attachments + body
             mime_msg = MIMEMultipart("mixed")
@@ -186,7 +278,11 @@ class SMTPBackend(EmailBackend):
         # Attach files
         if message.attachments:
             for filename, content, mime_type in message.attachments:
-                maintype, subtype = mime_type.split("/", 1)
+                try:
+                    maintype, subtype = mime_type.split("/", 1)
+                except ValueError:
+                    maintype, subtype = "application", "octet-stream"
+                    
                 part = MIMEBase(maintype, subtype)
                 part.set_payload(content)
                 encoders.encode_base64(part)
@@ -194,23 +290,8 @@ class SMTPBackend(EmailBackend):
                     "Content-Disposition", "attachment", filename=filename
                 )
                 mime_msg.attach(part)
-
-        try:
-            await aiosmtplib.send(
-                mime_msg,
-                hostname=self.host,
-                port=self.port,
-                username=self.username,
-                password=self.password,
-                start_tls=self.use_tls,
-                timeout=self.timeout,
-                recipients=message.recipients,
-            )
-            logger.info(f"Email sent to {message.to}: {message.subject}")
-            return True
-        except Exception as e:
-            logger.error(f"Failed to send email to {message.to}: {e}")
-            return False
+        
+        return mime_msg
 
 
 class ResendBackend(EmailBackend):
@@ -225,6 +306,16 @@ class ResendBackend(EmailBackend):
         self.default_from = from_email
 
     async def send(self, message: EmailMessage) -> bool:
+        """Send a single email via Resend."""
+        results = await self.send_bulk([message])
+        return all(results)
+
+    async def send_bulk(self, messages: list[EmailMessage]) -> list[bool]:
+        """
+        Send multiple emails via Resend using batch API.
+        
+        Optimizes delivery by sending up to 100 emails per request.
+        """
         try:
             import httpx
         except ImportError:
@@ -233,40 +324,59 @@ class ResendBackend(EmailBackend):
                 "Install it with: uv add httpx"
             )
 
-        payload = {
-            "from": message.from_email or self.default_from,
-            "to": message.to if isinstance(message.to, list) else [message.to],
-            "subject": message.subject,
-            "text": message.body if message.body else "",
-            "html": message.html if message.html else "",
-        }
-
-        if message.cc:
-            payload["cc"] = message.cc
-        if message.bcc:
-            payload["bcc"] = message.bcc
-        if message.reply_to:
-            payload["reply_to"] = message.reply_to
-
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
         }
 
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                "https://api.resend.com/emails",
-                json=payload,
-                headers=headers,
-                timeout=30.0,
-            )
-            
-            if response.status_code in (200, 201):
-                logger.info(f"Email sent via Resend to {message.to}")
-                return True
-            else:
-                logger.error(f"Resend error: {response.status_code} - {response.text}")
-                return False
+        results = []
+        # Batch size for Resend is usually 100
+        batch_size = 100
+        
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            for i in range(0, len(messages), batch_size):
+                batch = messages[i : i + batch_size]
+                
+                payload = []
+                for msg in batch:
+                    item = {
+                        "from": msg.from_email or self.default_from,
+                        "to": msg.to if isinstance(msg.to, list) else [msg.to],
+                        "subject": msg.subject,
+                        "text": msg.body if msg.body else "",
+                        "html": msg.html if msg.html else "",
+                    }
+                    if msg.cc: item["cc"] = msg.cc
+                    if msg.bcc: item["bcc"] = msg.bcc
+                    if msg.reply_to: item["reply_to"] = msg.reply_to
+                    payload.append(item)
+
+                # Retry logic for the entire batch request
+                success = False
+                for attempt in range(3):
+                    try:
+                        response = await client.post(
+                            "https://api.resend.com/emails/batch",
+                            json=payload,
+                            headers=headers,
+                        )
+                        if response.status_code in (200, 201):
+                            success = True
+                            break
+                        elif response.status_code >= 500:
+                            wait = (2 ** attempt) + 0.1
+                            await asyncio.sleep(wait)
+                            continue
+                        else:
+                            logger.error(f"Resend batch error {response.status_code}: {response.text}")
+                            break
+                    except Exception as exc:
+                        logger.warning(f"Resend batch attempt {attempt+1} failed: {exc}")
+                        await asyncio.sleep(1)
+                
+                results.extend([success] * len(batch))
+        
+        return results
 
 
 class SESBackend(EmailBackend):
@@ -289,6 +399,14 @@ class SESBackend(EmailBackend):
         self.default_from = from_email
 
     async def send(self, message: EmailMessage) -> bool:
+        """Send a single email via SES."""
+        results = await self.send_bulk([message])
+        return all(results)
+
+    async def send_bulk(self, messages: list[EmailMessage]) -> list[bool]:
+        """
+        Send multiple emails via SES reusing the client.
+        """
         try:
             import boto3
         except ImportError:
@@ -297,39 +415,47 @@ class SESBackend(EmailBackend):
                 "Install it with: uv add boto3"
             )
 
-        def _send():
-            client = boto3.client(
-                "ses",
-                region_name=self.region_name,
-                aws_access_key_id=self.access_key,
-                aws_secret_access_key=self.secret_key,
-            )
-            
-            # For SES, we usually send raw email or use SendTemplatedEmail/SendEmail
-            # We'll use SendEmail for simplicity
-            response = client.send_email(
-                Source=message.from_email or self.default_from,
-                Destination={
-                    "ToAddresses": message.to if isinstance(message.to, list) else [message.to],
-                    "CcAddresses": message.cc or [],
-                    "BccAddresses": message.bcc or [],
-                },
-                Message={
-                    "Subject": {"Data": message.subject, "Charset": "UTF-8"},
-                    "Body": {
-                        "Text": {"Data": message.body or "", "Charset": "UTF-8"},
-                        "Html": {"Data": message.html or "", "Charset": "UTF-8"},
-                    },
-                },
-                ReplyToAddresses=[message.reply_to] if message.reply_to else [],
-            )
-            return response
+        client = boto3.client(
+            "ses",
+            region_name=self.region_name,
+            aws_access_key_id=self.access_key,
+            aws_secret_access_key=self.secret_key,
+        )
 
-        try:
-            await asyncio.to_thread(_send)
-            logger.info(f"Email sent via SES to {message.to}")
-            return True
-        except Exception as e:
-            logger.error(f"SES error sending to {message.to}: {e}")
-            return False
+        results = []
+        for msg in messages:
+            success = False
+            for attempt in range(3):
+                try:
+                    await asyncio.to_thread(
+                        client.send_email,
+                        Source=msg.from_email or self.default_from,
+                        Destination={
+                            "ToAddresses": msg.to if isinstance(msg.to, list) else [msg.to],
+                            "CcAddresses": msg.cc or [],
+                            "BccAddresses": msg.bcc or [],
+                        },
+                        Message={
+                            "Subject": {"Data": msg.subject, "Charset": "UTF-8"},
+                            "Body": {
+                                "Text": {"Data": msg.body or "", "Charset": "UTF-8"},
+                                "Html": {"Data": msg.html or "", "Charset": "UTF-8"},
+                            },
+                        },
+                        ReplyToAddresses=[msg.reply_to] if msg.reply_to else [],
+                    )
+                    success = True
+                    break
+                except Exception as exc:
+                    # Check for transient errors
+                    error_msg = str(exc).lower()
+                    if "throttling" in error_msg or "requestlimitexceeded" in error_msg or "serviceunavailable" in error_msg:
+                        wait = (2 ** attempt) + 0.1
+                        await asyncio.sleep(wait)
+                        continue
+                    logger.error(f"SES error sending to {msg.to}: {exc}")
+                    break
+            results.append(success)
+        
+        return results
 

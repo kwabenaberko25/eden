@@ -35,7 +35,7 @@ class TestConfigBasics:
         assert config.env == Environment.DEV
         assert config.debug is True
         assert config.title == "Eden"
-        assert config.version == "0.1.0"
+        assert config.version == "1.0.0"
         assert config.page_size == 20
     
     def test_config_env_enum(self):

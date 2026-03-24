@@ -1,25 +1,31 @@
 # ⚙️ Background Tasks & Distributed Workers
 
-**Eden offloads heavy processes and recurring logic to a high-performance worker system powered by Taskiq and the EdenBroker. Maintain a snappy UI while Eden handles the heavy lifting in the background.**
+**Eden offloads heavy processes and recurring logic to a high-performance worker system powered by Taskiq and the EdenBroker. Maintain a zero-latency UI while Eden handles the heavy lifting in the background.**
 
 ---
 
-## 🧠 Conceptual Overview
+## 🧠 The Eden Task Pipeline
 
-In a modern web application, responsiveness is paramount. Eden enables you to maintain a snappy UI by deferring long-running computations, email sending, or data processing to a dedicated background worker—with full support for Dependency Injection and distributed coordination.
-
-### The Task Lifecycle
+Eden's Task system is designed for **Context Awareness**. When you defer a task from a web request, Eden automatically serializes the current `tenant_id`, `user_id`, and `correlation_id` and restores them in the background worker—ensuring RLS and Audit trails remain intact.
 
 ```mermaid
-graph TD
-    A["Request Handler"] -->|"defer"| B["EdenBroker"]
-    B -->|"serialize"| C{"Redis / Broker"}
-    C -->|"pull"| D["Eden Worker"]
-    D -->|"resolve deps"| E["Execute Task"]
-    E -->|"result"| F["TaskResult Store"]
-    E -->|"error"| G{"Retry Strategy"}
-    G -- "Retry Available" --> C
-    G -- "Exhausted" --> H["Dead-Letter Queue"]
+sequenceDiagram
+    participant U as User (UI)
+    participant R as Request Handler
+    participant B as EdenBroker (Redis)
+    participant W as Worker Process
+    participant D as Database (RLS)
+    
+    U->>R: POST /reports/generate
+    R->>B: .defer(gen_report, user_id=123)
+    Note over R,B: Snapshot Context: tenant=abc, user=123
+    B-->>R: Task Accepted
+    R-->>U: 202 Accepted (Processing...)
+    B->>W: Pull Task + Context Snapshot
+    W->>W: Restore ContextVars (Tenant=abc)
+    W->>D: SELECT * FROM data (RLS Applied)
+    D-->>W: Isolated Data Result
+    W->>W: Complete & Record Result
 ```
 
 ---
@@ -33,20 +39,16 @@ from eden import Eden
 
 app = Eden()
 
-async def generate_heavy_pdf(user_id: int): 
-    # Mock for documentation example
-    pass
-
 @app.task()
-async def process_report(user_id: int):
-    # This runs in a separate worker process
-    await generate_heavy_pdf(user_id)
+async def send_system_alert(message: str):
+    # This logic executes in a separate worker process
+    await mailer.send(message)
 
-# Trigger it from your view
-@app.get("/generate")
-async def trigger(request):
-    await app.task.defer(process_report, user_id=1)
-    return {"status": "Processing..."}
+# Trigger from your controller
+@app.get("/trigger")
+async def trigger_view(request):
+    await app.task.defer(send_system_alert, message="System is operational!")
+    return {"status": "Task Queued"}
 ```
 
 ---
@@ -56,145 +58,93 @@ async def trigger(request):
 Eden uses a "Broker" to manage the task queue. We recommend **Redis** for production and an **In-Memory** broker for local development/testing.
 
 ```python
-from eden import Eden, create_broker
+from eden.tasks import create_broker, EdenBroker
 
-app = Eden()
+# Development (In-Memory)
+app.task = EdenBroker(create_broker())
 
-# Development: In-memory (no extra setup)
-
-app.task = create_broker()
-
-# Production: Redis (requires taskiq-redis)
-
-app.task = create_broker(redis_url="redis://localhost:6379")
+# Production (Redis Streams)
+app.task = EdenBroker(create_broker(redis_url="redis://localhost:6379"))
 ```
 
 ---
 
-## 🚀 Defining & Invoking Tasks
+## 🚀 Industrial Usage Patterns
 
-Tasks are simple Python functions decorated with `@app.task()`. Eden's **Dependency Injection** system is fully available within tasks, mirroring the experience of writing request handlers.
-
-### 1. Define the Task
+### 1. The "Tenant-Aware" Worker
+Because Eden propagates context, your background tasks automatically obey Multi-Tenant isolation rules (RLS) and Audit logging.
 
 ```python
-from eden import Depends, Eden, Model, f
-from typing import Any
-
-app = Eden()
-
-class User(Model):
-    email: str = f(unique=True)
-
-class MailService:
-    async def send_welcome(self, email: str): pass
-
 @app.task()
-async def send_welcome_email(user_id: int, mailer: MailService = Depends(MailService)):
-    # Logic is executed in the background worker
-    user = await User.get(user_id)
-    if user:
-        await mailer.send_welcome(user.email)
+async def process_batch_invoices():
+    # Eden restores the 'tenant_id' from the web request that triggered this.
+    # The following query ONLY returns invoices for that tenant.
+    invoices = await Invoice.all() 
+    for inv in invoices:
+        await inv.process()
 ```
 
-### 2. Invoke the Task
-
-Trigger your tasks using the `.kiq()` method (from Taskiq) or Eden's shorthand API.
-
-```python
-from eden import Eden
-app = Eden()
-
-
-@app.task()
-async def send_welcome_email(user_id: int): pass
-
-# Start the broker first
-await app.task.startup()
-
-# Shorthand (Recommended)
-await app.task.defer(send_welcome_email, user_id=123)
-
-# With Delay (Schedule for 60 seconds from now)
-await app.task.schedule(send_welcome_email, delay=60, user_id=123)
-```
-
----
-
-## 🕰️ Periodic & Scheduled Tasks
-
-Eden makes scheduling recurring tasks a first-class citizen with the `.every()` decorator. It supports intervals and standard **Cron expressions**.
+### 2. Periodic Tasks (Cron & Intervals)
+Schedule recurring maintenance or reporting tasks with simple decorators.
 
 ```python
-from eden import Eden
-app = Eden()
-
-# Run every 5 minutes
-@app.task.every(minutes=5)
-async def check_inventory():
+# Run every 10 minutes
+@app.task.every(minutes=10)
+async def heartbeat():
     pass
 
 # Run every night at midnight (Standard Cron)
 @app.task.every(cron="0 0 * * *")
-async def generate_daily_reports():
+async def daily_aggregates():
     pass
 ```
 
-### 🛡️ Distributed Coordination
-
-When scaling horizontally across multiple servers, you don't want your periodic tasks to run N times. Eden's `PeriodicTask` engine uses **distributed locks** (via Redis) to ensure only one instance of your app executes a scheduled task per interval.
+### 3. Distributed Coordination
+Eden's periodic engine uses **Distributed Locks** (via your DistributedBackend) to ensure that if you scale to 10 workers, your "Daily Report" task only runs **once**.
 
 ---
 
 ## 🔁 Resiliency: Retries & Dead-Letter Queue
 
-Background tasks can sometimes fail due to network issues or external API downtime. Eden provides a resilient execution loop with **Exponential Backoff**.
-
-### Automatic Retries
+Background tasks can fail due to external API downtime. Eden provides a resilient execution loop with **Exponential Backoff**.
 
 ```python
-from eden import Eden
-app = Eden()
-
 @app.task(
-    max_retries=5,                # Total attempts
-    retry_delays=[1, 2, 4, 8, 16], # Delays in seconds
-    exponential_backoff=True      # Multiplies delay by 2 on each fail
+    max_retries=5,
+    retry_delays=[10, 60, 300], # Initial delays in seconds
+    exponential_backoff=True    # Multiplies delay by 2 on each fail
 )
-async def fetch_api_stats():
-    pass
+async def sync_remote_api():
+    # If this raises an exception, Eden will retry automatically
+    await api.call()
 ```
 
 ### The Dead-Letter Queue (DLQ)
-
-When a task exhausts all its retries, it enters the **Dead-Letter Queue**.
-
-- **Traceback Tracking**: Captures the full Python traceback and error message.
-- **Correlation ID**: Automatically propagates the `correlation_id` from the original web request, allowing you to trace the lifecycle of a request from the UI down to the worker logs.
-- **Monitoring**: Query the DLQ via `app.task._result_backend.get_dead_letter_tasks()`.
+When a task exhausts all retries, it enters the **Dead-Letter Queue**.
+- **Traceback**: The full Python traceback is stored.
+- **Correlation**: Link the failed task back to the specific User or Request ID via the `correlation_id`.
 
 ---
 
-## 📊 Monitoring & Task Results
+## 📊 Monitoring Task Health
 
-Every execution is tracked in the `TaskResult` store, allowing you to monitor the health of your background processes.
+Every execution is tracked in the `TaskResult` store.
 
 | Field | Description |
 | :--- | :--- |
-| **`status`** | `pending`, `success`, `failed`, or `dead_letter`. |
-| **`result`** | The JSON-serialized return value of the task. |
-| **`correlation_id`** | Link between the task and the request that spawned it. |
-| **`retries`** | The number of times the task was retried before completing. |
+| `status` | `success`, `failed`, or `dead_letter`. |
+| `retries` | How many attempts were made. |
+| `correlation_id` | Original Request ID that spawned the task. |
+| `error_traceback` | Detailed logic failure logs for debugging. |
 
 ---
 
 ## 💡 Best Practices
 
-1. **Idempotency**: Ensure your tasks are safe to run multiple times. If a task fails halfway through, a retry should not create duplicate side effects.
-2. **Pass IDs, Not Objects**: Instead of `send_email(user_obj)`, use `send_email(user_id)`. Large objects increase serialization overhead and may contain stale data.
-3. **Keep Payloads Small**: Broker memory is valuable. Avoid passing large binary blobs or excessive JSON as task arguments.
-4. **Graceful Shutdown**: Eden's `shutdown` lifecycle automatically waits for active tasks to complete before killing the worker process.
+1. **Pass IDs, Not Objects**: Never pass heavy database objects (e.g. `User`) to a task. Pass the `user_id` and refetch it in the worker to ensure you are working with the freshest data.
+2. **Idempotency**: Ensure tasks can be safely retried. A task to "Send Invoice" should check if the invoice was already sent before emailing.
+3. **Atomic Writes**: Wrap multi-model updates in `async with app.db.transaction():` within the task.
 
 ---
 
-**Next Steps**: [Advanced SaaS & Multi-Tenancy](tenancy.md)
+**Next Steps**: [SaaS Multi-Tenancy](tenancy.md) | [Real-time Events](realtime.md)

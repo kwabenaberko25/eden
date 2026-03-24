@@ -83,7 +83,7 @@ Swap between local files and cloud storage without changing your code.
 
 ```python
 from eden.storage import storage
-from eden.storage.s3 import S3StorageBackend
+from eden.storage_backends.s3 import S3StorageBackend
 from eden.db import Model, StringField
 
 class User(Model):

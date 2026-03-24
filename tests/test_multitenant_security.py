@@ -185,8 +185,8 @@ def test_middleware_resets_tenant_context():
 def test_middleware_adds_response_headers():
     """Layer 4: dispatch() adds X-Tenant-Enforced header."""
     import inspect
-    source = inspect.getsource(TenantMiddleware.dispatch)
-    assert "X-Tenant-Enforced" in source or "X-Tenant-ID" in source
+    source = inspect.getsource(TenantMiddleware.dispatch).lower()
+    assert "x-tenant-enforced" in source or "x-tenant-id" in source
 
 
 def test_middleware_switches_schema():

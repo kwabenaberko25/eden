@@ -10,7 +10,7 @@ If you're already in a virtual environment, run this to bootstrap a standard Saa
 
 ```bash
 pip install eden-framework[all]
-eden new my-project --profile=standard
+eden new my-project --profile=saas
 cd my-project
 eden run
 ```
@@ -21,32 +21,47 @@ eden run
 
 Before you begin, ensure your environment meets these professional specifications:
 
-- **Python 3.11+**: Optimized for the latest `asyncio` performance features (3.12+ recommended).
+- **Python 3.11+**: Optimized for the latest `asyncio` performance features.
 - **Virtual Environment**: Isolation is non-negotiable for industrial stability.
-- **Terminal**: A modern terminal with UTF-8 support (for Eden's rich CLI output).
+- **Terminal Engine**: A modern terminal (e.g., Warp, iTerm2, or Windows Terminal).
+- **Database**: PostgreSQL (recommended) or SQLite (for local development).
 
 ---
 
-## 🚀 Installation Tiers
+## 🚀 Installation Tiers: Pick Your Engine
 
 Eden is modular by design. You only pull in what your architecture requires.
 
-### 1. The Core (Minimalist)
+```mermaid
+graph TD
+    A["pip install eden-framework"] --> B["Core (Minimalist)"]
+    A --> C["[databases] (Data Access)"]
+    A --> D["[storage] (Cloud Storage)"]
+    A --> E["[payments] (Stripe SDK)"]
+    A --> F["[ai] (pgvector Support)"]
+    
+    B --> G["HTTP / Routing / Templating"]
+    C --> H["PostgreSQL / MySQL Support"]
+    D --> I["AWS S3 / aioboto3 Support"]
+    E --> J["Industrial Billing Engine"]
+    F --> K["Semantic Search Engine"]
+```
 
+---
+
+### 1. The Core (Minimalist)
 Ideal for microservices or lightweight proxies where every byte counts.
 ```bash
 pip install eden-framework
 ```
 
 ### 2. The Data Tier (Standard)
-
 Adds asynchronous drivers for **PostgreSQL** and **MySQL**.
 ```bash
 pip install eden-framework[databases]
 ```
 
-### 3. The Elite Suite (Full-Stack)
-
+### 3. The Elite Suite (SaaS Full-Stack)
 The recommended choice for building SaaS products. Includes **Stripe**, **AWS S3**, **Redis Caching**, **Background Workers**, and **Email**.
 ```bash
 pip install eden-framework[all]
@@ -54,7 +69,7 @@ pip install eden-framework[all]
 
 ---
 
-## 🏗️ Manual Setup
+## 🏗️ Manual Orchestration
 
 For architects who prefer a custom foundation, follow this manual sequence:
 
@@ -65,8 +80,7 @@ mkdir my-eden-app && cd my-eden-app
 python -m venv .venv
 
 # On Windows: .venv\Scripts\activate
-
-source .venv/bin/activate
+# On Linux/MacOS: source .venv/bin/activate
 ```
 
 ### 2. Initialize the Entry Point
@@ -94,17 +108,13 @@ async def index():
 Execute these diagnostics to verify your engine is correctly tuned:
 
 ```bash
-
 # Verify Framework Presence
-
 python -c "import eden; print(f'Eden Version: {eden.__version__}')"
 
 # Verify SQL Engine
-
 python -c "import sqlalchemy; print('Alchemy 2.0+ Active')"
 
 # Verify CLI Integration
-
 eden info
 ```
 
@@ -112,12 +122,12 @@ eden info
 
 ## 💡 Elite Tips & Best Practices
 
-- **Variable Sync**: Use a `.env` file from Day 1. Eden automatically detects it and populates your `app.config`.
-- **Driver Selection**: For local development, `aiosqlite` is pre-configured. Switch to `asyncpg` for PostgreSQL in your staging environment.
-- **Global CLI**: While we recommend installing Eden in a virtual environment, you can install the standalone `eden-forge` package globally to manage your projects across different environments.
+- **Variable Synchronization**: Use a `.env` file from Day 1. Eden automatically detects it and populates your `app.config`.
+- **Database Driver Selection**: For local development, `aiosqlite` is the pre-configured default. Always switch to `asyncpg` for PostgreSQL in production.
+- **Global Forge CLI**: We recommend installing `eden-forge` globally to manage projects across different environments safely.
 
 ---
 
 ### 🚀 Next Steps
 
-Now that your engine is running, dive into the [Quick Start Guide](quickstart.md) or explore the [Framework Philosophy](philosophy.md).
+Now that your engine is running, dive into the **[Learning Path](learning-path.md)** or follow the **[Quick Start Guide](quickstart.md)**.

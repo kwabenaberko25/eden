@@ -77,7 +77,7 @@ class Eden:
     def __init__(
         self,
         title: str | None = None,
-        version: str | None = None,
+        version: str = "1.0.0",
         debug: bool = False,
         description: str | None = None,
         secret_key: str | None = None,

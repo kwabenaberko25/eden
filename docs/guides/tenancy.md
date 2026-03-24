@@ -4,176 +4,135 @@
 
 ---
 
-## 🧠 Conceptual Overview
+## 🧠 The Eden Multi-Tenant Pipeline
 
-Multi-tenancy in Eden is "Invisible by Design." Once a model is marked for isolation, the framework automatically scopes all database queries, cache entries, and background tasks to the active tenant—without requiring manual `WHERE` clauses from the developer.
-
-### Isolation Strategies
-
-Eden supports two primary isolation patterns depending on your security and scale requirements:
+Multi-tenancy in Eden is "Invisible by Design." Once a model is marked for isolation, the framework automatically scopes all database queries, cache entries, and background tasks to the active tenant—without requiring manual `WHERE` clauses.
 
 ```mermaid
 graph TD
     A["Incoming Request"] --> B["TenantResolver"]
-    B -- "X-Tenant-ID / Subdomain" --> C{"Active Strategy"}
+    B -- "X-Tenant-ID / Subdomain" --> C{"Isolation Strategy"}
     
     subgraph "Row-Level Isolation (Default)"
-        C --> D["Shared DB + Shared Schema"]
-        D --> E["Automatic WHERE tenant_id = ?"]
+        C --> D["Shared Database + Shared Schema"]
+        D --> E["Automatic: WHERE tenant_id = current_tenant"]
     end
     
-    subgraph "Schema-Level Isolation (PostgreSQL)"
-        C --> F["Shared DB + Dynamic Schema"]
-        F --> G["SET search_path TO 'tenant_123'"]
+    subgraph "Schema-Level Isolation (Enterprise)"
+        C --> F["Shared Database + Dynamic Schemas"]
+        F --> G["Execution: SET search_path TO 'tenant_123'"]
     end
     
-    E & G --> H["Sanitized Response"]
+    E & G --> H["Sanitized & Isolated Result Set"]
 ```
-
-### Philosophy
-
-1.  **Fail-Secure by Default**: If a tenant context cannot be resolved (and is required), Eden returns **zero results** instead of leaking global data.
-
-2.  **Zero-Boilerplate Scoping**: Logic remains the same whether you're building a single-user app or a 10,000-tenant SaaS.
-
-3.  **Context-Aware Workers**: Background tasks automatically inherit the tenant context of the trigger request.
 
 ---
 
-## 🏗️ Model Architecture: The `TenantMixin`
+## ⚡ 60-Second Multi-Tenancy
 
-To isolate a data model, inherit from `TenantMixin`. 
-
-> [!IMPORTANT]
-> **The Golden Rule**: Due to Python's Method Resolution Order (MRO), `TenantMixin` **must** appear before `Model` in your class definition.
+To isolate a data model, simply inherit from `TenantMixin`.
 
 ```python
 from eden.db import Model, f, Mapped
 from eden.tenancy import TenantMixin
 
-class Project(TenantMixin, Model):
-    """
-    Every record will have an automatic 'tenant_id' column.
-    All queries (Project.all(), Project.get(id)) are automatically scoped.
-    """
-    title: Mapped[str] = f(label="Project Title")
-    is_active: Mapped[bool] = f(default=True)
-```
-
-### Global (Shared) Data
-For models that should be shared across all tenants (e.g., `SystemNotification`, `GlobalRole`), simply omit the `TenantMixin`.
-
-### Manual Opt-Out (Hybrid Tenancy)
-In some advanced scenarios, you might have a `tenant_id` field on a model (perhaps for reporting or legacy reasons) but want to use **Schema-Level Isolation** instead of automatic Row-Level filtering. 
-
-By default, any model with a `tenant_id` field is automatically registered for Row-Level isolation. You can explicitly opt-out by setting `__tenant_isolated__ = False`.
-
-```python
-class LegacyProject(Model):
-    __tablename__ = "projects"
-    # Opt-out of automatic RLS/WHERE filtering
-    __tenant_isolated__ = False
+class CustomerInquiry(TenantMixin, Model):
+    __tablename__ = "inquiries"
     
-    name: Mapped[str] = f()
-    tenant_id: Mapped[int] = f() # Still exists, but not filtered automatically
+    subject: Mapped[str] = f()
+    message: Mapped[str] = f()
+
+# IN YOUR VIEW:
+# Tenant A sees [Inquiry 1, Inquiry 2]
+# Tenant B sees [Inquiry 3]
+# No manual .filter(tenant_id=...) required!
+all_inquiries = await CustomerInquiry.all() 
 ```
+
+> [!IMPORTANT]
+> **Method Resolution Order (MRO)**: Due to Python's inheritance rules, `TenantMixin` **must** appear before `Model` in your class definition.
 
 ---
 
-## 🚀 Resolving the Active Tenant
+## 🏗️ Managing the Active Tenant
 
-Eden can resolve the current tenant using built-in strategies or custom logic.
+Eden can resolve the current tenant using built-in strategies or custom logic (e.g., from a JWT claim).
 
-| Resolver | Configuration | Typical Use Case |
+| Resolver | Trigger | Typical Use Case |
 | :--- | :--- | :--- |
-| **`SubdomainResolver`**| `tenancy_resolver="subdomain"` | Professional SaaS (e.g. `acme.app.com`). |
-| **`HeaderResolver`** | `tenancy_resolver="header"` | Mobile Apps, Internal APIs (e.g. `X-Tenant-ID`). |
-| **`CookieResolver`** | `tenancy_resolver="cookie"` | Simple enterprise portals. |
+| **`SubdomainResolver`**| `acme.app.com` | Standard B2B SaaS. |
+| **`HeaderResolver`** | `X-Tenant-ID` | Mobile Apps / Internal APIs. |
+| **`UserResolver`** | `request.user` | Enterprise internal tools. |
 
-### Custom Resolver Example
+### Manual Context Overrides
+In background jobs or CLI scripts, you can manually set the context for a specific task.
+
 ```python
-from eden.tenancy import TenantResolver
+from eden.tenancy import set_tenant_context
 
-class MyCustomResolver(TenantResolver):
-    async def resolve(self, request):
-        # Resolve via auth token metadata or specialized header
-        return request.user.organization_id if request.user else None
-
-app = Eden(tenancy_resolver=MyCustomResolver())
+async def nightly_cleanup(tenant_id: str):
+    # Any DB queries here are now scoped to 'tenant_id'
+    async with set_tenant_context(tenant_id):
+        await Project.filter(is_stale=True).delete()
 ```
 
 ---
 
 ## ⚡ Elite Patterns
 
-### 1. Safe Cross-Tenant Access (`AcrossTenants`)
-System administrators often need to perform global reporting or maintenance. Use the `AcrossTenants` context manager to temporarily disable isolation.
+### 1. Cross-Tenant Reporting (`AcrossTenants`)
+System administrators often need to perform global reporting. Use the `AcrossTenants` context manager to temporarily disable isolation and access the entire database.
 
 ```python
 from eden.tenancy import AcrossTenants
 
-@app.get("/admin/stats")
+@app.get("/admin/global-stats")
 @require_role("super_admin")
-async def global_report(request):
+async def global_stats(request):
     async with AcrossTenants():
         # Scoping is disabled within this block
         total_revenue = await Invoice.sum("amount")
         tenant_count = await Tenant.count()
         
-    return {"total": total_revenue, "tenants": tenant_count}
+    return {"total_revenue": total_revenue, "active_tenants": tenant_count}
 ```
 
-### 2. Manual Context Handling
-In background jobs or CLI scripts, you can manually set the context.
+### 2. Tenant Provisioning Lifecycle
+Automate the creation of a new client workspace—including database migrations, storage buckets, and trial plans.
 
 ```python
-from eden.tenancy import set_tenant_context
-
-async def my_background_worker(tenant_id: int):
-    async with set_tenant_context(tenant_id):
-        # Any DB queries here are scoped to the specified tenant
-        project = await Project.first()
-        await project.process_data()
-```
-
-### 3. Tenant-Aware Caching
-Eden's `TenantCacheWrapper` ensures that cached data remains isolated even if two tenants use the same key name.
-
-```python
-# Tenant A sets 'settings' -> stored as 'tenant:123:settings'
-# Tenant B sets 'settings' -> stored as 'tenant:456:settings'
-await app.cache.set("settings", current_config)
+async def onboard_new_client(name: str):
+    # 1. Create the base Tenant record
+    tenant = await Tenant.create(name=name)
+    
+    # 2. If using Schema-Level isolation, trigger schema creation
+    await tenant.bootstrap_schema()
+    
+    # 3. Provision default data (e.g. 'General' folder)
+    async with set_tenant_context(tenant.id):
+        await Folder.create(name="General")
 ```
 
 ---
 
 ## 📄 API Reference
 
-### Context Helpers (`eden.tenancy`)
+### `eden.tenancy` Context Helpers
 
-| Function | Parameters | Description |
+| Function | Returns | Description |
 | :--- | :--- | :--- |
-| `get_current_tenant_id`| - | Returns the ID of the active tenant or `None`. |
-| `set_tenant_context` | `tenant_id` | Context manager to bind a tenant to the current async task. |
-| `AcrossTenants` | - | Context manager to bypass all multi-tenant isolation. |
-
-### Configuration (`Eden` Settings)
-
-| Setting | Default | Description |
-| :--- | :--- | :--- |
-| `TENANCY_ENABLED` | `True` | Master toggle for the multi-tenancy system. |
-| `TENANCY_STRATEGY` | `"row"` | Choice between `"row"` (RLS) and `"schema"` (Postgres). |
-| `TENANCY_HEADER` | `"X-Tenant-ID"` | Header name used by the `HeaderResolver`. |
+| `get_current_tenant_id`| `UUID \| None`| Returns the ID of the active tenant. |
+| `set_tenant_context(id)`| `ContextMgr` | Binds a tenant ID to the current async task. |
+| `AcrossTenants()` | `ContextMgr` | Bypasses all multi-tenant isolation rules. |
 
 ---
 
 ## 💡 Best Practices
 
-1.  **Test for Leakage**: Always write a test using `TenantClient` that verifies Tenant A cannot access Tenant B's data via ID.
-2.  **Audit Logs**: Ensure that any use of `AcrossTenants()` is logged to an audit trail for compliance.
-3.  **Avoid Raw SQL**: Row-level isolation is applied at the ORM level. If you use raw `await db.execute("SELECT...")`, you **must** manually append `WHERE tenant_id = :tid`.
-4.  **Static Data**: Keep your system configuration and global roles in non-isolated models to simplify updates.
+1. **Test for Leakage**: Always use `TenantClient` in your tests to verify that Tenant A cannot access Tenant B's data via their primary key or ID.
+2. **Audit Compliance**: Always log uses of `AcrossTenants()` to your audit trail to ensure system administrators are acting in accordance with security policies.
+3. **Global Models**: For models that should be shared across all clients (e.g. `SystemState`, `ProductTiers`), simply omit the `TenantMixin`.
 
 ---
 
-**Next Steps**: [PostgreSQL Schema-Level Isolation](tenancy-postgres.md)
+**Next Steps**: [PostgreSQL Schema-Level Isolation](tenancy-postgres.md) | [Background Tasks](background-tasks.md)
