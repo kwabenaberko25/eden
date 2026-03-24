@@ -156,7 +156,24 @@ class SMTPBackend(EmailBackend):
         from_email = message.from_email or self.default_from
 
         # Build MIME message
-        mime_msg = MIMEMultipart("alternative")
+        if message.attachments:
+            # "mixed" container for attachments + body
+            mime_msg = MIMEMultipart("mixed")
+            # Internal "alternative" container for text vs html bodies
+            body_part = MIMEMultipart("alternative")
+            if message.body:
+                body_part.attach(MIMEText(message.body, "plain", "utf-8"))
+            if message.html:
+                body_part.attach(MIMEText(message.html, "html", "utf-8"))
+            mime_msg.attach(body_part)
+        else:
+            # Simple "alternative" container for text vs html bodies
+            mime_msg = MIMEMultipart("alternative")
+            if message.body:
+                mime_msg.attach(MIMEText(message.body, "plain", "utf-8"))
+            if message.html:
+                mime_msg.attach(MIMEText(message.html, "html", "utf-8"))
+
         mime_msg["Subject"] = message.subject
         mime_msg["From"] = from_email
         mime_msg["To"] = ", ".join(message.to_list)
@@ -165,14 +182,6 @@ class SMTPBackend(EmailBackend):
             mime_msg["Cc"] = ", ".join(message.cc)
         if message.reply_to:
             mime_msg["Reply-To"] = message.reply_to
-
-        # Attach text body
-        if message.body:
-            mime_msg.attach(MIMEText(message.body, "plain", "utf-8"))
-
-        # Attach HTML body
-        if message.html:
-            mime_msg.attach(MIMEText(message.html, "html", "utf-8"))
 
         # Attach files
         if message.attachments:

@@ -12,12 +12,15 @@ Usage:
     app.scheduler.schedule(daily_cleanup, "0 */6 * * *")  # Every 6 hours
 """
 
+import logging
 from typing import Callable, Optional, List, Any
 from datetime import datetime, timedelta
 import re
 import asyncio
 
 from eden.tasks.exceptions import SchedulerException
+
+logger = logging.getLogger("eden.tasks.scheduler")
 
 
 class CronExpression:
@@ -228,7 +231,7 @@ class TaskScheduler:
     async def start(self) -> None:
         """Start the scheduler (runs until stop() called)."""
         self._running = True
-        print(f"✓ Task scheduler started ({len(self.tasks)} tasks)")
+        logger.info("Task scheduler started (%d tasks)", len(self.tasks))
         
         last_minute = None
         
@@ -250,26 +253,26 @@ class TaskScheduler:
                 await asyncio.sleep(10)
         
         except Exception as e:
-            print(f"✗ Scheduler error: {e}")
+            logger.error("Scheduler error: %s", e, exc_info=True)
         
         finally:
             self._running = False
-            print("✓ Task scheduler stopped")
+            logger.info("Task scheduler stopped")
     
     async def _run_task(self, func: Callable, name: str) -> None:
         """Run a scheduled task with error handling."""
         try:
-            print(f"► Running scheduled task: {name}")
+            logger.info("Running scheduled task: %s", name)
             result = func()
             
             # Handle async functions
             if hasattr(result, '__await__'):
                 await result
             
-            print(f"✓ Task completed: {name}")
+            logger.info("Task completed: %s", name)
         
         except Exception as e:
-            print(f"✗ Task failed ({name}): {e}")
+            logger.error("Task failed (%s): %s", name, e, exc_info=True)
     
     def stop(self) -> None:
         """Stop the scheduler."""

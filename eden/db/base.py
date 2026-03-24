@@ -25,10 +25,12 @@ from .mixins.serialization import SerializationMixin
 from .mixins.lifecycle import LifecycleMixin
 # from eden.tenancy.registry import tenancy_registry (moved to local imports)
 
-T = TypeVar("T", bound="Model")
+from typing import cast
+
+T_Model = TypeVar("T_Model", bound="Model")
 
 
-def reactive(cls: Type[T]) -> Type[T]:
+def reactive(cls: Type[T_Model]) -> Type[T_Model]:
     """
     Decorator to enable real-time WebSocket broadcasting for a Model.
     When an instance is created, updated, or deleted, an event will be broadcast
@@ -106,14 +108,9 @@ class Model(Base, AccessControl, ValidatorMixin, LifecycleMixin, SerializationMi
     __allow_unmapped__ = True
     __reactive__: bool = False
 
-    # Default RBAC rules
-    from .access import AllowPublic
-    __rbac__ = {
-        "read": AllowPublic(),
-        "create": AllowPublic(),
-        "update": AllowPublic(),
-        "delete": AllowPublic(),
-    }
+    # Default RBAC rules: Deny by default.
+    # Models should explicitly define their own __rbac__ dictionary.
+    __rbac__: Dict[str, Any] = {}
 
     # Tracking for schema engine
     __pending_relationships__: List[Type["Model"]] = []
@@ -139,45 +136,54 @@ class Model(Base, AccessControl, ValidatorMixin, LifecycleMixin, SerializationMi
         DateTime, server_default=func.now(), onupdate=func.now()
     )
 
+    __tenant_isolated__: bool = True
+
+    def __init__(self, **kwargs: Any) -> None:
+        """Initialize the model with keyword arguments."""
+        # SQLAlchemy's DeclarativeBase usually provides this, but we define it explicitly
+        # to aid type checkers and ensure robust initialization across mixins.
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
     def __init_subclass__(cls, **kwargs):
         """Standard Eden model initialization."""
-        if "__tablename__" not in cls.__dict__ and not cls.__dict__.get("__abstract__", False):
+        # Use vars() instead of __dict__ to aid some static analysis environments
+        class_vars = vars(cls)
+        if "__tablename__" not in class_vars and not class_vars.get("__abstract__", False):
             cls.__tablename__ = _camel_to_snake(cls.__name__) + "s"
 
+        from eden.db.schema import SchemaInferenceEngine, ValidationScanner
+        
+        # 1. Process schema via the Engine (safe for abstract models)
+        SchemaInferenceEngine.process_class(cls)
+
+        # 2. Discover validation rules
+        discovered_rules = ValidationScanner.discover_rules(cls)
+
+        # 3. Initialize/Isolate validation state via ValidatorMixin
+        super().__init_subclass__(**kwargs)
+
+        # Apply discovered validation rules
+        for meth, name, val in discovered_rules:
+            if val is not None: 
+                meth(name, val)
+            else: 
+                meth(name)
+
+        # Apply comparators
+        SchemaInferenceEngine.apply_comparators(cls)
+
         if not cls.__dict__.get("__abstract__", False):
-            from eden.db.schema import SchemaInferenceEngine, ValidationScanner
-            
-            # 1. Process schema via the Engine
-            SchemaInferenceEngine.process_class(cls)
-
-            # 2. Discover validation rules
-            discovered_rules = ValidationScanner.discover_rules(cls)
-
-            super().__init_subclass__(**kwargs)
-
-            # Apply validation rules
-            for meth, name, val in discovered_rules:
-                if val is not None: meth(name, val)
-                else: meth(name)
-
-            # Apply comparators
-            SchemaInferenceEngine.apply_comparators(cls)
-
-            # 3. Tenancy Auto-Discovery
-            # If a model has 'tenant_id' but doesn't explicitly inherit from TenantMixin,
-            # we register it for isolation anyway (Secure-by-Default).
+            # 4. Tenancy Auto-Discovery (Secure-by-Default)
             if hasattr(cls, "tenant_id") or "tenant_id" in cls.__annotations__:
-                if not cls.__dict__.get("__abstract__", False):
-                    from eden.tenancy.registry import tenancy_registry
-                    tenancy_registry.register(cls)
+                from eden.tenancy.registry import tenancy_registry
+                tenancy_registry.register(cls)
             
             # Register event listeners for timestamp management
             @event.listens_for(cls, "before_update", propagate=True)
             def set_updated_at(mapper, connection, target):
                 if hasattr(target, 'updated_at'):
                     target.updated_at = datetime.now()
-        else:
-            super().__init_subclass__(**kwargs)
 
     @classmethod
     def _bind_db(cls, db: Any) -> None:
@@ -252,19 +258,33 @@ class Model(Base, AccessControl, ValidatorMixin, LifecycleMixin, SerializationMi
         stmt = select(cls)
         applied_isolation = False
         
-        # 1. Apply default filters from mixins (e.g. TenantMixin, SoftDeleteMixin)
+        # 1. Apply default filters from mixins (e.g. TenantMixin, SoftDeleteMixin, OrganizationMixin)
+        applied_org_isolation = False
         for base in cls.mro():
-            if hasattr(base, "_apply_default_filters") and base is not Model:
-                if "_apply_default_filters" in base.__dict__:
-                    stmt = base._apply_default_filters(cls, stmt, **kwargs)
-                    if getattr(base, "__eden_tenant_isolated__", False):
-                        applied_isolation = True
+            if base is Model:
+                continue
+            
+            # Use vars() for safer attribute inspection in type checkers
+            base_vars = vars(base)
+            if "_apply_default_filters" in base_vars:
+                # Use getattr for safer access since it's a class method
+                filter_func = getattr(base, "_apply_default_filters")
+                stmt = filter_func(cls, stmt, **kwargs)
+                if getattr(base, "__eden_tenant_isolated__", False):
+                    applied_isolation = True
+                if getattr(base, "__eden_org_isolated__", False):
+                    applied_org_isolation = True
         
         # 2. Secure-by-Default: If model is isolated but no mixin applied the filter, apply it now.
         from eden.tenancy.registry import tenancy_registry
         if not applied_isolation and tenancy_registry.is_isolated(cls):
             from eden.tenancy.mixins import TenantMixin
             stmt = TenantMixin._apply_tenant_filter(cls, stmt, **kwargs)
+
+        # 3. Organization isolation fallback
+        if not applied_org_isolation and hasattr(cls, "organization_id"):
+            from eden.tenancy.mixins import OrganizationMixin
+            stmt = OrganizationMixin._apply_organization_filter(cls, stmt, **kwargs)
             
         return stmt
 
@@ -277,7 +297,7 @@ class Model(Base, AccessControl, ValidatorMixin, LifecycleMixin, SerializationMi
         instances_or_session: Any = None,
         validate: bool = True,
         batch_size: Optional[int] = None,
-    ) -> List[T]:
+    ) -> List[T_Model]:
         """
         Create multiple records efficiently.
         Triggers signals and hooks for each instance.

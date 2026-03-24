@@ -1,12 +1,21 @@
 import pytest
 import uuid
-from eden.db import Model, f
+from eden.db import (
+    Model, f, Relationship, Reference,
+    StringField, IntField, FloatField, UUIDField, ForeignKeyField, AllowPublic
+)
 from eden.tenancy.models import Tenant
 from eden.tenancy.mixins import TenantMixin
 from eden.tenancy.context import set_current_tenant, reset_current_tenant
 
 class TenantTask(TenantMixin, Model):
     __tablename__ = "tenant_test_tasks"
+    __rbac__ = {
+        "read": AllowPublic(),
+        "create": AllowPublic(),
+        "update": AllowPublic(),
+        "delete": AllowPublic(),
+    }
     title: str = f(max_length=100)
 
 @pytest.fixture(autouse=True)

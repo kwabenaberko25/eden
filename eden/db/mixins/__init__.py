@@ -101,3 +101,23 @@ class BlameMixin:
 
         if hasattr(super(), "before_create"):
             await super().before_create(session)
+
+
+class SearchableMixin:
+    """
+    Adds a `tsv` column for optimized Full-Text Search.
+    Subclasses should define `__search_fields__` to guide QuerySet.search_ranked.
+    
+    Example:
+        class Document(Model, SearchableMixin):
+            __search_fields__ = ["title", "content"]
+            title: Mapped[str]
+            content: Mapped[str]
+    """
+    __allow_unmapped__ = True
+    
+    # Placeholder for the tsvector column. 
+    # In production, this should be a Generated column or managed via triggers.
+    # from sqlalchemy.dialects.postgresql import TSVECTOR
+    # tsv: Mapped[Any] = mapped_column(TSVECTOR, nullable=True)
+    pass

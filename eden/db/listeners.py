@@ -1,42 +1,49 @@
 
 import asyncio
+import contextvars
 from typing import Any
 from sqlalchemy import event
 
-async def _async_broadcast(channels: list[str], event_type: str, data: dict):
-    """Bridge to the unified ConnectionManager."""
-    from eden.websocket import connection_manager
-    for channel in channels:
-        await connection_manager.broadcast({
-            "event": event_type,
-            "channel": channel,
-            "data": data
-        }, channel=channel)
+from eden.db.reactive import get_reactive_channels, extract_reactive_data
 
-def _get_reactive_channels(target: Any) -> list[str]:
-    """Determine which channels to broadcast to for a given model instance."""
-    table_name = target.__tablename__
-    channels = [table_name, f"{table_name}:{target.id}"]
-    
-    # If the model has a custom method for extra channels, call it
-    if hasattr(target, "get_sync_channels"):
-        channels.extend(target.get_sync_channels())
+async def _async_broadcast(channels: list[str], event_type: str, data: dict):
+    """Bridge to the unified ConnectionManager for async-safe broadcasting."""
+    try:
+        from eden.websocket import connection_manager
         
-    return channels
+        # Avoid circular dependencies or broadcast during shutdown
+        if not connection_manager:
+            return
+
+        for channel in channels:
+            await connection_manager.broadcast({
+                "event": event_type,
+                "channel": channel,
+                "data": data
+            }, channel=channel)
+    except Exception as e:
+        # We don't want to crash the main request thread on broadcast failure
+        import logging
+        logging.getLogger("eden.db").debug(f"Reactive broadcast failed: {e}")
 
 def _trigger_broadcast(mapper, connection, target, event_type: str):
-    """Sync listener that triggers the async broadcast."""
+    """Sync listener that triggers the async broadcast if the model is marked as @reactive."""
     if not getattr(target, "__reactive__", False):
         return
         
-    channels = _get_reactive_channels(target)
-    data = target.model_dump()
+    channels = get_reactive_channels(target)
+    if not channels:
+        return
+        
+    data = extract_reactive_data(target)
     
     # Use the current event loop if it exists to run the broadcast
     try:
         loop = asyncio.get_running_loop()
         if loop.is_running():
-            asyncio.create_task(_async_broadcast(channels, event_type, data))
+            # Create a context snapshot for the background task to survive request end
+            ctx = contextvars.copy_context()
+            loop.create_task(ctx.run(_async_broadcast, channels, event_type, data))
     except (RuntimeError, NameError):
         # Fallback if no loop is running (unlikely in ASGI context)
         pass

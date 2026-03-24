@@ -78,3 +78,69 @@ class TenantMixin:
         # Preserve hook chaining
         if hasattr(super(), "before_create"):
             await super().before_create(session)
+
+    def get_sync_channels(self) -> list[str]:
+        """Return tenant-scoped channels for this instance."""
+        table = getattr(self, "__tablename__")
+        return [
+            f"tenant:{self.tenant_id}:{table}",
+            f"tenant:{self.tenant_id}:{table}:{self.id}"
+        ]
+
+
+class OrganizationMixin:
+    """
+    Mixin that adds organization-level isolation to any Model.
+    """
+
+    __eden_org_isolated__ = True
+    __allow_unmapped__ = True
+
+    organization_id: Mapped[uuid.UUID] = mapped_column(Uuid, index=True)
+
+    @classmethod
+    def _apply_default_filters(cls, target_cls: type, stmt: Any, **kwargs: Any) -> Any:
+        """Cooperative filter hook for organization isolation."""
+        # Mixins can chain filters
+        if hasattr(super(), "_apply_default_filters"):
+            stmt = super()._apply_default_filters(target_cls, stmt, **kwargs)
+        return cls._apply_organization_filter(target_cls, stmt, **kwargs)
+
+    @classmethod
+    def _apply_organization_filter(cls, target_cls, stmt, **kwargs):
+        """
+        Applies organization isolation to the query.
+        """
+        from sqlalchemy import false
+        from eden.context import get_organization_id
+
+        # Skip if explicitly requested
+        if kwargs.get("include_all_orgs", False):
+            return stmt
+
+        org_id = get_organization_id()
+        if org_id is None:
+            # FAIL-SECURE: Return empty result if no organization in context
+            return stmt.where(false())
+
+        return stmt.where(getattr(target_cls, "organization_id") == org_id)
+
+    async def before_create(self, session):
+        """Auto-set organization_id from context."""
+        from eden.context import get_organization_id
+
+        if not getattr(self, "organization_id", None):
+            org_id = get_organization_id()
+            if org_id:
+                self.organization_id = org_id
+
+        if hasattr(super(), "before_create"):
+            await super().before_create(session)
+
+    def get_sync_channels(self) -> list[str]:
+        """Return org-scoped channels for this instance."""
+        table = getattr(self, "__tablename__")
+        return [
+            f"org:{self.organization_id}:{table}",
+            f"org:{self.organization_id}:{table}:{self.id}"
+        ]

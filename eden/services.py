@@ -4,13 +4,17 @@ Eden — Business Logic Services
 
 from __future__ import annotations
 
-from typing import Any, TypeVar, Generic
+from typing import Any, TypeVar, Generic, Optional, TYPE_CHECKING # Added TYPE_CHECKING
+if TYPE_CHECKING:
+    from eden.requests import Request # Fixed import source
 
 T = TypeVar("T")
 
 class Service:
-    """
-    Base class for business logic services.
+    """Base class for all business logic services in Eden.
+    
+    Services provide a clean abstraction for domain logic, separated from 
+    routing and data persistence layers.
     
     Services are used to encapsulate domain logic, keeping
     models focused on data and views focused on presentation.

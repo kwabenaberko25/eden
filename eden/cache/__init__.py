@@ -26,8 +26,29 @@ class CacheBackend(Protocol):
 
 class InMemoryCache:
     """Simple in-memory cache backend for development and testing."""
-    def __init__(self):
+    def __init__(self, max_size: int = 1000):
         self._data: Dict[str, tuple[Any, Optional[float]]] = {}
+        self.max_size = max_size
+
+    def _prune(self) -> None:
+        """Remove expired entries and enforce max_size limit."""
+        now = time.time()
+        
+        # 1. Remove expired entries
+        expired_keys = [
+            k for k, (_, exp) in self._data.items() 
+            if exp and now > exp
+        ]
+        for k in expired_keys:
+            del self._data[k]
+            
+        # 2. Enforce size limit (LRU-ish by pruning oldest inserted)
+        if len(self._data) > self.max_size:
+            # list() creates a copy of keys in insertion order (Python 3.7+)
+            overflow = len(self._data) - self.max_size
+            keys_to_remove = list(self._data.keys())[:overflow]
+            for k in keys_to_remove:
+                del self._data[k]
 
     async def get(self, key: str) -> Any:
         if key not in self._data:
@@ -46,6 +67,11 @@ class InMemoryCache:
                 "In-memory cache used in production! "
                 "Set REDIS_URL to enable high-performance distributed caching."
             )
+        
+        # Prune before adding to keep memory in check
+        if len(self._data) >= self.max_size:
+            self._prune()
+
         expiry = time.time() + ttl if ttl else None
         self._data[key] = (value, expiry)
 

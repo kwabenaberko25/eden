@@ -72,8 +72,11 @@ class InMemoryCache(CacheBackend):
     NOT suitable for multi-process environments.
     """
     
-    def __init__(self):
-        self._store: Dict[str, Tuple[Any, Optional[float]]] = {}
+    def __init__(self, max_size: int = 1000):
+        self._max_size = max_size
+        self._store: dict[str, tuple[Any, float | None]] = {}
+        # Simple LRU: keep keys in order of access
+        self._keys: list[str] = []
     
     async def get(self, key: str) -> Optional[Any]:
         """Get value and check expiration."""
@@ -95,7 +98,18 @@ class InMemoryCache(CacheBackend):
         if ttl is not None:
             expires_at = (datetime.now() + timedelta(seconds=ttl)).timestamp()
         
+        # Update LRU order
+        if key in self._keys:
+            self._keys.remove(key)
+        self._keys.append(key)
+        
         self._store[key] = (value, expires_at)
+        
+        # Evict if over size
+        if len(self._keys) > self._max_size:
+            oldest = self._keys.pop(0)
+            self._store.pop(oldest, None)
+        
         logger.debug(f"Cache SET: {key} (ttl={ttl})")
     
     async def delete(self, key: str) -> None:
@@ -168,7 +182,11 @@ class RedisCache(CacheBackend):
         except (TypeError, ValueError):
             serialized = str(value)
         
-        await self.redis.setex(key, ttl or 3600, serialized)
+        # If ttl is 0, it means no expiry if backend supports it, 
+        # but for Redis setex we need a positive value.
+        # We treat None or 0 as default if not specified.
+        effective_ttl = ttl if ttl is not None and ttl > 0 else 3600
+        await self.redis.setex(key, effective_ttl, serialized)
         logger.debug(f"Cache SET: {key} (ttl={ttl})")
     
     async def delete(self, key: str) -> None:
@@ -257,6 +275,12 @@ class QueryCache:
     _backend: Optional[CacheBackend] = None
     _ttl: int = 3600  # Default 1 hour
     
+    @classmethod
+    def reset(cls) -> None:
+        """Reset the cache backend and settings. Useful for tests."""
+        cls._backend = None
+        cls._ttl = 3600
+
     @classmethod
     def configure(cls, backend: CacheBackend, ttl: int = 3600) -> None:
         """

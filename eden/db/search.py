@@ -2,7 +2,7 @@
 Eden — Full-Text Search Utilities
 """
 
-from typing import List, Optional
+from typing import List, Optional, Any
 
 
 class SearchQueryBuilder:
@@ -10,10 +10,10 @@ class SearchQueryBuilder:
     Builds advanced full-text search queries for PostgreSQL.
     
     Usage:
-        query = SearchQueryBuilder() \\
-            .add_term("eden") \\
-            .add_phrase("web framework") \\
-            .exclude("legacy") \\
+        query = SearchQueryBuilder() \
+            .add_term("eden") \
+            .add_phrase("web framework") \
+            .exclude("legacy") \
             .build()
         # -> 'eden "web framework" -legacy'
         
@@ -29,10 +29,10 @@ class SearchQueryBuilder:
     def add_term(self, term: str) -> "SearchQueryBuilder":
         """Add a simple search term."""
         if term:
-            # Handle prefix matching if term ends with *
-            if term.endswith("*"):
-                term = term[:-1] + ":*"
-            self.terms.append(term)
+            # We remove punctuation that breaks websearch/tsquery
+            # and keep it clean for websearch_to_tsquery
+            clean_term = term.replace('"', '').replace("'", "")
+            self.terms.append(clean_term)
         return self
 
     def add_phrase(self, phrase: str) -> "SearchQueryBuilder":

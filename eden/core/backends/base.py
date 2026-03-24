@@ -91,3 +91,8 @@ class DistributedBackend(Protocol):
     async def delete(self, key: str) -> None:
         """Delete a value from distributed storage."""
         ...
+
+    @abc.abstractmethod
+    async def incr(self, key: str, amount: int = 1) -> int:
+        """Increment a value in distributed storage."""
+        ...

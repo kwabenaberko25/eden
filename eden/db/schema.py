@@ -39,7 +39,7 @@ def _camel_to_snake(name: str) -> str:
 
 def _resolve_table_name(target_name: str, model_cls: Type[Model]) -> str:
     """Resolves a model name to its likely table name."""
-    print(f"RESOLVING {target_name} for {model_cls.__name__}")
+    # logger.debug(f"RESOLVING {target_name} for {model_cls.__name__}")
     # 1. Try to find target_name in registry FIRST to get its actual __tablename__
     try:
         from eden.db.base import Base
@@ -220,7 +220,8 @@ class SchemaInferenceEngine:
         annotations = getattr(model_cls, "__annotations__", {})
 
         if model_cls.__name__.startswith("Modern"):
-            print(f"INFERRING COLUMNS FOR {model_cls.__name__}")
+            pass
+            # logger.debug(f"INFERRING COLUMNS FOR {model_cls.__name__}")
 
         for name, hint in annotations.items():
             # Skip private or reserved attributes
@@ -284,7 +285,8 @@ class SchemaInferenceEngine:
                 sa_kwargs, sa_args, info = parse_metadata(metadata)
                 
                 if model_cls.__name__.startswith("Modern"):
-                    print(f"  SETTING {name}: type={sa_type}, info={info}")
+                    pass
+                    # logger.debug(f"  SETTING {name}: type={sa_type}, info={info}")
 
                 # Special handling: if sa_type is String and we have MaxLength (info["max"])
                 # we need to instantiate String(length)
@@ -357,20 +359,24 @@ class SchemaInferenceEngine:
                         })
                         attr_hint = eval(attr_hint, namespace)
                         if model_cls.__name__.startswith("Modern"):
-                            print(f"EVALUATED {name} -> {attr_hint} (type: {type(attr_hint)})")
+                            pass
+                            # logger.debug(f"EVALUATED {name} -> {attr_hint} (type: {type(attr_hint)})")
                     else:
                         if model_cls.__name__.startswith("Modern"):
-                            print(f"NO MODULE FOUND FOR {model_cls.__name__}")
+                            pass
+                            # logger.debug(f"NO MODULE FOUND FOR {model_cls.__name__}")
                 except Exception as e:
                     if model_cls.__name__.startswith("Modern"):
-                        print(f"EVAL FAILED FOR {name}: {e}")
+                        pass
+                        # logger.debug(f"EVAL FAILED FOR {name}: {e}")
                     pass
             
             hint = attr_hint
 
             metadata_tokens, final_type, is_list, is_union, target_name = cls._analyze_type_hint(hint)
             if model_cls.__name__.startswith("Modern"):
-                print(f"  ANALYZED {name}: tokens={metadata_tokens}, target={target_name}")
+                pass
+                # logger.debug(f"  ANALYZED {name}: tokens={metadata_tokens}, target={target_name}")
 
             # Identify if it's a basic type or a model reference
             basic_types = ("str", "int", "float", "bool", "uuid.UUID", "UUID", "datetime", "dict", "list", "Any", "None", "Decimal", "bytes", "Optional")
@@ -383,7 +389,8 @@ class SchemaInferenceEngine:
             
             sa_kwargs, sa_args, info = parse_metadata(metadata_tokens)
             if model_cls.__name__.startswith("Modern"):
-                print(f"  INFO FOR {name}: {info}")
+                pass
+                # logger.debug(f"  INFO FOR {name}: {info}")
             if any(bt.lower() == current_target.lower() for bt in basic_types) or (target_name and target_name[0].islower()):
                 continue
 
@@ -870,35 +877,39 @@ class ValidationScanner:
     @classmethod
     def discover_rules(cls, model_cls: Type[Model]) -> List[tuple]:
         """Scans model and its base classes for validation metadata."""
-        print(f"SCANNING RULES FOR {model_cls.__name__}")
+        # logger.debug(f"SCANNING RULES FOR {model_cls.__name__}")
         discovered_rules = []
 
         for base in model_cls.__mro__:
             if base.__name__ == "object":
                 continue
 
-            print(f"  SCANNING BASE {base.__name__}")
+            # logger.debug(f"  SCANNING BASE {base.__name__}")
             for name, attr in base.__dict__.items():
                 if model_cls.__name__.startswith("Modern") and not name.startswith("__"):
-                    print(f"    CHECKING {name}: {type(attr)}")
+                    pass
+                    # logger.debug(f"    CHECKING {name}: {type(attr)}")
                 info = None
                 if hasattr(attr, "info"):
                     info = attr.info
                     if model_cls.__name__.startswith("Modern") and not name.startswith("__"):
-                        print(f"      FOUND ATTR.INFO: {info}")
+                        pass
+                        # logger.debug(f"      FOUND ATTR.INFO: {info}")
                 elif hasattr(attr, "column") and hasattr(attr.column, "info"):
                     info = attr.column.info
                     if model_cls.__name__.startswith("Modern") and not name.startswith("__"):
-                        print(f"      FOUND ATTR.COLUMN.INFO: {info}")
+                        pass
+                        # logger.debug(f"      FOUND ATTR.COLUMN.INFO: {info}")
                 elif hasattr(attr, "prop") and hasattr(attr.prop, "columns") and attr.prop.columns:
                     info = attr.prop.columns[0].info
                     if model_cls.__name__.startswith("Modern") and not name.startswith("__"):
-                        print(f"      FOUND ATTR.PROP.INFO: {info}")
+                        pass
+                        # logger.debug(f"      FOUND ATTR.PROP.INFO: {info}")
 
                 if not info:
                     continue
 
-                print(f"DISCOVERED INFO FOR {name}: {info}")
+                # logger.debug(f"DISCOVERED INFO FOR {name}: {info}")
                 is_numeric = cls._is_numeric_attr(attr)
 
                 if "max" in info:

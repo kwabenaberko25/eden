@@ -529,18 +529,21 @@ def render_reactive(compiler: "TemplateCompiler", node: "DirectiveNode", expr: s
     
     # We use get_sync_channel(obj) to resolve the channel name (e.g. "users:5")
     # hx-sync: listens for broadcasts on this channel
+    # hx-channel: listens for broadcasts on this channel
     # hx-trigger: refreshes on 'updated' or 'created' events from the body (bubbled up)
     # hx-get: calls current URL to get the refreshed fragment
     # fragment_ID: provides the anchor for Smart Fragment Resolution
     return (
         f'{{% set __ch = get_sync_channel({sync_obj}) %}}'
         f'<div id="{provided_id}" '
+        f'hx-channel="{{{{ __ch }}}}" '
         f'hx-sync="{{{{ __ch }}}}" '
         f'hx-trigger="updated:{{{{ __ch }}}} from:body, created:{{{{ __ch }}}} from:body" '
         f'hx-get="{{{{ request.url }}}}" '
         f'hx-target="this" '
         f'hx-swap="outerHTML" '
-        f'class="eden-reactive">'
+        f'class="eden-reactive-block">'
+        f'{{% do request.state.eden_channels.add(__ch) if request and hasattr(request, "state") and hasattr(request.state, "eden_channels") %}}'
         f'{{% block fragment_{provided_id} %}}'
         f'{body}'
         f'{{% endblock %}}'

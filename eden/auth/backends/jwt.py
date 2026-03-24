@@ -53,10 +53,15 @@ class JWTBackend(AuthBackend[User]):
         Expected format: `Authorization: Bearer <token>`
         """
         auth_header = request.headers.get("Authorization")
-        if not auth_header or not auth_header.startswith("Bearer "):
+        if not auth_header:
             return None
 
-        token = auth_header.split(" ")[1]
+        # Robustly extract the token (handling potential whitespace variations)
+        token_parts = auth_header.split()
+        if len(token_parts) < 2 or token_parts[0].lower() != "bearer":
+            return None
+
+        token = token_parts[1]
         try:
             payload = self.decode_token(token)
             user_id = payload.get("sub")

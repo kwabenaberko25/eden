@@ -11882,3 +11882,737 @@ SQL: SELECT eden_audit_logs.id, eden_audit_logs.user_id, eden_audit_logs.action,
 FROM eden_audit_logs 
 WHERE eden_audit_logs.record_id = '296ff107-f709-44bb-9b28-17ebf9869de8' AND eden_audit_logs.action = 'update'
 
+MODEL: Task
+SQL: SELECT tasks.title, tasks.is_done, tasks.id, tasks.created_at, tasks.updated_at 
+FROM tasks 
+WHERE tasks.id = '27c4ae781863431d9eb906abc6ebc656'
+
+MODEL: Task
+SQL: SELECT tasks.title, tasks.is_done, tasks.id, tasks.created_at, tasks.updated_at 
+FROM tasks 
+WHERE tasks.id = '27c4ae781863431d9eb906abc6ebc656'
+
+MODEL: FileReference
+SQL: SELECT file_references.model_class_name, file_references.model_instance_id, file_references.file_path, file_references.storage_backend, file_references.deleted_at, file_references.id, file_references.created_at, file_references.updated_at 
+FROM file_references 
+WHERE file_references.model_class_name = 'Task' AND file_references.model_instance_id = '27c4ae781863431d9eb906abc6ebc656' AND file_references.deleted_at IS NULL
+
+MODEL: Task
+SQL: SELECT tasks.title, tasks.is_done, tasks.id, tasks.created_at, tasks.updated_at 
+FROM tasks 
+WHERE tasks.id = '27c4ae781863431d9eb906abc6ebc656'
+
+MODEL: Task
+SQL: SELECT tasks.title, tasks.is_done, tasks.id, tasks.created_at, tasks.updated_at 
+FROM tasks
+
+MODEL: Task
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT tasks.title AS title, tasks.is_done AS is_done, tasks.id AS id, tasks.created_at AS created_at, tasks.updated_at AS updated_at 
+FROM tasks) AS anon_1
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE enhanced_users.id = '735c41b03ac0476781c4b0ce7046bce3'
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE enhanced_users.id = '735c41b03ac0476781c4b0ce7046bce3'
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.score > 50 AS is_high_score 
+FROM enhanced_users ORDER BY enhanced_users.name ASC
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE (enhanced_users.name = 'Alice' OR enhanced_users.name = 'Bob') AND enhanced_users.score < 25
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE enhanced_users.name = 'Ghost'
+
+MODEL: EnhancedUser
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT enhanced_users.name AS name, enhanced_users.data AS data, enhanced_users.score AS score, enhanced_users.tags AS tags, enhanced_users.id AS id, enhanced_users.created_at AS created_at, enhanced_users.updated_at AS updated_at 
+FROM enhanced_users) AS anon_1
+
+MODEL: EnhancedUser
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT enhanced_users.name AS name, enhanced_users.data AS data, enhanced_users.score AS score, enhanced_users.tags AS tags, enhanced_users.id AS id, enhanced_users.created_at AS created_at, enhanced_users.updated_at AS updated_at 
+FROM enhanced_users) AS anon_1
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents 
+WHERE enhanced_parents.id = 'fe08782f92744002a3bc8602f71e69ec'
+
+MODEL: LookupPost
+SQL: SELECT lookup_posts.title, lookup_posts.views, lookup_posts.author_id, lookup_posts.id, lookup_posts.created_at, lookup_posts.updated_at 
+FROM lookup_posts JOIN lookup_authors ON lookup_authors.id = lookup_posts.author_id 
+WHERE lookup_authors.name = 'Alice'
+
+MODEL: LookupPost
+SQL: SELECT lookup_posts.title, lookup_posts.views, lookup_posts.author_id, lookup_posts.id, lookup_posts.created_at, lookup_posts.updated_at 
+FROM lookup_posts JOIN lookup_authors ON lookup_authors.id = lookup_posts.author_id JOIN lookup_profiles ON lookup_authors.id = lookup_profiles.author_id 
+WHERE lookup_profiles.city = 'London'
+
+MODEL: LookupPost
+SQL: SELECT lookup_posts.title, lookup_posts.views, lookup_posts.author_id, lookup_posts.id, lookup_posts.created_at, lookup_posts.updated_at 
+FROM lookup_posts JOIN lookup_authors ON lookup_authors.id = lookup_posts.author_id JOIN lookup_profiles ON lookup_authors.id = lookup_profiles.author_id 
+WHERE (lookup_posts.title LIKE '%' || 'Eden' || '%') OR lookup_profiles.city = 'London'
+
+MODEL: LookupPost
+SQL: SELECT lookup_posts.title, lookup_posts.views, lookup_posts.author_id, lookup_posts.id, lookup_posts.created_at, lookup_posts.updated_at 
+FROM lookup_posts 
+WHERE lookup_posts.views >= 100
+
+MODEL: LookupPost
+SQL: SELECT lookup_posts.title, lookup_posts.views, lookup_posts.author_id, lookup_posts.id, lookup_posts.created_at, lookup_posts.updated_at 
+FROM lookup_posts 
+WHERE lookup_posts.id = '2b84543eb01b4162b7b354db298af987'
+
+MODEL: LookupPost
+SQL: SELECT lookup_posts.title, lookup_posts.views, lookup_posts.author_id, lookup_posts.id, lookup_posts.created_at, lookup_posts.updated_at 
+FROM lookup_posts JOIN lookup_authors ON lookup_authors.id = lookup_posts.author_id 
+WHERE lookup_authors.name = 'Alice' AND lower(lookup_posts.title) LIKE lower('%Eden%') ESCAPE '\'
+
+MODEL: Task
+SQL: SELECT tasks.title, tasks.is_done, tasks.id, tasks.created_at, tasks.updated_at 
+FROM tasks 
+WHERE tasks.id = 'efac9c559fd74a3186a97cc352a6cf98'
+
+MODEL: Task
+SQL: SELECT tasks.title, tasks.is_done, tasks.id, tasks.created_at, tasks.updated_at 
+FROM tasks 
+WHERE tasks.id = 'efac9c559fd74a3186a97cc352a6cf98'
+
+MODEL: FileReference
+SQL: SELECT file_references.model_class_name, file_references.model_instance_id, file_references.file_path, file_references.storage_backend, file_references.deleted_at, file_references.id, file_references.created_at, file_references.updated_at 
+FROM file_references 
+WHERE file_references.model_class_name = 'Task' AND file_references.model_instance_id = 'efac9c559fd74a3186a97cc352a6cf98' AND file_references.deleted_at IS NULL
+
+MODEL: Task
+SQL: SELECT tasks.title, tasks.is_done, tasks.id, tasks.created_at, tasks.updated_at 
+FROM tasks 
+WHERE tasks.id = 'efac9c559fd74a3186a97cc352a6cf98'
+
+MODEL: Task
+SQL: SELECT tasks.title, tasks.is_done, tasks.id, tasks.created_at, tasks.updated_at 
+FROM tasks
+
+MODEL: Task
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT tasks.title AS title, tasks.is_done AS is_done, tasks.id AS id, tasks.created_at AS created_at, tasks.updated_at AS updated_at 
+FROM tasks) AS anon_1
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE enhanced_users.id = 'bd61bfb613fe4bbbab2ba9c18205bb28'
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE enhanced_users.id = 'bd61bfb613fe4bbbab2ba9c18205bb28'
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.score > 50 AS is_high_score 
+FROM enhanced_users ORDER BY enhanced_users.name ASC
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE (enhanced_users.name = 'Alice' OR enhanced_users.name = 'Bob') AND enhanced_users.score < 25
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE enhanced_users.name = 'Ghost'
+
+MODEL: EnhancedUser
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT enhanced_users.name AS name, enhanced_users.data AS data, enhanced_users.score AS score, enhanced_users.tags AS tags, enhanced_users.id AS id, enhanced_users.created_at AS created_at, enhanced_users.updated_at AS updated_at 
+FROM enhanced_users) AS anon_1
+
+MODEL: EnhancedUser
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT enhanced_users.name AS name, enhanced_users.data AS data, enhanced_users.score AS score, enhanced_users.tags AS tags, enhanced_users.id AS id, enhanced_users.created_at AS created_at, enhanced_users.updated_at AS updated_at 
+FROM enhanced_users) AS anon_1
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents 
+WHERE enhanced_parents.id = '56d7d863e0b1442b9fbaa6dc1bacc9e2'
+
+MODEL: LookupPost
+SQL: SELECT lookup_posts.title, lookup_posts.views, lookup_posts.author_id, lookup_posts.id, lookup_posts.created_at, lookup_posts.updated_at 
+FROM lookup_posts JOIN lookup_authors ON lookup_authors.id = lookup_posts.author_id 
+WHERE lookup_authors.name = 'Alice'
+
+MODEL: LookupPost
+SQL: SELECT lookup_posts.title, lookup_posts.views, lookup_posts.author_id, lookup_posts.id, lookup_posts.created_at, lookup_posts.updated_at 
+FROM lookup_posts JOIN lookup_authors ON lookup_authors.id = lookup_posts.author_id JOIN lookup_profiles ON lookup_authors.id = lookup_profiles.author_id 
+WHERE lookup_profiles.city = 'London'
+
+MODEL: LookupPost
+SQL: SELECT lookup_posts.title, lookup_posts.views, lookup_posts.author_id, lookup_posts.id, lookup_posts.created_at, lookup_posts.updated_at 
+FROM lookup_posts JOIN lookup_authors ON lookup_authors.id = lookup_posts.author_id JOIN lookup_profiles ON lookup_authors.id = lookup_profiles.author_id 
+WHERE (lookup_posts.title LIKE '%' || 'Eden' || '%') OR lookup_profiles.city = 'London'
+
+MODEL: LookupPost
+SQL: SELECT lookup_posts.title, lookup_posts.views, lookup_posts.author_id, lookup_posts.id, lookup_posts.created_at, lookup_posts.updated_at 
+FROM lookup_posts 
+WHERE lookup_posts.views >= 100
+
+MODEL: LookupPost
+SQL: SELECT lookup_posts.title, lookup_posts.views, lookup_posts.author_id, lookup_posts.id, lookup_posts.created_at, lookup_posts.updated_at 
+FROM lookup_posts 
+WHERE lookup_posts.id = 'abbf962c75c34fcf968bade9fdb8df50'
+
+MODEL: LookupPost
+SQL: SELECT lookup_posts.title, lookup_posts.views, lookup_posts.author_id, lookup_posts.id, lookup_posts.created_at, lookup_posts.updated_at 
+FROM lookup_posts JOIN lookup_authors ON lookup_authors.id = lookup_posts.author_id 
+WHERE lookup_authors.name = 'Alice' AND lower(lookup_posts.title) LIKE lower('%Eden%') ESCAPE '\'
+
+MODEL: Task
+SQL: SELECT tasks.title, tasks.is_done, tasks.id, tasks.created_at, tasks.updated_at 
+FROM tasks 
+WHERE tasks.id = '2336fdcee8d7456b8d7ed9f75d972cd4'
+
+MODEL: Task
+SQL: SELECT tasks.title, tasks.is_done, tasks.id, tasks.created_at, tasks.updated_at 
+FROM tasks 
+WHERE tasks.id = '2336fdcee8d7456b8d7ed9f75d972cd4'
+
+MODEL: FileReference
+SQL: SELECT file_references.model_class_name, file_references.model_instance_id, file_references.file_path, file_references.storage_backend, file_references.deleted_at, file_references.id, file_references.created_at, file_references.updated_at 
+FROM file_references 
+WHERE file_references.model_class_name = 'Task' AND file_references.model_instance_id = '2336fdcee8d7456b8d7ed9f75d972cd4' AND file_references.deleted_at IS NULL
+
+MODEL: Task
+SQL: SELECT tasks.title, tasks.is_done, tasks.id, tasks.created_at, tasks.updated_at 
+FROM tasks 
+WHERE tasks.id = '2336fdcee8d7456b8d7ed9f75d972cd4'
+
+MODEL: Task
+SQL: SELECT tasks.title, tasks.is_done, tasks.id, tasks.created_at, tasks.updated_at 
+FROM tasks
+
+MODEL: Task
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT tasks.title AS title, tasks.is_done AS is_done, tasks.id AS id, tasks.created_at AS created_at, tasks.updated_at AS updated_at 
+FROM tasks) AS anon_1
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE enhanced_users.id = '58b3f3e289424f1daa46938f603a1639'
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE enhanced_users.id = '58b3f3e289424f1daa46938f603a1639'
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.score > 50 AS is_high_score 
+FROM enhanced_users ORDER BY enhanced_users.name ASC
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE (enhanced_users.name = 'Alice' OR enhanced_users.name = 'Bob') AND enhanced_users.score < 25
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE enhanced_users.name = 'Ghost'
+
+MODEL: EnhancedUser
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT enhanced_users.name AS name, enhanced_users.data AS data, enhanced_users.score AS score, enhanced_users.tags AS tags, enhanced_users.id AS id, enhanced_users.created_at AS created_at, enhanced_users.updated_at AS updated_at 
+FROM enhanced_users) AS anon_1
+
+MODEL: EnhancedUser
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT enhanced_users.name AS name, enhanced_users.data AS data, enhanced_users.score AS score, enhanced_users.tags AS tags, enhanced_users.id AS id, enhanced_users.created_at AS created_at, enhanced_users.updated_at AS updated_at 
+FROM enhanced_users) AS anon_1
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents 
+WHERE enhanced_parents.id = 'f161ea8e42584840b9a9dde36dd6bb22'
+
+MODEL: LookupPost
+SQL: SELECT lookup_posts.title, lookup_posts.views, lookup_posts.author_id, lookup_posts.id, lookup_posts.created_at, lookup_posts.updated_at 
+FROM lookup_posts JOIN lookup_authors ON lookup_authors.id = lookup_posts.author_id 
+WHERE lookup_authors.name = 'Alice'
+
+MODEL: LookupPost
+SQL: SELECT lookup_posts.title, lookup_posts.views, lookup_posts.author_id, lookup_posts.id, lookup_posts.created_at, lookup_posts.updated_at 
+FROM lookup_posts JOIN lookup_authors ON lookup_authors.id = lookup_posts.author_id JOIN lookup_profiles ON lookup_authors.id = lookup_profiles.author_id 
+WHERE lookup_profiles.city = 'London'
+
+MODEL: LookupPost
+SQL: SELECT lookup_posts.title, lookup_posts.views, lookup_posts.author_id, lookup_posts.id, lookup_posts.created_at, lookup_posts.updated_at 
+FROM lookup_posts JOIN lookup_authors ON lookup_authors.id = lookup_posts.author_id JOIN lookup_profiles ON lookup_authors.id = lookup_profiles.author_id 
+WHERE (lookup_posts.title LIKE '%' || 'Eden' || '%') OR lookup_profiles.city = 'London'
+
+MODEL: LookupPost
+SQL: SELECT lookup_posts.title, lookup_posts.views, lookup_posts.author_id, lookup_posts.id, lookup_posts.created_at, lookup_posts.updated_at 
+FROM lookup_posts 
+WHERE lookup_posts.views >= 100
+
+MODEL: LookupPost
+SQL: SELECT lookup_posts.title, lookup_posts.views, lookup_posts.author_id, lookup_posts.id, lookup_posts.created_at, lookup_posts.updated_at 
+FROM lookup_posts 
+WHERE lookup_posts.id = 'f0584a9d8ff74cc0ab41835bb97a24ee'
+
+MODEL: LookupPost
+SQL: SELECT lookup_posts.title, lookup_posts.views, lookup_posts.author_id, lookup_posts.id, lookup_posts.created_at, lookup_posts.updated_at 
+FROM lookup_posts JOIN lookup_authors ON lookup_authors.id = lookup_posts.author_id 
+WHERE lookup_authors.name = 'Alice' AND lower(lookup_posts.title) LIKE lower('%Eden%') ESCAPE '\'
+
+MODEL: Task
+SQL: SELECT tasks.title, tasks.is_done, tasks.id, tasks.created_at, tasks.updated_at 
+FROM tasks 
+WHERE tasks.id = 'c701de1c94b1416f891f8849cd5747ed'
+
+MODEL: Task
+SQL: SELECT tasks.title, tasks.is_done, tasks.id, tasks.created_at, tasks.updated_at 
+FROM tasks 
+WHERE tasks.id = 'c701de1c94b1416f891f8849cd5747ed'
+
+MODEL: FileReference
+SQL: SELECT file_references.model_class_name, file_references.model_instance_id, file_references.file_path, file_references.storage_backend, file_references.deleted_at, file_references.id, file_references.created_at, file_references.updated_at 
+FROM file_references 
+WHERE file_references.model_class_name = 'Task' AND file_references.model_instance_id = 'c701de1c94b1416f891f8849cd5747ed' AND file_references.deleted_at IS NULL
+
+MODEL: Task
+SQL: SELECT tasks.title, tasks.is_done, tasks.id, tasks.created_at, tasks.updated_at 
+FROM tasks 
+WHERE tasks.id = 'c701de1c94b1416f891f8849cd5747ed'
+
+MODEL: Task
+SQL: SELECT tasks.title, tasks.is_done, tasks.id, tasks.created_at, tasks.updated_at 
+FROM tasks
+
+MODEL: Task
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT tasks.title AS title, tasks.is_done AS is_done, tasks.id AS id, tasks.created_at AS created_at, tasks.updated_at AS updated_at 
+FROM tasks) AS anon_1
+
+MODEL: AdvUser
+SQL: SELECT adv_users.name, adv_users.id, adv_users.created_at, adv_users.updated_at 
+FROM adv_users 
+WHERE adv_users.name = 'Author 1'
+
+MODEL: AdvPost
+SQL: SELECT adv_posts.title, adv_posts.author_id, adv_posts.id, adv_posts.created_at, adv_posts.updated_at 
+FROM adv_posts 
+WHERE adv_posts.id = 'ddb01ec579b741b38e894db4eb1d14b3'
+
+MODEL: AdvUser
+SQL: SELECT adv_users.name, adv_users.id, adv_users.created_at, adv_users.updated_at 
+FROM adv_users 
+WHERE adv_users.name = 'Prefetch User'
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE enhanced_users.id = 'bfd9a92d1c3a44c4a5566e46221a855e'
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE enhanced_users.id = 'bfd9a92d1c3a44c4a5566e46221a855e'
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.score > 50 AS is_high_score 
+FROM enhanced_users ORDER BY enhanced_users.name ASC
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE (enhanced_users.name = 'Alice' OR enhanced_users.name = 'Bob') AND enhanced_users.score < 25
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE enhanced_users.name = 'Ghost'
+
+MODEL: EnhancedUser
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT enhanced_users.name AS name, enhanced_users.data AS data, enhanced_users.score AS score, enhanced_users.tags AS tags, enhanced_users.id AS id, enhanced_users.created_at AS created_at, enhanced_users.updated_at AS updated_at 
+FROM enhanced_users) AS anon_1
+
+MODEL: EnhancedUser
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT enhanced_users.name AS name, enhanced_users.data AS data, enhanced_users.score AS score, enhanced_users.tags AS tags, enhanced_users.id AS id, enhanced_users.created_at AS created_at, enhanced_users.updated_at AS updated_at 
+FROM enhanced_users) AS anon_1
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents 
+WHERE enhanced_parents.id = '05d2b5e487bc4e6caa3896be299c2ad5'
+
+MODEL: FormProduct
+SQL: SELECT products.price, products.category_id, products.title, products.status, products.id, products.created_at, products.updated_at 
+FROM products 
+WHERE lower(products.title) LIKE lower('%Saved%') ESCAPE '\'
+
+MODEL: FormProduct
+SQL: SELECT products.price, products.category_id, products.title, products.status, products.id, products.created_at, products.updated_at 
+FROM products JOIN categorys ON categorys.id = products.category_id 
+WHERE categorys.name = 'Electronics'
+
+MODEL: FormProduct
+SQL: SELECT products.price, products.category_id, products.title, products.status, products.id, products.created_at, products.updated_at, categorys_1.name, categorys_1.id AS id_1, categorys_1.created_at AS created_at_1, categorys_1.updated_at AS updated_at_1 
+FROM products LEFT OUTER JOIN categorys AS categorys_1 ON categorys_1.id = products.category_id 
+WHERE products.title = 'Laptop'
+
+MODEL: FormProduct
+SQL: SELECT products.price 
+FROM products ORDER BY products.price ASC
+
+MODEL: LifecycleModel
+SQL: SELECT lifecycle_models.name, lifecycle_models.hook_triggered, lifecycle_models.id, lifecycle_models.created_at, lifecycle_models.updated_at 
+FROM lifecycle_models 
+WHERE lifecycle_models.id = 'fac54150c45640348849539ba2655957'
+
+MODEL: M2MArticle
+SQL: SELECT m2_m_articles.title, m2_m_articles.id, m2_m_articles.created_at, m2_m_articles.updated_at 
+FROM m2_m_articles 
+WHERE m2_m_articles.id = '03541c85c23341409d59cc5f74777e1e'
+
+MODEL: M2MTag
+SQL: SELECT m2_m_tags.name, m2_m_tags.id, m2_m_tags.created_at, m2_m_tags.updated_at 
+FROM m2_m_tags 
+WHERE m2_m_tags.id = '6d8277cc016c460482b608a81a17ac12'
+
+MODEL: LookupPost
+SQL: SELECT lookup_posts.title, lookup_posts.views, lookup_posts.author_id, lookup_posts.id, lookup_posts.created_at, lookup_posts.updated_at 
+FROM lookup_posts JOIN lookup_authors ON lookup_authors.id = lookup_posts.author_id 
+WHERE lookup_authors.name = 'Alice'
+
+MODEL: LookupPost
+SQL: SELECT lookup_posts.title, lookup_posts.views, lookup_posts.author_id, lookup_posts.id, lookup_posts.created_at, lookup_posts.updated_at 
+FROM lookup_posts JOIN lookup_authors ON lookup_authors.id = lookup_posts.author_id JOIN lookup_profiles ON lookup_authors.id = lookup_profiles.author_id 
+WHERE lookup_profiles.city = 'London'
+
+MODEL: LookupPost
+SQL: SELECT lookup_posts.title, lookup_posts.views, lookup_posts.author_id, lookup_posts.id, lookup_posts.created_at, lookup_posts.updated_at 
+FROM lookup_posts JOIN lookup_authors ON lookup_authors.id = lookup_posts.author_id JOIN lookup_profiles ON lookup_authors.id = lookup_profiles.author_id 
+WHERE (lookup_posts.title LIKE '%' || 'Eden' || '%') OR lookup_profiles.city = 'London'
+
+MODEL: LookupPost
+SQL: SELECT lookup_posts.title, lookup_posts.views, lookup_posts.author_id, lookup_posts.id, lookup_posts.created_at, lookup_posts.updated_at 
+FROM lookup_posts 
+WHERE lookup_posts.views >= 100
+
+MODEL: LookupPost
+SQL: SELECT lookup_posts.title, lookup_posts.views, lookup_posts.author_id, lookup_posts.id, lookup_posts.created_at, lookup_posts.updated_at 
+FROM lookup_posts 
+WHERE lookup_posts.id = '865abd7d86804db8bede696ae2b4dc59'
+
+MODEL: LookupPost
+SQL: SELECT lookup_posts.title, lookup_posts.views, lookup_posts.author_id, lookup_posts.id, lookup_posts.created_at, lookup_posts.updated_at 
+FROM lookup_posts JOIN lookup_authors ON lookup_authors.id = lookup_posts.author_id 
+WHERE lookup_authors.name = 'Alice' AND lower(lookup_posts.title) LIKE lower('%Eden%') ESCAPE '\'
+
+MODEL: ModernUser
+SQL: SELECT modern_users.name, modern_users.email, modern_users.bio, modern_users.id, modern_users.created_at, modern_users.updated_at 
+FROM modern_users 
+WHERE modern_users.id = '29687fd64a5744e5877c29890da3e3ed'
+
+MODEL: QSUser
+SQL: SELECT qs_users.name, qs_users.age, qs_users.is_active, qs_users.id, qs_users.created_at, qs_users.updated_at 
+FROM qs_users 
+WHERE qs_users.is_active = true AND qs_users.age >= 30
+
+MODEL: QSUser
+SQL: SELECT qs_users.name, qs_users.age, qs_users.is_active, qs_users.id, qs_users.created_at, qs_users.updated_at 
+FROM qs_users 
+WHERE qs_users.age < 30
+
+MODEL: QSUser
+SQL: SELECT qs_users.name, qs_users.age, qs_users.is_active, qs_users.id, qs_users.created_at, qs_users.updated_at 
+FROM qs_users ORDER BY qs_users.age ASC, qs_users.name ASC
+
+MODEL: QSUser
+SQL: SELECT qs_users.name, qs_users.age, qs_users.is_active, qs_users.id, qs_users.created_at, qs_users.updated_at 
+FROM qs_users ORDER BY qs_users.age DESC
+
+MODEL: QSUser
+SQL: SELECT qs_users.name, qs_users.age, qs_users.is_active, qs_users.id, qs_users.created_at, qs_users.updated_at 
+FROM qs_users ORDER BY qs_users.name ASC
+ LIMIT 2 OFFSET 1
+
+MODEL: QSUser
+SQL: SELECT qs_users.name, qs_users.is_active 
+FROM qs_users ORDER BY qs_users.name ASC
+
+MODEL: QSUser
+SQL: SELECT qs_users.name 
+FROM qs_users ORDER BY qs_users.name ASC
+
+MODEL: QSUser
+SQL: SELECT qs_users.name 
+FROM qs_users 
+WHERE qs_users.age < 30
+
+MODEL: QSUser
+SQL: SELECT qs_users.name, qs_users.age, qs_users.is_active, qs_users.id, qs_users.created_at, qs_users.updated_at 
+FROM qs_users ORDER BY qs_users.name ASC
+
+MODEL: QSUser
+SQL: SELECT qs_users.name, qs_users.age, qs_users.is_active, qs_users.id, qs_users.created_at, qs_users.updated_at 
+FROM qs_users ORDER BY qs_users.name ASC
+
+MODEL: QSUser
+SQL: SELECT qs_users.name, qs_users.age, qs_users.is_active, qs_users.id, qs_users.created_at, qs_users.updated_at 
+FROM qs_users ORDER BY qs_users.age ASC, qs_users.name ASC
+
+MODEL: QSUser
+SQL: SELECT qs_users.name, qs_users.age, qs_users.is_active, qs_users.id, qs_users.created_at, qs_users.updated_at 
+FROM qs_users 
+WHERE qs_users.name = 'Alice'
+ LIMIT 1
+
+MODEL: QSUser
+SQL: SELECT qs_users.name, qs_users.age, qs_users.is_active, qs_users.id, qs_users.created_at, qs_users.updated_at 
+FROM qs_users 
+WHERE qs_users.name = 'Zack'
+ LIMIT 1
+
+MODEL: QSUser
+SQL: SELECT qs_users.name, qs_users.age, qs_users.is_active, qs_users.id, qs_users.created_at, qs_users.updated_at 
+FROM qs_users ORDER BY qs_users.name ASC
+
+MODEL: QSUser
+SQL: SELECT qs_users.name, qs_users.age, qs_users.is_active, qs_users.id, qs_users.created_at, qs_users.updated_at 
+FROM qs_users ORDER BY qs_users.name ASC
+
+MODEL: Task
+SQL: SELECT tasks.title, tasks.is_done, tasks.id, tasks.created_at, tasks.updated_at 
+FROM tasks 
+WHERE tasks.id = '135cd5f02cd646fda013aa3c6f812f96'
+
+MODEL: Task
+SQL: SELECT tasks.title, tasks.is_done, tasks.id, tasks.created_at, tasks.updated_at 
+FROM tasks 
+WHERE tasks.id = '135cd5f02cd646fda013aa3c6f812f96'
+
+MODEL: FileReference
+SQL: SELECT file_references.model_class_name, file_references.model_instance_id, file_references.file_path, file_references.storage_backend, file_references.deleted_at, file_references.id, file_references.created_at, file_references.updated_at 
+FROM file_references 
+WHERE file_references.model_class_name = 'Task' AND file_references.model_instance_id = '135cd5f02cd646fda013aa3c6f812f96' AND file_references.deleted_at IS NULL
+
+MODEL: Task
+SQL: SELECT tasks.title, tasks.is_done, tasks.id, tasks.created_at, tasks.updated_at 
+FROM tasks 
+WHERE tasks.id = '135cd5f02cd646fda013aa3c6f812f96'
+
+MODEL: Task
+SQL: SELECT tasks.title, tasks.is_done, tasks.id, tasks.created_at, tasks.updated_at 
+FROM tasks
+
+MODEL: Task
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT tasks.title AS title, tasks.is_done AS is_done, tasks.id AS id, tasks.created_at AS created_at, tasks.updated_at AS updated_at 
+FROM tasks) AS anon_1
+
+MODEL: AdvUser
+SQL: SELECT adv_users.name, adv_users.id, adv_users.created_at, adv_users.updated_at 
+FROM adv_users 
+WHERE adv_users.name = 'Author 1'
+
+MODEL: AdvPost
+SQL: SELECT adv_posts.title, adv_posts.author_id, adv_posts.id, adv_posts.created_at, adv_posts.updated_at 
+FROM adv_posts 
+WHERE adv_posts.id = 'd175c9a786764e328d175ec5e1643d83'
+
+MODEL: AdvUser
+SQL: SELECT adv_users.name, adv_users.id, adv_users.created_at, adv_users.updated_at 
+FROM adv_users 
+WHERE adv_users.name = 'Prefetch User'
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE enhanced_users.id = '1fb9653ac50c4ab888550bf7aac8814c'
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE enhanced_users.id = '1fb9653ac50c4ab888550bf7aac8814c'
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.score > 50 AS is_high_score 
+FROM enhanced_users ORDER BY enhanced_users.name ASC
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE (enhanced_users.name = 'Alice' OR enhanced_users.name = 'Bob') AND enhanced_users.score < 25
+
+MODEL: EnhancedUser
+SQL: SELECT enhanced_users.name, enhanced_users.data, enhanced_users.score, enhanced_users.tags, enhanced_users.id, enhanced_users.created_at, enhanced_users.updated_at 
+FROM enhanced_users 
+WHERE enhanced_users.name = 'Ghost'
+
+MODEL: EnhancedUser
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT enhanced_users.name AS name, enhanced_users.data AS data, enhanced_users.score AS score, enhanced_users.tags AS tags, enhanced_users.id AS id, enhanced_users.created_at AS created_at, enhanced_users.updated_at AS updated_at 
+FROM enhanced_users) AS anon_1
+
+MODEL: EnhancedUser
+SQL: SELECT count(*) AS count_1 
+FROM (SELECT enhanced_users.name AS name, enhanced_users.data AS data, enhanced_users.score AS score, enhanced_users.tags AS tags, enhanced_users.id AS id, enhanced_users.created_at AS created_at, enhanced_users.updated_at AS updated_at 
+FROM enhanced_users) AS anon_1
+
+MODEL: EnhancedParent
+SQL: SELECT enhanced_parents.name, enhanced_parents.id, enhanced_parents.created_at, enhanced_parents.updated_at 
+FROM enhanced_parents 
+WHERE enhanced_parents.id = '0ab7ddc9db8d4320bb3b741e3ac83680'
+
+MODEL: FormProduct
+SQL: SELECT products.price, products.category_id, products.title, products.status, products.id, products.created_at, products.updated_at 
+FROM products 
+WHERE lower(products.title) LIKE lower('%Saved%') ESCAPE '\'
+
+MODEL: FormProduct
+SQL: SELECT products.price, products.category_id, products.title, products.status, products.id, products.created_at, products.updated_at 
+FROM products JOIN categorys ON categorys.id = products.category_id 
+WHERE categorys.name = 'Electronics'
+
+MODEL: FormProduct
+SQL: SELECT products.price, products.category_id, products.title, products.status, products.id, products.created_at, products.updated_at, categorys_1.name, categorys_1.id AS id_1, categorys_1.created_at AS created_at_1, categorys_1.updated_at AS updated_at_1 
+FROM products LEFT OUTER JOIN categorys AS categorys_1 ON categorys_1.id = products.category_id 
+WHERE products.title = 'Laptop'
+
+MODEL: FormProduct
+SQL: SELECT products.price 
+FROM products ORDER BY products.price ASC
+
+MODEL: LifecycleModel
+SQL: SELECT lifecycle_models.name, lifecycle_models.hook_triggered, lifecycle_models.id, lifecycle_models.created_at, lifecycle_models.updated_at 
+FROM lifecycle_models 
+WHERE lifecycle_models.id = '91eda4d0104b47c1aec26f52e66aadfe'
+
+MODEL: M2MArticle
+SQL: SELECT m2_m_articles.title, m2_m_articles.id, m2_m_articles.created_at, m2_m_articles.updated_at 
+FROM m2_m_articles 
+WHERE m2_m_articles.id = 'ca5d96048c31487bb1da4bb6460e3726'
+
+MODEL: M2MTag
+SQL: SELECT m2_m_tags.name, m2_m_tags.id, m2_m_tags.created_at, m2_m_tags.updated_at 
+FROM m2_m_tags 
+WHERE m2_m_tags.id = '432ac008bd63433280ac1c8f5d94e457'
+
+MODEL: LookupPost
+SQL: SELECT lookup_posts.title, lookup_posts.views, lookup_posts.author_id, lookup_posts.id, lookup_posts.created_at, lookup_posts.updated_at 
+FROM lookup_posts JOIN lookup_authors ON lookup_authors.id = lookup_posts.author_id 
+WHERE lookup_authors.name = 'Alice'
+
+MODEL: LookupPost
+SQL: SELECT lookup_posts.title, lookup_posts.views, lookup_posts.author_id, lookup_posts.id, lookup_posts.created_at, lookup_posts.updated_at 
+FROM lookup_posts JOIN lookup_authors ON lookup_authors.id = lookup_posts.author_id JOIN lookup_profiles ON lookup_authors.id = lookup_profiles.author_id 
+WHERE lookup_profiles.city = 'London'
+
+MODEL: LookupPost
+SQL: SELECT lookup_posts.title, lookup_posts.views, lookup_posts.author_id, lookup_posts.id, lookup_posts.created_at, lookup_posts.updated_at 
+FROM lookup_posts JOIN lookup_authors ON lookup_authors.id = lookup_posts.author_id JOIN lookup_profiles ON lookup_authors.id = lookup_profiles.author_id 
+WHERE (lookup_posts.title LIKE '%' || 'Eden' || '%') OR lookup_profiles.city = 'London'
+
+MODEL: LookupPost
+SQL: SELECT lookup_posts.title, lookup_posts.views, lookup_posts.author_id, lookup_posts.id, lookup_posts.created_at, lookup_posts.updated_at 
+FROM lookup_posts 
+WHERE lookup_posts.views >= 100
+
+MODEL: LookupPost
+SQL: SELECT lookup_posts.title, lookup_posts.views, lookup_posts.author_id, lookup_posts.id, lookup_posts.created_at, lookup_posts.updated_at 
+FROM lookup_posts 
+WHERE lookup_posts.id = 'dfcc51eebeb14527b69b6fb3a62c8a41'
+
+MODEL: LookupPost
+SQL: SELECT lookup_posts.title, lookup_posts.views, lookup_posts.author_id, lookup_posts.id, lookup_posts.created_at, lookup_posts.updated_at 
+FROM lookup_posts JOIN lookup_authors ON lookup_authors.id = lookup_posts.author_id 
+WHERE lookup_authors.name = 'Alice' AND lower(lookup_posts.title) LIKE lower('%Eden%') ESCAPE '\'
+
+MODEL: ModernUser
+SQL: SELECT modern_users.name, modern_users.email, modern_users.bio, modern_users.id, modern_users.created_at, modern_users.updated_at 
+FROM modern_users 
+WHERE modern_users.id = '963728c7173840d8afcfdb738d869009'
+
+MODEL: QSUser
+SQL: SELECT qs_users.name, qs_users.age, qs_users.is_active, qs_users.id, qs_users.created_at, qs_users.updated_at 
+FROM qs_users 
+WHERE qs_users.is_active = true AND qs_users.age >= 30
+
+MODEL: QSUser
+SQL: SELECT qs_users.name, qs_users.age, qs_users.is_active, qs_users.id, qs_users.created_at, qs_users.updated_at 
+FROM qs_users 
+WHERE qs_users.age < 30
+
+MODEL: QSUser
+SQL: SELECT qs_users.name, qs_users.age, qs_users.is_active, qs_users.id, qs_users.created_at, qs_users.updated_at 
+FROM qs_users ORDER BY qs_users.age ASC, qs_users.name ASC
+
+MODEL: QSUser
+SQL: SELECT qs_users.name, qs_users.age, qs_users.is_active, qs_users.id, qs_users.created_at, qs_users.updated_at 
+FROM qs_users ORDER BY qs_users.age DESC
+
+MODEL: QSUser
+SQL: SELECT qs_users.name, qs_users.age, qs_users.is_active, qs_users.id, qs_users.created_at, qs_users.updated_at 
+FROM qs_users ORDER BY qs_users.name ASC
+ LIMIT 2 OFFSET 1
+
+MODEL: QSUser
+SQL: SELECT qs_users.name, qs_users.is_active 
+FROM qs_users ORDER BY qs_users.name ASC
+
+MODEL: QSUser
+SQL: SELECT qs_users.name 
+FROM qs_users ORDER BY qs_users.name ASC
+
+MODEL: QSUser
+SQL: SELECT qs_users.name 
+FROM qs_users 
+WHERE qs_users.age < 30
+
+MODEL: QSUser
+SQL: SELECT qs_users.name, qs_users.age, qs_users.is_active, qs_users.id, qs_users.created_at, qs_users.updated_at 
+FROM qs_users ORDER BY qs_users.name ASC
+
+MODEL: QSUser
+SQL: SELECT qs_users.name, qs_users.age, qs_users.is_active, qs_users.id, qs_users.created_at, qs_users.updated_at 
+FROM qs_users ORDER BY qs_users.name ASC
+
+MODEL: QSUser
+SQL: SELECT qs_users.name, qs_users.age, qs_users.is_active, qs_users.id, qs_users.created_at, qs_users.updated_at 
+FROM qs_users ORDER BY qs_users.age ASC, qs_users.name ASC
+
+MODEL: QSUser
+SQL: SELECT qs_users.name, qs_users.age, qs_users.is_active, qs_users.id, qs_users.created_at, qs_users.updated_at 
+FROM qs_users 
+WHERE qs_users.name = 'Alice'
+ LIMIT 1
+
+MODEL: QSUser
+SQL: SELECT qs_users.name, qs_users.age, qs_users.is_active, qs_users.id, qs_users.created_at, qs_users.updated_at 
+FROM qs_users 
+WHERE qs_users.name = 'Zack'
+ LIMIT 1
+
+MODEL: QSUser
+SQL: SELECT qs_users.name, qs_users.age, qs_users.is_active, qs_users.id, qs_users.created_at, qs_users.updated_at 
+FROM qs_users ORDER BY qs_users.name ASC
+
+MODEL: QSUser
+SQL: SELECT qs_users.name, qs_users.age, qs_users.is_active, qs_users.id, qs_users.created_at, qs_users.updated_at 
+FROM qs_users ORDER BY qs_users.name ASC
+

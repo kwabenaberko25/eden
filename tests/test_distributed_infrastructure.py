@@ -52,6 +52,13 @@ class InMemoryDistributedBackend(DistributedBackend):
         if key in self._storage:
             del self._storage[key]
 
+    async def incr(self, key: str, amount: int = 1) -> int:
+        """Compatibility for rate limiting/counting."""
+        val = self._storage.get(key, 0)
+        new_val = int(val) + amount
+        self._storage[key] = new_val
+        return new_val
+
 @pytest.mark.asyncio
 async def test_distributed_task_coordination():
     """Verify that only one worker executes a periodic task when a backend is used."""
@@ -146,6 +153,9 @@ async def test_websocket_distributed_broadcast():
     # Worker 2
     mgr2 = ConnectionManager()
     await mgr2.set_distributed_backend(backend)
+    
+    # Give background listeners time to subscribe
+    await asyncio.sleep(0.1)
     
     from unittest.mock import AsyncMock, MagicMock
     from starlette.websockets import WebSocketState

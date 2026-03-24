@@ -1,9 +1,13 @@
 import pytest
 import asyncio
+from unittest.mock import AsyncMock, MagicMock
+import sys
+import eden
+
 from sqlalchemy import text
 from eden.db import (
     Model, f, Relationship, Reference, 
-    StringField, IntField, FloatField, UUIDField, ForeignKeyField
+    StringField, IntField, FloatField, UUIDField, ForeignKeyField, AllowPublic
 )
 from eden.db.session import Database, get_session
 from eden.tenancy.models import Tenant
@@ -18,12 +22,25 @@ from sqlalchemy.orm import Mapped
 
 class LiveAuthor(Model):
     __tablename__ = "live_authors"
+    __rbac__ = {
+        "read": AllowPublic(),
+        "create": AllowPublic(),
+        "update": AllowPublic(),
+        "delete": AllowPublic(),
+    }
+    __tenant_isolated__ = False
     name: Mapped[str] = StringField(max_length=100)
-    tenant_id: Mapped[str | None] = UUIDField(nullable=True) 
+    tenant_id: Mapped[str] = ForeignKeyField("eden_tenants.id", nullable=True)
     books: Mapped[list["LiveBook"]] = Relationship(back_populates="author")
 
 class LiveBook(Model):
     __tablename__ = "live_books"
+    __rbac__ = {
+        "read": AllowPublic(),
+        "create": AllowPublic(),
+        "update": AllowPublic(),
+        "delete": AllowPublic(),
+    }
     title: Mapped[str] = StringField(max_length=200)
     price: Mapped[float] = FloatField(default=0.0)
     author_id: Mapped[str] = ForeignKeyField("live_authors.id")
@@ -33,6 +50,12 @@ class LiveBook(Model):
 
 class LiveReview(Model):
     __tablename__ = "live_reviews"
+    __rbac__ = {
+        "read": AllowPublic(),
+        "create": AllowPublic(),
+        "update": AllowPublic(),
+        "delete": AllowPublic(),
+    }
     content: Mapped[str] = StringField(max_length=1000) # content is often text
     rating: Mapped[int] = IntField(default=0)
     book_id: Mapped[str] = ForeignKeyField("live_books.id")
@@ -140,8 +163,7 @@ async def test_postgres_multi_tenancy_schemas(db_pg, monkeypatch):
     """
     # Mock MigrationManager.stamp to avoid failure if migrations folder doesn't exist
     from eden.db.migrations import MigrationManager
-    # Mock MigrationManager.stamp to avoid failure if migrations folder doesn't exist
-    from eden.db.migrations import MigrationManager
+    monkeypatch.setattr(MigrationManager, "stamp", AsyncMock())
     # 1. Clean state
     async with db_pg.transaction() as session:
         await session.execute(text("DROP SCHEMA IF EXISTS tenant_alpha CASCADE"))
@@ -171,13 +193,15 @@ async def test_postgres_multi_tenancy_schemas(db_pg, monkeypatch):
     # 3. Insert Alpha data
     async with db_pg.transaction() as session:
         await db_pg.set_schema(session, "tenant_alpha")
-        session.add(LiveAuthor(name="Alpha Author"))
+        author = LiveAuthor(name="Alpha Author")
+        session.add(author)
         await session.flush()
     
     # 4. Insert Beta data
     async with db_pg.transaction() as session:
         await db_pg.set_schema(session, "tenant_beta")
-        session.add(LiveAuthor(name="Beta Author"))
+        author = LiveAuthor(name="Beta Author")
+        session.add(author)
         await session.flush()
 
     # 5. Verify Isolation
@@ -187,7 +211,7 @@ async def test_postgres_multi_tenancy_schemas(db_pg, monkeypatch):
         authors = await LiveAuthor.query().all()
         names = [a.name for a in authors]
         assert len(authors) == 1, f"Alpha expected 1, got {names}"
-        assert names[0] == "Alpha Author"
+        assert authors[0].name == "Alpha Author"
 
         # Verify Beta only has Beta
         await db_pg.set_schema(session, "tenant_beta")

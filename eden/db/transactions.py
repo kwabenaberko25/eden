@@ -80,14 +80,7 @@ def atomic(
         @functools.wraps(fn)
         async def wrapper(*args: Any, **kwargs: Any) -> Any:
             # Import here to avoid circular imports
-            from .session import Database, get_session, set_session, reset_session
-            from eden import Eden
-            
-            # Get database from app context or session
-            session = get_session()
-            if session is not None:
-                # Already in a transaction
-                return await fn(*args, **kwargs)
+            from .session import Database
             
             # Try to get app from context
             from eden.context import get_app
@@ -99,12 +92,9 @@ def atomic(
                 )
             
             db: Database = app.db
+            # db.transaction() now supports joining existing sessions and savepoint nesting
             async with db.transaction(isolation_level=isolation_level) as txn_session:
-                set_session(txn_session)
-                try:
-                    return await fn(*args, **kwargs)
-                finally:
-                    reset_session()
+                return await fn(*args, **kwargs)
         
         return wrapper
     

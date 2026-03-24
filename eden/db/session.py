@@ -1,3 +1,4 @@
+import asyncio
 import contextlib
 import contextvars
 import logging
@@ -33,6 +34,52 @@ class TransactionRequiredError(DatabaseError):
     """Raised when an operation requires an active transaction context."""
     pass
 
+
+class EdenAsyncSession(AsyncSession):
+    """
+    Standard SQLAlchemy AsyncSession enhanced with concurrency safety.
+    
+    AsyncSession is not thread-safe or task-safe for concurrent calls.
+    If multiple async tasks share a session (common in Eden's request context),
+    this class ensures they execute sequentially rather than raising IllegalStateError.
+    """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._eden_lock = asyncio.Lock()
+
+    async def execute(self, *args, **kwargs):
+        async with self._eden_lock:
+            return await super().execute(*args, **kwargs)
+
+    async def commit(self, *args, **kwargs):
+        async with self._eden_lock:
+            return await super().commit(*args, **kwargs)
+
+    async def rollback(self, *args, **kwargs):
+        async with self._eden_lock:
+            return await super().rollback(*args, **kwargs)
+
+    async def flush(self, *args, **kwargs):
+        async with self._eden_lock:
+            return await super().flush(*args, **kwargs)
+
+    async def refresh(self, *args, **kwargs):
+        async with self._eden_lock:
+            return await super().refresh(*args, **kwargs)
+
+    async def scalar(self, *args, **kwargs):
+        async with self._eden_lock:
+            return await super().scalar(*args, **kwargs)
+
+    async def scalars(self, *args, **kwargs):
+        async with self._eden_lock:
+            return await super().scalars(*args, **kwargs)
+
+    async def stream(self, *args, **kwargs):
+        async with self._eden_lock:
+            return await super().stream(*args, **kwargs)
+
+
 class Database:
     """
     Database manager for Eden applications.
@@ -64,7 +111,7 @@ class Database:
 
         self.engine = create_async_engine(url, **kwargs)
         self.session_factory = async_sessionmaker(
-            self.engine, class_=AsyncSession, expire_on_commit=False
+            self.engine, class_=EdenAsyncSession, expire_on_commit=False
         )
         self._connected = False
         # Bound the number of distinct isolation level engines cached to avoid unbounded growth
@@ -73,15 +120,15 @@ class Database:
 
     async def connect(self, create_tables: bool = False) -> None:
         """Initialize the database connection and optionally create tables."""
-        if self._connected:
-            return
-
         from eden.db.base import Model
         Model._bind_db(self)
 
         if create_tables:
             async with self.engine.begin() as conn:
                 await conn.run_sync(Model.metadata.create_all)
+
+        if self._connected:
+            return
 
         self._connected = True
         logger.info(f"Database connected to {self.url}")
@@ -131,34 +178,32 @@ class Database:
         self, isolation_level: str | None = None, session: AsyncSession | None = None, commit: bool = True
     ) -> AsyncIterator[AsyncSession]:
         """
-        Context manager for database transactions.
-        Automatically commits on successful exit, rolls back on exception.
-        Supports nested transactions via savepoints if an existing session is in context.
-        
-        Args:
-            isolation_level: Optional transaction isolation level 
-                            (e.g., 'SERIALIZABLE', 'READ COMMITTED').
-            session: Optional existing session to join.
+        Context manager for database transactions with concurrency safety and nesting.
         """
         # 1. Try to join provided or existing session if no isolation level is required
         target_session = session or get_session()
         if target_session and not isolation_level:
-            # If the session is already in a transaction, we just join it and flush on exit.
-            # If it's not, we start a transaction and we MUST manage its lifecycle.
-            is_owner = False
-            if not target_session.in_transaction():
-                await target_session.begin()
-                is_owner = True
-
+            if target_session.in_transaction():
+                # Use a savepoint (nested transaction)
+                async with target_session.begin_nested():
+                    try:
+                        yield target_session
+                        # Flush to ensure errors are caught within the savepoint
+                        await target_session.flush()
+                    except Exception:
+                        # begin_nested() handles rollback automatically on exception
+                        raise
+                return
+            
+            # Start a top-level transaction on the existing session
+            await target_session.begin()
             try:
                 yield target_session
-                # Ensure changes are flushed before exiting to capture errors early
                 await target_session.flush()
-                if is_owner and commit:
+                if commit:
                     await target_session.commit()
             except Exception:
-                if is_owner:
-                    await target_session.rollback()
+                await target_session.rollback()
                 raise
             return
 
@@ -176,16 +221,22 @@ class Database:
                 self._engine_cache.move_to_end(isolation_level)
 
             engine = self._engine_cache[isolation_level]
-            new_session = AsyncSession(engine, expire_on_commit=False)
+            new_session = EdenAsyncSession(engine, expire_on_commit=False)
 
+            token = set_session(new_session)
             try:
                 async with new_session:
-                    yield new_session
-                    if commit:
-                        await new_session.commit()
-            except Exception:
-                await new_session.rollback()
-                raise
+                    await new_session.begin() # Start the transaction explicitly
+                    try:
+                        yield new_session
+                        if commit:
+                            await new_session.commit()
+                    except Exception:
+                        await new_session.rollback()
+                        raise
+            finally:
+                await new_session.close()
+                reset_session(token)
             return
 
         # 3. Standard case: New session and transaction
@@ -213,9 +264,6 @@ class Database:
     ) -> AsyncIterator[AsyncSession]:
         """
         Creates a savepoint within the current transaction.
-        
-        Args:
-            session: Optional existing session to use.
         """
         target_session = session or get_session()
         if not target_session:
@@ -233,20 +281,6 @@ class Database:
     async def atomic(self, func: Any, *args: Any, **kwargs: Any) -> Any:
         """
         Execute a function atomically (within a transaction).
-        If the function raises any exception, the transaction is rolled back.
-        
-        Usage:
-            result = await db.atomic(some_async_function, arg1, arg2, key=value)
-        
-        Args:
-            func: Async function to execute
-            *args, **kwargs: Arguments to pass to the function
-            
-        Returns:
-            The function's return value
-            
-        Raises:
-            Any exception from the function (transaction auto-rolls back)
         """
         async with self.transaction() as session:
             token = set_session(session)
@@ -259,9 +293,6 @@ class Database:
 def set_session(session: AsyncSession) -> contextvars.Token:
     """
     Set the current session in async context.
-    Returns a token that can be reset later.
-    
-    Internal use: Called by middleware and transaction context managers.
     """
     return _session_context.set(session)
 
@@ -269,9 +300,6 @@ def set_session(session: AsyncSession) -> contextvars.Token:
 def get_session() -> AsyncSession | None:
     """
     Get the current session from async context, if available.
-    Returns None if no session is currently set.
-    
-    Internal use: Used by QuerySet and Model methods for auto-session injection.
     """
     return _session_context.get()
 
@@ -279,10 +307,6 @@ def get_session() -> AsyncSession | None:
 def reset_session(token: contextvars.Token | None = None) -> None:
     """
     Reset the session context.
-    
-    Args:
-        token: If provided, reset to the state before that token was created.
-               If None, simply clear the current context.
     """
     if token is not None:
         _session_context.reset(token)
@@ -302,43 +326,6 @@ F = TypeVar("F", bound=Callable[..., Any])
 def atomic(func: F) -> F:
     """
     Decorator for route handlers to automatically wrap execution in a transaction.
-    
-    The decorated function runs within a database transaction that:
-    - Auto-commits if the function completes successfully
-    - Auto-rolls back if any exception is raised
-    - Injects the session into either the 'session' parameter or request.state.session
-    
-    Usage:
-        @app.post("/users")
-        @atomic
-        async def create_user(request, session):
-            '''Session is auto-injected and transactional'''
-            user = await User.create(session, name="Alice")
-            return JsonResponse(user.to_dict())
-        
-        @app.post("/items")
-        @atomic
-        async def create_item(request):
-            '''Session is available in request.state.session'''
-            item = await Item.create(
-                request.state.session, 
-                name="Widget"
-            )
-            return JsonResponse(item.to_dict())
-    
-    Behavior:
-        - On successful completion: transaction auto-commits
-        - On exception: transaction auto-rolls back and exception is re-raised
-        - The provided session is auto-injected into the function
-    
-    Raises:
-        RuntimeError: If app.state.db is not configured
-        Any exception raised by the handler is re-raised after rollback
-    
-    Implementation Notes:
-        - The decorator stores the session in request.state for access throughout the request
-        - The session is removed from context after the handler completes
-        - Nested transactions are supported via savepoints
     """
     @functools.wraps(func)  # type: ignore[misc]
     async def wrapper(request: "Request", *args: TypingAny, **kwargs: TypingAny) -> TypingAny:

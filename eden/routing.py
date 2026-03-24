@@ -458,6 +458,7 @@ class Router:
         description: str | None = None,
         tags: list[str] | None = None,
         include_in_schema: bool = True,
+        **kwargs: Any,
     ) -> Callable:
         """Register a HEAD route."""
 

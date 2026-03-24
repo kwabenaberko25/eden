@@ -30,9 +30,12 @@ graph TD
     E & G --> H["Sanitized Response"]
 ```
 
-### Core Philosophy
+### Philosophy
+
 1.  **Fail-Secure by Default**: If a tenant context cannot be resolved (and is required), Eden returns **zero results** instead of leaking global data.
+
 2.  **Zero-Boilerplate Scoping**: Logic remains the same whether you're building a single-user app or a 10,000-tenant SaaS.
+
 3.  **Context-Aware Workers**: Background tasks automatically inherit the tenant context of the trigger request.
 
 ---
@@ -59,6 +62,21 @@ class Project(TenantMixin, Model):
 
 ### Global (Shared) Data
 For models that should be shared across all tenants (e.g., `SystemNotification`, `GlobalRole`), simply omit the `TenantMixin`.
+
+### Manual Opt-Out (Hybrid Tenancy)
+In some advanced scenarios, you might have a `tenant_id` field on a model (perhaps for reporting or legacy reasons) but want to use **Schema-Level Isolation** instead of automatic Row-Level filtering. 
+
+By default, any model with a `tenant_id` field is automatically registered for Row-Level isolation. You can explicitly opt-out by setting `__tenant_isolated__ = False`.
+
+```python
+class LegacyProject(Model):
+    __tablename__ = "projects"
+    # Opt-out of automatic RLS/WHERE filtering
+    __tenant_isolated__ = False
+    
+    name: Mapped[str] = f()
+    tenant_id: Mapped[int] = f() # Still exists, but not filtered automatically
+```
 
 ---
 

@@ -13,7 +13,7 @@ logger = logging.getLogger("eden.websocket")
 
 class WebSocketRouter:
     """
-    Decorator-based WebSocket router with event handling and built-in authentication.
+    Decorator-based WebSocket router with event handling and built-in security.
     
     Usage:
         ws = WebSocketRouter(prefix="/ws")
@@ -57,187 +57,167 @@ class WebSocketRouter:
 
     @property
     def routes(self) -> list[WebSocketRoute]:
-        """Expose registered WebSocket routes for compatibility with Router.include_router()."""
-        # If mount() has been called, return the stored routes.
-        # Otherwise, build a default route from the current handler state.
+        """Expose registered WebSocket routes."""
         if self._ws_routes:
             return self._ws_routes
 
-        # Auto-generate a route so include_router() has something to iterate
         ws_path = f"{self.prefix}/{{channel}}"
         route = WebSocketRoute(ws_path, self._build_endpoint(), name=f"ws_{self.prefix.strip('/')}")
         return [route]
 
-    def _build_endpoint(self) -> Callable:
-        """Build the ASGI WebSocket endpoint from registered handlers."""
-        router = self
+    async def _validate_subscription(self, websocket: WebSocket, channel: str) -> bool:
+        """
+        Securely validate if a client is permitted to subscribe to a specific channel.
+        
+        Enforces isolation for:
+        - tenant:{tenant_id}:{table}
+        - org:{org_id}:{table}
+        """
+        if ":" not in channel:
+            # Allow public/generic channels for now
+            return True
+            
+        parts = channel.split(":")
+        prefix = parts[0]
+        
+        if prefix not in ("tenant", "org"):
+            # Not a framework-protected channel prefix
+            return True
+            
+        user = websocket.scope.get("user")
+        
+        # Superuser bypass
+        if user and getattr(user, "is_superuser", False):
+            return True
+            
+        if prefix == "tenant":
+            if len(parts) < 2: return False
+            target_tenant_id = parts[1]
+            return str(getattr(user, "tenant_id", "")) == target_tenant_id
+            
+        if prefix == "org":
+            if len(parts) < 2: return False
+            target_org_id = parts[1]
+            return str(getattr(user, "organization_id", "")) == target_org_id
+            
+        return True
 
-        async def ws_endpoint(websocket: WebSocket) -> None:
-            channel = websocket.path_params.get("channel", "default")
+    async def _handle_websocket(self, websocket: WebSocket) -> None:
+        """Unified WebSocket connection and message loop handler."""
+        channel = websocket.path_params.get("channel", "default")
+        
+        # 1. Authentication
+        user = websocket.scope.get("user")
+        is_authenticated = user and getattr(user, "is_authenticated", False)
+        
+        if self.auth_required and not is_authenticated:
+            # Try to recover user from session if Starlette hasn't populated it
+            # (Requires SessionMiddleware to be active)
+            session = websocket.scope.get("session")
+            if session and "_user_id" in session:
+                logger.debug("Attempting to recover user from session for WebSocket...")
+                # Future implementation should fetch user here. 
+                # For now, we rely on Middleware population.
+            
+            logger.warning("WebSocket rejected: Authentication required.")
+            await websocket.close(code=4003)
+            return
 
-            # Authentication
-            user_id = None
-            if router.auth_required:
-                try:
-                    user = websocket.scope.get("user")
-                    if not user:
-                        token = websocket.query_params.get("token")
-                        if not token:
-                            await websocket.close(code=4003)
-                            return
-                    if user:
-                        user_id = getattr(user, "id", str(user))
-                except Exception as e:
-                    logger.error(f"WebSocket auth failed: {e}")
-                    await websocket.close(code=4003)
-                    return
+        # 2. Validate Initial Channel
+        if not await self._validate_subscription(websocket, channel):
+            logger.warning(f"WebSocket rejected: Unauthorized subscription to path-channel '{channel}'")
+            await websocket.close(code=4003)
+            return
 
-            # Accept and subscribe
-            await router.manager.connect(websocket, user_id=user_id)
-            await router.manager.subscribe(websocket, channel)
+        # 3. Connect and Register
+        user_id = getattr(user, "id", str(user)) if is_authenticated else None
+        await self.manager.connect(websocket, user_id=user_id)
+        await self.manager.subscribe(websocket, channel)
 
-            if router._on_connect:
-                try:
-                    await router._on_connect(websocket, router.manager)
-                except Exception as e:
-                    logger.error(f"Error in on_connect handler: {e}")
-                    await websocket.close()
-                    return
-
-            # Message loop
+        # 4. Trigger on_connect callback
+        if self._on_connect:
             try:
-                while True:
-                    raw = await websocket.receive_text()
-                    try:
-                        data = json.loads(raw)
-                    except json.JSONDecodeError:
-                        data = {"event": "message", "data": raw}
-
-                    if isinstance(data, dict):
-                        event = data.get("event", "message")
-                        handler_data = data.get("data", data)
-                    else:
-                        event = "message"
-                        handler_data = data
-
-                    handler = router._handlers.get(event)
-                    if handler:
-                        try:
-                            await handler(websocket, handler_data, router.manager)
-                        except Exception as e:
-                            logger.error(f"Error in WebSocket handler '{event}': {e}")
-                            await websocket.send_json({"event": "error", "message": "Internal error"})
-                    else:
-                        logger.debug(f"No handler for event '{event}'")
-
-            except WebSocketDisconnect:
-                await router.manager.disconnect(websocket)
-                if router._on_disconnect:
-                    await router._on_disconnect(websocket, router.manager)
+                await self._on_connect(websocket, self.manager)
             except Exception as e:
-                logger.error(f"WebSocket connection error: {e}")
-                await router.manager.disconnect(websocket)
+                logger.error(f"Error in on_connect handler: {e}")
+                await websocket.close()
+                return
 
-        return ws_endpoint
+        # 5. Message Loop
+        try:
+            while True:
+                raw = await websocket.receive_text()
+                try:
+                    data = json.loads(raw)
+                except json.JSONDecodeError:
+                    data = {"event": "message", "data": raw}
+
+                if not isinstance(data, dict):
+                    data = {"event": "message", "data": data}
+
+                action = data.get("action")
+                event = data.get("event") or action or "message"
+                
+                # --- Dynamic Subscription Handling ---
+                if action == "subscribe":
+                    target = data.get("channel")
+                    if target:
+                        if await self._validate_subscription(websocket, target):
+                            await self.manager.subscribe(websocket, target)
+                        else:
+                            logger.warning(f"WebSocket: Denied subscription to '{target}' for user {user_id}")
+                            await websocket.send_json({
+                                "event": "error", 
+                                "message": f"Unauthorized subscription to {target}"
+                            })
+                    continue
+                
+                if action == "unsubscribe":
+                    target = data.get("channel")
+                    if target:
+                        await self.manager.unsubscribe(websocket, target)
+                    continue
+
+                # --- Handler Dispatch ---
+                handler_data = data.get("data", data)
+                handler = self._handlers.get(event)
+                if handler:
+                    try:
+                        await handler(websocket, handler_data, self.manager)
+                    except Exception as e:
+                        logger.error(f"Error in WebSocket handler '{event}': {e}")
+                        if websocket.client_state == 1: # Connected
+                            await websocket.send_json({"event": "error", "message": "Internal error"})
+                elif action is None:
+                    logger.debug(f"No handler for event '{event}'")
+        
+        except WebSocketDisconnect:
+            await self.manager.disconnect(websocket)
+            if self._on_disconnect:
+                await self._on_disconnect(websocket, self.manager)
+        except Exception as e:
+            logger.error(f"WebSocket connection error: {e}")
+            await self.manager.disconnect(websocket)
+
+    def _build_endpoint(self) -> Callable:
+        """Return the unified handler as a closure for Starlette routing."""
+        return self._handle_websocket
 
     def mount(self, app: Any, path: str | None = None) -> None:
-        """Mount WebSocket endpoint onto an Eden app."""
+        """Mount WebSocket endpoint onto an Eden app or Router."""
         ws_path = path or f"{self.prefix}/{{channel}}"
-        router = self
-
-        async def ws_endpoint(websocket: WebSocket) -> None:
-            channel = websocket.path_params.get("channel", "default")
-            
-            # 1. Handle Authentication if required
-            user_id = None
-            if router.auth_required:
-                try:
-                    # Look for user in scope (set by earlier middleware if any) or query params
-                    user = websocket.scope.get("user")
-                    if not user:
-                        # Try simple token-based auth from query
-                        token = websocket.query_params.get("token")
-                        if not token:
-                            await websocket.close(code=4003) # Forbidden
-                            return
-                        # Here we would normally validate the token.
-                        # For now, we'll assume it's basic if auth_required is on.
-                        # Real implementation should use eden.auth.utils.get_user_from_token
-                        pass
-                    
-                    if user:
-                        user_id = getattr(user, "id", str(user))
-                except Exception as e:
-                    logger.error(f"WebSocket auth failed: {e}")
-                    await websocket.close(code=4003)
-                    return
-
-            # 2. Accept and subscribe
-            await router.manager.connect(websocket, user_id=user_id)
-            await router.manager.subscribe(websocket, channel)
-
-            if router._on_connect:
-                try:
-                    await router._on_connect(websocket, router.manager)
-                except Exception as e:
-                    logger.error(f"Error in on_connect handler: {e}")
-                    await websocket.close()
-                    return
-
-            # 3. Message Loop
-            try:
-                while True:
-                    raw = await websocket.receive_text()
-                    try:
-                        data = json.loads(raw)
-                    except json.JSONDecodeError:
-                        data = {"event": "message", "data": raw}
-
-                    if isinstance(data, dict):
-                        event = data.get("event", "message")
-                        handler_data = data.get("data", data)
-                    else:
-                        event = "message"
-                        handler_data = data
-
-                    handler = router._handlers.get(event)
-                    if handler:
-                        try:
-                            await handler(websocket, handler_data, router.manager)
-                        except Exception as e:
-                            logger.error(f"Error in WebSocket handler '{event}': {e}")
-                            await websocket.send_json({"event": "error", "message": "Internal error"})
-                    else:
-                        # Default fallback
-                        logger.debug(f"No handler for event '{event}'")
-            
-            except WebSocketDisconnect:
-                await router.manager.disconnect(websocket)
-                if router._on_disconnect:
-                    await router._on_disconnect(websocket, router.manager)
-            except Exception as e:
-                logger.error(f"WebSocket connection error: {e}")
-                await router.manager.disconnect(websocket)
-
-        # Create the Eden route
-        route = WebSocketRoute(
-            path=ws_path, 
-            endpoint=ws_endpoint, 
-            name=f"ws_{self.prefix.strip('/')}",
-            middleware=[]
-        )
         
-        # Register with app
+        # Register with app/router
         if hasattr(app, "add_websocket_route"):
-             # Starlette apps need the Starlette version
-             from starlette.routing import WebSocketRoute as StarletteWebSocketRoute
-             app.add_websocket_route(ws_path, ws_endpoint)
+             app.add_websocket_route(ws_path, self._handle_websocket)
         elif hasattr(app, "routes"):
-             # If it's another Eden Router, it wants the Eden dataclass
+             # For nested Eden Routers
+             route = WebSocketRoute(
+                path=ws_path, 
+                endpoint=self._handle_websocket, 
+                name=f"ws_{self.prefix.strip('/')}",
+             )
              app.routes.append(route)
         
-        # Also store it in the legacy internal list if present
         if hasattr(app, "_ws_routes"):
-            app._ws_routes.append(route)
-        else:
-            app._ws_routes = [route]
+            app._ws_routes.append(WebSocketRoute(ws_path, self._handle_websocket))

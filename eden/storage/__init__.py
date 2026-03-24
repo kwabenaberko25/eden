@@ -35,7 +35,7 @@ from abc import ABC, abstractmethod
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Optional, Protocol, Set
+from typing import Callable, Optional, Protocol, Set, Any
 
 import aiofiles
 from starlette.datastructures import UploadFile
@@ -89,42 +89,62 @@ class FileUploadValidator:
                 "application/zip", "application/gzip",
             }
     
-    async def validate(self, file: UploadFile) -> None:
+    async def validate(self, file: UploadFile | bytes, name: str | None = None) -> None:
         """
-        Validate an uploaded file.
+        Validate an uploaded file or bytes.
         
         Args:
-            file: File to validate
+            file: File content to validate (UploadFile or bytes)
+            name: Original filename (used for MIME type detection if file is bytes)
         
         Raises:
             FileUploadValidationError: If validation fails
         """
-        # Check MIME type
-        if self.allowed_types and file.content_type not in self.allowed_types:
+        is_upload_file = isinstance(file, UploadFile)
+        
+        # 1. Determine size and content type
+        if is_upload_file:
+            content_type = file.content_type
+            file_size = getattr(file, "size", None)
+            if file_size is None:
+                # Fallback: Seek to end to get size if not provided by Starlette
+                await file.seek(0, 2)
+                file_size = await file.tell()
+                await file.seek(0)
+        else:
+            file_size = len(file)
+            import mimetypes
+            content_type, _ = mimetypes.guess_type(name or "")
+            if not content_type:
+                content_type = "application/octet-stream"
+
+        # 2. Check MIME type
+        if self.allowed_types and content_type not in self.allowed_types:
             raise FileUploadValidationError(
-                f"File type '{file.content_type}' not allowed. "
+                f"File type '{content_type}' not allowed. "
                 f"Allowed types: {', '.join(sorted(self.allowed_types))}"
             )
         
-        # Check file size
-        if hasattr(file, "size") and file.size and file.size > self.max_size_bytes:
+        # 3. Check file size
+        if file_size > self.max_size_bytes:
             max_mb = self.max_size_bytes / (1024 * 1024)
+            actual_mb = file_size / (1024 * 1024)
             raise FileUploadValidationError(
-                f"File size {file.size} bytes exceeds maximum {self.max_size_bytes} bytes ({max_mb:.1f} MB)"
+                f"File size {actual_mb:.1f} MB exceeds maximum {max_mb:.1f} MB"
             )
         
-        # Virus scan if enabled
+        # 4. Virus scan if enabled (only for UploadFile or if we wrap bytes as stream)
         if self.enable_virus_scan:
             await self._scan_for_viruses(file)
     
-    async def _scan_for_viruses(self, file: UploadFile) -> None:
+    async def _scan_for_viruses(self, file: UploadFile | bytes) -> None:
         """
         Scan file for viruses using ClamAV daemon.
         
         Requires pyclamd: pip install pyclamd
         
         Args:
-            file: File to scan
+            file: File or bytes to scan
         
         Raises:
             FileUploadValidationError: If virus found or scan fails
@@ -144,8 +164,11 @@ class FileUploadValidator:
                 return
             
             # Get file content
-            content = await file.read()
-            await file.seek(0)  # Reset for actual upload
+            if isinstance(file, UploadFile):
+                content = await file.read()
+                await file.seek(0)  # Reset for actual upload
+            else:
+                content = file
             
             # Scan
             result = clam.scan_stream(content)
@@ -249,6 +272,29 @@ class StorageBackend(ABC):
         """
         pass
 
+    @abstractmethod
+    async def exists(self, name: str) -> bool:
+        """Check if a file exists in the storage backend."""
+        pass
+
+    @abstractmethod
+    async def presigned_url(self, name: str, expires_in: int = 3600) -> str:
+        """
+        Generate a pre-signed (temporary) URL for binary access.
+        If the backend does not support pre-signing, returns standard url().
+        """
+        pass
+
+    @abstractmethod
+    def open(self, name: str) -> Any:
+        """
+        Open a file-like object for reading from the backend.
+        
+        Returns:
+            An async file-like object (e.g. from aiofiles or aioboto3 streaming body)
+        """
+        pass
+
 class LocalStorageBackend(StorageBackend):
     """
     Storage backend that saves files to the local filesystem.
@@ -345,7 +391,23 @@ class LocalStorageBackend(StorageBackend):
 
     def url(self, name: str) -> str:
         """Get public URL for file."""
-        return f"{self.base_url}{name}"
+        return f"{self.base_url}{name.replace('\\', '/')}"
+
+    async def exists(self, name: str) -> bool:
+        """Check if file exists on disk."""
+        target_path = self.base_path / name
+        return await asyncio.to_thread(target_path.exists)
+
+    async def presigned_url(self, name: str, expires_in: int = 3600) -> str:
+        """Local file storage does not support pre-signing, return public URL."""
+        return self.url(name)
+
+    def open(self, name: str) -> Any:
+        """Open a local file for async reading."""
+        target_path = self.base_path / name
+        if not target_path.exists():
+            raise FileNotFoundError(f"File not found: {name}")
+        return aiofiles.open(target_path, "rb")
 
 
 

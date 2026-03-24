@@ -14,6 +14,7 @@ class AuditLog(Model):
     }
 
     id: uuid.UUID = UUIDField(primary_key=True, default_factory=uuid.uuid4)
+    tenant_id: str | None = StringField(nullable=True, max_length=255) # For RLS/isolation
     user_id: str | None = StringField(nullable=True, max_length=255) # ID of user who made the change
     action: str = StringField(max_length=50) # 'create', 'update', 'delete', 'action'
     model_name: str = StringField(max_length=255)
@@ -23,7 +24,9 @@ class AuditLog(Model):
 
     @classmethod
     async def log(cls, user_id: str | None, action: str, model: Any, record_id: str, changes: dict | None = None):
+        from eden.context import get_tenant_id
         await cls.create(
+            tenant_id=get_tenant_id(),
             user_id=user_id,
             action=action,
             model_name=model.__name__ if hasattr(model, "__name__") else str(model),

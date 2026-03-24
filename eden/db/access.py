@@ -8,31 +8,65 @@ class PermissionRule:
     def resolve(self, model_cls: Type, user: Any) -> Union[bool, ColumnElement[bool]]:
         return False
 
+    def check_instance(self, instance: Any, user: Any) -> bool:
+        """Evaluate if the user has access to the specific instance."""
+        return False
+
+    @property
+    def is_restrictive(self) -> bool:
+        """True if the rule restricts access beyond simple authentication."""
+        return True
+
 class AllowPublic(PermissionRule):
     """Grants access to everyone, even unauthenticated users."""
     def resolve(self, model_cls, user):
         return True
+    
+    def check_instance(self, instance, user):
+        return True
+
+    @property
+    def is_restrictive(self) -> bool:
+        return False
 
 class AllowAuthenticated(PermissionRule):
     """Grants access to all authenticated users."""
     def resolve(self, model_cls, user):
         return user is not None
+    
+    def check_instance(self, instance, user):
+        return user is not None
+
+    @property
+    def is_restrictive(self) -> bool:
+        return False
 
 class AllowOwner(PermissionRule):
     """Grants access only if the user is the owner of the record."""
     def __init__(self, field: str = "user_id"):
         self.field = field
+    
     def resolve(self, model_cls, user):
         if not user:
             return False
-        # Return a boolean or a SQL expression
         return getattr(model_cls, self.field) == user.id
+
+    def check_instance(self, instance, user):
+        if not user:
+            return False
+        return getattr(instance, self.field) == user.id
 
 class AllowRoles(PermissionRule):
     """Grants access if the user has any of the specified roles."""
     def __init__(self, *roles: str):
         self.roles = roles
+    
     def resolve(self, model_cls, user):
+        if not user or not hasattr(user, "roles"):
+            return False
+        return any(role in user.roles for role in self.roles)
+
+    def check_instance(self, instance, user):
         if not user or not hasattr(user, "roles"):
             return False
         return any(role in user.roles for role in self.roles)

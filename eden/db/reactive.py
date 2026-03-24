@@ -1,0 +1,104 @@
+from __future__ import annotations
+from typing import Any, List, Optional
+from eden.context import get_tenant_id, get_organization_id
+
+def _get_attr_or_item(obj: Any, key: str, default: Any = None) -> Any:
+    """Polymorphic helper to get an attribute or key from an object."""
+    if obj is None:
+        return default
+    if isinstance(obj, dict):
+        return obj.get(key, default)
+    # Pydantic v2
+    if hasattr(obj, "model_dump"):
+        try:
+            return getattr(obj, key, default)
+        except Exception:
+            pass
+    return getattr(obj, key, default)
+
+def get_reactive_channels(target: Any) -> List[str]:
+    """
+    Generate broadcast channels for a model instance or class.
+    Correctly handles tenant and organization isolation prefixes.
+    """
+    if target is None:
+        return []
+
+    # 1. Custom model logic overrides everything
+    if hasattr(target, "get_reactive_channels"):
+        return target.get_reactive_channels()
+    if hasattr(target, "get_sync_channels") and not isinstance(target, type):
+        return target.get_sync_channels()
+
+    # 2. Derive base info
+    is_type = isinstance(target, type)
+    table = _get_attr_or_item(target, "__tablename__")
+    
+    if not table:
+        table = target.__name__.lower() if is_type else target.__class__.__name__.lower()
+    
+    obj_id = _get_attr_or_item(target, "id") if not is_type else None
+    
+    channels = []
+    prefix = ""
+    
+    # 3. Handle Isolation Prefixes
+    # Check for Tenant isolation
+    if _get_attr_or_item(target, "__eden_tenant_isolated__", False):
+        tenant_id = _get_attr_or_item(target, "tenant_id") if not is_type else None
+        if tenant_id is None:
+            tenant_id = get_tenant_id()
+        if tenant_id:
+            prefix = f"tenant:{tenant_id}:"
+    
+    # Check for Organization isolation
+    elif _get_attr_or_item(target, "__eden_org_isolated__", False):
+        org_id = _get_attr_or_item(target, "organization_id") if not is_type else None
+        if org_id is None:
+            org_id = get_organization_id()
+        if org_id:
+            prefix = f"org:{org_id}:"
+
+    # 4. Handle Access Control (RLS-aware channels)
+    # If the model has AccessControl and the 'read' rule is restrictive (e.g. AllowOwner),
+    # we should broadcast and listen on a user-specific channel to prevent data leaks.
+    is_restrictive = False
+    if not is_type and hasattr(target, "__rbac__"):
+        # Use getattr to avoid lint errors on type objects
+        rbac = getattr(target, "__rbac__", {})
+        read_rule = rbac.get("read")
+        if read_rule and getattr(read_rule, "is_restrictive", True):
+            # Resolve owner/user ID from target
+            owner_id = _get_attr_or_item(target, "user_id")
+            if not owner_id and hasattr(read_rule, "field"):
+                owner_id = _get_attr_or_item(target, read_rule.field)
+            
+            if owner_id:
+                channels.append(f"{prefix}user:{owner_id}:{table}")
+                is_restrictive = True
+
+    # 5. Collection-level channel
+    # SECURITY: If the model is restrictive, we SKIP the broad collection channel
+    # to prevent data leaks to other users in the same tenant.
+    if not is_restrictive:
+        channels.append(f"{prefix}{table}")
+    
+    # 6. Instance-level channel
+    # Even if restrictive, we keep the instance channel because subscribing to 
+    # a specific ID implies the user might have been granted access.
+    if obj_id:
+        channels.append(f"{prefix}{table}:{obj_id}")
+        
+    return channels
+
+def extract_reactive_data(target: Any) -> dict:
+    """Extract serializable data for broadcast."""
+    if hasattr(target, "model_dump"):
+        return target.model_dump()
+    if hasattr(target, "to_dict"):
+        return target.to_dict()
+    # Fallback to __dict__ for SQLAlchemy objects
+    return {
+        k: v for k, v in getattr(target, "__dict__", {}).items()
+        if not k.startswith('_') and isinstance(v, (str, int, float, bool, type(None)))
+    }

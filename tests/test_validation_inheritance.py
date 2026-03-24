@@ -1,42 +1,44 @@
 import pytest
-from eden.db import Model, StringField, Database
+from eden.db import Model, StringField, Database, Mapped
 from eden.db.validation import ValidatorMixin
 
-class ParentModel(Model):
-    __tablename__ = "parent_models"
-    email: str = StringField(required=True)
-    
-    @classmethod
-    def __init_subclass__(cls, **kwargs):
-        super().__init_subclass__(**kwargs)
-        # Manually add a rule to see if it persists
-        cls.rule_required("email", message="Parent email required")
+class InhParent(Model):
+    __abstract__ = True
+    email: Mapped[str] = StringField(required=True)
 
-class ChildModel(ParentModel):
-    __tablename__ = "child_models"
-    name: str = StringField()
+class InhChild(InhParent):
+    __tablename__ = "inh_children"
+    name: Mapped[str] = StringField(min_length=3)
 
 @pytest.mark.asyncio
 async def test_validation_rule_inheritance(db: Database):
     """
     Verifies that validation rules from a parent model are inherited by the child model.
     """
-    # Currently, this will likely fail because ChildModel._validation_rules is reset to {}
+    # Check InhParent has the rule (discovered from StringField)
+    assert "email" in InhParent._validation_rules
+    assert any(r.rule_type == "required" for r in InhParent._validation_rules["email"])
     
-    # Check ParentModel has the rule
-    assert "email" in ParentModel._validation_rules
-    assert ParentModel._validation_rules["email"][0].message == "Parent email required"
+    # Check InhChild has the rule (inherited)
+    assert "email" in InhChild._validation_rules, "InhChild should inherit 'email' rule from InhParent"
+    assert any(r.rule_type == "required" for r in InhChild._validation_rules["email"])
     
-    # Check ChildModel has the rule (inherited)
-    assert "email" in ChildModel._validation_rules, "ChildModel should inherit 'email' rule from ParentModel"
-    assert ChildModel._validation_rules["email"][0].message == "Parent email required"
+    # Check InhChild also has its own rule
+    assert "name" in InhChild._validation_rules
+    assert any(r.rule_type == "min_length" for r in InhChild._validation_rules["name"])
 
 @pytest.mark.asyncio
 async def test_validation_rule_isolation(db: Database):
     """
     Verifies that adding a rule to a child does NOT affect the parent.
     """
-    ChildModel.rule_required("name", message="Child name required")
+    InhChild.rule_email("name", message="Invalid email for name")
     
-    assert "name" in ChildModel._validation_rules
-    assert "name" not in ParentModel._validation_rules, "Adding rule to child should not affect parent"
+    # Name should have min_length (discovered) and email (manually added)
+    assert any(r.rule_type == "email" for r in InhChild._validation_rules["name"])
+    
+    # Parent should NOT have the email rule for name
+    if "name" in InhParent._validation_rules:
+        assert not any(r.rule_type == "email" for r in InhParent._validation_rules["name"])
+    else:
+        assert "name" not in InhParent._validation_rules

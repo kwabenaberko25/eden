@@ -6,10 +6,9 @@ Supports multiple resolution strategies: subdomain, header, session, or path pre
 """
 
 import logging
-from typing import Any, Literal
+from typing import Any, Literal, Optional
 
-from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
-from starlette.responses import Response as StarletteResponse
+from starlette.types import ASGIApp, Receive, Scope, Send, Message
 
 from eden.requests import Request
 from eden.tenancy.context import reset_current_tenant, set_current_tenant
@@ -21,7 +20,7 @@ def get_logger(name: str):
     return logging.getLogger(name)
 
 
-class TenantMiddleware(BaseHTTPMiddleware):
+class TenantMiddleware:
     """
     Middleware that resolves the current tenant from the request
     and stores it in a ContextVar for the duration of the request.
@@ -40,7 +39,7 @@ class TenantMiddleware(BaseHTTPMiddleware):
 
     def __init__(
         self,
-        app: Any,
+        app: ASGIApp,
         *,
         strategy: Literal["subdomain", "header", "session", "path"] = "header",
         header_name: str = "X-Tenant-ID",
@@ -48,60 +47,38 @@ class TenantMiddleware(BaseHTTPMiddleware):
         base_domain: str = "",
         **kwargs,
     ) -> None:
-        super().__init__(app, **kwargs)
+        self.app = app
         self.strategy = strategy
         self.header_name = header_name
         self.session_key = session_key
         self.base_domain = base_domain
-        self._cache = InMemoryCache()
+        self._fallback_cache = InMemoryCache(max_size=5000)
 
-    def clear_tenant_cache(self) -> None:
-        """Clear the tenant lookup cache. Call this when tenant data changes."""
-        self._cache = InMemoryCache()  # Reset to new instance
-
-    async def dispatch(
-        self, request: Request, call_next: RequestResponseEndpoint
-    ) -> StarletteResponse:
-        """
-        Main middleware dispatch that:
-        1. Resolves the tenant from the request
-        2. Sets tenant context for the request lifetime
-        3. Ensures database session is available and switches schema if tenant uses dedicated schema
-        4. Adds enforcement verification headers
-        5. Resets context and schema after response
+    async def dispatch(self, request: Request, call_next: Any) -> Any:
+        """Compatibility wrapper for tests calling .dispatch directly."""
+        # 1. Ensure database session is available in request state
+        db_cleanup = None
+        db_token = None
         
-        Tenant Resolution Strategies:
-        - subdomain: Extract from hostname (e.g., acme.myapp.com → acme)
-        - header: Read from custom header (default: X-Tenant-ID)
-        - session: Read tenant ID from session data
-        - path: Extract from URL path prefix (e.g., /t/acme/...)
-        
-        Response Headers Added:
-        - X-Tenant-Enforced: "true" if tenant context was active
-        - X-Tenant-ID: The UUID of the enforced tenant (if applicable)
-        """
-        # Ensure database session is available
         if not hasattr(request.state, "db") or request.state.db is None:
             # Try to get from app state
-            app = getattr(request, "app", None)
-            if app and hasattr(app, "state") and hasattr(app.state, "db"):
-                # Create a session from the database
-                db = app.state.db
+            app_instance = request.scope.get("app")
+            eden_app = getattr(app_instance, "eden", None)
+            if eden_app and hasattr(eden_app, "state") and hasattr(eden_app.state, "db"):
+                db = eden_app.state.db
                 ctx_manager = db.session()
                 session = await ctx_manager.__aenter__()
                 request.state.db = session
+                
                 # Set in context for QuerySet
                 from eden.db.session import set_session
-                request.state._db_token = set_session(session)
+                db_token = set_session(session)
                 
-                # Define a cleanup function that uses the SAME context manager
                 async def cleanup():
                     await ctx_manager.__aexit__(None, None, None)
-                request.state._db_cleanup = cleanup
-            else:
-                # No database configured, skip tenant schema switching
-                pass
+                db_cleanup = cleanup
 
+        # 2. Resolve Tenant
         tenant = await self._resolve_tenant(request)
 
         token = None
@@ -112,6 +89,126 @@ class TenantMiddleware(BaseHTTPMiddleware):
             token = set_current_tenant(tenant)
             request.state.tenant = tenant
             tenant_id_str = str(tenant.id)
+            
+            from eden.context import get_request_id
+            rid = get_request_id()
+            get_logger(__name__).debug(f"[{rid}] Enforcing tenant: {tenant.slug} ({tenant_id_str})")
+
+            # Set DB session variable for Postgres RLS if session exists
+            if hasattr(request.state, "db") and request.state.db:
+                from sqlalchemy import text
+                try:
+                    await request.state.db.execute(
+                        text("SELECT set_config('app.current_tenant_id', :tid, true)"),
+                        {"tid": tenant_id_str}
+                    )
+                except Exception as e:
+                    get_logger(__name__).warning(f"Failed to set tenant session variable: {e}")
+
+            # If the tenant has a dedicated schema, switch to it
+            schema_name = getattr(tenant, "schema_name", None)
+            if schema_name and hasattr(request.state, "db") and request.state.db:
+                db_session = request.state.db
+                from eden.db import get_db
+                try:
+                    db_manager = get_db(request)
+                    await db_manager.set_schema(db_session, schema_name)
+                except Exception as e:
+                    get_logger(__name__).warning(f"Failed to switch to tenant schema {schema_name}: {e}")
+
+        # 3. Proceed
+        try:
+            response = await call_next(request)
+            
+            # Inject headers
+            if tenant_id_str:
+                response.headers["x-tenant-enforced"] = "true"
+                response.headers["x-tenant-id"] = tenant_id_str
+                
+            return response
+        finally:
+            # 5. Cleanup
+            if token:
+                reset_current_tenant(token)
+                
+            # Reset the PostgreSQL schema to public
+            if hasattr(request.state, "tenant"):
+                tenant_obj = request.state.tenant
+                schema_name = getattr(tenant_obj, "schema_name", None)
+                if schema_name and hasattr(request.state, "db") and request.state.db:
+                    db_session = request.state.db
+                    try:
+                        from eden.db import get_db
+                        db_manager = get_db(request)
+                        await db_manager.set_schema(db_session, "public")
+                    except Exception:
+                        pass
+            
+            # Clean up database session
+            if db_cleanup:
+                try:
+                    await db_cleanup()
+                except Exception:
+                    pass
+            if db_token:
+                from eden.db.session import reset_session
+                reset_session(db_token)
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        """
+        Pure ASGI implementation of tenant resolution.
+        
+        1. Resolves the tenant from the request
+        2. Sets tenant context for the request lifetime
+        3. Ensures database session is available and switches schema if tenant uses dedicated schema
+        4. Adds enforcement verification headers to response
+        5. Resets context and schema after response
+        """
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        request = Request(scope, receive)
+        
+        # 1. Ensure database session is available in request state
+        # (This logic is moved from the original dispatch to ensure DB-backed tenant lookup works)
+        db_cleanup = None
+        db_token = None
+        
+        if not hasattr(request.state, "db") or request.state.db is None:
+            # Try to get from app state
+            app_instance = scope.get("app")
+            # In Eden, the app is attached to the Starlette app
+            eden_app = getattr(app_instance, "eden", None)
+            if eden_app and hasattr(eden_app, "state") and hasattr(eden_app.state, "db"):
+                db = eden_app.state.db
+                ctx_manager = db.session()
+                session = await ctx_manager.__aenter__()
+                request.state.db = session
+                
+                # Set in context for QuerySet
+                from eden.db.session import set_session
+                db_token = set_session(session)
+                
+                async def cleanup():
+                    await ctx_manager.__aexit__(None, None, None)
+                db_cleanup = cleanup
+
+        # 2. Resolve Tenant
+        tenant = await self._resolve_tenant(request)
+
+        token = None
+        tenant_id_str = None
+        
+        if tenant:
+            # Set tenant context for this request
+            token = set_current_tenant(tenant)
+            request.state.tenant = tenant
+            tenant_id_str = str(tenant.id)
+            
+            from eden.context import get_request_id
+            rid = get_request_id()
+            get_logger(__name__).debug(f"[{rid}] Enforcing tenant: {tenant.slug} ({tenant_id_str})")
 
             # Set DB session variable for Postgres RLS if session exists
             if hasattr(request.state, "db") and request.state.db:
@@ -137,23 +234,27 @@ class TenantMiddleware(BaseHTTPMiddleware):
                     logger = get_logger(__name__)
                     logger.warning(f"Failed to switch to tenant schema {schema_name}: {e}")
 
+        # 3. Create a wrapper for 'send' to inject headers
+        async def send_wrapper(message: Message) -> None:
+            if message["type"] == "http.response.start" and tenant_id_str:
+                headers = list(message.get("headers", []))
+                headers.append((b"x-tenant-enforced", b"true"))
+                headers.append((b"x-tenant-id", tenant_id_str.encode()))
+                message["headers"] = headers
+            await send(message)
+
+        # 4. Execute the application stack
         try:
-            response = await call_next(request)
-            
-            # Add enforcement headers to response
-            if tenant_id_str:
-                response.headers["X-Tenant-Enforced"] = "true"
-                response.headers["X-Tenant-ID"] = tenant_id_str
-            
-            return response
+            await self.app(scope, receive, send_wrapper)
         finally:
-            # Reset tenant context
+            # 5. Cleanup
             if token:
                 reset_current_tenant(token)
                 
             # Reset the PostgreSQL schema to public
             if hasattr(request.state, "tenant"):
-                schema_name = getattr(request.state.tenant, "schema_name", None)
+                tenant_obj = request.state.tenant
+                schema_name = getattr(tenant_obj, "schema_name", None)
                 if schema_name and hasattr(request.state, "db") and request.state.db:
                     db_session = request.state.db
                     try:
@@ -161,17 +262,17 @@ class TenantMiddleware(BaseHTTPMiddleware):
                         db_manager = get_db(request)
                         await db_manager.set_schema(db_session, "public")
                     except Exception:
-                        pass  # Connection will be reused; log separately if needed
+                        pass
             
-            # Clean up database session if we created it
-            if hasattr(request.state, "_db_cleanup"):
+            # Clean up database session
+            if db_cleanup:
                 try:
-                    await request.state._db_cleanup()
+                    await db_cleanup()
                 except Exception:
                     pass
-                if hasattr(request.state, "_db_token"):
-                    from eden.db.session import reset_session
-                    reset_session(request.state._db_token)
+            if db_token:
+                from eden.db.session import reset_session
+                reset_session(db_token)
 
     async def _resolve_tenant(self, request: Request) -> Any | None:
         """Resolve the tenant based on the configured strategy."""
@@ -182,8 +283,8 @@ class TenantMiddleware(BaseHTTPMiddleware):
         elif self.strategy == "header":
             tenant_identifier = request.headers.get(self.header_name)
         elif self.strategy == "session":
-            if hasattr(request, "session"):
-                tenant_identifier = request.session.get(self.session_key)
+            if "session" in request.scope:
+                tenant_identifier = request.scope["session"].get(self.session_key)
         elif self.strategy == "path":
             tenant_identifier = self._extract_path_prefix(request)
 
@@ -214,8 +315,18 @@ class TenantMiddleware(BaseHTTPMiddleware):
         """Look up the tenant by slug or ID, with caching."""
         cache_key = f"tenant:{identifier}"
         
+        # Use app's global cache if available for distributed consistency
+        # Access eden_app.cache
+        app_instance = request.scope.get("app")
+        eden_app = getattr(app_instance, "eden", None)
+        cache = getattr(eden_app, "cache", self._fallback_cache)
+        
+        if hasattr(cache, "global_cache"):
+            # We use global_cache to store tenants so they are shared across all processes
+            cache = cache.global_cache
+        
         # Check cache first
-        cached_tenant = await self._cache.get(cache_key)
+        cached_tenant = await cache.get(cache_key)
         if cached_tenant is not None:
             return cached_tenant
         
@@ -247,6 +358,6 @@ class TenantMiddleware(BaseHTTPMiddleware):
         # Note: Use a short TTL (10s) for negative results to avoid locking out newly created tenants
         # and a longer TTL (300s) for positive results.
         ttl = 300 if tenant else 10
-        await self._cache.set(cache_key, tenant, ttl=ttl)
+        await cache.set(cache_key, tenant, ttl=ttl)
         
         return tenant

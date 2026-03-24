@@ -454,13 +454,13 @@ class EdenBroker:
                 snapshot = context_manager.get_context_snapshot()
                 
                 # Merge into labels
-                labels = kwargs.get("labels", {})
+                labels = {}
                 for key, value in snapshot.items():
-                    if value is not None and key not in labels:
+                    if value is not None:
                         labels[key] = str(value)
                 
-                kwargs["labels"] = labels
-                return original_kiq(*args, **kwargs)
+                # Use kicker to send labels properly, rather than polluting kwargs
+                return taskiq_task.kicker().with_labels(**labels).kiq(*args, **kwargs)
             
             taskiq_task.kiq = wrapped_kiq
             return taskiq_task

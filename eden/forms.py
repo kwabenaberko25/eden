@@ -666,8 +666,9 @@ class BaseForm:
                 for field_name, field_def in fields.items():
                     in_scope = (not include_set or field_name in include_set) and (field_name not in exclude_set)
                     
-                    if not in_scope and field_name not in data:
-                        data[field_name] = None 
+                    # NOTE: We no longer set data[field_name] = None here.
+                    # Pydantic will raise a ValidationError for missing required fields,
+                    # which we catch below and handle via model_construct if they were out of scope.
 
             # Pydantic 2.0+ uses model_validate
             if hasattr(self.schema, "model_validate"):
@@ -678,7 +679,11 @@ class BaseForm:
                 
             self.errors = {}
             return True
-        except ValidationError as e:
+        except Exception as e:
+            from pydantic import ValidationError
+            if not isinstance(e, ValidationError):
+                raise e
+            
             self.errors = {}
             include_set = set(include) if include else None
             exclude_set = set(exclude) if exclude else set()
@@ -689,25 +694,28 @@ class BaseForm:
                     field_key = "__all__"
                     root_field = "__all__"
                 else:
-                    # Fix: Join nested locations with dots (e.g. 'address.city')
                     field_key = ".".join(str(p) for p in loc)
                     root_field = str(loc[0])
                 
-                # Filter errors based on groups
-                if include_set and root_field not in include_set:
-                    continue
-                if root_field in exclude_set:
-                    continue
-                    
-                # We store the error under its full nested path
-                if field_key not in self.errors:
-                    self.errors[field_key] = err.get("msg", "Validation error")
+                # Check if this field is within our current validation scope
+                in_scope = (not include_set or root_field in include_set) and (root_field not in exclude_set)
                 
-                # ALSO attribute it to the root field so form['root'] can show it
-                if root_field != field_key and root_field not in self.errors:
-                    self.errors[root_field] = f"Error in {field_key}: {err.get('msg')}"
+                if in_scope:
+                    # Store both full path and root field errors
+                    self.errors[field_key] = err.get("msg", "Validation error")
+                    if root_field != field_key:
+                        self.errors[root_field] = f"Error in {field_key}: {self.errors[field_key]}"
             
-            return len(self.errors) == 0
+            # If no errors remain in scope, it means we passed validation for what we asked for.
+            # We use model_construct to create the partial model instance.
+            if len(self.errors) == 0:
+                if hasattr(self.schema, "model_construct"):
+                    self.model_instance = self.schema.model_construct(**data)
+                else:
+                    self.model_instance = self.schema.construct(**data)
+                return True
+                
+            return False
 
     @classmethod
     def from_model(cls, instance: Any) -> BaseForm:
@@ -988,18 +996,14 @@ class Schema(BaseModel):
                 dynamic_schema = model.to_schema(include=include, exclude=exclude)
                 
                 # Transfer fields that aren't manually overridden in the class
-                for name, field in dynamic_schema.model_fields.items():
-                    if name not in cls.__annotations__:
-                        cls.__annotations__[name] = field.annotation
-                        # Set as class attribute so Pydantic sees it during discovery
-                        if not hasattr(cls, name):
-                            setattr(cls, name, field)
+                # We use annotations and setattr to avoid direct model_fields mutation
+                # which can cause pollution in Pydantic 2.x
+                for name, field_info in dynamic_schema.model_fields.items():
+                    if name not in cls.__annotations__ and not hasattr(cls, name):
+                        cls.__annotations__[name] = field_info.annotation
+                        # Set as class attribute so Pydantic sees it during discovery in model_rebuild
+                        setattr(cls, name, field_info)
                 
-                # Merge model_fields from the dynamic schema for fields not overridden
-                for field_name, field_info in dynamic_schema.model_fields.items():
-                    if field_name not in cls.model_fields:
-                        cls.model_fields[field_name] = field_info
-
                 # Force Pydantic to rebuild the model schema using the public API.
                 # This regenerates __pydantic_core_schema__, __pydantic_validator__,
                 # and __pydantic_serializer__ from the updated annotations and fields.

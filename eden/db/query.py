@@ -6,6 +6,7 @@ Provides a fluent, chainable API for building and executing database queries.
 
 from __future__ import annotations
 
+import logging
 from datetime import UTC
 import contextlib
 import asyncio
@@ -23,6 +24,8 @@ if TYPE_CHECKING:
     from .session import Database
 
 T = TypeVar("T", bound=Any)
+
+logger = logging.getLogger("eden.db.query")
 
 
 class QuerySet(Generic[T]):
@@ -252,8 +255,6 @@ class QuerySet(Generic[T]):
         Note: Eager loading (prefetch/select_related) is not supported when using .values().
         """
         if self._prefetch_paths or self._select_related_paths:
-            import logging
-            logger = logging.getLogger("eden.db.query")
             logger.warning(
                 f"QuerySet.values() called on {self._model_cls.__name__} after .prefetch() or .select_related(). "
                 "SQLAlchemy does not support eager loading on scalar queries; related objects will not be included."
@@ -416,7 +417,7 @@ class QuerySet(Generic[T]):
         user = get_user()
         
         # Get security filters for the user (even if None)
-        filters = self._model_cls.get_security_filters(user, action)
+        filters = self._model_cls.get_security_filters(user, action=action)
         
         if filters is False:
              # Access Denied: return a clone that will always be empty
@@ -433,20 +434,29 @@ class QuerySet(Generic[T]):
              return clone
              
         # Rule returned specific filters (e.g. Owner filter)
+        print(f"DEBUG: RBAC filters for {self._model_cls.__name__} ({action}): {filters}")
         clone = self._clone()
         clone._stmt = clone._stmt.where(filters)
         clone._rbac_applied = True
         return clone
 
-    def search_ranked(self, query: str, fields: list[str] | None = None, language: str = "english") -> QuerySet[T]:
+    def search_ranked(self, query: str | SearchQueryBuilder, fields: list[str] | None = None, language: str = "english") -> QuerySet[T]:
         """
         Perform a ranked search using PostgreSQL full-text search.
         Orders results by relevance.
         """
         from sqlalchemy import desc, func, inspect as sa_inspect
         from sqlalchemy.types import String, Text
+        from eden.db.search import SearchQueryBuilder
 
         clone = self._clone()
+
+        if isinstance(query, SearchQueryBuilder):
+            # If a builder is passed, we can use its apply() or build()
+            # To maintain ranking logic in this method, we'll use its build() output
+            query_str = query.build()
+        else:
+            query_str = query
 
         # Determine fields to search
         if not fields:
@@ -463,15 +473,18 @@ class QuerySet(Generic[T]):
         if not fields:
             raise ValueError(f"No searchable text fields found for {self._model_cls.__name__}")
 
-        # Build search vector expression
-        cols = [getattr(self._model_cls, f) for f in fields]
-
-        # Use concat_ws to handle NULLs and combine fields
-        concatenated = func.concat_ws(" ", *cols)
-        search_vector = func.to_tsvector(language, concatenated)
+        # Determine search vector
+        tsv_col = getattr(self._model_cls, "tsv", None)
+        if tsv_col is not None:
+             search_vector = tsv_col
+        else:
+            # Build search vector expression dynamically
+            cols = [getattr(self._model_cls, f) for f in fields]
+            concatenated = func.concat_ws(" ", *cols)
+            search_vector = func.to_tsvector(language, concatenated)
 
         # Use websearch_to_tsquery for advanced search-engine syntax support
-        search_query = func.websearch_to_tsquery(language, query)
+        search_query = func.websearch_to_tsquery(language, query_str)
 
         # Apply filter and ranking
         clone._stmt = clone._stmt.where(search_vector.op("@@")(search_query))
@@ -682,9 +695,8 @@ class QuerySet(Generic[T]):
         """
         Executes a statement with exponential backoff retries for reliability.
         """
-        sql = str(stmt.compile(compile_kwargs={"literal_binds": True}))
-        with open("sql.log", "a") as f:
-            f.write(f"MODEL: {self._model_cls.__name__}\nSQL: {sql}\n\n")
+        import random
+        import asyncio
         
         max_retries = 3
         base_delay = 0.1  # 100ms

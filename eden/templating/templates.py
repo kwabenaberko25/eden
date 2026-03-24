@@ -14,27 +14,25 @@ DEFAULT_DUMP_STYLE = (
 )
 
 def get_sync_channel(obj: Any) -> str:
-    """Helper to resolve a sync channel from an object or class."""
+    """
+    Helper to resolve a sync channel from an object or class.
+    Bridges to the shared get_reactive_channels logic.
+    """
     if obj is None:
         return ""
-    # 1. Check for __tablename__ (SQLAlchemy Model or similar)
-    if hasattr(obj, "__tablename__"):
-        table = getattr(obj, "__tablename__")
-        # If it's an instance with an ID
-        if hasattr(obj, "id") and getattr(obj, "id"):
-            return f"{table}:{obj.id}"
-        # Otherwise it's probably the collection channel
-        return table
     
-    # 2. Check if it's a class with __tablename__
-    if isinstance(obj, type) and hasattr(obj, "__tablename__"):
-        return getattr(obj, "__tablename__")
+    from eden.db.reactive import get_reactive_channels
+    channels = get_reactive_channels(obj)
+    
+    if not channels:
+        return str(obj)
         
-    # 3. Handle dict or object with 'id' but no tablename (use generic approach or string)
-    if isinstance(obj, dict) and "id" in obj:
-        return f"obj:{obj['id']}"
+    # Priority: user-specific > instance-specific > collection-specific
+    user_channels = [c for c in channels if ":user:" in c]
+    if user_channels:
+        return user_channels[-1]
         
-    return str(obj)
+    return channels[-1]
 
 
 def render_fragment(
@@ -72,6 +70,10 @@ class EdenTemplates(StarletteJinja2Templates):
         """
         request = context.get("request")
         if request:
+            # Initialize reactive channel set for server-side verification
+            if not hasattr(request.state, "eden_channels"):
+                request.state.eden_channels = set()
+            
             from eden.htmx import is_htmx, hx_target, HtmxResponse
             if is_htmx(request):
                 # 1. Look for explicit fragment override in context

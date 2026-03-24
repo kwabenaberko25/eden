@@ -76,9 +76,11 @@ and deprecation warnings.
 """
 
 import logging
-from typing import Optional, List, Callable, Any, Dict
+from typing import Optional, List, Callable, Any, Dict, Set
 from datetime import datetime
 from functools import wraps
+
+from eden.responses import JsonResponse
 
 logger = logging.getLogger(__name__)
 
@@ -134,10 +136,10 @@ class VersionedRouter:
     def __init__(self):
         self.routes: Dict[str, Dict[str, Any]] = {}
     
-    def get(self, path: str, versions: Optional[List[str]] = None):
-        """Register GET endpoint for specific versions."""
+    def _register(self, method: str, path: str, versions: Optional[List[str]] = None):
+        """Helper to register endpoints for specific versions."""
         def decorator(func: Callable) -> Callable:
-            route_key = f"GET:{path}"
+            route_key = f"{method.upper()}:{path}"
             versions_list = versions or ["v1"]
             
             if route_key not in self.routes:
@@ -150,22 +152,34 @@ class VersionedRouter:
             return func
         
         return decorator
+
+    def get(self, path: str, versions: Optional[List[str]] = None):
+        """Register GET endpoint for specific versions."""
+        return self._register("GET", path, versions)
     
     def post(self, path: str, versions: Optional[List[str]] = None):
         """Register POST endpoint for specific versions."""
-        def decorator(func: Callable) -> Callable:
-            route_key = f"POST:{path}"
-            versions_list = versions or ["v1"]
-            
-            if route_key not in self.routes:
-                self.routes[route_key] = {}
-            
-            for version in versions_list:
-                self.routes[route_key][version] = func
-            
-            return func
-        
-        return decorator
+        return self._register("POST", path, versions)
+
+    def put(self, path: str, versions: Optional[List[str]] = None):
+        """Register PUT endpoint for specific versions."""
+        return self._register("PUT", path, versions)
+
+    def patch(self, path: str, versions: Optional[List[str]] = None):
+        """Register PATCH endpoint for specific versions."""
+        return self._register("PATCH", path, versions)
+
+    def delete(self, path: str, versions: Optional[List[str]] = None):
+        """Register DELETE endpoint for specific versions."""
+        return self._register("DELETE", path, versions)
+
+    def head(self, path: str, versions: Optional[List[str]] = None):
+        """Register HEAD endpoint for specific versions."""
+        return self._register("HEAD", path, versions)
+
+    def options(self, path: str, versions: Optional[List[str]] = None):
+        """Register OPTIONS endpoint for specific versions."""
+        return self._register("OPTIONS", path, versions)
     
     def get_handler(self, method: str, path: str, version: str) -> Optional[Callable]:
         """Get handler for method/path/version combination."""
@@ -179,8 +193,6 @@ class VersionedRouter:
         Mount this versioned router into an Eden app.
         Registers shim handlers that dispatch to the correct version at runtime.
         """
-        from eden.responses import JsonResponse
-        
         # Group routes by path and method
         for route_key, version_map in self.routes.items():
             method, path = route_key.split(":", 1)

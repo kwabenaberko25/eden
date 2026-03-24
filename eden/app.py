@@ -210,6 +210,9 @@ class Eden:
         self.cache: Optional["CacheBackend"] = None
         self.dependency_overrides: dict[Callable[..., Any], Callable[..., Any]] = {}
         
+        # Background task tracking for graceful shutdown
+        self._background_tasks: set[asyncio.Task] = set()
+
         # API Versioning Context
         self._api_versions: list[APIVersion] = []
         self._default_api_version: str = "v1"
@@ -600,10 +603,25 @@ class Eden:
         from eden.tasks import EdenBroker
         if isinstance(value, EdenBroker):
             self._eden_broker = value
+            self.broker = value
         else:
-            # If a raw broker is passed, wrap it
-            self._eden_broker = EdenBroker(value)
-        self._eden_broker.app = self
+            raise TypeError("App.task must be an EdenBroker instance")
+
+    def spawn_background_task(self, coro: Any) -> asyncio.Task:
+        """
+        Spawn a managed background task that will be gracefully awaited on application shutdown.
+        Use this for 'fire and forget' tasks like audit logging or metrics collection.
+        
+        Args:
+            coro: An awaitable coroutine
+            
+        Returns:
+            The created asyncio.Task instance
+        """
+        task = asyncio.create_task(coro)
+        self._background_tasks.add(task)
+        task.add_done_callback(self._background_tasks.discard)
+        return task
 
     # ── Middleware ───────────────────────────────────────────────────────
 
@@ -773,6 +791,14 @@ class Eden:
         )
         if not has_cors:
             self.add_middleware("cors", priority=self.PRIORITY_STANDARD, allow_origins=[])
+
+        # 6. API Versioning (if registered)
+        if self._api_versions:
+            self.add_middleware("eden.versioning:VersionedMiddleware", priority=self.PRIORITY_HIGH - 1)
+
+        # 7. Performance Telemetry (Enabled by default to populate metrics)
+        self.add_middleware("telemetry", priority=self.PRIORITY_CORE - 5)
+
         self._defaults_setup_done = True
     # ── Lifespan Hooks ───────────────────────────────────────────────────
 
@@ -975,6 +1001,22 @@ class Eden:
                     await result
             yield
             # Graceful shutdown order:
+            # 0. Wait for tracked background tasks (e.g. Audit logs)
+            if self._background_tasks:
+                from eden.logging import get_logger
+                logger = get_logger("eden")
+                logger.debug(f"Awaiting {len(self._background_tasks)} background tasks on shutdown...")
+                try:
+                    # Give tasks up to 10 seconds to finish
+                    await asyncio.wait_for(
+                        asyncio.gather(*self._background_tasks, return_exceptions=True),
+                        timeout=10.0
+                    )
+                except asyncio.TimeoutError:
+                    logger.warning("Timed out waiting for background tasks on shutdown.")
+                except Exception as e:
+                    logger.error(f"Error during background task shutdown: {e}")
+
             # 1. Broadcasters/Broker
             await self.broker.shutdown()
             

@@ -308,32 +308,46 @@ class RateLimitMiddleware:
             return
 
         # Get endpoint and metadata from scope (populated by Eden Router)
+        # Resolve rate limit for this endpoint. Fallback to default if no endpoint (e.g. 404)
         endpoint = scope.get("endpoint")
-        limit_str = getattr(endpoint, "_rate_limit", self.default_limit)
+        limit_str = self.default_limit
+        if endpoint:
+            limit_str = getattr(endpoint, "_rate_limit", self.default_limit)
+            
         max_requests, ttl = parse_rate_limit(limit_str)
+        
+        from eden.requests import Request
+        request = Request(scope, receive, send)
         
         # Determine the rate limit key (identity)
         key_func = getattr(endpoint, "_rate_limit_key", self.key_func)
         
+        identity = None
         if key_func:
-            from eden.requests import Request
-            req = Request.from_scope(scope, receive, send)
             import inspect
             try:
-                res = key_func(req)
+                res = key_func(request)
                 if inspect.isawaitable(res):
                     identity = await res
                 else:
                     identity = res
             except Exception as e:
                 logger.error(f"Error in rate limit key function: {e}")
-                identity = scope.get("client", ("unknown", None))[0]
+                # Fallback to client IP
+                client_info = scope.get("client")
+                identity = client_info[0] if client_info and len(client_info) > 0 else "unknown"
         else:
-            identity = scope.get("client", ("unknown", None))[0]
+            # Direct client IP resolution
+            client_info = scope.get("client")
+            identity = client_info[0] if client_info and len(client_info) > 0 else "unknown"
+
+        # Final safety check: ensure identity is always a non-None string
+        if identity is None:
+            identity = "unknown"
 
         # Generate full rate limit key
         path = scope.get("path", "")
-        limit_key = generate_rate_limit_key(identity, endpoint=path)
+        limit_key = generate_rate_limit_key(str(identity), endpoint=path)
         
         # Increment counter
         count = await self.store.increment(limit_key, ttl)

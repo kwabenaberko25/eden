@@ -47,13 +47,23 @@ class RedisBackend(DistributedBackend):
         self._pubsub: aioredis.PubSub | None = None
         self._subscriptions: Dict[str, Set[Callable]] = {}
         self._listener_task: Optional[asyncio.Task] = None
+        self._redis_kwargs = kwargs
 
     async def connect(self) -> None:
-        """Establish connection to Redis."""
+        """Establish connection to Redis with pooling and health checks."""
         if not self.redis:
-            # We keep decode_responses=False to support binary payloads (though we often use JSON)
-            self.redis = aioredis.from_url(self.url, decode_responses=False)
-            logger.info(f"Connected to Redis distributed backend at {self.url}")
+            # default pool settings if not provided
+            pool_settings = {
+                "max_connections": 100,
+                "retry_on_timeout": True,
+                "health_check_interval": 30,
+                "decode_responses": False,
+            }
+            # override with user provided kwargs
+            pool_settings.update(self._redis_kwargs)
+            
+            self.redis = aioredis.from_url(self.url, **pool_settings)
+            logger.info(f"Connected to Redis distributed backend at {self.url} (max_connections={pool_settings.get('max_connections')})")
 
     async def disconnect(self) -> None:
         """Close Redis connection and stop listeners."""
@@ -213,3 +223,10 @@ class RedisBackend(DistributedBackend):
         if not self.redis:
             await self.connect()
         await self.redis.delete(self._key(f"store:{key}"))
+
+    async def incr(self, key: str, amount: int = 1) -> int:
+        """Increment a value in Redis."""
+        if not self.redis:
+            await self.connect()
+        # Use incrby to support custom amounts
+        return await self.redis.incrby(self._key(f"store:{key}"), int(amount))

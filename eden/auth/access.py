@@ -133,6 +133,7 @@ class AccessControl:
         Resolve the security rule for the given action and user.
         """
         rule = cls.__rbac__.get(action)
+        print(f"DEBUG: resolving RBAC for {cls.__name__} ({action}): rule={rule}")
         if not rule:
             return False  # Deny by default
         

@@ -1,0 +1,38 @@
+============================= test session starts =============================
+platform win32 -- Python 3.14.3, pytest-9.0.2, pluggy-1.6.0
+rootdir: C:\PROJECTS\eden-framework
+configfile: pyproject.toml
+plugins: anyio-4.12.1, asyncio-1.3.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=session, asyncio_default_test_loop_scope=session
+DEBUG: sys.path[0] = C:\PROJECTS\eden-framework
+DEBUG: eden file = C:\PROJECTS\eden-framework\eden\__init__.py
+collected 3 items / 2 deselected / 1 selected
+
+tests\test_postgres_full_session.py DEBUG: Inserted Alpha Author with ID 72858f9f-8112-4165-9068-54d57b9a6702
+DEBUG: Inserted Beta Author with ID 48572615-6eaa-434d-9b83-6b944f6b25bf
+DEBUG: search_path for query: tenant_alpha, public
+DEBUG: _base_select for LiveAuthor: isolated=False, applied=False
+DEBUG: resolving RBAC for LiveAuthor (read): rule=<eden.db.access.AllowPublic object at 0x000002802DD53390>
+DEBUG: rule.resolve returned: True
+DEBUG: RBAC filters for LiveAuthor (read) for user None: True
+DEBUG: _base_select for LiveAuthor: isolated=False, applied=False
+DEBUG: EXEC SQL: SELECT live_authors.name, live_authors.id, live_authors.created_at, live_authors.updated_at 
+FROM live_authors
+DEBUG: Authors in Alpha: ['Alpha Author']
+DEBUG: _base_select for LiveAuthor: isolated=False, applied=False
+DEBUG: resolving RBAC for LiveAuthor (read): rule=<eden.db.access.AllowPublic object at 0x000002802DD53390>
+DEBUG: rule.resolve returned: True
+DEBUG: RBAC filters for LiveAuthor (read) for user None: True
+DEBUG: _base_select for LiveAuthor: isolated=False, applied=False
+DEBUG: EXEC SQL: SELECT live_authors.name, live_authors.id, live_authors.created_at, live_authors.updated_at 
+FROM live_authors
+DEBUG: _base_select for LiveAuthor: isolated=False, applied=False
+DEBUG: resolving RBAC for LiveAuthor (read): rule=<eden.db.access.AllowPublic object at 0x000002802DD53390>
+DEBUG: rule.resolve returned: True
+DEBUG: RBAC filters for LiveAuthor (read) for user None: True
+DEBUG: _base_select for LiveAuthor: isolated=False, applied=False
+DEBUG: EXEC SQL: SELECT live_authors.name, live_authors.id, live_authors.created_at, live_authors.updated_at 
+FROM live_authors
+.
+
+======================= 1 passed, 2 deselected in 1.29s =======================

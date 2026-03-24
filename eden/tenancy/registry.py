@@ -26,6 +26,11 @@ class TenancyRegistry:
 
     def register(self, model_cls: Any) -> None:
         """Register a model class as requiring tenant isolation."""
+        # Honor explicit opt-out on the class if present
+        if getattr(model_cls, "__tenant_isolated__", True) is False:
+            logger.debug(f"Skipping registration for {model_cls.__name__} (explicitly disabled).")
+            return
+
         name = model_cls.__name__
         if name not in self._isolated_models:
             logger.debug(f"Registering {name} as a tenant-isolated model.")
@@ -33,15 +38,23 @@ class TenancyRegistry:
 
     def is_isolated(self, model_cls: Any) -> bool:
         """Check if a model class is registered for isolation."""
-        # Check by name or instance of TenantMixin
+        # 1. Explicit opt-out on the class takes precedence
+        if getattr(model_cls, "__tenant_isolated__", None) is False:
+            return False
+
+        # 2. Check by registered name
         if model_cls.__name__ in self._isolated_models:
             return True
         
-        # Fallback: check if it inherits from TenantMixin (if imported)
+        # 3. Fallback: check if it inherits from TenantMixin (if imported)
         # Note: TenantMixin is often imported after this registry
-        from eden.tenancy.mixins import TenantMixin
-        if issubclass(model_cls, TenantMixin):
-            return True
+        try:
+            from eden.tenancy.mixins import TenantMixin
+            if issubclass(model_cls, TenantMixin):
+                return True
+        except ImportError:
+            # If not yet available, we rely on the registry or explicit tags
+            pass
             
         return False
 

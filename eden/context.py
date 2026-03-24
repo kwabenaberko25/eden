@@ -47,6 +47,7 @@ _user_ctx: contextvars.ContextVar[Any] = contextvars.ContextVar("eden_user", def
 _app_ctx: contextvars.ContextVar[Any] = contextvars.ContextVar("eden_app", default=None)
 _request_id_ctx: contextvars.ContextVar[str] = contextvars.ContextVar("eden_request_id", default="")
 _tenant_id_ctx: contextvars.ContextVar[Any] = contextvars.ContextVar("eden_tenant_id", default=None)
+_organization_id_ctx: contextvars.ContextVar[Any] = contextvars.ContextVar("eden_organization_id", default=None)
 
 
 class ContextManager:
@@ -127,30 +128,41 @@ class ContextManager:
             tenant_id = _tenant_id_ctx.get(None)
             request_id = _request_id_ctx.get("")
 
-            if user is not None or tenant_id is not None:
-                logger.debug(
-                    f"Request context ending: request_id={request_id}, "
-                    f"user={getattr(user, 'id', user)}, tenant_id={tenant_id}"
-                )
+            if hasattr(logger, "isEnabledFor") and logger.isEnabledFor(logging.DEBUG):
+                if user is not None or tenant_id is not None:
+                    logger.debug(
+                        f"Request context ending: request_id={request_id}, "
+                        f"user={getattr(user, 'id', user)}, tenant_id={tenant_id}"
+                    )
 
             # Reset context vars using saved tokens (proper ContextVar cleanup)
-            for key in ("request_id", "app", "request"):
+            # We iterate through all keys to ensure nothing is missed
+            for key in list(self._tokens.keys()):
                 token = self._tokens.pop(key, None)
                 if token is not None:
                     try:
-                        {
+                        ctx_var = {
                             "request_id": _request_id_ctx,
                             "app": _app_ctx,
                             "request": _request_ctx,
-                        }[key].reset(token)
-                    except ValueError:
+                            "user": _user_ctx,
+                            "tenant_id": _tenant_id_ctx,
+                            "organization_id": _organization_id_ctx,
+                        }.get(key)
+                        
+                        if ctx_var:
+                            ctx_var.reset(token)
+                    except (ValueError, LookupError):
                         # Token already used or from different context — safe to ignore
                         pass
             
-            # These may have been set by other middleware (auth, tenancy)
-            # Reset to defaults since we don't have tokens for them
+            # Explicitly set defaults as a secondary safety measure
+            # (In case some middleware set vars without going through manager)
             _user_ctx.set(None)
             _tenant_id_ctx.set(None)
+            _organization_id_ctx.set(None)
+            _app_ctx.set(None)
+            _request_ctx.set(None)
 
             # Sync cleanup with internal tenancy context for ORM isolation
             try:
@@ -161,7 +173,29 @@ class ContextManager:
                 pass
 
         except Exception as e:
-            logger.warning(f"Error cleaning up context: {e}")
+            if hasattr(logger, "warning"):
+                logger.warning(f"Error cleaning up context: {e}")
+
+    def clear(self) -> None:
+        """
+        Forcefully clear all context variables.
+        Use with caution, primarily for testing or extreme cleanup scenarios.
+        """
+        # We can't actually 'clear' a ContextVar without tokens, 
+        # but we can set them to their default (None) values
+        _user_ctx.set(None)
+        _tenant_id_ctx.set(None)
+        _organization_id_ctx.set(None)
+        _app_ctx.set(None)
+        _request_ctx.set(None)
+        _request_id_ctx.set("")
+        self._tokens.clear()
+
+        try:
+            from eden.tenancy.context import _tenant_ctx
+            _tenant_ctx.set(None)
+        except ImportError:
+            pass
 
     def set_user(self, user: Any) -> contextvars.Token:
         """
@@ -186,6 +220,12 @@ class ContextManager:
         # Sync with internal tenancy context for ORM isolation
         from eden.tenancy.context import _tenant_ctx
         _tenant_ctx.set(tenant_id)
+
+    def set_organization(self, org_id: str) -> None:
+        """
+        Set current organization in context.
+        """
+        _organization_id_ctx.set(org_id)
 
     def get_app(self) -> Any:
         """
@@ -222,6 +262,15 @@ class ContextManager:
             Tenant ID string or None if not in multi-tenant context
         """
         return _tenant_id_ctx.get(None)
+
+    def get_organization_id(self) -> Optional[str]:
+        """
+        Get current organization ID from context.
+
+        Returns:
+            Organization ID string or None if not set
+        """
+        return _organization_id_ctx.get(None)
 
     def get_request_id(self) -> str:
         """
@@ -396,6 +445,16 @@ def set_tenant(tenant_id: str) -> None:
 def set_current_tenant_id(tenant_id: str) -> None:
     """Alias for set_tenant."""
     return set_tenant(tenant_id)
+
+
+def get_organization_id() -> Optional[str]:
+    """Get current organization ID or None."""
+    return context_manager.get_organization_id()
+
+
+def set_organization(org_id: str) -> None:
+    """Set current organization ID."""
+    context_manager.set_organization(org_id)
 
 
 def get_request_id() -> str:

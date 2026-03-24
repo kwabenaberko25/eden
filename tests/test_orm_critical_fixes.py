@@ -368,50 +368,53 @@ async def test_atomic_decorator_injects_session():
 @pytest.mark.asyncio
 async def test_full_workflow_context_transaction_relationships(test_db: Database):
     """Integration test: context + transactions + relationships."""
+    from sqlalchemy import text
     
     author_id = uuid.uuid4()
     book_id_1 = uuid.uuid4()
     book_id_2 = uuid.uuid4()
     
-    # Create data within transaction with context
-    async with test_db.transaction() as session:
-        token = set_session(session)
+    try:
+        # Create data within transaction with context
+        async with test_db.transaction() as session:
+            token = set_session(session)
+            
+            try:
+                from sqlalchemy import select
+                
+                # Create author
+                author = Author(id=author_id, name="Integration Test Author")
+                session.add(author)
+                await session.flush()
+                
+                # Create books with relationship
+                book1 = Book(id=book_id_1, title="Book 1", author_id=author_id)
+                book2 = Book(id=book_id_2, title="Book 2", author_id=author_id)
+                session.add(book1)
+                session.add(book2)
+                
+                # Verify relationship loading works
+                result = await session.execute(
+                    select(Author).where(Author.id == author_id)
+                )
+                loaded_author = result.scalar_one()
+                assert loaded_author.name == "Integration Test Author"
+                
+            finally:
+                reset_session(token)
         
-        try:
-            from sqlalchemy import select
-            
-            # Create author
-            author = Author(id=author_id, name="Integration Test Author")
-            session.add(author)
-            await session.flush()
-            
-            # Create books with relationship
-            book1 = Book(id=book_id_1, title="Book 1", author_id=author_id)
-            book2 = Book(id=book_id_2, title="Book 2", author_id=author_id)
-            session.add(book1)
-            session.add(book2)
-            
-            # Verify relationship loading works
-            result = await session.execute(
-                select(Author).where(Author.id == author_id)
+        # Verify data persisted
+        async with test_db.session() as verify_session:
+            from sqlalchemy import select, func
+            result = await verify_session.execute(
+                select(func.count(Book.id)).where(Book.author_id == author_id)
             )
-            loaded_author = result.scalar_one()
-            assert loaded_author.name == "Integration Test Author"
+            count = result.scalar()
+            assert count == 2, "Both books should be persisted for this author"
             
-        finally:
-            reset_session(token)
-    
-    # Verify data persisted
-    async with test_db.session() as verify_session:
-        from sqlalchemy import select, func
-        result = await verify_session.execute(
-            select(func.count(Book.id))
-        )
-        count = result.scalar()
-        assert count == 2, "Both books should be persisted"
-
-    # Clean up test data
-    async with test_db.session() as cleanup_session:
-        await cleanup_session.execute(f"DELETE FROM {Book.__tablename__}")
-        await cleanup_session.execute(f"DELETE FROM {Author.__tablename__}")
-        await cleanup_session.commit()
+    finally:
+        # Clean up test data rigorously
+        async with test_db.session() as cleanup_session:
+            await cleanup_session.execute(text(f"DELETE FROM {Book.__tablename__} WHERE author_id = :aid"), {"aid": author_id})
+            await cleanup_session.execute(text(f"DELETE FROM {Author.__tablename__} WHERE id = :aid"), {"aid": author_id})
+            await cleanup_session.commit()

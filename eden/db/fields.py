@@ -34,10 +34,9 @@ from sqlalchemy.orm import relationship as sa_relationship
 
 _UNSET = object()
 
-
 def _process_field_args(
     nullable_val: Any, required: bool | None, kwargs: dict[str, Any], default_nullable: Any = False
-) -> tuple[dict[str, Any], Optional[Any]]:
+) -> tuple[dict[str, Any], Optional[Any], dict[str, Any]]:
     """Internal helper to handle the required/nullable logic and constraints."""
     # Check if both were provided explicitly
     if required is not None and nullable_val is not _UNSET:
@@ -55,15 +54,33 @@ def _process_field_args(
     fk_str = kwargs.pop("foreign_key", None)
     fk = ForeignKey(fk_str) if fk_str else None
     
+    # Extract validation metadata from kwargs
+    validation_meta = {}
+    
+    # Map common validation keywords
+    if "min_length" in kwargs:
+        validation_meta["min"] = kwargs.pop("min_length")
+    if "max_length" in kwargs:
+        validation_meta["max"] = kwargs.pop("max_length")
+    if "min_value" in kwargs:
+        validation_meta["min"] = kwargs.pop("min_value")
+    if "max_value" in kwargs:
+        validation_meta["max"] = kwargs.pop("max_value")
+    if "choices" in kwargs:
+        validation_meta["choices"] = kwargs.pop("choices")
+    if "pattern" in kwargs:
+        validation_meta["pattern"] = kwargs.pop("pattern")
+        
     # Ensure we don't pass 'required' to mapped_column
     kwargs.pop("required", None)
     
     res = {**kwargs}
-
     if resolved_nullable is not _UNSET:
         res["nullable"] = resolved_nullable
-        
-    return res, fk
+        if not resolved_nullable:
+            validation_meta["required"] = True
+            
+    return res, fk, validation_meta
 
 
 def StringField(
@@ -83,7 +100,7 @@ def StringField(
         name: Mapped[str] = StringField(required=True)
     """
     # Default for strings is nullable=False
-    kw, fk = _process_field_args(nullable, required, kwargs, default_nullable=False)
+    kw, fk, v_meta = _process_field_args(nullable, required, kwargs, default_nullable=False)
     kw.update({"unique": unique, "index": index})
     if default is not None:
         kw["default"] = default
@@ -95,11 +112,13 @@ def StringField(
     meta = kw.get("info", {})
     if max_length:
         meta["max"] = max_length
-    if not kw.get("nullable", True):
-        meta["required"] = True
+    
+    # Merge extracted validation metadata
+    meta.update(v_meta)
     kw["info"] = meta
 
     return mapped_column(*args, **kw)
+
 
 
 def SlugField(
@@ -141,12 +160,18 @@ def TextField(
     Usage:
         bio: Mapped[str] = TextField(required=True)
     """
-    kw, fk = _process_field_args(nullable, required, kwargs, default_nullable=False)
+    kw, fk, v_meta = _process_field_args(nullable, required, kwargs, default_nullable=False)
     if default is not None:
         kw["default"] = default
     
     args = [Text]
     if fk: args.append(fk)
+
+    # Store validation metadata
+    meta = kw.get("info", {})
+    meta.update(v_meta)
+    kw["info"] = meta
+
     return mapped_column(*args, **kw)
 
 
@@ -165,13 +190,19 @@ def IntField(
     Usage:
         age: Mapped[int] = IntField(required=True)
     """
-    kw, fk = _process_field_args(nullable, required, kwargs, default_nullable=False)
+    kw, fk, v_meta = _process_field_args(nullable, required, kwargs, default_nullable=False)
     kw.update({"unique": unique, "index": index})
     if default is not None:
         kw["default"] = default
     
     args = [Integer]
     if fk: args.append(fk)
+
+    # Store validation metadata
+    meta = kw.get("info", {})
+    meta.update(v_meta)
+    kw["info"] = meta
+
     return mapped_column(*args, **kw)
 
 
@@ -192,12 +223,18 @@ def FloatField(
     Usage:
         price: Mapped[float] = FloatField(required=True)
     """
-    kw, fk = _process_field_args(nullable, required, kwargs, default_nullable=False)
+    kw, fk, v_meta = _process_field_args(nullable, required, kwargs, default_nullable=False)
     if default is not None:
         kw["default"] = default
     
     args = [Float]
     if fk: args.append(fk)
+
+    # Store validation metadata
+    meta = kw.get("info", {})
+    meta.update(v_meta)
+    kw["info"] = meta
+
     return mapped_column(*args, **kw)
 
 
@@ -216,12 +253,18 @@ def DecimalField(
     Usage:
         balance: Mapped[Decimal] = DecimalField(precision=12, scale=4)
     """
-    kw, fk = _process_field_args(nullable, required, kwargs, default_nullable=False)
+    kw, fk, v_meta = _process_field_args(nullable, required, kwargs, default_nullable=False)
     if default is not None:
         kw["default"] = default
     
     args = [Numeric(precision, scale)]
     if fk: args.append(fk)
+
+    # Store validation metadata
+    meta = kw.get("info", {})
+    meta.update(v_meta)
+    kw["info"] = meta
+
     return mapped_column(*args, **kw)
 
 
@@ -238,9 +281,15 @@ def BoolField(
     Usage:
         is_active: Mapped[bool] = BoolField(required=True)
     """
-    kw, fk = _process_field_args(nullable, required, kwargs, default_nullable=False)
+    kw, fk, v_meta = _process_field_args(nullable, required, kwargs, default_nullable=False)
     args = [Boolean]
     if fk: args.append(fk)
+
+    # Store validation metadata
+    meta = kw.get("info", {})
+    meta.update(v_meta)
+    kw["info"] = meta
+
     return mapped_column(*args, default=default, **kw)
 
 
@@ -302,7 +351,7 @@ def DateTimeField(
         - auto_now_add sets initial value
         - auto_now updates it on every save
     """
-    kw, fk = _process_field_args(nullable, required, kwargs, default_nullable=False)
+    kw, fk, v_meta = _process_field_args(nullable, required, kwargs, default_nullable=False)
 
     # Helper to get current UTC time
     # We use naive UTC for standard DateTime columns to avoid asyncpg mismatch
@@ -327,6 +376,12 @@ def DateTimeField(
 
     args = [DateTime]
     if fk: args.append(fk)
+
+    # Store validation metadata
+    meta = kw.get("info", {})
+    meta.update(v_meta)
+    kw["info"] = meta
+
     return mapped_column(*args, **kw)
 
 
@@ -344,12 +399,18 @@ def JSONField(
         data: Mapped[dict] = JSONField(required=True)
     """
     from sqlalchemy import JSON
-    kw, fk = _process_field_args(nullable, required, kwargs, default_nullable=True)
+    kw, fk, v_meta = _process_field_args(nullable, required, kwargs, default_nullable=True)
     if default is not None:
         kw["default"] = default
     
     args = [JSON]
     if fk: args.append(fk)
+
+    # Store validation metadata
+    meta = kw.get("info", {})
+    meta.update(v_meta)
+    kw["info"] = meta
+
     return mapped_column(*args, **kw)
 
 
@@ -363,7 +424,7 @@ def JSONBField(
     """
     PostgreSQL-optimized JSONB column. Falls back to standard JSON on other DBs.
     """
-    kw, fk = _process_field_args(nullable, required, kwargs, default_nullable=True)
+    kw, fk, v_meta = _process_field_args(nullable, required, kwargs, default_nullable=True)
     if default is not None:
         kw["default"] = default
     
@@ -374,6 +435,12 @@ def JSONBField(
     # We use JSON since it maps to JSONB on PostgreSQL automatically if supported.
     args = [JSON]
     if fk: args.append(fk)
+
+    # Store validation metadata
+    meta = kw.get("info", {})
+    meta.update(v_meta)
+    kw["info"] = meta
+
     return mapped_column(*args, **kw)
 
 
@@ -391,12 +458,18 @@ def ArrayField(
     Usage:
         tags: Mapped[list[str]] = ArrayField(String)
     """
-    kw, fk = _process_field_args(nullable, required, kwargs, default_nullable=True)
+    kw, fk, v_meta = _process_field_args(nullable, required, kwargs, default_nullable=True)
     if default is not None:
         kw["default"] = default
     
     args = [ARRAY(item_type)]
     if fk: args.append(fk)
+
+    # Store validation metadata
+    meta = kw.get("info", {})
+    meta.update(v_meta)
+    kw["info"] = meta
+
     return mapped_column(*args, **kw)
 
 
@@ -415,7 +488,7 @@ def EnumField(
     Usage:
         status: Mapped[Status] = EnumField(Status)
     """
-    kw, fk = _process_field_args(nullable, required, kwargs, default_nullable=False)
+    kw, fk, v_meta = _process_field_args(nullable, required, kwargs, default_nullable=False)
     if default is not None:
         kw["default"] = default
     
@@ -426,6 +499,9 @@ def EnumField(
     meta = kw.get("info", {})
     if hasattr(enum_type, "__members__"):
         meta["choices"] = [(m.value, m.name) for m in enum_type]
+    
+    # Merge extracted validation metadata
+    meta.update(v_meta)
     kw["info"] = meta
 
     return mapped_column(*args, **kw)
@@ -446,7 +522,7 @@ def UUIDField(
         id: Mapped[uuid.UUID] = UUIDField(primary_key=True)
     """
     # Primary keys are not nullable by default
-    kw, fk = _process_field_args(nullable, required, kwargs, default_nullable=not primary_key)
+    kw, fk, v_meta = _process_field_args(nullable, required, kwargs, default_nullable=not primary_key)
     kw["primary_key"] = primary_key
     
     if default_factory is not None:
@@ -456,6 +532,12 @@ def UUIDField(
         
     args = [Uuid]
     if fk: args.append(fk)
+
+    # Store validation metadata
+    meta = kw.get("info", {})
+    meta.update(v_meta)
+    kw["info"] = meta
+
     return mapped_column(*args, **kw)
 
 
@@ -474,8 +556,14 @@ def ForeignKeyField(
     Usage:
         user_id: Mapped[uuid.UUID] = ForeignKeyField("users.id", required=True)
     """
-    kw, _ = _process_field_args(nullable, required, kwargs, default_nullable=False)
+    kw, _, v_meta = _process_field_args(nullable, required, kwargs, default_nullable=False)
     kw.update({"index": index})
+
+    # Store validation metadata
+    meta = kw.get("info", {})
+    meta.update(v_meta)
+    kw["info"] = meta
+
     return mapped_column(
         ForeignKey(target, ondelete=ondelete),
         **kw
@@ -588,9 +676,12 @@ def FileField(
     Usage:
         avatar: Mapped[str] = FileField(upload_to="avatars")
     """
-    kw, fk = _process_field_args(nullable, required, kwargs, default_nullable=True)
+    kw, fk, v_meta = _process_field_args(nullable, required, kwargs, default_nullable=True)
     meta = kw.get("info", {})
     meta.update({"widget": "file", "upload_to": upload_to})
+    
+    # Merge extracted validation metadata
+    meta.update(v_meta)
     kw["info"] = meta
     
     args = [String(max_length)]
@@ -640,7 +731,7 @@ def f(
     if reference:
         kwargs.setdefault("index", True)
         
-    kw, fk_from_kw = _process_field_args(nullable, required, kwargs, default_nullable=_UNSET)
+    kw, fk_from_kw, v_meta = _process_field_args(nullable, required, kwargs, default_nullable=_UNSET)
     kw.update({"unique": unique, "index": index})
     if default is not None:
         kw["default"] = default
@@ -667,6 +758,13 @@ def f(
             kw["info"].update(meta)
         else:
             kw["info"] = meta
+    
+    # Merge validation metadata extracted by _process_field_args from kwargs
+    if v_meta:
+        if "info" in kw:
+            kw["info"].update(v_meta)
+        else:
+            kw["info"] = v_meta
 
     # If it looks like a relationship (one-liner support)
     if back_populates or "backref" in kwargs:

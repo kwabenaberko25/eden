@@ -238,7 +238,7 @@ def eden_scripts() -> Markup:
         "      onEvent: function(name, evt) {\n"
         "        if (name === 'htmx:afterProcessNode') {\n"
         "          const el = evt.target;\n"
-        "          const channel = el.getAttribute('hx-sync');\n"
+        "          const channel = el.getAttribute('hx-channel');\n"
         "          if (channel && !subscriptions.has(channel)) {\n"
         "            subscriptions.add(channel);\n"
         "            if (socket && socket.readyState === WebSocket.OPEN) {\n"
