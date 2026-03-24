@@ -34,7 +34,7 @@ def test_smart_fragment_resolution_active(templates):
     
     # We expect TemplateResponse to detect hx-target="user-list"
     # and call render_fragment with "user_list"
-    response = templates.TemplateResponse("index.html", context)
+    response = templates.TemplateResponse(request, "index.html", context)
     
     assert response.body == b"<li>User 1</li>"
     assert response.headers["content-type"] == "text/html; charset=utf-8"
@@ -50,7 +50,7 @@ def test_explicit_fragment_override(templates):
     # Explicitly request "user-list" fragment despite HX-Target
     context = {"request": request, "__fragment__": "user-list"}
     
-    response = templates.TemplateResponse("index.html", context)
+    response = templates.TemplateResponse(request, "index.html", context)
     
     assert response.body == b"<li>User 1</li>"
 
@@ -69,7 +69,7 @@ def test_fallback_to_full_render_if_fragment_missing(templates):
     original_template_response = base_cls.TemplateResponse
     try:
         with patch.object(base_cls, "TemplateResponse", autospec=True) as mock_super:
-            templates.TemplateResponse("index.html", context)
+            templates.TemplateResponse(request, "index.html", context)
             assert mock_super.called
     finally:
         base_cls.TemplateResponse = original_template_response
@@ -88,7 +88,7 @@ def test_no_htmx_full_render(templates):
     original_template_response = base_cls.TemplateResponse
     try:
         with patch.object(base_cls, "TemplateResponse", autospec=True) as mock_super:
-            templates.TemplateResponse("index.html", context)
+            templates.TemplateResponse(request, "index.html", context)
             assert mock_super.called
     finally:
         base_cls.TemplateResponse = original_template_response

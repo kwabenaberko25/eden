@@ -1,6 +1,6 @@
 # forge_audit_v2
 
-Built with [Eden](https://github.com/eden-framework/eden) 🌿
+Built with [Eden](https://github.com/kwabenaberko25/eden) 🌿
 
 ## Getting Started
 

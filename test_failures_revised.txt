@@ -1,0 +1,1565 @@
+============================= test session starts =============================
+platform win32 -- Python 3.12.12, pytest-9.0.2, pluggy-1.6.0
+rootdir: C:\PROJECTS\eden-framework
+configfile: pyproject.toml
+testpaths: tests
+plugins: anyio-4.12.1, asyncio-1.3.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=session, asyncio_default_test_loop_scope=session
+collected 1251 items
+
+tests\audit\test_auth_resilience.py ..                                   [  0%]
+tests\audit\test_orm_isolation.py ..                                     [  0%]
+tests\audit\test_orm_joins.py ..                                         [  0%]
+tests\audit\test_orm_security.py ...                                     [  0%]
+tests\audit\test_rbac_isolation.py ..                                    [  0%]
+tests\audit\test_session_hygiene.py ...                                  [  1%]
+tests\audit\test_telemetry_accuracy.py ...                               [  1%]
+tests\audit\test_tenancy_hardening.py ....                               [  1%]
+tests\audit\test_tenancy_isolation.py ...                                [  1%]
+tests\test_access_inheritance.py ...                                     [  2%]
+tests\test_admin.py ..........                                           [  2%]
+tests\test_admin_advanced.py ..                                          [  3%]
+tests\test_admin_options.py .....                                        [  3%]
+tests\test_audit_integration.py ........................................ [  6%]
+........................................................                 [ 11%]
+tests\test_auth.py .....                                                 [ 11%]
+tests\test_auth_audit.py .....                                           [ 11%]
+tests\test_auth_complete_layers.py ......................                [ 13%]
+tests\test_auth_critical_fixes.py ...................                    [ 15%]
+tests\test_auth_passwords.py ....                                        [ 15%]
+tests\test_auth_rbac.py ...                                              [ 15%]
+tests\test_auth_rbac_ownership.py ..                                     [ 15%]
+tests\test_auth_unlink.py .                                              [ 16%]
+tests\test_background_tasks.py ..                                        [ 16%]
+tests\test_cache.py ..                                                   [ 16%]
+tests\test_component_security.py .                                       [ 16%]
+tests\test_components.py ..........................................      [ 19%]
+tests\test_config_and_testing.py ...................................     [ 22%]
+tests\test_config_bootstrapping.py ..                                    [ 22%]
+tests\test_config_coercion.py ..                                         [ 22%]
+tests\test_config_debug_fix.py .......                                   [ 23%]
+tests\test_config_pool.py ................                               [ 24%]
+tests\test_context_lifecycle.py ...................                      [ 26%]
+tests\test_core_integration.py .....                                     [ 26%]
+tests\test_crud_get_fix.py .......                                       [ 27%]
+tests\test_database.py ..                                                [ 27%]
+tests\test_db_bulk_lifecycle.py .                                        [ 27%]
+tests\test_db_commit_logic.py ..                                         [ 27%]
+tests\test_db_lifecycle_fixes.py .                                       [ 27%]
+tests\test_debug_env.py .                                                [ 27%]
+tests\test_dependencies.py .....                                         [ 28%]
+tests\test_design_system.py ............................................ [ 31%]
+...............................                                          [ 34%]
+tests\test_directives_integration.py ..........................          [ 36%]
+tests\test_discrepancies.py .....                                        [ 36%]
+tests\test_distributed_infrastructure.py ...                             [ 36%]
+tests\test_documentation_examples.py ..............................      [ 39%]
+tests\test_dummy.py .                                                    [ 39%]
+tests\test_error_handlers.py .....................                       [ 41%]
+tests\test_exceptions.py .......                                         [ 41%]
+tests\test_forms.py .....                                                [ 42%]
+tests\test_forms_security.py .....                                       [ 42%]
+tests\test_fusion.py F..                                                 [ 42%]
+tests\test_health_and_logging.py ..........                              [ 43%]
+tests\test_htmx_smart_fragments.py ....                                  [ 43%]
+tests\test_idempotency_fix.py ..F...............                         [ 45%]
+tests\test_is_active_real.py .......                                     [ 45%]
+tests\test_logging.py ..                                                 [ 45%]
+tests\test_mail.py ...............                                       [ 47%]
+tests\test_messages.py .....                                             [ 47%]
+tests\test_messages_enhanced.py .......                                  [ 48%]
+tests\test_metrics_export.py ....................                        [ 49%]
+tests\test_middleware.py ...                                             [ 49%]
+tests\test_middleware_cache.py ...                                       [ 50%]
+tests\test_middleware_ratelimit_burst.py .                               [ 50%]
+tests\test_migration_drift.py .                                          [ 50%]
+tests\test_migration_refactor.py ..                                      [ 50%]
+tests\test_migration_tenants.py ....                                     [ 50%]
+tests\test_minimal_sd.py .                                               [ 50%]
+tests\test_model_as_form.py ...                                          [ 51%]
+tests\test_model_maturity.py F..FF..F                                    [ 51%]
+tests\test_multitenant_security.py ......................F............   [ 54%]
+tests\test_orm.py ....                                                   [ 54%]
+tests\test_orm_advanced.py ...                                           [ 55%]
+tests\test_orm_auto_session.py ...                                       [ 55%]
+tests\test_orm_critical_fixes.py .............                           [ 56%]
+tests\test_orm_enhanced.py .......                                       [ 56%]
+tests\test_orm_fixes_simple.py .....                                     [ 57%]
+tests\test_orm_form_integration.py .F..                                  [ 57%]
+tests\test_orm_hooks_and_m2m.py ..                                       [ 57%]
+tests\test_orm_lookups.py .....                                          [ 58%]
+tests\test_orm_modern.py ...                                             [ 58%]
+tests\test_orm_queryset.py ..........                                    [ 59%]
+tests\test_parser_recovery.py ..........                                 [ 60%]
+tests\test_payments.py .......                                           [ 60%]
+tests\test_phase2_security.py ..F.                                       [ 60%]
+tests\test_phase3_reliability.py .....                                   [ 61%]
+tests\test_port.py .....                                                 [ 61%]
+tests\test_postgres_full_session.py ...                                  [ 62%]
+tests\test_rate_limit.py ....................                            [ 63%]
+tests\test_reactive_broadcast.py ...                                     [ 63%]
+tests\test_reactive_directive.py ..                                      [ 64%]
+tests\test_realtime_ui.py ..                                             [ 64%]
+tests\test_redis_backend_lock.py F.                                      [ 64%]
+tests\test_requests.py ......                                            [ 64%]
+tests\test_responses.py ........                                         [ 65%]
+tests\test_routing.py ..........                                         [ 66%]
+tests\test_routing_auth_powerup.py .........................             [ 68%]
+tests\test_routing_fixes.py .............................                [ 70%]
+tests\test_routing_modern.py ...                                         [ 70%]
+tests\test_s3_storage.py ....                                            [ 71%]
+tests\test_scaffold_refactor.py ....                                     [ 71%]
+tests\test_schema_pydantic_fix.py F.F.FF.F.                              [ 72%]
+tests\test_security_middleware.py ...................                    [ 73%]
+tests\test_signals_disconnect.py ...                                     [ 73%]
+tests\test_signals_fix.py .......                                        [ 74%]
+tests\test_ssc.py ....                                                   [ 74%]
+tests\test_storage_cleanup.py ................                           [ 76%]
+tests\test_storage_transactions.py .......sss..                          [ 77%]
+tests\test_task_result_backend.py .........                              [ 77%]
+tests\test_tasks.py ...                                                  [ 78%]
+tests\test_tasks_advanced.py ..s.                                        [ 78%]
+tests\test_tasks_comprehensive.py .....                                  [ 78%]
+tests\test_tasks_full.py .........................                       [ 80%]
+tests\test_template_errors.py ...                                        [ 80%]
+tests\test_templates_degradation.py ......                               [ 81%]
+tests\test_templating.py ............                                    [ 82%]
+tests\test_templating_advanced.py ........                               [ 83%]
+tests\test_templating_recursive.py ....                                  [ 83%]
+tests\test_templating_v2.py ......                                       [ 83%]
+tests\test_tenancy.py .....                                              [ 84%]
+tests\test_tenancy_leak.py ..                                            [ 84%]
+tests\test_tier2_cache.py ........................                       [ 86%]
+tests\test_tier2_migrations.py ...................                       [ 87%]
+tests\test_tier2_scheduler.py ...........................                [ 90%]
+tests\test_tier2_websocket.py ...............................            [ 92%]
+tests\test_validation_inheritance.py ..                                  [ 92%]
+tests\test_validation_inheritance_simple.py ..                           [ 92%]
+tests\test_validators.py ............................................... [ 96%]
+.......................FFFFF                                             [ 98%]
+tests\test_websocket_manager_fix.py .............                        [ 99%]
+tests\test_ws_audit.py ..                                                [100%]
+
+================================== FAILURES ===================================
+______________________ test_multi_tenancy_auto_isolation ______________________
+
+    @pytest.mark.asyncio
+    async def test_multi_tenancy_auto_isolation():
+        org_a = uuid.uuid4()
+        org_b = uuid.uuid4()
+    
+        # Simulate Org A user context
+        user_a = MockUser(org_a)
+        token = set_user(user_a)
+        try:
+            await FusionProject.create(name="Project A", tenant_id=org_a)
+        finally:
+            reset_user(token)
+    
+        # Simulate Org B user context
+        user_b = MockUser(org_b)
+        token = set_user(user_b)
+        try:
+            await FusionProject.create(name="Project B", tenant_id=org_b)
+        finally:
+            reset_user(token)
+    
+        # Verify Isolation
+        token = set_user(user_a)
+        try:
+            projects = await FusionProject.query().for_user(user_a).all()
+>           assert len(projects) == 1
+E           assert 0 == 1
+E            +  where 0 = len([])
+
+tests\test_fusion.py:64: AssertionError
+---------------------------- Captured stdout setup ----------------------------
+2026-03-24 09:12:43,693 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-03-24 09:12:43,796 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-03-24 09:12:43,796 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,796 INFO sqlalchemy.engine.Engine [cached since 7.64s ago] ('file_references', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,801 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,801 INFO sqlalchemy.engine.Engine [cached since 7.645s ago] ('eden_audit_logs', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,802 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,802 INFO sqlalchemy.engine.Engine [cached since 7.646s ago] ('eden_tenants', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,804 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,805 INFO sqlalchemy.engine.Engine [cached since 7.648s ago] ('eden_customers', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,807 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,807 INFO sqlalchemy.engine.Engine [cached since 7.65s ago] ('eden_subscriptions', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,808 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,808 INFO sqlalchemy.engine.Engine [cached since 7.651s ago] ('eden_payment_events', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,809 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,809 INFO sqlalchemy.engine.Engine [cached since 7.652s ago] ('eden_users', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,809 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,810 INFO sqlalchemy.engine.Engine [cached since 7.653s ago] ('eden_social_accounts', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,810 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,810 INFO sqlalchemy.engine.Engine [cached since 7.653s ago] ('password_reset_tokens', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,811 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,811 INFO sqlalchemy.engine.Engine [cached since 7.654s ago] ('eden_api_keys', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,811 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,811 INFO sqlalchemy.engine.Engine [cached since 7.655s ago] ('audit_grandparents', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,812 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,812 INFO sqlalchemy.engine.Engine [cached since 7.656s ago] ('audit_parents', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,812 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,814 INFO sqlalchemy.engine.Engine [cached since 7.656s ago] ('audit_children', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,814 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,814 INFO sqlalchemy.engine.Engine [cached since 7.657s ago] ('secrets', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,815 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,815 INFO sqlalchemy.engine.Engine [cached since 7.658s ago] ('user_accounts', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,816 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,816 INFO sqlalchemy.engine.Engine [cached since 7.659s ago] ('audit_users', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,816 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,817 INFO sqlalchemy.engine.Engine [cached since 7.659s ago] ('audit_notes', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,817 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,817 INFO sqlalchemy.engine.Engine [cached since 7.66s ago] ('naked_models', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,818 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,818 INFO sqlalchemy.engine.Engine [cached since 7.661s ago] ('audit_projects', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,818 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,818 INFO sqlalchemy.engine.Engine [cached since 7.662s ago] ('test_categories', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,819 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,819 INFO sqlalchemy.engine.Engine [cached since 7.663s ago] ('test_products', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,821 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,821 INFO sqlalchemy.engine.Engine [cached since 7.664s ago] ('secret_notes', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,822 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,822 INFO sqlalchemy.engine.Engine [cached since 7.665s ago] ('people', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,823 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,823 INFO sqlalchemy.engine.Engine [cached since 7.666s ago] ('passports', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,824 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,824 INFO sqlalchemy.engine.Engine [cached since 7.667s ago] ('companys', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,824 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,824 INFO sqlalchemy.engine.Engine [cached since 7.668s ago] ('employees', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,826 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,826 INFO sqlalchemy.engine.Engine [cached since 7.669s ago] ('bulk_test_model', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,827 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,827 INFO sqlalchemy.engine.Engine [cached since 7.67s ago] ('soft_delete_models', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,828 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,828 INFO sqlalchemy.engine.Engine [cached since 7.671s ago] ('save_models', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,829 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,829 INFO sqlalchemy.engine.Engine [cached since 7.672s ago] ('test_models', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,829 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,829 INFO sqlalchemy.engine.Engine [cached since 7.672s ago] ('fusion_projects', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,830 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,830 INFO sqlalchemy.engine.Engine [cached since 7.673s ago] ('fusion_tasks', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,831 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,831 INFO sqlalchemy.engine.Engine [cached since 7.674s ago] ('shared_table', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,831 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,831 INFO sqlalchemy.engine.Engine [cached since 7.675s ago] ('tenant_table', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,832 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,832 INFO sqlalchemy.engine.Engine [cached since 7.676s ago] ('simple_sd_models', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,833 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,833 INFO sqlalchemy.engine.Engine [cached since 7.676s ago] ('test_user_profiles_as_form', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,833 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,833 INFO sqlalchemy.engine.Engine [cached since 7.677s ago] ('maturity_products', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,834 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,834 INFO sqlalchemy.engine.Engine [cached since 7.678s ago] ('maturity_advanced_models', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,835 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,835 INFO sqlalchemy.engine.Engine [cached since 7.679s ago] ('tasks', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,836 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,836 INFO sqlalchemy.engine.Engine [cached since 7.679s ago] ('adv_users', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,838 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,839 INFO sqlalchemy.engine.Engine [cached since 7.681s ago] ('adv_posts', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,840 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,840 INFO sqlalchemy.engine.Engine [cached since 7.683s ago] ('mock_session_models', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,841 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,841 INFO sqlalchemy.engine.Engine [cached since 7.684s ago] ('authors', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,842 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,842 INFO sqlalchemy.engine.Engine [cached since 7.686s ago] ('books', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,843 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,843 INFO sqlalchemy.engine.Engine [cached since 7.687s ago] ('publishers', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,843 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,844 INFO sqlalchemy.engine.Engine [cached since 7.687s ago] ('enhanced_users', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,844 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,844 INFO sqlalchemy.engine.Engine [cached since 7.688s ago] ('enhanced_parents', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,844 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,844 INFO sqlalchemy.engine.Engine [cached since 7.689s ago] ('enhanced_childs', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,844 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,846 INFO sqlalchemy.engine.Engine [cached since 7.689s ago] ('categorys', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,846 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,846 INFO sqlalchemy.engine.Engine [cached since 7.69s ago] ('products', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,847 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,847 INFO sqlalchemy.engine.Engine [cached since 7.691s ago] ('lifecycle_models', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,848 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,848 INFO sqlalchemy.engine.Engine [cached since 7.691s ago] ('m2_m_articles_m2_m_tags', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,848 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,849 INFO sqlalchemy.engine.Engine [cached since 7.692s ago] ('m2_m_tags', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,849 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,849 INFO sqlalchemy.engine.Engine [cached since 7.693s ago] ('m2_m_articles', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,849 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,851 INFO sqlalchemy.engine.Engine [cached since 7.694s ago] ('lookup_authors', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,851 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,851 INFO sqlalchemy.engine.Engine [cached since 7.694s ago] ('lookup_profiles', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,851 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,853 INFO sqlalchemy.engine.Engine [cached since 7.695s ago] ('lookup_posts', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,853 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,853 INFO sqlalchemy.engine.Engine [cached since 7.696s ago] ('modern_users', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,854 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,855 INFO sqlalchemy.engine.Engine [cached since 7.698s ago] ('modern_posts', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,855 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,856 INFO sqlalchemy.engine.Engine [cached since 7.699s ago] ('qs_users', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,856 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,856 INFO sqlalchemy.engine.Engine [cached since 7.7s ago] ('live_authors', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,858 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,858 INFO sqlalchemy.engine.Engine [cached since 7.701s ago] ('live_books', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,859 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,859 INFO sqlalchemy.engine.Engine [cached since 7.702s ago] ('live_reviews', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,860 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,860 INFO sqlalchemy.engine.Engine [cached since 7.703s ago] ('reactive_tasks_test', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,861 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,861 INFO sqlalchemy.engine.Engine [cached since 7.704s ago] ('tenant_tasks_test', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,862 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,862 INFO sqlalchemy.engine.Engine [cached since 7.705s ago] ('test_users', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,863 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,863 INFO sqlalchemy.engine.Engine [cached since 7.706s ago] ('test_posts', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,864 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,864 INFO sqlalchemy.engine.Engine [cached since 7.707s ago] ('tenant_test_tasks', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,864 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,865 INFO sqlalchemy.engine.Engine [cached since 7.708s ago] ('inh_children', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,865 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,865 INFO sqlalchemy.engine.Engine [cached since 7.709s ago] ('secure_items', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,867 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,867 INFO sqlalchemy.engine.Engine [cached since 7.71s ago] ('protected', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,868 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-03-24 09:12:43,868 INFO sqlalchemy.engine.Engine [cached since 7.711s ago] ('public', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-03-24 09:12:43,869 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_type.typname 
+FROM pg_catalog.pg_type JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_type.typnamespace 
+WHERE pg_catalog.pg_type.typname = $1::VARCHAR AND pg_catalog.pg_type_is_visible(pg_catalog.pg_type.oid) AND pg_catalog.pg_namespace.nspname != $2::VARCHAR
+2026-03-24 09:12:43,869 INFO sqlalchemy.engine.Engine [cached since 7.656s ago] ('status', 'pg_catalog')
+2026-03-24 09:12:43,872 INFO sqlalchemy.engine.Engine COMMIT
+----------------------------- Captured log setup ------------------------------
+INFO     sqlalchemy.engine.Engine:base.py:2710 BEGIN (implicit)
+INFO     sqlalchemy.engine.Engine:base.py:2710 BEGIN (implicit)
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.64s ago] ('file_references', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.645s ago] ('eden_audit_logs', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.646s ago] ('eden_tenants', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.648s ago] ('eden_customers', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.65s ago] ('eden_subscriptions', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.651s ago] ('eden_payment_events', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.652s ago] ('eden_users', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.653s ago] ('eden_social_accounts', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.653s ago] ('password_reset_tokens', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.654s ago] ('eden_api_keys', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.655s ago] ('audit_grandparents', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.656s ago] ('audit_parents', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.656s ago] ('audit_children', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.657s ago] ('secrets', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.658s ago] ('user_accounts', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.659s ago] ('audit_users', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.659s ago] ('audit_notes', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.66s ago] ('naked_models', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.661s ago] ('audit_projects', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.662s ago] ('test_categories', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.663s ago] ('test_products', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.664s ago] ('secret_notes', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.665s ago] ('people', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.666s ago] ('passports', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.667s ago] ('companys', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.668s ago] ('employees', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.669s ago] ('bulk_test_model', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.67s ago] ('soft_delete_models', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.671s ago] ('save_models', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.672s ago] ('test_models', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.672s ago] ('fusion_projects', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.673s ago] ('fusion_tasks', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.674s ago] ('shared_table', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.675s ago] ('tenant_table', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.676s ago] ('simple_sd_models', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.676s ago] ('test_user_profiles_as_form', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.677s ago] ('maturity_products', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.678s ago] ('maturity_advanced_models', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.679s ago] ('tasks', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.679s ago] ('adv_users', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.681s ago] ('adv_posts', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.683s ago] ('mock_session_models', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.684s ago] ('authors', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.686s ago] ('books', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.687s ago] ('publishers', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.687s ago] ('enhanced_users', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.688s ago] ('enhanced_parents', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.689s ago] ('enhanced_childs', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.689s ago] ('categorys', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.69s ago] ('products', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.691s ago] ('lifecycle_models', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.691s ago] ('m2_m_articles_m2_m_tags', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.692s ago] ('m2_m_tags', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.693s ago] ('m2_m_articles', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.694s ago] ('lookup_authors', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.694s ago] ('lookup_profiles', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.695s ago] ('lookup_posts', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.696s ago] ('modern_users', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.698s ago] ('modern_posts', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.699s ago] ('qs_users', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.7s ago] ('live_authors', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.701s ago] ('live_books', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.702s ago] ('live_reviews', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.703s ago] ('reactive_tasks_test', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.704s ago] ('tenant_tasks_test', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.705s ago] ('test_users', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.706s ago] ('test_posts', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.707s ago] ('tenant_test_tasks', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.708s ago] ('inh_children', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.709s ago] ('secure_items', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.71s ago] ('protected', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.711s ago] ('public', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_type.typname 
+FROM pg_catalog.pg_type JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_type.typnamespace 
+WHERE pg_catalog.pg_type.typname = $1::VARCHAR AND pg_catalog.pg_type_is_visible(pg_catalog.pg_type.oid) AND pg_catalog.pg_namespace.nspname != $2::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 7.656s ago] ('status', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:2716 COMMIT
+---------------------------- Captured stdout call -----------------------------
+2026-03-24 09:12:43,874 INFO sqlalchemy.engine.Engine SAVEPOINT sa_savepoint_1
+2026-03-24 09:12:43,874 INFO sqlalchemy.engine.Engine [no key 0.00021s] ()
+2026-03-24 09:12:43,875 INFO sqlalchemy.engine.Engine SAVEPOINT sa_savepoint_2
+2026-03-24 09:12:43,875 INFO sqlalchemy.engine.Engine [no key 0.00016s] ()
+2026-03-24 09:12:43,876 INFO sqlalchemy.engine.Engine INSERT INTO fusion_projects (name, tenant_id, id) VALUES ($1::VARCHAR, $2::UUID, $3::UUID) RETURNING fusion_projects.created_at, fusion_projects.updated_at
+2026-03-24 09:12:43,876 INFO sqlalchemy.engine.Engine [generated in 0.00019s] ('Project A', UUID('30807c7d-0164-4e6b-9986-f20e505ade12'), UUID('594843be-9213-4022-9ba2-717c535e88e0'))
+2026-03-24 09:12:43,879 INFO sqlalchemy.engine.Engine SELECT fusion_projects.name, fusion_projects.tenant_id, fusion_projects.id, fusion_projects.created_at, fusion_projects.updated_at 
+FROM fusion_projects 
+WHERE fusion_projects.id = $1::UUID
+2026-03-24 09:12:43,879 INFO sqlalchemy.engine.Engine [generated in 0.00021s] (UUID('594843be-9213-4022-9ba2-717c535e88e0'),)
+2026-03-24 09:12:43,881 INFO sqlalchemy.engine.Engine RELEASE SAVEPOINT sa_savepoint_2
+2026-03-24 09:12:43,881 INFO sqlalchemy.engine.Engine [no key 0.00014s] ()
+2026-03-24 09:12:43,881 INFO sqlalchemy.engine.Engine SAVEPOINT sa_savepoint_3
+2026-03-24 09:12:43,881 INFO sqlalchemy.engine.Engine [no key 0.00013s] ()
+2026-03-24 09:12:43,882 INFO sqlalchemy.engine.Engine INSERT INTO fusion_projects (name, tenant_id, id) VALUES ($1::VARCHAR, $2::UUID, $3::UUID) RETURNING fusion_projects.created_at, fusion_projects.updated_at
+2026-03-24 09:12:43,882 INFO sqlalchemy.engine.Engine [cached since 0.006344s ago] ('Project B', UUID('34339f1c-fee6-481e-9c1c-4f9f2b7fee4b'), UUID('731c3a2d-d658-4e8c-8c4a-e876fe4d5120'))
+2026-03-24 09:12:43,884 INFO sqlalchemy.engine.Engine SELECT fusion_projects.name, fusion_projects.tenant_id, fusion_projects.id, fusion_projects.created_at, fusion_projects.updated_at 
+FROM fusion_projects 
+WHERE fusion_projects.id = $1::UUID
+2026-03-24 09:12:43,884 INFO sqlalchemy.engine.Engine [cached since 0.004892s ago] (UUID('731c3a2d-d658-4e8c-8c4a-e876fe4d5120'),)
+2026-03-24 09:12:43,885 INFO sqlalchemy.engine.Engine RELEASE SAVEPOINT sa_savepoint_3
+2026-03-24 09:12:43,885 INFO sqlalchemy.engine.Engine [no key 0.00015s] ()
+2026-03-24 09:12:43,886 INFO sqlalchemy.engine.Engine SELECT fusion_projects.name, fusion_projects.tenant_id, fusion_projects.id, fusion_projects.created_at, fusion_projects.updated_at 
+FROM fusion_projects 
+WHERE false
+2026-03-24 09:12:43,886 INFO sqlalchemy.engine.Engine [generated in 0.00017s] ()
+------------------------------ Captured log call ------------------------------
+INFO     sqlalchemy.engine.Engine:base.py:1846 SAVEPOINT sa_savepoint_1
+INFO     sqlalchemy.engine.Engine:base.py:1846 [no key 0.00021s] ()
+INFO     sqlalchemy.engine.Engine:base.py:1846 SAVEPOINT sa_savepoint_2
+INFO     sqlalchemy.engine.Engine:base.py:1846 [no key 0.00016s] ()
+INFO     sqlalchemy.engine.Engine:base.py:1846 INSERT INTO fusion_projects (name, tenant_id, id) VALUES ($1::VARCHAR, $2::UUID, $3::UUID) RETURNING fusion_projects.created_at, fusion_projects.updated_at
+INFO     sqlalchemy.engine.Engine:base.py:1846 [generated in 0.00019s] ('Project A', UUID('30807c7d-0164-4e6b-9986-f20e505ade12'), UUID('594843be-9213-4022-9ba2-717c535e88e0'))
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT fusion_projects.name, fusion_projects.tenant_id, fusion_projects.id, fusion_projects.created_at, fusion_projects.updated_at 
+FROM fusion_projects 
+WHERE fusion_projects.id = $1::UUID
+INFO     sqlalchemy.engine.Engine:base.py:1846 [generated in 0.00021s] (UUID('594843be-9213-4022-9ba2-717c535e88e0'),)
+WARNING  eden.db.lifecycle:lifecycle.py:209 Audit logging failed for FusionProject: id: id is required; timestamp: timestamp is required
+INFO     sqlalchemy.engine.Engine:base.py:1846 RELEASE SAVEPOINT sa_savepoint_2
+INFO     sqlalchemy.engine.Engine:base.py:1846 [no key 0.00014s] ()
+INFO     sqlalchemy.engine.Engine:base.py:1846 SAVEPOINT sa_savepoint_3
+INFO     sqlalchemy.engine.Engine:base.py:1846 [no key 0.00013s] ()
+INFO     sqlalchemy.engine.Engine:base.py:1846 INSERT INTO fusion_projects (name, tenant_id, id) VALUES ($1::VARCHAR, $2::UUID, $3::UUID) RETURNING fusion_projects.created_at, fusion_projects.updated_at
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.006344s ago] ('Project B', UUID('34339f1c-fee6-481e-9c1c-4f9f2b7fee4b'), UUID('731c3a2d-d658-4e8c-8c4a-e876fe4d5120'))
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT fusion_projects.name, fusion_projects.tenant_id, fusion_projects.id, fusion_projects.created_at, fusion_projects.updated_at 
+FROM fusion_projects 
+WHERE fusion_projects.id = $1::UUID
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.004892s ago] (UUID('731c3a2d-d658-4e8c-8c4a-e876fe4d5120'),)
+WARNING  eden.db.lifecycle:lifecycle.py:209 Audit logging failed for FusionProject: id: id is required; timestamp: timestamp is required
+INFO     sqlalchemy.engine.Engine:base.py:1846 RELEASE SAVEPOINT sa_savepoint_3
+INFO     sqlalchemy.engine.Engine:base.py:1846 [no key 0.00015s] ()
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT fusion_projects.name, fusion_projects.tenant_id, fusion_projects.id, fusion_projects.created_at, fusion_projects.updated_at 
+FROM fusion_projects 
+WHERE false
+INFO     sqlalchemy.engine.Engine:base.py:1846 [generated in 0.00017s] ()
+-------------------------- Captured stdout teardown ---------------------------
+2026-03-24 09:12:44,268 INFO sqlalchemy.engine.Engine ROLLBACK
+---------------------------- Captured log teardown ----------------------------
+INFO     sqlalchemy.engine.Engine:base.py:2713 ROLLBACK
+_______ TestIdempotencyLocking.test_lock_release_without_acquire_warns ________
+
+self = <tests.test_idempotency_fix.TestIdempotencyLocking object at 0x000001BFFCFB2750>
+manager = <eden.core.idempotency.IdempotencyManager object at 0x000001BF80218620>
+caplog = <_pytest.logging.LogCaptureFixture object at 0x000001BF80218BF0>
+
+    @pytest.mark.asyncio
+    async def test_lock_release_without_acquire_warns(self, manager, caplog):
+        """Releasing a lock that was never acquired should warn, not crash."""
+        import logging
+        with caplog.at_level(logging.WARNING, logger="eden.idempotency"):
+            await manager.release_lock("never-acquired")
+    
+>       assert "No lock identifier found" in caplog.text
+E       AssertionError: assert 'No lock identifier found' in ''
+E        +  where '' = <_pytest.logging.LogCaptureFixture object at 0x000001BF80218BF0>.text
+
+tests\test_idempotency_fix.py:110: AssertionError
+---------------------------- Captured stdout call -----------------------------
+{"timestamp": "2026-03-24T09:12:44", "level": "WARNING", "logger": "eden.idempotency", "message": "No lock identifier found for key 'never-acquired'. Lock may have already expired or been released.", "request_id": ""}
+__________________________ test_signal_registration ___________________________
+
+db = <eden.db.session.Database object at 0x000001BF802701D0>
+
+    @pytest.mark.asyncio
+    async def test_signal_registration(db):
+        saved_instances = []
+    
+        @receiver(post_save, sender=MaturityProduct)
+        async def on_product_save(sender, instance, **kwargs):
+            saved_instances.append(instance)
+    
+        product = MaturityProduct(name="Test Product", price=100)
+>       await product.save()
+
+tests\test_model_maturity.py:40: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+eden\db\mixins\lifecycle.py:87: in save
+    await self.full_clean()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <tests.test_model_maturity.MaturityProduct object at 0x000001BF802702F0>
+exclude = []
+
+    async def full_clean(self, exclude: Optional[List[str]] = None) -> None:
+        """
+        Run the full validation lifecycle for the model.
+        1. clean_fields() - Validates each field individually
+        2. clean() - Performs cross-field validation
+        3. validate() - Runs declarative validation rules
+    
+        Raises ValidationErrors if any validation fails.
+        """
+        errors: Dict[str, List[str]] = {}
+        exclude = exclude or []
+    
+        # 1. Individual field validation (metadata-based)
+        try:
+            await self.clean_fields(exclude=exclude)
+        except ValidationErrors as e:
+            errors.update(e.errors)
+    
+        # 2. Cross-field validation (custom clean method)
+        try:
+            if hasattr(self, 'clean'):
+                if inspect.iscoroutinefunction(self.clean):
+                    await self.clean()
+                else:
+                    self.clean()
+        except ValidationError as e:
+            field = e.field or '__all__'
+            if field not in errors: errors[field] = []
+            errors[field].append(str(e.message))
+        except ValidationErrors as e:
+            errors.update(e.errors)
+    
+        # 3. Declarative validation rules
+        for field_name, rules in self._validation_rules.items():
+            if field_name in exclude:
+                continue
+            field_value = getattr(self, field_name, None)
+            for rule in rules:
+                try:
+                    self._validate_rule(field_name, field_value, rule)
+                except ValidationError as e:
+                    if field_name not in errors: errors[field_name] = []
+                    errors[field_name].append(str(e.message))
+    
+        if errors:
+>           raise ValidationErrors(errors)
+E           eden.db.validation.ValidationErrors: stock: stock is required
+
+eden\db\validation.py:220: ValidationErrors
+---------------------------- Captured stdout setup ----------------------------
+[32m09:12:45 INFO    [0m eden.db — Database connected to sqlite+aiosqlite:///:memory:
+[32m09:12:45 INFO    [0m eden.core.backends — Connected to Redis distributed backend at redis://localhost:9999 (max_connections=100)
+____________________________ test_update_or_create ____________________________
+
+db = <eden.db.session.Database object at 0x000001BF802701D0>
+
+    @pytest.mark.asyncio
+    async def test_update_or_create(db):
+        # Create
+>       product, created = await MaturityProduct.update_or_create(
+            name="Unique Product",
+            defaults={"price": 50}
+        )
+
+tests\test_model_maturity.py:83: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+eden\db\mixins\crud.py:287: in update_or_create
+    return await cls.create(session=session, **params), True
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+eden\db\mixins\crud.py:213: in create
+    await instance.save(session=session, commit=commit, validate=validate)
+eden\db\mixins\lifecycle.py:87: in save
+    await self.full_clean()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <tests.test_model_maturity.MaturityProduct object at 0x000001BF8031F4D0>
+exclude = []
+
+    async def full_clean(self, exclude: Optional[List[str]] = None) -> None:
+        """
+        Run the full validation lifecycle for the model.
+        1. clean_fields() - Validates each field individually
+        2. clean() - Performs cross-field validation
+        3. validate() - Runs declarative validation rules
+    
+        Raises ValidationErrors if any validation fails.
+        """
+        errors: Dict[str, List[str]] = {}
+        exclude = exclude or []
+    
+        # 1. Individual field validation (metadata-based)
+        try:
+            await self.clean_fields(exclude=exclude)
+        except ValidationErrors as e:
+            errors.update(e.errors)
+    
+        # 2. Cross-field validation (custom clean method)
+        try:
+            if hasattr(self, 'clean'):
+                if inspect.iscoroutinefunction(self.clean):
+                    await self.clean()
+                else:
+                    self.clean()
+        except ValidationError as e:
+            field = e.field or '__all__'
+            if field not in errors: errors[field] = []
+            errors[field].append(str(e.message))
+        except ValidationErrors as e:
+            errors.update(e.errors)
+    
+        # 3. Declarative validation rules
+        for field_name, rules in self._validation_rules.items():
+            if field_name in exclude:
+                continue
+            field_value = getattr(self, field_name, None)
+            for rule in rules:
+                try:
+                    self._validate_rule(field_name, field_value, rule)
+                except ValidationError as e:
+                    if field_name not in errors: errors[field_name] = []
+                    errors[field_name].append(str(e.message))
+    
+        if errors:
+>           raise ValidationErrors(errors)
+E           eden.db.validation.ValidationErrors: stock: stock is required
+
+eden\db\validation.py:220: ValidationErrors
+_____________________________ test_delete_signals _____________________________
+
+db = <eden.db.session.Database object at 0x000001BF802701D0>
+
+    @pytest.mark.asyncio
+    async def test_delete_signals(db):
+        deleted_calls = []
+    
+        @receiver(pre_delete, sender=MaturityProduct)
+        async def on_product_pre_delete(sender, instance, **kwargs):
+            deleted_calls.append("pre_" + str(instance.id))
+    
+        @receiver(post_delete, sender=MaturityProduct)
+        async def on_product_post_delete(sender, instance, **kwargs):
+            deleted_calls.append("post_" + str(instance.id))
+    
+>       product = await MaturityProduct.create(name="To Delete", price=10)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_model_maturity.py:111: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+eden\db\mixins\crud.py:213: in create
+    await instance.save(session=session, commit=commit, validate=validate)
+eden\db\mixins\lifecycle.py:87: in save
+    await self.full_clean()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <tests.test_model_maturity.MaturityProduct object at 0x000001BF80271190>
+exclude = []
+
+    async def full_clean(self, exclude: Optional[List[str]] = None) -> None:
+        """
+        Run the full validation lifecycle for the model.
+        1. clean_fields() - Validates each field individually
+        2. clean() - Performs cross-field validation
+        3. validate() - Runs declarative validation rules
+    
+        Raises ValidationErrors if any validation fails.
+        """
+        errors: Dict[str, List[str]] = {}
+        exclude = exclude or []
+    
+        # 1. Individual field validation (metadata-based)
+        try:
+            await self.clean_fields(exclude=exclude)
+        except ValidationErrors as e:
+            errors.update(e.errors)
+    
+        # 2. Cross-field validation (custom clean method)
+        try:
+            if hasattr(self, 'clean'):
+                if inspect.iscoroutinefunction(self.clean):
+                    await self.clean()
+                else:
+                    self.clean()
+        except ValidationError as e:
+            field = e.field or '__all__'
+            if field not in errors: errors[field] = []
+            errors[field].append(str(e.message))
+        except ValidationErrors as e:
+            errors.update(e.errors)
+    
+        # 3. Declarative validation rules
+        for field_name, rules in self._validation_rules.items():
+            if field_name in exclude:
+                continue
+            field_value = getattr(self, field_name, None)
+            for rule in rules:
+                try:
+                    self._validate_rule(field_name, field_value, rule)
+                except ValidationError as e:
+                    if field_name not in errors: errors[field_name] = []
+                    errors[field_name].append(str(e.message))
+    
+        if errors:
+>           raise ValidationErrors(errors)
+E           eden.db.validation.ValidationErrors: stock: stock is required
+
+eden\db\validation.py:220: ValidationErrors
+______________________________ test_bulk_signals ______________________________
+
+db = <eden.db.session.Database object at 0x000001BF802701D0>
+
+    @pytest.mark.asyncio
+    async def test_bulk_signals(db):
+        from eden.db.signals import pre_bulk_update, post_bulk_update, pre_bulk_delete, post_bulk_delete
+    
+        events = []
+    
+        @receiver(pre_bulk_update, sender=MaturityProduct)
+        async def on_pre_bulk_update(sender, instance, **kwargs):
+            events.append(("pre_update", kwargs.get("values")))
+    
+        @receiver(post_bulk_update, sender=MaturityProduct)
+        async def on_post_bulk_update(sender, instance, **kwargs):
+            events.append(("post_update", kwargs.get("count")))
+    
+        @receiver(pre_bulk_delete, sender=MaturityProduct)
+        async def on_pre_bulk_delete(sender, instance, **kwargs):
+            events.append(("pre_delete", None))
+    
+        @receiver(post_bulk_delete, sender=MaturityProduct)
+        async def on_post_bulk_delete(sender, instance, **kwargs):
+            events.append(("post_delete", kwargs.get("count")))
+    
+        # Prepare data
+>       await MaturityProduct.bulk_create([
+            MaturityProduct(name="P1", price=10),
+            MaturityProduct(name="P2", price=20)
+        ])
+
+tests\test_model_maturity.py:194: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+eden\db\base.py:347: in bulk_create
+    await _internal_save(inst, sess)
+eden\db\base.py:334: in _internal_save
+    await inst.full_clean()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <tests.test_model_maturity.MaturityProduct object at 0x000001BFFCB21100>
+exclude = []
+
+    async def full_clean(self, exclude: Optional[List[str]] = None) -> None:
+        """
+        Run the full validation lifecycle for the model.
+        1. clean_fields() - Validates each field individually
+        2. clean() - Performs cross-field validation
+        3. validate() - Runs declarative validation rules
+    
+        Raises ValidationErrors if any validation fails.
+        """
+        errors: Dict[str, List[str]] = {}
+        exclude = exclude or []
+    
+        # 1. Individual field validation (metadata-based)
+        try:
+            await self.clean_fields(exclude=exclude)
+        except ValidationErrors as e:
+            errors.update(e.errors)
+    
+        # 2. Cross-field validation (custom clean method)
+        try:
+            if hasattr(self, 'clean'):
+                if inspect.iscoroutinefunction(self.clean):
+                    await self.clean()
+                else:
+                    self.clean()
+        except ValidationError as e:
+            field = e.field or '__all__'
+            if field not in errors: errors[field] = []
+            errors[field].append(str(e.message))
+        except ValidationErrors as e:
+            errors.update(e.errors)
+    
+        # 3. Declarative validation rules
+        for field_name, rules in self._validation_rules.items():
+            if field_name in exclude:
+                continue
+            field_value = getattr(self, field_name, None)
+            for rule in rules:
+                try:
+                    self._validate_rule(field_name, field_value, rule)
+                except ValidationError as e:
+                    if field_name not in errors: errors[field_name] = []
+                    errors[field_name].append(str(e.message))
+    
+        if errors:
+>           raise ValidationErrors(errors)
+E           eden.db.validation.ValidationErrors: stock: stock is required
+
+eden\db\validation.py:220: ValidationErrors
+-------------------------- Captured stdout teardown ---------------------------
+[32m09:12:46 INFO    [0m eden.db — Database disconnected
+____________________ test_middleware_adds_response_headers ____________________
+
+    def test_middleware_adds_response_headers():
+        """Layer 4: dispatch() adds X-Tenant-Enforced header."""
+        import inspect
+        source = inspect.getsource(TenantMiddleware.dispatch)
+>       assert "X-Tenant-Enforced" in source or "X-Tenant-ID" in source
+E       assert ('X-Tenant-Enforced' in '    async def dispatch(self, request: Request, call_next: Any) -> Any:\n        """Compatibility wrapper for tests ca...    if db_token:\n                from eden.db.session import reset_session\n                reset_session(db_token)\n' or 'X-Tenant-ID' in '    async def dispatch(self, request: Request, call_next: Any) -> Any:\n        """Compatibility wrapper for tests ca...    if db_token:\n                from eden.db.session import reset_session\n                reset_session(db_token)\n')
+
+tests\test_multitenant_security.py:189: AssertionError
+_____________________ test_schema_declarative_integration _____________________
+
+    @pytest.mark.asyncio
+    async def test_schema_declarative_integration():
+        """Verify that Schema class can pull fields from Model correctly."""
+    
+        class ProductSchema(Schema):
+            class Meta:
+                model = FormProduct
+                include = ["title", "price"]
+    
+        # Verify Pydantic validation
+        from pydantic import ValidationError
+>       with pytest.raises(ValidationError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'pydantic_core._pydantic_core.ValidationError'>
+
+tests\test_orm_form_integration.py:66: Failed
+___________________________ test_metrics_collection ___________________________
+
+>   ???
+E   KeyError: 'summaries'
+
+/home/kb/projects/eden/tests/test_phase2_security.py:64: KeyError
+_________________________ test_redis_lock_release_bug _________________________
+
+    @pytest.mark.asyncio
+    async def test_redis_lock_release_bug():
+        """
+        Verifies that release_lock uses the correct Lua script logic and handles interaction
+        with the mock Redis client correctly.
+        """
+        mock_redis = AsyncMock()
+        # Simulate EVAL returning 1 for success
+        mock_redis.eval.return_value = 1
+    
+        with patch("redis.asyncio.from_url", return_value=mock_redis):
+            backend = RedisBackend(url="redis://localhost:6379/0")
+            await backend.connect()
+    
+            # Test acquire
+            mock_redis.set.return_value = True
+            acquired = await backend.acquire_lock("test_lock", identifier="my_id")
+            assert acquired is True
+    
+            # Test release
+            released = await backend.release_lock("test_lock", "my_id")
+            assert released is True
+    
+            # Verify EVAL arguments
+            # args: (script, num_keys, *keys, *args)
+            call_args = mock_redis.eval.call_args
+            script = call_args[0][0]
+            num_keys = call_args[0][1]
+            key = call_args[0][2]
+            identifier = call_args[0][3]
+    
+            assert num_keys == 1
+            assert "eden:lock:test_lock" in key
+>           assert identifier == "my_id"
+E           AssertionError: assert b'my_id' == 'my_id'
+
+tests\test_redis_backend_lock.py:39: AssertionError
+---------------------------- Captured stdout call -----------------------------
+[32m09:12:55 INFO    [0m eden.core.backends — Connected to Redis distributed backend at redis://localhost:6379/0 (max_connections=100)
+________________ TestSchemaBasics.test_plain_schema_validation ________________
+
+self = <tests.test_schema_pydantic_fix.TestSchemaBasics object at 0x000001BFFECB90A0>
+
+    def test_plain_schema_validation(self):
+        """A plain Schema subclass should validate data normally."""
+        class UserSchema(Schema):
+            name: str
+            email: str
+    
+>       user = UserSchema(name="Alice", email="alice@example.com")
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       pydantic_core._pydantic_core.ValidationError: 2 validation errors for UserSchema
+E       title
+E         Field required [type=missing, input_value={'name': 'Alice', 'email': 'alice@example.com'}, input_type=dict]
+E           For further information visit https://errors.pydantic.dev/2.12/v/missing
+E       price
+E         Field required [type=missing, input_value={'name': 'Alice', 'email': 'alice@example.com'}, input_type=dict]
+E           For further information visit https://errors.pydantic.dev/2.12/v/missing
+
+tests\test_schema_pydantic_fix.py:27: ValidationError
+_________________ TestSchemaBasics.test_schema_with_defaults __________________
+
+self = <tests.test_schema_pydantic_fix.TestSchemaBasics object at 0x000001BFFECB96A0>
+
+    def test_schema_with_defaults(self):
+        """Schema fields with defaults should work."""
+        class ConfigSchema(Schema):
+            debug: bool = False
+            name: str = "default"
+    
+>       config = ConfigSchema()
+                 ^^^^^^^^^^^^^^
+E       pydantic_core._pydantic_core.ValidationError: 2 validation errors for ConfigSchema
+E       title
+E         Field required [type=missing, input_value={}, input_type=dict]
+E           For further information visit https://errors.pydantic.dev/2.12/v/missing
+E       price
+E         Field required [type=missing, input_value={}, input_type=dict]
+E           For further information visit https://errors.pydantic.dev/2.12/v/missing
+
+tests\test_schema_pydantic_fix.py:45: ValidationError
+____________ TestSchemaInheritance.test_schema_inheritance_fields _____________
+
+self = <tests.test_schema_pydantic_fix.TestSchemaInheritance object at 0x000001BFFECB9D30>
+
+    def test_schema_inheritance_fields(self):
+        """Child schema should inherit parent fields."""
+        class BaseSchema(Schema):
+            name: str
+    
+        class ChildSchema(BaseSchema):
+            email: str
+    
+>       child = ChildSchema(name="Alice", email="alice@example.com")
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       pydantic_core._pydantic_core.ValidationError: 2 validation errors for ChildSchema
+E       title
+E         Field required [type=missing, input_value={'name': 'Alice', 'email': 'alice@example.com'}, input_type=dict]
+E           For further information visit https://errors.pydantic.dev/2.12/v/missing
+E       price
+E         Field required [type=missing, input_value={'name': 'Alice', 'email': 'alice@example.com'}, input_type=dict]
+E           For further information visit https://errors.pydantic.dev/2.12/v/missing
+
+tests\test_schema_pydantic_fix.py:71: ValidationError
+______________ TestSchemaInheritance.test_schema_field_override _______________
+
+self = <tests.test_schema_pydantic_fix.TestSchemaInheritance object at 0x000001BFFECBA030>
+
+    def test_schema_field_override(self):
+        """Child schema can override parent fields."""
+        class BaseSchema(Schema):
+            name: str = "default"
+    
+        class ChildSchema(BaseSchema):
+            name: str = "child_default"
+    
+>       child = ChildSchema()
+                ^^^^^^^^^^^^^
+E       pydantic_core._pydantic_core.ValidationError: 2 validation errors for ChildSchema
+E       title
+E         Field required [type=missing, input_value={}, input_type=dict]
+E           For further information visit https://errors.pydantic.dev/2.12/v/missing
+E       price
+E         Field required [type=missing, input_value={}, input_type=dict]
+E           For further information visit https://errors.pydantic.dev/2.12/v/missing
+
+tests\test_schema_pydantic_fix.py:83: ValidationError
+__________ TestSchemaErrorHandling.test_schema_no_internal_patching ___________
+
+self = <tests.test_schema_pydantic_fix.TestSchemaErrorHandling object at 0x000001BFFEC8F410>
+
+    def test_schema_no_internal_patching(self):
+        """Schema should NOT directly access __pydantic_core_schema__ etc."""
+        class SimpleSchema(Schema):
+            value: int
+    
+        # The schema should have been built using model_rebuild, not
+        # by patching internal attributes
+        assert hasattr(SimpleSchema, "__pydantic_core_schema__")
+        assert hasattr(SimpleSchema, "__pydantic_validator__")
+    
+        # Verify it actually works
+>       result = SimpleSchema(value=42)
+                 ^^^^^^^^^^^^^^^^^^^^^^
+E       pydantic_core._pydantic_core.ValidationError: 2 validation errors for SimpleSchema
+E       title
+E         Field required [type=missing, input_value={'value': 42}, input_type=dict]
+E           For further information visit https://errors.pydantic.dev/2.12/v/missing
+E       price
+E         Field required [type=missing, input_value={'value': 42}, input_type=dict]
+E           For further information visit https://errors.pydantic.dev/2.12/v/missing
+
+tests\test_schema_pydantic_fix.py:124: ValidationError
+_________________ TestPydanticTypes.test_eden_email_in_model __________________
+
+self = <tests.test_validators.TestPydanticTypes object at 0x000001BFFEEA3410>
+
+    def test_eden_email_in_model(self):
+        class VEmailModel(BaseModel):
+            email: EdenEmail
+    
+>       m = VEmailModel(email="test@example.com")
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       pydantic_core._pydantic_core.ValidationError: 2 validation errors for VEmailModel
+E       title
+E         Field required [type=missing, input_value={'email': 'test@example.com'}, input_type=dict]
+E           For further information visit https://errors.pydantic.dev/2.12/v/missing
+E       price
+E         Field required [type=missing, input_value={'email': 'test@example.com'}, input_type=dict]
+E           For further information visit https://errors.pydantic.dev/2.12/v/missing
+
+tests\test_validators.py:377: ValidationError
+_________________ TestPydanticTypes.test_eden_phone_in_model __________________
+
+self = <tests.test_validators.TestPydanticTypes object at 0x000001BFFEEA2F00>
+
+    def test_eden_phone_in_model(self):
+        class VPhoneModel(BaseModel):
+            phone: EdenPhone
+    
+>       m = VPhoneModel(phone="+233501234567")
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       pydantic_core._pydantic_core.ValidationError: 2 validation errors for VPhoneModel
+E       title
+E         Field required [type=missing, input_value={'phone': '+233501234567'}, input_type=dict]
+E           For further information visit https://errors.pydantic.dev/2.12/v/missing
+E       price
+E         Field required [type=missing, input_value={'phone': '+233501234567'}, input_type=dict]
+E           For further information visit https://errors.pydantic.dev/2.12/v/missing
+
+tests\test_validators.py:387: ValidationError
+__________________ TestPydanticTypes.test_eden_slug_in_model __________________
+
+self = <tests.test_validators.TestPydanticTypes object at 0x000001BFFEEA2A50>
+
+    def test_eden_slug_in_model(self):
+        class VSlugModel(BaseModel):
+            slug: EdenSlug
+    
+>       m = VSlugModel(slug="my-post")
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       pydantic_core._pydantic_core.ValidationError: 2 validation errors for VSlugModel
+E       title
+E         Field required [type=missing, input_value={'slug': 'my-post'}, input_type=dict]
+E           For further information visit https://errors.pydantic.dev/2.12/v/missing
+E       price
+E         Field required [type=missing, input_value={'slug': 'my-post'}, input_type=dict]
+E           For further information visit https://errors.pydantic.dev/2.12/v/missing
+
+tests\test_validators.py:397: ValidationError
+__________________ TestPydanticTypes.test_eden_url_in_model ___________________
+
+self = <tests.test_validators.TestPydanticTypes object at 0x000001BFFEEA2840>
+
+    def test_eden_url_in_model(self):
+        class VURLModel(BaseModel):
+            website: EdenURL
+    
+>       m = VURLModel(website="https://eden.dev")
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       pydantic_core._pydantic_core.ValidationError: 2 validation errors for VURLModel
+E       title
+E         Field required [type=missing, input_value={'website': 'https://eden.dev'}, input_type=dict]
+E           For further information visit https://errors.pydantic.dev/2.12/v/missing
+E       price
+E         Field required [type=missing, input_value={'website': 'https://eden.dev'}, input_type=dict]
+E           For further information visit https://errors.pydantic.dev/2.12/v/missing
+
+tests\test_validators.py:407: ValidationError
+_________________ TestPydanticTypes.test_eden_color_in_model __________________
+
+self = <tests.test_validators.TestPydanticTypes object at 0x000001BFFEEA16D0>
+
+    def test_eden_color_in_model(self):
+        class VColorModel(BaseModel):
+            brand_color: EdenColor
+    
+>       m = VColorModel(brand_color="#ff5733")
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       pydantic_core._pydantic_core.ValidationError: 2 validation errors for VColorModel
+E       title
+E         Field required [type=missing, input_value={'brand_color': '#ff5733'}, input_type=dict]
+E           For further information visit https://errors.pydantic.dev/2.12/v/missing
+E       price
+E         Field required [type=missing, input_value={'brand_color': '#ff5733'}, input_type=dict]
+E           For further information visit https://errors.pydantic.dev/2.12/v/missing
+
+tests\test_validators.py:417: ValidationError
+============================== warnings summary ===============================
+eden\testing.py:64
+  C:\PROJECTS\eden-framework\eden\testing.py:64: PytestCollectionWarning: cannot collect test class 'EdenTestClient' because it has a __init__ constructor (from: tests/test_config_and_testing.py)
+    class EdenTestClient(httpx.AsyncClient):
+
+tests\test_db_lifecycle_fixes.py:7
+  C:\PROJECTS\eden-framework\tests\test_db_lifecycle_fixes.py:7: PytestCollectionWarning: cannot collect test class 'TestModel' because it has a __init__ constructor (from: tests/test_db_lifecycle_fixes.py)
+    class TestModel(Model):
+
+..\..\home\kb\projects\eden\tests\test_directives_integration.py:295
+  /home/kb/projects/eden/tests/test_directives_integration.py:295: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+
+..\..\home\kb\projects\eden\tests\test_directives_integration.py:313
+  /home/kb/projects/eden/tests/test_directives_integration.py:313: PytestUnknownMarkWarning: Unknown pytest.mark.integration - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+
+tests\test_storage_cleanup.py:26
+  C:\PROJECTS\eden-framework\tests\test_storage_cleanup.py:26: PytestCollectionWarning: cannot collect test class 'TestUser' because it has a __init__ constructor (from: tests/test_storage_cleanup.py)
+    class TestUser(Model):
+
+tests\test_storage_cleanup.py:34
+  C:\PROJECTS\eden-framework\tests\test_storage_cleanup.py:34: PytestCollectionWarning: cannot collect test class 'TestPost' because it has a __init__ constructor (from: tests/test_storage_cleanup.py)
+    class TestPost(Model):
+
+tests/test_auth_critical_fixes.py::test_complete_login_required_alias
+  C:\PROJECTS\eden-framework\tests\test_auth_critical_fixes.py:225: DeprecationWarning: eden.auth.complete is deprecated. Import from eden.auth instead.
+    from eden.auth.complete import login_required as complete_login_required
+
+tests/test_config_and_testing.py::TestTestClientContext::test_testclient_context_isolation
+tests/test_core_integration.py::test_client_authentication
+  C:\PROJECTS\eden-framework\.venv\Lib\site-packages\jwt\api_jwt.py:153: InsecureKeyLengthWarning: The HMAC key is 30 bytes long, which is below the minimum recommended length of 32 bytes for SHA256. See RFC 7518 Section 3.2.
+    return self._jws.encode(
+
+tests/test_config_and_testing.py::TestTestClientContext::test_testclient_context_isolation
+tests/test_core_integration.py::test_client_authentication
+  C:\PROJECTS\eden-framework\.venv\Lib\site-packages\jwt\api_jwt.py:371: InsecureKeyLengthWarning: The HMAC key is 30 bytes long, which is below the minimum recommended length of 32 bytes for SHA256. See RFC 7518 Section 3.2.
+    decoded = self.decode_complete(
+
+tests/test_db_commit_logic.py::test_soft_delete_commit_false_rollback
+  C:\PROJECTS\eden-framework\eden\db\mixins\lifecycle.py:141: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    self.deleted_at = datetime.utcnow()
+
+tests/test_forms.py::test_render_all
+  C:\PROJECTS\eden-framework\eden\forms.py:754: UserWarning: render_csrf() called outside of request context. No token will be produced.
+    warnings.warn("render_csrf() called outside of request context. No token will be produced.")
+
+tests/test_orm.py::test_orm_basic_crud
+  C:\PROJECTS\eden-framework\tests\test_orm.py:28: FutureWarning: Task.get(value) positional form is deprecated. Use Task.get(id=value) instead.
+    fetched = await Task.get(task.id)
+
+tests/test_orm.py::test_orm_basic_crud
+  C:\PROJECTS\eden-framework\tests\test_orm.py:39: FutureWarning: Task.get(value) positional form is deprecated. Use Task.get(id=value) instead.
+    refetched = await Task.get(task.id)
+
+tests/test_orm.py::test_orm_basic_crud
+  C:\PROJECTS\eden-framework\tests\test_orm.py:45: FutureWarning: Task.get(value) positional form is deprecated. Use Task.get(id=value) instead.
+    deleted = await Task.get(task.id)
+
+tests/test_orm_enhanced.py::test_orm_json_field
+  C:\PROJECTS\eden-framework\tests\test_orm_enhanced.py:35: FutureWarning: EnhancedUser.get(value) positional form is deprecated. Use EnhancedUser.get(id=value) instead.
+    fetched = await EnhancedUser.get(user.id)
+
+tests/test_orm_enhanced.py::test_orm_json_field
+  C:\PROJECTS\eden-framework\tests\test_orm_enhanced.py:44: FutureWarning: EnhancedUser.get(value) positional form is deprecated. Use EnhancedUser.get(id=value) instead.
+    refreshed = await EnhancedUser.get(user.id)
+
+tests/test_orm_hooks_and_m2m.py::test_orm_hooks
+  /home/kb/projects/eden/tests/test_orm_hooks_and_m2m.py:26: FutureWarning: LifecycleModel.get(value) positional form is deprecated. Use LifecycleModel.get(id=value) instead.
+
+tests/test_storage_cleanup.py: 10 warnings
+  C:\PROJECTS\eden-framework\eden\db\file_reference.py:189: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    ref.deleted_at = datetime.utcnow()
+
+tests/test_storage_cleanup.py::test_file_reference_query_only_active_references
+  C:\PROJECTS\eden-framework\tests\test_storage_cleanup.py:430: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    already_deleted.deleted_at = datetime.utcnow()
+
+tests/test_template_errors.py::test_syntax_error_rendering
+tests/test_template_errors.py::test_undefined_error_rendering
+tests/test_templating.py::test_template_response
+  C:\PROJECTS\eden-framework\.venv\Lib\site-packages\starlette\templating.py:162: DeprecationWarning: The `name` is not the first parameter anymore. The first parameter should be the `Request` instance.
+  Replace `TemplateResponse(name, {"request": request})` by `TemplateResponse(request, name)`.
+    warnings.warn(
+
+tests/test_tenancy.py::test_cross_tenant_access_prevention
+  C:\PROJECTS\eden-framework\tests\test_tenancy.py:89: FutureWarning: TenantTask.get(value) positional form is deprecated. Use TenantTask.get(id=value) instead.
+    fetched = await TenantTask.get(task_a.id)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_fusion.py::test_multi_tenancy_auto_isolation - assert 0 == 1
+FAILED tests/test_idempotency_fix.py::TestIdempotencyLocking::test_lock_release_without_acquire_warns
+FAILED tests/test_model_maturity.py::test_signal_registration - eden.db.valid...
+FAILED tests/test_model_maturity.py::test_update_or_create - eden.db.validati...
+FAILED tests/test_model_maturity.py::test_delete_signals - eden.db.validation...
+FAILED tests/test_model_maturity.py::test_bulk_signals - eden.db.validation.V...
+FAILED tests/test_multitenant_security.py::test_middleware_adds_response_headers
+FAILED tests/test_orm_form_integration.py::test_schema_declarative_integration
+FAILED tests/test_phase2_security.py::test_metrics_collection - KeyError: 'su...
+FAILED tests/test_redis_backend_lock.py::test_redis_lock_release_bug - Assert...
+FAILED tests/test_schema_pydantic_fix.py::TestSchemaBasics::test_plain_schema_validation
+FAILED tests/test_schema_pydantic_fix.py::TestSchemaBasics::test_schema_with_defaults
+FAILED tests/test_schema_pydantic_fix.py::TestSchemaInheritance::test_schema_inheritance_fields
+FAILED tests/test_schema_pydantic_fix.py::TestSchemaInheritance::test_schema_field_override
+FAILED tests/test_schema_pydantic_fix.py::TestSchemaErrorHandling::test_schema_no_internal_patching
+FAILED tests/test_validators.py::TestPydanticTypes::test_eden_email_in_model
+FAILED tests/test_validators.py::TestPydanticTypes::test_eden_phone_in_model
+FAILED tests/test_validators.py::TestPydanticTypes::test_eden_slug_in_model
+FAILED tests/test_validators.py::TestPydanticTypes::test_eden_url_in_model - ...
+FAILED tests/test_validators.py::TestPydanticTypes::test_eden_color_in_model
+========== 20 failed, 1227 passed, 4 skipped, 34 warnings in 31.98s ===========

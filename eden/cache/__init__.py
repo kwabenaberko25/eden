@@ -24,31 +24,36 @@ class CacheBackend(Protocol):
     async def has(self, key: str) -> bool: ...
     async def clear(self) -> None: ...
 
+from collections import OrderedDict
+
 class InMemoryCache:
     """Simple in-memory cache backend for development and testing."""
     def __init__(self, max_size: int = 1000):
-        self._data: Dict[str, tuple[Any, Optional[float]]] = {}
+        # We use OrderedDict to maintain insertion order for O(1) pruning
+        self._data: OrderedDict[str, tuple[Any, Optional[float]]] = OrderedDict()
         self.max_size = max_size
 
-    def _prune(self) -> None:
-        """Remove expired entries and enforce max_size limit."""
+    def _prune(self, target_size: Optional[int] = None) -> None:
+        """Remove expired entries and enforce size limit."""
+        target = target_size if target_size is not None else self.max_size
         now = time.time()
         
-        # 1. Remove expired entries
-        expired_keys = [
-            k for k, (_, exp) in self._data.items() 
-            if exp and now > exp
-        ]
-        for k in expired_keys:
-            del self._data[k]
-            
-        # 2. Enforce size limit (LRU-ish by pruning oldest inserted)
-        if len(self._data) > self.max_size:
-            # list() creates a copy of keys in insertion order (Python 3.7+)
-            overflow = len(self._data) - self.max_size
-            keys_to_remove = list(self._data.keys())[:overflow]
-            for k in keys_to_remove:
+        # 1. Cleanup expired entries (up to 100 at a time to keep performance stable)
+        # This prevents "expired memory leak" without O(N) scanning every time.
+        keys = list(self._data.keys())
+        checked = 0
+        for k in keys:
+            _, exp = self._data[k]
+            if exp and now > exp:
                 del self._data[k]
+            checked += 1
+            if checked > 100:
+                break
+            
+        # 2. Enforce absolute size limit
+        while len(self._data) > target:
+            # last=False pops the oldest item (FIFO/LRU-ish)
+            self._data.popitem(last=False)
 
     async def get(self, key: str) -> Any:
         if key not in self._data:
@@ -59,6 +64,8 @@ class InMemoryCache:
             del self._data[key]
             return None
             
+        # Move to end to implement true LRU (recently used items stay)
+        self._data.move_to_end(key)
         return value
 
     async def set(self, key: str, value: Any, ttl: Optional[int] = None) -> None:
@@ -68,9 +75,14 @@ class InMemoryCache:
                 "Set REDIS_URL to enable high-performance distributed caching."
             )
         
-        # Prune before adding to keep memory in check
+        # If key already exists, remove it first to handle move_to_end behavior
+        if key in self._data:
+            del self._data[key]
+        
+        # Prune if we are at or over capacity
         if len(self._data) >= self.max_size:
-            self._prune()
+            # We target max_size - 1 to make room for the new entry
+            self._prune(target_size=self.max_size - 1)
 
         expiry = time.time() + ttl if ttl else None
         self._data[key] = (value, expiry)

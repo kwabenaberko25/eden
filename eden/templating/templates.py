@@ -62,44 +62,53 @@ class EdenTemplates(StarletteJinja2Templates):
     Jinja2 templates with Eden logic.
     """
 
-    def TemplateResponse(self, name: str, context: dict, *args, **kwargs) -> Any:
+    def TemplateResponse(
+        self,
+        request: Any,
+        name: str,
+        context: Optional[dict] = None,
+        *args: Any,
+        **kwargs: Any,
+    ) -> Any:
         """
         Custom TemplateResponse that implements Smart Fragment Resolution.
         If the request is an HTMX request with a target ID that matches a
         fragment in the template, only that fragment will be rendered.
         """
-        request = context.get("request")
-        if request:
-            # Initialize reactive channel set for server-side verification
-            if not hasattr(request.state, "eden_channels"):
-                request.state.eden_channels = set()
+        context = context or {}
+        if "request" not in context:
+            context["request"] = request
             
-            from eden.htmx import is_htmx, hx_target, HtmxResponse
-            if is_htmx(request):
-                # 1. Look for explicit fragment override in context
-                target_fragment = context.get("__fragment__")
-                
-                # 2. Look for HX-Target if no explicit fragment
-                if not target_fragment:
-                    target_fragment = hx_target(request)
-                
-                if target_fragment:
-                    if target_fragment.startswith("#"):
-                        target_fragment = target_fragment[1:]
-                    # Normalize hyphens to underscores for Jinja2 block names
-                    target_fragment = target_fragment.replace("-", "_")
-                
-                if target_fragment:
-                    try:
-                        # Attempt to render requested fragment
-                        content = render_fragment(self.env, name, target_fragment, context)
-                        return HtmxResponse(content, *args, **kwargs)
-                    except KeyError:
-                        # Fragment not found, fall back to full page render
-                        pass
+        # Initialize reactive channel set for server-side verification
+        if not hasattr(request.state, "eden_channels"):
+            request.state.eden_channels = set()
+        
+        from eden.htmx import is_htmx, hx_target, HtmxResponse
+        if is_htmx(request):
+            # 1. Look for explicit fragment override in context
+            target_fragment = context.get("__fragment__")
+            
+            # 2. Look for HX-Target if no explicit fragment
+            if not target_fragment:
+                target_fragment = hx_target(request)
+            
+            if target_fragment:
+                if target_fragment.startswith("#"):
+                    target_fragment = target_fragment[1:]
+                # Normalize hyphens to underscores for Jinja2 block names
+                target_fragment = target_fragment.replace("-", "_")
+            
+            if target_fragment:
+                try:
+                    # Attempt to render requested fragment
+                    content = render_fragment(self.env, name, target_fragment, context)
+                    return HtmxResponse(content, *args, **kwargs)
+                except KeyError:
+                    # Fragment not found, fall back to full page render
+                    pass
         
         # Fallback to standard full template response
-        return super().TemplateResponse(name, context, *args, **kwargs)
+        return super().TemplateResponse(request, name, context, *args, **kwargs)
 
     # Legacy/Compatibility alias
     template_response = TemplateResponse
@@ -386,7 +395,7 @@ class EdenTemplates(StarletteJinja2Templates):
         
         start = time.perf_counter()
         ctx = {"request": request, **context, **kwargs}
-        response = self.TemplateResponse(template_name, ctx)
+        response = self.TemplateResponse(request, template_name, ctx)
         
         duration = (time.perf_counter() - start) * 1000
         record_template_render(duration)

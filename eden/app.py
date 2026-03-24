@@ -486,7 +486,7 @@ class Eden:
                 ctx["request"] = get_request()
             except Exception:
                 pass
-        return self.templates.TemplateResponse(template_name, ctx)
+        return self.templates.TemplateResponse(ctx["request"], template_name, ctx)
 
     # ── Sub-Router ───────────────────────────────────────────────────────
 

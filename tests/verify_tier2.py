@@ -29,6 +29,7 @@ class MockRequest:
         self.state = MockState()
         self.app = app
         self._form = {}
+        self.scope = {"app": app, "type": "http"}
 
     async def form(self):
         return self._form

@@ -1,6 +1,6 @@
 # my_test_project
 
-Built with [Eden](https://github.com/eden-framework/eden) 🌿
+Built with [Eden](https://github.com/kwabenaberko25/eden) 🌿
 
 ## Getting Started
 

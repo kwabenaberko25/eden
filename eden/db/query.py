@@ -434,7 +434,7 @@ class QuerySet(Generic[T]):
              return clone
              
         # Rule returned specific filters (e.g. Owner filter)
-        print(f"DEBUG: RBAC filters for {self._model_cls.__name__} ({action}): {filters}")
+        logger.debug(f"RBAC filters for {self._model_cls.__name__} ({action}): {filters}")
         clone = self._clone()
         clone._stmt = clone._stmt.where(filters)
         clone._rbac_applied = True

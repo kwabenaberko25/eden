@@ -130,26 +130,28 @@ def create_app():
     app.state.database_url = os.getenv("DATABASE_URL", "{db_config['url']}")
     
     # Core middleware is registered automatically by Eden()
-    if "Authentication & RBAC" in extras:
-        # Auth and Authorization are core-integrated in Eden,
-        # but you can customize them here if needed.
-        pass
-
 '''
+
+    if "Authentication & RBAC" in extras:
+        app_init += '''    # Auth and Authorization are core-integrated in Eden,
+    # but you can customize them here if needed.
+'''
+
     if "Payments (Stripe)" in extras:
         app_init += '    app.add_middleware("payments", provider="stripe", api_key=os.getenv("STRIPE_KEY"))\n'
 
     if "Chats/Websockets" in extras:
-        app_init += '''    from eden import WebSocketRouter
+        ws_block = f'''    from eden import WebSocketRouter
     ws_router = WebSocketRouter()
 
     @ws_router.on("connect")
     async def on_connect(socket, user):
         await socket.accept()
-        await socket.send_json({"msg": "Connected to {name}"})
+        await socket.send_json({{"msg": "Connected to {name}"}})
 
     app.include_router(ws_router)
 '''
+        app_init += ws_block
 
     if "Admin UI" in extras:
         app_init += '    app.mount_admin("/admin")\n'

@@ -199,6 +199,7 @@ class AdminErrorHandler(ErrorHandler):
         template_name = self.error_templates.get(status_code, "error.html")
         try:
             return templates.TemplateResponse(
+                request,
                 template_name,
                 {
                     "request": request,
@@ -210,6 +211,7 @@ class AdminErrorHandler(ErrorHandler):
             logger.warning(f"Failed to render {template_name}: {e}")
             # Fallback to generic error template
             return templates.TemplateResponse(
+                request,
                 "error.html",
                 {
                     "request": request,

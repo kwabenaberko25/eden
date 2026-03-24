@@ -218,7 +218,7 @@ async def test_template_response(tmp_path):
     request = MagicMock()
     request.scope = {"type": "http", "session": {}}
     
-    response = templates.template_response("index.html", {"request": request, "name": "Eden"})
+    response = templates.template_response(request, "index.html", {"request": request, "name": "Eden"})
     
     # We can't easily check the body without running the full ASGI cycle or mocking more
     # but we can verify the template was loaded and processed

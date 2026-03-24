@@ -354,10 +354,9 @@ class TenantMiddleware:
         result = await session.execute(stmt)
         tenant = result.scalar_one_or_none()
         
-        # Cache the result
-        # Note: Use a short TTL (10s) for negative results to avoid locking out newly created tenants
-        # and a longer TTL (300s) for positive results.
-        ttl = 300 if tenant else 10
-        await cache.set(cache_key, tenant, ttl=ttl)
+        # Cache only successful lookups. Negative results (None) are NOT cached
+        # to avoid making newly created tenants invisible during the TTL window.
+        if tenant is not None:
+            await cache.set(cache_key, tenant, ttl=300)
         
         return tenant
