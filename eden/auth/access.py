@@ -108,18 +108,51 @@ class AllowOwner(PermissionRule):
         return getattr(model_cls, self.field) == user.id
 
 class AllowRoles(PermissionRule):
-    """Grants access if the user has any of the specified roles."""
+    """Grants access if the user has any of the specified roles or their parents."""
     def __init__(self, *roles: str):
         self.roles = roles
+
+    def _extract_role_names(self, user: Any) -> set[str]:
+        """Deep resolution of user role names including hierarchy."""
+        if not hasattr(user, "roles"):
+            return set()
+            
+        role_list = getattr(user, "roles", [])
+        names = set()
+        
+        # Relational roles with hierarchy support
+        visited = set()
+        for r in role_list:
+            if hasattr(r, "name"):
+                names.add(r.name)
+                # Recursively add parents if available (sync traversal)
+                if hasattr(r, "parents"):
+                    names.update(self._traverse_parents(r, visited))
+            else:
+                names.add(str(r))
+        
+        # Legacy fallback
+        if hasattr(user, "roles_json"):
+            names.update(user.roles_json or [])
+            
+        return names
+
+    def _traverse_parents(self, role: Any, visited: set) -> set[str]:
+        if not hasattr(role, "id") or role.id in visited:
+            return set()
+        visited.add(role.id)
+        
+        results = set()
+        for p in getattr(role, "parents", []):
+            results.add(p.name)
+            results.update(self._traverse_parents(p, visited))
+        return results
+
     def resolve(self, model_cls, user):
         if not user:
             return False
-        
-        user_roles = []
-        if hasattr(user, "roles"):
-            user_roles = [r.name if hasattr(r, "name") else str(r) for r in user.roles]
-        
-        return any(role in user_roles for role in self.roles)
+        user_role_names = self._extract_role_names(user)
+        return any(role in user_role_names for role in self.roles)
 
 class AccessControl:
     """

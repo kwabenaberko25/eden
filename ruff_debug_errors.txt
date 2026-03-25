@@ -1,0 +1,1294 @@
+I001 [*] Import block is un-sorted or un-formatted
+  --> eden\exceptions\debug.py:2:1
+   |
+ 2 | / from __future__ import annotations
+ 3 | | import html as html_mod
+ 4 | | import platform
+ 5 | | import sys
+ 6 | | import os
+ 7 | | from typing import Any, TYPE_CHECKING
+ 8 | | from starlette.responses import HTMLResponse
+   | |____________________________________________^
+ 9 |
+10 |   if TYPE_CHECKING:
+   |
+help: Organize imports
+
+F401 [*] `platform` imported but unused
+ --> eden\exceptions\debug.py:4:8
+  |
+2 | from __future__ import annotations
+3 | import html as html_mod
+4 | import platform
+  |        ^^^^^^^^
+5 | import sys
+6 | import os
+  |
+help: Remove unused import: `platform`
+
+F401 [*] `sys` imported but unused
+ --> eden\exceptions\debug.py:5:8
+  |
+3 | import html as html_mod
+4 | import platform
+5 | import sys
+  |        ^^^
+6 | import os
+7 | from typing import Any, TYPE_CHECKING
+  |
+help: Remove unused import: `sys`
+
+F401 [*] `typing.Any` imported but unused
+ --> eden\exceptions\debug.py:7:20
+  |
+5 | import sys
+6 | import os
+7 | from typing import Any, TYPE_CHECKING
+  |                    ^^^
+8 | from starlette.responses import HTMLResponse
+  |
+help: Remove unused import: `typing.Any`
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> eden\exceptions\debug.py:11:5
+   |
+10 |   if TYPE_CHECKING:
+11 | /     from eden.requests import Request
+12 | |     from eden.app import Eden
+13 | |     from jinja2.exceptions import TemplateSyntaxError, UndefinedError
+14 | |     import jinja2
+   | |_________________^
+15 |
+16 |   try:
+   |
+help: Organize imports
+
+F401 [*] `jinja2.exceptions.TemplateSyntaxError` imported but unused
+  --> eden\exceptions\debug.py:13:35
+   |
+11 |     from eden.requests import Request
+12 |     from eden.app import Eden
+13 |     from jinja2.exceptions import TemplateSyntaxError, UndefinedError
+   |                                   ^^^^^^^^^^^^^^^^^^^
+14 |     import jinja2
+   |
+help: Remove unused import
+
+F401 [*] `jinja2.exceptions.UndefinedError` imported but unused
+  --> eden\exceptions\debug.py:13:56
+   |
+11 |     from eden.requests import Request
+12 |     from eden.app import Eden
+13 |     from jinja2.exceptions import TemplateSyntaxError, UndefinedError
+   |                                                        ^^^^^^^^^^^^^^
+14 |     import jinja2
+   |
+help: Remove unused import
+
+F401 [*] `jinja2` imported but unused
+  --> eden\exceptions\debug.py:14:12
+   |
+12 |     from eden.app import Eden
+13 |     from jinja2.exceptions import TemplateSyntaxError, UndefinedError
+14 |     import jinja2
+   |            ^^^^^^
+15 |
+16 | try:
+   |
+help: Remove unused import: `jinja2`
+
+F401 `pygments` imported but unused; consider using `importlib.util.find_spec` to test for availability
+  --> eden\exceptions\debug.py:17:12
+   |
+16 | try:
+17 |     import pygments
+   |            ^^^^^^^^
+18 |     from pygments import highlight
+19 |     from pygments.formatters import HtmlFormatter
+   |
+help: Remove unused import: `pygments`
+
+E501 Line too long (158 > 100)
+  --> eden\exceptions\debug.py:77:101
+   |
+75 | …
+76 | …
+77 | …akarta+Sans:wght@400;500;600;700&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
+   |                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+78 | …
+79 | …
+   |
+
+F811 [*] Redefinition of unused `platform` from line 4
+   --> eden\exceptions\debug.py:224:12
+    |
+222 |     """Renders the high-fidelity Eden debug/error page with template variables."""
+223 |     import html as html_mod
+224 |     import platform
+    |            ^^^^^^^^ `platform` redefined here
+225 |     import sys
+    |
+   ::: eden\exceptions\debug.py:4:8
+    |
+  2 | from __future__ import annotations
+  3 | import html as html_mod
+  4 | import platform
+    |        -------- previous definition of `platform` here
+  5 | import sys
+  6 | import os
+    |
+help: Remove definition: `platform`
+
+F811 [*] Redefinition of unused `sys` from line 5
+   --> eden\exceptions\debug.py:225:12
+    |
+223 |     import html as html_mod
+224 |     import platform
+225 |     import sys
+    |            ^^^ `sys` redefined here
+226 |
+227 |     Jakarta_Sans = "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+    |
+   ::: eden\exceptions\debug.py:5:8
+    |
+  3 | import html as html_mod
+  4 | import platform
+  5 | import sys
+    |        --- previous definition of `sys` here
+  6 | import os
+  7 | from typing import Any, TYPE_CHECKING
+    |
+help: Remove definition: `sys`
+
+N806 Variable `Jakarta_Sans` in function should be lowercase
+   --> eden\exceptions\debug.py:227:5
+    |
+225 |     import sys
+226 |
+227 |     Jakarta_Sans = "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+    |     ^^^^^^^^^^^^
+228 |     Outfit = "https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700&display=swap"
+    |
+
+N806 Variable `Outfit` in function should be lowercase
+   --> eden\exceptions\debug.py:228:5
+    |
+227 |     Jakarta_Sans = "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+228 |     Outfit = "https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700&display=swap"
+    |     ^^^^^^
+229 |     
+230 |     # Get system info
+    |
+
+W293 [*] Blank line contains whitespace
+   --> eden\exceptions\debug.py:229:1
+    |
+227 |     Jakarta_Sans = "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+228 |     Outfit = "https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700&display=swap"
+229 |     
+    | ^^^^
+230 |     # Get system info
+231 |     python_version = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+    |
+help: Remove whitespace from blank line
+
+F841 Local variable `python_version` is assigned to but never used
+   --> eden\exceptions\debug.py:231:5
+    |
+230 |     # Get system info
+231 |     python_version = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+    |     ^^^^^^^^^^^^^^
+232 |     os_name = platform.system()
+    |
+help: Remove assignment to unused variable `python_version`
+
+F841 Local variable `os_name` is assigned to but never used
+   --> eden\exceptions\debug.py:232:5
+    |
+230 |     # Get system info
+231 |     python_version = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+232 |     os_name = platform.system()
+    |     ^^^^^^^
+233 |     
+234 |     # Determine if we have Pygments code or raw pre
+    |
+help: Remove assignment to unused variable `os_name`
+
+W293 [*] Blank line contains whitespace
+   --> eden\exceptions\debug.py:233:1
+    |
+231 |     python_version = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+232 |     os_name = platform.system()
+233 |     
+    | ^^^^
+234 |     # Determine if we have Pygments code or raw pre
+235 |     is_raw = code_frame.strip().startswith("<pre>")
+    |
+help: Remove whitespace from blank line
+
+F841 Local variable `is_raw` is assigned to but never used
+   --> eden\exceptions\debug.py:235:5
+    |
+234 |     # Determine if we have Pygments code or raw pre
+235 |     is_raw = code_frame.strip().startswith("<pre>")
+    |     ^^^^^^
+236 |     
+237 |     # Format context variables for display
+    |
+help: Remove assignment to unused variable `is_raw`
+
+W293 [*] Blank line contains whitespace
+   --> eden\exceptions\debug.py:236:1
+    |
+234 |     # Determine if we have Pygments code or raw pre
+235 |     is_raw = code_frame.strip().startswith("<pre>")
+236 |     
+    | ^^^^
+237 |     # Format context variables for display
+238 |     def format_value(value, max_length=150):
+    |
+help: Remove whitespace from blank line
+
+E501 Line too long (114 > 100)
+   --> eden\exceptions\debug.py:255:101
+    |
+253 |                 return f'<span class="text-slate-400 font-mono">dict({len(value)} items)</span>'
+254 |             elif isinstance(value, (list, tuple)):
+255 |                 return f'<span class="text-slate-400 font-mono">{type(value).__name__}({len(value)} items)</span>'
+    |                                                                                                     ^^^^^^^^^^^^^^
+256 |             return html_mod.escape(str(type(value).__name__))
+257 |         except Exception:
+    |
+
+E501 Line too long (102 > 100)
+   --> eden\exceptions\debug.py:267:101
+    |
+265 |             <tr class="border-b border-slate-800/50 last:border-0">
+266 |                 <td class="py-2.5 pr-4 font-mono text-xs text-blue-400 align-top w-1/3">{key}</td>
+267 |                 <td class="py-2.5 font-mono text-xs text-slate-300 break-all">{format_value(val)}</td>
+    |                                                                                                     ^^
+268 |             </tr>
+269 |             """)
+    |
+
+F821 Undefined name `font`
+   --> eden\exceptions\debug.py:284:20
+    |
+282 |         <link href="{Outfit}" rel="stylesheet">
+283 |         <style>
+284 |             body { font-family: 'Plus Jakarta Sans', sans-serif; background: #020617; }
+    |                    ^^^^
+285 |             h1, h2, h3, .font-heading { font-family: 'Outfit', sans-serif; }
+286 |             .glass { background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.05); }
+    |
+
+F821 Undefined name `family`
+   --> eden\exceptions\debug.py:284:25
+    |
+282 |         <link href="{Outfit}" rel="stylesheet">
+283 |         <style>
+284 |             body { font-family: 'Plus Jakarta Sans', sans-serif; background: #020617; }
+    |                         ^^^^^^
+285 |             h1, h2, h3, .font-heading { font-family: 'Outfit', sans-serif; }
+286 |             .glass { background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.05); }
+    |
+
+F821 Undefined name `font`
+   --> eden\exceptions\debug.py:285:41
+    |
+283 |         <style>
+284 |             body { font-family: 'Plus Jakarta Sans', sans-serif; background: #020617; }
+285 |             h1, h2, h3, .font-heading { font-family: 'Outfit', sans-serif; }
+    |                                         ^^^^
+286 |             .glass { background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.05); }
+287 |             .error-line { background: rgba(239, 68, 68, 0.1); border-left: 3px solid #f43f5e; margin-left: -3px; position: relative; }
+    |
+
+F821 Undefined name `family`
+   --> eden\exceptions\debug.py:285:46
+    |
+283 |         <style>
+284 |             body { font-family: 'Plus Jakarta Sans', sans-serif; background: #020617; }
+285 |             h1, h2, h3, .font-heading { font-family: 'Outfit', sans-serif; }
+    |                                              ^^^^^^
+286 |             .glass { background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.05); }
+287 |             .error-line { background: rgba(239, 68, 68, 0.1); border-left: 3px solid #f43f5e; margin-left: -3px; position: relative; }
+    |
+
+F821 Undefined name `background`
+   --> eden\exceptions\debug.py:286:22
+    |
+284 |             body { font-family: 'Plus Jakarta Sans', sans-serif; background: #020617; }
+285 |             h1, h2, h3, .font-heading { font-family: 'Outfit', sans-serif; }
+286 |             .glass { background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.05); }
+    |                      ^^^^^^^^^^
+287 |             .error-line { background: rgba(239, 68, 68, 0.1); border-left: 3px solid #f43f5e; margin-left: -3px; position: relative; }
+288 |             .column-marker { 
+    |
+
+E501 Line too long (132 > 100)
+   --> eden\exceptions\debug.py:286:101
+    |
+284 |             body { font-family: 'Plus Jakarta Sans', sans-serif; background: #020617; }
+285 |             h1, h2, h3, .font-heading { font-family: 'Outfit', sans-serif; }
+286 |             .glass { background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.05); }
+    |                                                                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+287 |             .error-line { background: rgba(239, 68, 68, 0.1); border-left: 3px solid #f43f5e; margin-left: -3px; position: relative; }
+288 |             .column-marker { 
+    |
+
+F821 Undefined name `background`
+   --> eden\exceptions\debug.py:287:27
+    |
+285 |             h1, h2, h3, .font-heading { font-family: 'Outfit', sans-serif; }
+286 |             .glass { background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.05); }
+287 |             .error-line { background: rgba(239, 68, 68, 0.1); border-left: 3px solid #f43f5e; margin-left: -3px; position: relative; }
+    |                           ^^^^^^^^^^
+288 |             .column-marker { 
+289 |                 position: absolute; 
+    |
+
+E501 Line too long (134 > 100)
+   --> eden\exceptions\debug.py:287:101
+    |
+285 |             h1, h2, h3, .font-heading { font-family: 'Outfit', sans-serif; }
+286 |             .glass { background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.05); }
+287 |             .error-line { background: rgba(239, 68, 68, 0.1); border-left: 3px solid #f43f5e; margin-left: -3px; position: relative; }
+    |                                                                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+288 |             .column-marker { 
+289 |                 position: absolute; 
+    |
+
+W291 [*] Trailing whitespace
+   --> eden\exceptions\debug.py:288:29
+    |
+286 |             .glass { background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.05); }
+287 |             .error-line { background: rgba(239, 68, 68, 0.1); border-left: 3px solid #f43f5e; margin-left: -3px; position: relative; }
+288 |             .column-marker { 
+    |                             ^
+289 |                 position: absolute; 
+290 |                 bottom: -2px; 
+    |
+help: Remove trailing whitespace
+
+F821 Undefined name `position`
+   --> eden\exceptions\debug.py:289:17
+    |
+287 |             .error-line { background: rgba(239, 68, 68, 0.1); border-left: 3px solid #f43f5e; margin-left: -3px; position: relative; }
+288 |             .column-marker { 
+289 |                 position: absolute; 
+    |                 ^^^^^^^^
+290 |                 bottom: -2px; 
+291 |                 left: 0; 
+    |
+
+W291 Trailing whitespace
+   --> eden\exceptions\debug.py:289:36
+    |
+287 |             .error-line { background: rgba(239, 68, 68, 0.1); border-left: 3px solid #f43f5e; margin-left: -3px; position: relative; }
+288 |             .column-marker { 
+289 |                 position: absolute; 
+    |                                    ^
+290 |                 bottom: -2px; 
+291 |                 left: 0; 
+    |
+help: Remove trailing whitespace
+
+W291 Trailing whitespace
+   --> eden\exceptions\debug.py:290:30
+    |
+288 |             .column-marker { 
+289 |                 position: absolute; 
+290 |                 bottom: -2px; 
+    |                              ^
+291 |                 left: 0; 
+292 |                 height: 3px; 
+    |
+help: Remove trailing whitespace
+
+W291 Trailing whitespace
+   --> eden\exceptions\debug.py:291:25
+    |
+289 |                 position: absolute; 
+290 |                 bottom: -2px; 
+291 |                 left: 0; 
+    |                         ^
+292 |                 height: 3px; 
+293 |                 width: 1ch;
+    |
+help: Remove trailing whitespace
+
+W291 Trailing whitespace
+   --> eden\exceptions\debug.py:292:29
+    |
+290 |                 bottom: -2px; 
+291 |                 left: 0; 
+292 |                 height: 3px; 
+    |                             ^
+293 |                 width: 1ch;
+294 |                 background: linear-gradient(90deg, #f43f5e, #fb7185); 
+    |
+help: Remove trailing whitespace
+
+W291 Trailing whitespace
+   --> eden\exceptions\debug.py:294:70
+    |
+292 |                 height: 3px; 
+293 |                 width: 1ch;
+294 |                 background: linear-gradient(90deg, #f43f5e, #fb7185); 
+    |                                                                      ^
+295 |                 box-shadow: 0 0 12px rgba(244, 63, 94, 0.6); 
+296 |                 border-radius: 2px;
+    |
+help: Remove trailing whitespace
+
+W291 Trailing whitespace
+   --> eden\exceptions\debug.py:295:61
+    |
+293 |                 width: 1ch;
+294 |                 background: linear-gradient(90deg, #f43f5e, #fb7185); 
+295 |                 box-shadow: 0 0 12px rgba(244, 63, 94, 0.6); 
+    |                                                             ^
+296 |                 border-radius: 2px;
+297 |             }
+    |
+help: Remove trailing whitespace
+
+F821 Undefined name `text`
+   --> eden\exceptions\debug.py:299:17
+    |
+297 |             }
+298 |             .squiggle {
+299 |                 text-decoration: underline wavy #f43f5e;
+    |                 ^^^^
+300 |                 text-underline-offset: 4px;
+301 |             }
+    |
+
+F821 Undefined name `decoration`
+   --> eden\exceptions\debug.py:299:22
+    |
+297 |             }
+298 |             .squiggle {
+299 |                 text-decoration: underline wavy #f43f5e;
+    |                      ^^^^^^^^^^
+300 |                 text-underline-offset: 4px;
+301 |             }
+    |
+
+F821 Undefined name `color`
+   --> eden\exceptions\debug.py:302:24
+    |
+300 | …         text-underline-offset: 4px;
+301 | …     }
+302 | …     .line-no { color: #475569; margin-right: 1.25rem; user-select: none; width: 2.2rem; display: inline-block; text-align: right; f…
+    |                  ^^^^^
+303 | …     pre { font-family: 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', monospace; font-size: 0.85rem; }
+304 | …     ::-webkit-scrollbar { width: 5px; height: 5px; }
+    |
+
+E501 Line too long (177 > 100)
+   --> eden\exceptions\debug.py:302:101
+    |
+300 | …
+301 | …
+302 | …: none; width: 2.2rem; display: inline-block; text-align: right; font-size: 0.75rem; font-weight: 500; }
+    |                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+303 | … 'Monaco', 'Consolas', monospace; font-size: 0.85rem; }
+304 | …
+    |
+
+F821 Undefined name `font`
+   --> eden\exceptions\debug.py:303:19
+    |
+301 | …     }
+302 | …     .line-no { color: #475569; margin-right: 1.25rem; user-select: none; width: 2.2rem; display: inline-block; text-align: right; f…
+303 | …     pre { font-family: 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', monospace; font-size: 0.85rem; }
+    |             ^^^^
+304 | …     ::-webkit-scrollbar { width: 5px; height: 5px; }
+305 | …     ::-webkit-scrollbar-track { background: transparent; }
+    |
+
+F821 Undefined name `family`
+   --> eden\exceptions\debug.py:303:24
+    |
+301 | …     }
+302 | …     .line-no { color: #475569; margin-right: 1.25rem; user-select: none; width: 2.2rem; display: inline-block; text-align: right; f…
+303 | …     pre { font-family: 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', monospace; font-size: 0.85rem; }
+    |                  ^^^^^^
+304 | …     ::-webkit-scrollbar { width: 5px; height: 5px; }
+305 | …     ::-webkit-scrollbar-track { background: transparent; }
+    |
+
+E501 Line too long (128 > 100)
+   --> eden\exceptions\debug.py:303:101
+    |
+301 | …     }
+302 | …     .line-no { color: #475569; margin-right: 1.25rem; user-select: none; width: 2.2rem; display: inline-block; text-align: right; f…
+303 | …     pre { font-family: 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', monospace; font-size: 0.85rem; }
+    |                                                                                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+304 | …     ::-webkit-scrollbar { width: 5px; height: 5px; }
+305 | …     ::-webkit-scrollbar-track { background: transparent; }
+    |
+
+F821 Undefined name `width`
+   --> eden\exceptions\debug.py:304:35
+    |
+302 | …     .line-no { color: #475569; margin-right: 1.25rem; user-select: none; width: 2.2rem; display: inline-block; text-align: right; f…
+303 | …     pre { font-family: 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', monospace; font-size: 0.85rem; }
+304 | …     ::-webkit-scrollbar { width: 5px; height: 5px; }
+    |                             ^^^^^
+305 | …     ::-webkit-scrollbar-track { background: transparent; }
+306 | …     ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+    |
+
+F821 Undefined name `background`
+   --> eden\exceptions\debug.py:305:41
+    |
+303 |             pre { font-family: 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', monospace; font-size: 0.85rem; }
+304 |             ::-webkit-scrollbar { width: 5px; height: 5px; }
+305 |             ::-webkit-scrollbar-track { background: transparent; }
+    |                                         ^^^^^^^^^^
+306 |             ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+307 |             .code-explorer { max-height: 500px; overflow-y: auto; scrollbar-gutter: stable; }
+    |
+
+F821 Undefined name `background`
+   --> eden\exceptions\debug.py:306:41
+    |
+304 | …     ::-webkit-scrollbar { width: 5px; height: 5px; }
+305 | …     ::-webkit-scrollbar-track { background: transparent; }
+306 | …     ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+    |                                   ^^^^^^^^^^
+307 | …     .code-explorer { max-height: 500px; overflow-y: auto; scrollbar-gutter: stable; }
+308 | …     .card-gradient { background: linear-gradient(145deg, rgba(30, 41, 59, 0.4), rgba(15, 23, 42, 0.6)); border: 1px solid rgba(255,…
+    |
+
+F821 Undefined name `height`
+   --> eden\exceptions\debug.py:307:34
+    |
+305 | …     ::-webkit-scrollbar-track { background: transparent; }
+306 | …     ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+307 | …     .code-explorer { max-height: 500px; overflow-y: auto; scrollbar-gutter: stable; }
+    |                            ^^^^^^
+308 | …     .card-gradient { background: linear-gradient(145deg, rgba(30, 41, 59, 0.4), rgba(15, 23, 42, 0.6)); border: 1px solid rgba(255,…
+309 | …     .token-key { color: #60a5fa; }
+    |
+
+F821 Undefined name `background`
+   --> eden\exceptions\debug.py:308:30
+    |
+306 | …     ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+307 | …     .code-explorer { max-height: 500px; overflow-y: auto; scrollbar-gutter: stable; }
+308 | …     .card-gradient { background: linear-gradient(145deg, rgba(30, 41, 59, 0.4), rgba(15, 23, 42, 0.6)); border: 1px solid rgba(255,…
+    |                        ^^^^^^^^^^
+309 | …     .token-key { color: #60a5fa; }
+310 | …     .token-string { color: #fdba74; }
+    |
+
+E501 Line too long (155 > 100)
+   --> eden\exceptions\debug.py:308:101
+    |
+306 | …order-radius: 10px; }
+307 | …to; scrollbar-gutter: stable; }
+308 | …g, rgba(30, 41, 59, 0.4), rgba(15, 23, 42, 0.6)); border: 1px solid rgba(255,255,255,0.03); }
+    |                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+309 | …
+310 | …
+    |
+
+F821 Undefined name `color`
+   --> eden\exceptions\debug.py:309:26
+    |
+307 | …     .code-explorer { max-height: 500px; overflow-y: auto; scrollbar-gutter: stable; }
+308 | …     .card-gradient { background: linear-gradient(145deg, rgba(30, 41, 59, 0.4), rgba(15, 23, 42, 0.6)); border: 1px solid rgba(255,…
+309 | …     .token-key { color: #60a5fa; }
+    |                    ^^^^^
+310 | …     .token-string { color: #fdba74; }
+311 | …     .token-boolean { color: #818cf8; }
+    |
+
+F821 Undefined name `color`
+   --> eden\exceptions\debug.py:310:29
+    |
+308 | …     .card-gradient { background: linear-gradient(145deg, rgba(30, 41, 59, 0.4), rgba(15, 23, 42, 0.6)); border: 1px solid rgba(255,…
+309 | …     .token-key { color: #60a5fa; }
+310 | …     .token-string { color: #fdba74; }
+    |                       ^^^^^
+311 | …     .token-boolean { color: #818cf8; }
+312 | …     .token-number { color: #34d399; }
+    |
+
+F821 Undefined name `color`
+   --> eden\exceptions\debug.py:311:30
+    |
+309 |             .token-key { color: #60a5fa; }
+310 |             .token-string { color: #fdba74; }
+311 |             .token-boolean { color: #818cf8; }
+    |                              ^^^^^
+312 |             .token-number { color: #34d399; }
+313 |         </style>
+    |
+
+F821 Undefined name `color`
+   --> eden\exceptions\debug.py:312:29
+    |
+310 |             .token-string { color: #fdba74; }
+311 |             .token-boolean { color: #818cf8; }
+312 |             .token-number { color: #34d399; }
+    |                             ^^^^^
+313 |         </style>
+314 |     </head>
+    |
+
+E501 Line too long (101 > 100)
+   --> eden\exceptions\debug.py:318:101
+    |
+316 | …     <!-- Header -->
+317 | …     <header class="py-12 px-6 md:px-10 max-w-7xl mx-auto space-y-6">
+318 | …         <div class="flex items-center gap-4 animate-in fade-in slide-in-from-top-4 duration-700">
+    |                                                                                                   ^
+319 | …             <span class="bg-rose-500/20 text-rose-500 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-md border …
+320 | …                 CRITICAL ERROR
+    |
+
+E501 Line too long (193 > 100)
+   --> eden\exceptions\debug.py:319:101
+    |
+317 | …
+318 | …top-4 duration-700">
+319 | …uppercase tracking-widest px-3 py-1 rounded-md border border-rose-500/30 shadow-[0_0_20px_rgba(244,63,94,0.3)]">
+    |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+320 | …
+321 | …
+    |
+
+E501 Line too long (115 > 100)
+   --> eden\exceptions\debug.py:322:101
+    |
+320 |                     CRITICAL ERROR
+321 |                 </span>
+322 |                 <span class="text-slate-600 font-mono text-[10px] tracking-widest">ID: EDN-{os.getpid()}-ERR</span>
+    |                                                                                                     ^^^^^^^^^^^^^^^
+323 |             </div>
+    |
+
+W293 Blank line contains whitespace
+   --> eden\exceptions\debug.py:324:1
+    |
+322 |                 <span class="text-slate-600 font-mono text-[10px] tracking-widest">ID: EDN-{os.getpid()}-ERR</span>
+323 |             </div>
+324 |             
+    | ^^^^^^^^^^^^
+325 |             <div class="space-y-2">
+326 |                 <h1 class="text-4xl md:text-5xl font-black tracking-tight text-white leading-tight">
+    |
+help: Remove whitespace from blank line
+
+E501 Line too long (118 > 100)
+   --> eden\exceptions\debug.py:327:101
+    |
+325 |             <div class="space-y-2">
+326 |                 <h1 class="text-4xl md:text-5xl font-black tracking-tight text-white leading-tight">
+327 |                     <span class="text-rose-500">{badge}:</span> {html_mod.escape(message.split(' (Did you mean:')[0])}
+    |                                                                                                     ^^^^^^^^^^^^^^^^^^
+328 |                 </h1>
+329 |                 <p class="text-slate-500 text-sm font-medium tracking-tight flex items-center gap-2">
+    |
+
+E501 Line too long (101 > 100)
+   --> eden\exceptions\debug.py:329:101
+    |
+327 | …         <span class="text-rose-500">{badge}:</span> {html_mod.escape(message.split(' (Did you mean:')[0])}
+328 | …     </h1>
+329 | …     <p class="text-slate-500 text-sm font-medium tracking-tight flex items-center gap-2">
+    |                                                                                           ^
+330 | …         Occurrence detected in <span class="text-blue-400 font-mono select-all">local-development</span>. Immediate resolution requ…
+331 | …     </p>
+    |
+
+E501 Line too long (148 > 100)
+   --> eden\exceptions\debug.py:330:101
+    |
+328 | …
+329 | …um tracking-tight flex items-center gap-2">
+330 | …xt-blue-400 font-mono select-all">local-development</span>. Immediate resolution required.
+    |                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+331 | …
+332 | …
+    |
+
+E501 Line too long (112 > 100)
+   --> eden\exceptions\debug.py:339:101
+    |
+337 | …     <div class="flex items-start gap-4">
+338 | …         <div class="bg-red-500/10 p-3 rounded-xl border border-red-500/20 mt-1">
+339 | …             <svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    |                                                                                           ^^^^^^^^^^^^
+340 | …                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.5…
+341 | …             </svg>
+    |
+
+E501 Line too long (242 > 100)
+   --> eden\exceptions\debug.py:340:101
+    |
+338 | …
+339 | …wBox="0 0 24 24">
+340 | …2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+    |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+341 | …
+342 | …
+    |
+
+E501 Line too long (112 > 100)
+   --> eden\exceptions\debug.py:344:101
+    |
+342 | …     </div>
+343 | …     <div class="space-y-1">
+344 | …         <p class="text-xl font-semibold text-white leading-tight">{html_mod.escape(message)}</p>
+    |                                                                                       ^^^^^^^^^^^^
+345 | …         <div class="flex items-center gap-2 text-slate-400 font-medium text-xs">
+346 | …             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-line…
+    |
+
+E501 Line too long (311 > 100)
+   --> eden\exceptions\debug.py:346:101
+    |
+344 | …ape(message)}</p>
+345 | …>
+346 | …"0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+    |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+347 | …
+348 | …
+    |
+
+E501 Line too long (121 > 100)
+   --> eden\exceptions\debug.py:349:101
+    |
+347 |                             <span class="text-blue-400 select-all font-mono">{filename}</span>
+348 |                             <span class="text-slate-600 px-0.5">•</span>
+349 |                             <span class="text-slate-300">Line {lineno}{f", Column {column}" if column > 0 else ""}</span>
+    |                                                                                                     ^^^^^^^^^^^^^^^^^^^^^
+350 |                         </div>
+351 |                     </div>
+    |
+
+E501 Line too long (120 > 100)
+   --> eden\exceptions\debug.py:358:101
+    |
+356 | …     <section class="space-y-2">
+357 | …         <div class="flex items-center justify-between px-1">
+358 | …             <h2 class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 flex items-center gap-2">
+    |                                                                                               ^^^^^^^^^^^^^^^^^^^^
+359 | …                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-…
+360 | …                 Code Explorer
+    |
+
+E501 Line too long (228 > 100)
+   --> eden\exceptions\debug.py:359:101
+    |
+357 | …
+358 | …flex items-center gap-2">
+359 | … 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
+    |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+360 | …
+361 | …
+    |
+
+E501 Line too long (102 > 100)
+   --> eden\exceptions\debug.py:363:101
+    |
+361 |                     </h2>
+362 |                 </div>
+363 |                 <div class="bg-[#0b1222] rounded-xl border border-white/5 shadow-2xl overflow-hidden">
+    |                                                                                                     ^^
+364 |                     <div class="flex items-center justify-between bg-slate-900/50 px-4 py-2 border-b border-white/5">
+365 |                         <div class="flex gap-1.5">
+    |
+
+E501 Line too long (117 > 100)
+   --> eden\exceptions\debug.py:364:101
+    |
+362 |                 </div>
+363 |                 <div class="bg-[#0b1222] rounded-xl border border-white/5 shadow-2xl overflow-hidden">
+364 |                     <div class="flex items-center justify-between bg-slate-900/50 px-4 py-2 border-b border-white/5">
+    |                                                                                                     ^^^^^^^^^^^^^^^^^
+365 |                         <div class="flex gap-1.5">
+366 |                             <div class="w-2.5 h-2.5 rounded-full bg-red-500/20 border border-red-500/30"></div>
+    |
+
+E501 Line too long (111 > 100)
+   --> eden\exceptions\debug.py:366:101
+    |
+364 |                     <div class="flex items-center justify-between bg-slate-900/50 px-4 py-2 border-b border-white/5">
+365 |                         <div class="flex gap-1.5">
+366 |                             <div class="w-2.5 h-2.5 rounded-full bg-red-500/20 border border-red-500/30"></div>
+    |                                                                                                     ^^^^^^^^^^^
+367 |                             <div class="w-2.5 h-2.5 rounded-full bg-amber-500/20 border border-amber-500/30"></div>
+368 |                             <div class="w-2.5 h-2.5 rounded-full bg-emerald-500/20 border border-emerald-500/30"></div>
+    |
+
+E501 Line too long (115 > 100)
+   --> eden\exceptions\debug.py:367:101
+    |
+365 |                         <div class="flex gap-1.5">
+366 |                             <div class="w-2.5 h-2.5 rounded-full bg-red-500/20 border border-red-500/30"></div>
+367 |                             <div class="w-2.5 h-2.5 rounded-full bg-amber-500/20 border border-amber-500/30"></div>
+    |                                                                                                     ^^^^^^^^^^^^^^^
+368 |                             <div class="w-2.5 h-2.5 rounded-full bg-emerald-500/20 border border-emerald-500/30"></div>
+369 |                         </div>
+    |
+
+E501 Line too long (119 > 100)
+   --> eden\exceptions\debug.py:368:101
+    |
+366 |                             <div class="w-2.5 h-2.5 rounded-full bg-red-500/20 border border-red-500/30"></div>
+367 |                             <div class="w-2.5 h-2.5 rounded-full bg-amber-500/20 border border-amber-500/30"></div>
+368 |                             <div class="w-2.5 h-2.5 rounded-full bg-emerald-500/20 border border-emerald-500/30"></div>
+    |                                                                                                     ^^^^^^^^^^^^^^^^^^^
+369 |                         </div>
+370 |                         <div class="text-[9px] text-slate-500 font-mono tracking-wider uppercase opacity-50">{filename}</div>
+    |
+
+E501 Line too long (125 > 100)
+   --> eden\exceptions\debug.py:370:101
+    |
+368 |                             <div class="w-2.5 h-2.5 rounded-full bg-emerald-500/20 border border-emerald-500/30"></div>
+369 |                         </div>
+370 |                         <div class="text-[9px] text-slate-500 font-mono tracking-wider uppercase opacity-50">{filename}</div>
+    |                                                                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^
+371 |                     </div>
+372 |                     <div class="code-explorer p-4 text-xs font-mono leading-relaxed overflow-x-auto">
+    |
+
+E501 Line too long (101 > 100)
+   --> eden\exceptions\debug.py:372:101
+    |
+370 |                         <div class="text-[9px] text-slate-500 font-mono tracking-wider uppercase opacity-50">{filename}</div>
+371 |                     </div>
+372 |                     <div class="code-explorer p-4 text-xs font-mono leading-relaxed overflow-x-auto">
+    |                                                                                                     ^
+373 |                         {code_frame}
+374 |                     </div>
+    |
+
+E501 Line too long (125 > 100)
+   --> eden\exceptions\debug.py:381:101
+    |
+379 | …      <!-- Context Variables -->
+380 | …     <section class="md:col-span-2 space-y-3">
+381 | …         <h2 class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 flex items-center gap-2 px-1">
+    |                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^
+382 | …             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-line…
+383 | …             Context Variables
+    |
+
+E501 Line too long (287 > 100)
+   --> eden\exceptions\debug.py:382:101
+    |
+380 | …
+381 | …flex items-center gap-2 px-1">
+382 | … 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 1.1.9 2 2 2h12a2 2 0 002-2V7a2 2 0 00-2-2H6a2 2 0 00-2 2zM9 12h.01M13 12h.01M17 12h.01"></path></svg>
+    |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+383 | …
+384 | …
+    |
+
+E501 Line too long (175 > 100)
+   --> eden\exceptions\debug.py:389:101
+    |
+387 | …se context-table">
+388 | …50">
+389 | …<tr><td class="p-6 text-center text-slate-500 italic text-sm">No context variables detected</td></tr>'}
+    |                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+390 | …
+391 | …
+    |
+
+E501 Line too long (112 > 100)
+   --> eden\exceptions\debug.py:399:101
+    |
+397 |                 <aside class="space-y-8">
+398 |                     <div class="space-y-4">
+399 |                         <h2 class="text-sm font-bold uppercase tracking-widest text-slate-500 px-1">Support</h2>
+    |                                                                                                     ^^^^^^^^^^^^
+400 |                         <div class="bg-blue-600/10 rounded-2xl border border-blue-500/20 p-5 space-y-4">
+401 |                             <p class="text-xs text-blue-200/70 leading-relaxed">
+    |
+
+E501 Line too long (104 > 100)
+   --> eden\exceptions\debug.py:400:101
+    |
+398 |                     <div class="space-y-4">
+399 |                         <h2 class="text-sm font-bold uppercase tracking-widest text-slate-500 px-1">Support</h2>
+400 |                         <div class="bg-blue-600/10 rounded-2xl border border-blue-500/20 p-5 space-y-4">
+    |                                                                                                     ^^^^
+401 |                             <p class="text-xs text-blue-200/70 leading-relaxed">
+402 |                                 Need help? The Eden community is here to assist you with template issues and architectural patterns.
+    |
+
+E501 Line too long (132 > 100)
+   --> eden\exceptions\debug.py:402:101
+    |
+400 |                         <div class="bg-blue-600/10 rounded-2xl border border-blue-500/20 p-5 space-y-4">
+401 |                             <p class="text-xs text-blue-200/70 leading-relaxed">
+402 |                                 Need help? The Eden community is here to assist you with template issues and architectural patterns.
+    |                                                                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+403 |                             </p>
+404 |                             <div class="flex flex-col gap-2">
+    |
+
+E501 Line too long (237 > 100)
+   --> eden\exceptions\debug.py:405:101
+    |
+403 | …
+404 | …
+405 | …" class="flex items-center justify-between group p-3 bg-blue-600/20 rounded-xl hover:bg-blue-600/30 transition-all border border-blue-500/20">
+    |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+406 | …ide">Documentation</span>
+407 | …-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-widt…
+    |
+
+E501 Line too long (120 > 100)
+   --> eden\exceptions\debug.py:406:101
+    |
+404 | …     <div class="flex flex-col gap-2">
+405 | …         <a href="https://github.com/kwabenaberko25/eden" target="_blank" class="flex items-center justify-between group p-3 bg-blue…
+406 | …             <span class="text-xs font-semibold text-blue-300 tracking-wide">Documentation</span>
+    |                                                                               ^^^^^^^^^^^^^^^^^^^^
+407 | …             <svg class="w-3.5 h-3.5 text-blue-400 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColo…
+408 | …         </a>
+    |
+
+E501 Line too long (290 > 100)
+   --> eden\exceptions\debug.py:407:101
+    |
+405 | …" class="flex items-center justify-between group p-3 bg-blue-600/20 rounded-xl hover:bg-blue-600/30 transition-all border border-blue-500/20">
+406 | …ide">Documentation</span>
+407 | …-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+    |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+408 | …
+409 | …
+    |
+
+E501 Line too long (119 > 100)
+   --> eden\exceptions\debug.py:414:101
+    |
+413 |                     <div class="space-y-4">
+414 |                         <h2 class="text-sm font-bold uppercase tracking-widest text-slate-500 px-1">Eden Framework</h2>
+    |                                                                                                     ^^^^^^^^^^^^^^^^^^^
+415 |                         <div class="bg-slate-900/30 rounded-2xl border border-white/5 p-5">
+416 |                             <div class="text-[10px] text-slate-500 font-semibold mb-3 tracking-widest uppercase">Version</div>
+    |
+
+E501 Line too long (126 > 100)
+   --> eden\exceptions\debug.py:416:101
+    |
+414 |                         <h2 class="text-sm font-bold uppercase tracking-widest text-slate-500 px-1">Eden Framework</h2>
+415 |                         <div class="bg-slate-900/30 rounded-2xl border border-white/5 p-5">
+416 |                             <div class="text-[10px] text-slate-500 font-semibold mb-3 tracking-widest uppercase">Version</div>
+    |                                                                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+417 |                             <div class="text-lg font-bold text-white flex items-center gap-2">
+418 |                                 🌿 Eden <span class="text-blue-500">v1.0.0</span>
+    |
+
+E501 Line too long (151 > 100)
+   --> eden\exceptions\debug.py:427:101
+    |
+426 | …nter mt-20">
+427 | …ppercase tracking-[0.2em] mb-4">You are seeing this page because you are in debug mode.</p>
+    |                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+428 | …-4 grayscale opacity-40">
+429 | …
+    |
+
+E501 Line too long (116 > 100)
+   --> eden\exceptions\debug.py:430:101
+    |
+428 |             <div class="flex items-center justify-center gap-4 grayscale opacity-40">
+429 |                 <span class="h-px w-8 bg-slate-700"></span>
+430 |                 <span class="text-slate-400 font-bold text-xs tracking-wider font-heading">Powered by Eden 🌿</span>
+    |                                                                                                     ^^^^^^^^^^^^^^^^
+431 |                 <span class="h-px w-8 bg-slate-700"></span>
+432 |             </div>
+    |
+
+W291 [*] Trailing whitespace
+   --> eden\exceptions\debug.py:440:15
+    |
+439 | def render_enhanced_template_error(
+440 |     app: Eden, 
+    |               ^
+441 |     request: Request, 
+442 |     exc: Exception
+    |
+help: Remove trailing whitespace
+
+W291 [*] Trailing whitespace
+   --> eden\exceptions\debug.py:441:22
+    |
+439 | def render_enhanced_template_error(
+440 |     app: Eden, 
+441 |     request: Request, 
+    |                      ^
+442 |     exc: Exception
+443 | ) -> HTMLResponse:
+    |
+help: Remove trailing whitespace
+
+I001 [*] Import block is un-sorted or un-formatted
+   --> eden\exceptions\debug.py:445:5
+    |
+443 |   ) -> HTMLResponse:
+444 |       """Render a high-fidelity debug page for template errors."""
+445 | /     import difflib
+446 | |     import re
+447 | |     import inspect
+448 | |     import jinja2
+449 | |     from jinja2.exceptions import TemplateSyntaxError, UndefinedError
+    | |_____________________________________________________________________^
+450 |
+451 |       status_code = 500
+    |
+help: Organize imports
+
+F401 [*] `jinja2` imported but unused
+   --> eden\exceptions\debug.py:448:12
+    |
+446 |     import re
+447 |     import inspect
+448 |     import jinja2
+    |            ^^^^^^
+449 |     from jinja2.exceptions import TemplateSyntaxError, UndefinedError
+    |
+help: Remove unused import: `jinja2`
+
+F841 Local variable `status_code` is assigned to but never used
+   --> eden\exceptions\debug.py:451:5
+    |
+449 |     from jinja2.exceptions import TemplateSyntaxError, UndefinedError
+450 |
+451 |     status_code = 500
+    |     ^^^^^^^^^^^
+452 |     title = "Template Error"
+453 |     name = getattr(exc, "name", "Unknown Template")
+    |
+help: Remove assignment to unused variable `status_code`
+
+W293 [*] Blank line contains whitespace
+   --> eden\exceptions\debug.py:456:1
+    |
+454 |     lineno = getattr(exc, "lineno", 0)
+455 |     column = getattr(exc, "column", 0)
+456 |     
+    | ^^^^
+457 |     # Extract message
+458 |     message = str(exc) if exc else ""
+    |
+help: Remove whitespace from blank line
+
+W293 [*] Blank line contains whitespace
+   --> eden\exceptions\debug.py:462:1
+    |
+460 |     if exc_message: # jinja2 syntax errors often use .message
+461 |         message = exc_message
+462 |     
+    | ^^^^
+463 |     if not message or message.strip() == "":
+464 |         message = getattr(exc, "message", None) or getattr(exc, "msg", None) or f"{type(exc).__name__}: An error occurred"
+    |
+help: Remove whitespace from blank line
+
+E501 Line too long (122 > 100)
+   --> eden\exceptions\debug.py:464:101
+    |
+463 |     if not message or message.strip() == "":
+464 |         message = getattr(exc, "message", None) or getattr(exc, "msg", None) or f"{type(exc).__name__}: An error occurred"
+    |                                                                                                     ^^^^^^^^^^^^^^^^^^^^^^
+465 |     
+466 |     # Determine specific error type for badge
+    |
+
+W293 [*] Blank line contains whitespace
+   --> eden\exceptions\debug.py:465:1
+    |
+463 |     if not message or message.strip() == "":
+464 |         message = getattr(exc, "message", None) or getattr(exc, "msg", None) or f"{type(exc).__name__}: An error occurred"
+465 |     
+    | ^^^^
+466 |     # Determine specific error type for badge
+467 |     badge = "Template Error"
+    |
+help: Remove whitespace from blank line
+
+W293 [*] Blank line contains whitespace
+   --> eden\exceptions\debug.py:494:1
+    |
+492 |         except (ImportError, AttributeError):
+493 |             pass
+494 |     
+    | ^^^^
+495 |     if not search_dirs:
+496 |         template_dir = getattr(app, "template_dir", "templates")
+    |
+help: Remove whitespace from blank line
+
+E701 Multiple statements on one line (colon)
+   --> eden\exceptions\debug.py:502:21
+    |
+500 |     if name and name != "Unknown Template":
+501 |         for d in search_dirs:
+502 |             if not d: continue
+    |                     ^
+503 |             p = os.path.join(d, name)
+504 |             if os.path.exists(p):
+    |
+
+W293 [*] Blank line contains whitespace
+   --> eden\exceptions\debug.py:523:1
+    |
+521 |                     if frame_info.filename == template_path:
+522 |                         lineno = frame_info.lineno
+523 |                 
+    | ^^^^^^^^^^^^^^^^
+524 |                 if not found_context:
+525 |                     for ctx_key in ("context", "ctx"):
+    |
+help: Remove whitespace from blank line
+
+W293 [*] Blank line contains whitespace
+   --> eden\exceptions\debug.py:563:1
+    |
+561 |                         raw_line = source_lines[i]
+562 |                         html_line = highlight(raw_line, lexer, formatter)
+563 |                         
+    | ^^^^^^^^^^^^^^^^^^^^^^^^
+564 |                         klass = "error-line" if is_error else "normal-line"
+    |
+help: Remove whitespace from blank line
+
+W293 [*] Blank line contains whitespace
+   --> eden\exceptions\debug.py:565:1
+    |
+564 |                         klass = "error-line" if is_error else "normal-line"
+565 |                         
+    | ^^^^^^^^^^^^^^^^^^^^^^^^
+566 |                         # Add column marker if it's the error line
+567 |                         marker_html = ""
+    |
+help: Remove whitespace from blank line
+
+E501 Line too long (118 > 100)
+   --> eden\exceptions\debug.py:569:101
+    |
+567 |                         marker_html = ""
+568 |                         if is_error and column > 0:
+569 |                             marker_html = f'<div class="column-marker" style="left: calc({column}ch + 3.2rem)"></div>'
+    |                                                                                                     ^^^^^^^^^^^^^^^^^^
+570 |                         
+571 |                         highlighted_lines.append(
+    |
+
+W293 [*] Blank line contains whitespace
+   --> eden\exceptions\debug.py:570:1
+    |
+568 |                         if is_error and column > 0:
+569 |                             marker_html = f'<div class="column-marker" style="left: calc({column}ch + 3.2rem)"></div>'
+570 |                         
+    | ^^^^^^^^^^^^^^^^^^^^^^^^
+571 |                         highlighted_lines.append(
+572 |                             f'<div class="{klass}"><span class="line-no">{curr_lineno:4}</span>{html_line}{marker_html}</div>'
+    |
+help: Remove whitespace from blank line
+
+E501 Line too long (126 > 100)
+   --> eden\exceptions\debug.py:572:101
+    |
+571 |                         highlighted_lines.append(
+572 |                             f'<div class="{klass}"><span class="line-no">{curr_lineno:4}</span>{html_line}{marker_html}</div>'
+    |                                                                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+573 |                         )
+574 |                     code_frame = f'<pre class="p-0 border-0 bg-transparent"><code>{"".join(highlighted_lines)}</code></pre>'
+    |
+
+E501 Line too long (124 > 100)
+   --> eden\exceptions\debug.py:574:101
+    |
+572 |                             f'<div class="{klass}"><span class="line-no">{curr_lineno:4}</span>{html_line}{marker_html}</div>'
+573 |                         )
+574 |                     code_frame = f'<pre class="p-0 border-0 bg-transparent"><code>{"".join(highlighted_lines)}</code></pre>'
+    |                                                                                                     ^^^^^^^^^^^^^^^^^^^^^^^^
+575 |                 except Exception:
+576 |                     # Fallback if pygments fails or isn't installed
+    |
+
+E501 Line too long (204 > 100)
+   --> eden\exceptions\debug.py:586:101
+    |
+584 | …
+585 | …
+586 | …verflow-x-auto bg-slate-900/50 rounded-xl text-slate-300'><code>{html_mod.escape(charjoin(frame_lines))}</code></pre>"
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+587 | …
+588 | …ed-2xl'><p class='text-red-400 font-medium'>Could not read template source</p></div>"
+    |
+
+F541 [*] f-string without any placeholders
+   --> eden\exceptions\debug.py:588:26
+    |
+586 | …code_frame = f"<pre class='p-6 text-sm font-mono leading-relaxed overflow-x-auto bg-slate-900/50 rounded-xl text-slate-300'><code>{html_mod.escape(charjoin(…
+587 | …tion:
+588 | …me = f"<div class='p-8 border border-red-500/20 bg-red-500/5 rounded-2xl'><p class='text-red-400 font-medium'>Could not read template source</p></div>"
+    |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+589 | …
+590 | … f"<div class='p-12 text-center bg-slate-800/20 rounded-2xl border border-white/5'><div class='text-slate-400 font-medium'>Source template not found</div></…
+    |
+help: Remove extraneous `f` prefix
+
+E501 Line too long (171 > 100)
+   --> eden\exceptions\debug.py:588:101
+    |
+586 | …eading-relaxed overflow-x-auto bg-slate-900/50 rounded-xl text-slate-300'><code>{html_mod.escape(charjoin(frame_lines))}</code></pre…
+587 | …
+588 | …-red-500/5 rounded-2xl'><p class='text-red-400 font-medium'>Could not read template source</p></div>"
+    |                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+589 | …
+590 | …unded-2xl border border-white/5'><div class='text-slate-400 font-medium'>Source template not found</div></div>"
+    |
+
+F541 [*] f-string without any placeholders
+   --> eden\exceptions\debug.py:590:22
+    |
+588 | …_frame = f"<div class='p-8 border border-red-500/20 bg-red-500/5 rounded-2xl'><p class='text-red-400 font-medium'>Could not read template source</p></div>"
+589 | …
+590 | …me = f"<div class='p-12 text-center bg-slate-800/20 rounded-2xl border border-white/5'><div class='text-slate-400 font-medium'>Source template not found</div></div>"
+    |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+591 | …
+592 | …quest info for the renderer
+    |
+help: Remove extraneous `f` prefix
+
+E501 Line too long (181 > 100)
+   --> eden\exceptions\debug.py:590:101
+    |
+588 | …500/5 rounded-2xl'><p class='text-red-400 font-medium'>Could not read template source</p></div>"
+589 | …
+590 | …-2xl border border-white/5'><div class='text-slate-400 font-medium'>Source template not found</div></div>"
+    |                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+591 | …
+592 | …
+    |
+
+F821 Undefined name `context_vars`
+   --> eden\exceptions\debug.py:606:22
+    |
+604 |         column=column,
+605 |         code_frame=code_frame,
+606 |         context_vars=context_vars,
+    |                      ^^^^^^^^^^^^
+607 |         request_info=request_info,
+608 |         is_htmx=getattr(request, "headers", {}).get("HX-Request") == "true",
+    |
+
+Found 113 errors.
+[*] 28 fixable with the `--fix` option (11 hidden fixes can be enabled with the `--unsafe-fixes` option).

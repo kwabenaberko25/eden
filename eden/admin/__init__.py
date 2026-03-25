@@ -6,10 +6,14 @@ Auto-generated admin interface for managing Model data.
 
 from typing import Any, Optional, Callable, Type, List, Dict, Iterable
 
-from eden.admin.options import ModelAdmin, TabularInline, StackedInline
+import os
+from .options import ModelAdmin, TabularInline, StackedInline
 from eden.routing import Router
-from eden.responses import JsonResponse, Response
+from eden.responses import JsonResponse, Response, HtmlResponse
 from eden.requests import Request
+from eden.templating import EdenTemplates
+from .theme import default_theme
+from eden.db import Model, _MISSING
 
 # Re-export new widget system for backward compatibility
 try:
@@ -43,7 +47,7 @@ try:
     )
 except ImportError:
     # Graceful fallback if widgets module not available
-    def display(description: str = None, boolean: bool = None) -> Callable:
+    def display(description: str | None = None, boolean: bool | None = None) -> Callable:
         def decorator(func: Callable) -> Callable:
             if description:
                 setattr(func, "short_description", description)
@@ -61,14 +65,33 @@ class AdminSite:
     Generates CRUD views and a dashboard for all registered models.
     """
 
-    def __init__(self):
+    def __init__(self, theme=None):
         self._registry: dict[type, ModelAdmin] = {}
+        self.theme = theme or default_theme
+        
+        # Initialize the modern template engine for the admin panel
+        template_dir = os.path.join(os.path.dirname(__file__), "templates")
+        self.templates = EdenTemplates(directory=template_dir)
+        
+        # Register global variables for the admin panel
+        self.templates.env.globals.update({
+            "admin_site": self,
+            "theme": self.theme,
+            "registry": self._get_template_registry(),
+        })
+
         # Provide easy access to widgets for ModelAdmin configuration
         try:
             import eden.admin.widgets as widgets
             self.widgets = widgets
         except ImportError:
             self.widgets = None
+
+    def _get_template_registry(self) -> dict[str, dict]:
+        """Returns a dict of models mapping to their UI configuration for sidebar/navigation."""
+        # This is a bit recursive because we want to call it when models are added
+        # But for now we'll return a dynamic accessor or just re-calculate when needed
+        return {} # Placeholder, will be used in build_router
 
     def register(self, model_or_iterable: Any, admin_class: Optional[Type] = None) -> Any:
         """
@@ -147,7 +170,7 @@ class AdminSite:
         register_dashboard(dashboard_class)
         return dashboard_class
 
-    def display(self, description: str = None, boolean: bool = None) -> Callable:
+    def display(self, description: str | None = None, boolean: bool | None = None) -> Callable:
         """Access the display decorator via the admin instance."""
         return display(description, boolean)
 
@@ -178,13 +201,25 @@ class AdminSite:
         from eden.admin.options import ModelAdmin
         
         try:
-            from eden.auth.models import User
+            from eden.auth.models import User, Role, Permission
             if not self.is_registered(User):
                 class UserAdmin(ModelAdmin):
                     list_display = ["email", "full_name", "is_active", "is_superuser"]
                     search_fields = ["email", "full_name"]
                     list_filter = ["is_active", "is_staff", "is_superuser"]
                 self.register(User, UserAdmin)
+            
+            if not self.is_registered(Permission):
+                class PermissionAdmin(ModelAdmin):
+                    list_display = ["name", "description"]
+                    search_fields = ["name"]
+                self.register(Permission, PermissionAdmin)
+                
+            if not self.is_registered(Role):
+                class RoleAdmin(ModelAdmin):
+                    list_display = ["name", "description"]
+                    search_fields = ["name"]
+                self.register(Role, RoleAdmin)
         except ImportError:
             pass
 
@@ -215,6 +250,19 @@ class AdminSite:
         Generate the admin Router with all CRUD routes.
         """
         self.register_defaults()
+
+        # Update registry in global template context before building routes
+        registry_data = {}
+        for model, model_admin in self._registry.items():
+            table_name = str(getattr(model, "__tablename__", model.__name__.lower()))
+            registry_data[table_name] = {
+                "slug": model_admin.get_slug(model),
+                "icon": model_admin.icon,
+                "label": model_admin.get_verbose_name(model),
+                "label_plural": model_admin.get_verbose_name_plural(model),
+                "table": table_name,
+            }
+        self.templates.env.globals["registry"] = registry_data
 
         from eden.admin.views import (
             admin_add_view,
@@ -272,22 +320,22 @@ class AdminSite:
                 @router.get(f"/{t}/", name=f"admin_{t}_list")
                 @admin_required
                 async def list_view(request: Request) -> Response:
-                    return await admin_list_view(request, m, ma)
+                    return await admin_list_view(request, m, ma, site_instance)
 
                 @router.route(f"/{t}/add", methods=["GET", "POST"], name=f"admin_{t}_add")
                 @admin_required
                 async def add_view(request: Request) -> Response:
-                    return await admin_add_view(request, m, ma)
+                    return await admin_add_view(request, m, ma, site_instance)
 
                 @router.get(f"/{t}/{{record_id}}", name=f"admin_{t}_detail")
                 @admin_required
                 async def detail_view(request: Request, record_id: str) -> Response:
-                    return await admin_detail_view(request, m, ma, record_id)
+                    return await admin_detail_view(request, m, ma, record_id, site_instance)
 
                 @router.route(f"/{t}/{{record_id}}/edit", methods=["GET", "POST"], name=f"admin_{t}_edit")
                 @admin_required
                 async def edit_view(request: Request, record_id: str) -> Response:
-                    return await admin_edit_view(request, m, ma, record_id)
+                    return await admin_edit_view(request, m, ma, record_id, site_instance)
 
                 @router.post(f"/{t}/action", name=f"admin_{t}_action")
                 @admin_required
@@ -307,7 +355,7 @@ class AdminSite:
                 @router.post(f"/{t}/{{record_id}}/delete", name=f"admin_{t}_delete")
                 @admin_required
                 async def delete_view(request: Request, record_id: str) -> Response:
-                    return await admin_delete_view(request, m, ma, record_id)
+                    return await admin_delete_view(request, m, ma, record_id, site_instance)
 
             register_model_routes(model, model_admin)
 

@@ -78,7 +78,7 @@ async def test_rbac_bypass_attempt(rbac_db):
         assert len(notes) == 1
         
         # Attempt to "reset" the stmt by another call (QuerySet is immutable-ish via clone)
-        all_notes = await SensitiveNote.all(session=session)
+        all_notes = await SensitiveNote.query(session=session).bypass_rbac().all()
         assert len(all_notes) == 2 # Baseline
         
         # The for_user filter must be sticky on the cloned QuerySet

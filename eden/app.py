@@ -480,13 +480,19 @@ class Eden:
     def render(self, template_name: str, context: dict[str, Any] | None = None, **kwargs: Any) -> Any:
         ctx = context or {}
         ctx.update(kwargs)
-        if "request" not in ctx:
+        
+        # Check for request explicitly in kwargs or ctx
+        request = ctx.get("request") or kwargs.get("request")
+        
+        if not request:
             try:
                 from eden.context import get_request
-                ctx["request"] = get_request()
+                request = get_request()
+                ctx["request"] = request
             except Exception:
                 pass
-        return self.templates.TemplateResponse(ctx["request"], template_name, ctx)
+        
+        return self.templates.TemplateResponse(request, template_name, ctx)
 
     # ── Sub-Router ───────────────────────────────────────────────────────
 

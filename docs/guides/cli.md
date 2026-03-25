@@ -67,7 +67,7 @@ eden generate view ProfileView --template profile.html
 
 ---
 
-## 🗄️ Database & Multi-Tenancy: `eden db`
+## 🗄️ Database & Environment: `eden db` & `eden sync`
 
 Manage your schema evolution with integrated migrations that support multi-schema SaaS strategies out of the box.
 
@@ -77,6 +77,10 @@ Manage your schema evolution with integrated migrations that support multi-schem
 | `eden db generate -m "..."` | Auto-detects model changes and generates a revision script. |
 | `eden db migrate` | Applies pending migrations (Handles multiple schemas for Postgres). |
 | `eden db check` | Verifies the physical database matches your ORM definitions. |
+| `eden sync` | **Atomic Sync**: Runs `check` and `migrate` in one command. |
+
+> [!TIP]
+> Use `eden sync --all-tenants` for local development when you have multiple specialized schemas that need to stay in lock-step with your core model definitions.
 
 ---
 
@@ -101,8 +105,36 @@ Provision and manage tenants directly from the terminal without manual SQL.
 # Provision a new tenant for a client
 eden tenant provision --name "Initech Corp" --plan "enterprise"
 
-# List active tenants and their storage usage
-eden tenant list --stats
+# Shortcut to reconcile all tenant schemas
+eden sync --all-tenants
+```
+
+---
+
+## 🏎️ Developer Power Tools: `shell` & `test`
+
+Eden provides high-utility commands to reduce context switching during core feature development.
+
+### 1. The Interactive Shell: `eden shell`
+Launch a pre-configured IPython shell with your entire application context loaded. No more dry imports.
+
+```python
+# $ eden shell
+>>> app.db
+<eden.db.Database object at 0x...>
+>>> await User.query(session).all()
+[...]
+```
+
+### 2. The Integrated Test Runner: `eden test`
+A wrapper around `pytest` that enforces Eden's testing standards, including automatic database cleanup and environment isolation.
+
+```bash
+# Run all tests
+eden test
+
+# Run specific module with fail-fast
+eden test tests/test_auth_rbac.py --fail-fast
 ```
 
 ---

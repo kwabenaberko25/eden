@@ -44,9 +44,15 @@ class ModelAdmin:
     # Custom actions (list of function names or callables)
     actions: list[str] = ["delete_selected"]
 
-    # Custom display name (defaults to model __tablename__)
+    # Icon for sidebar (fontawesome 6.x class)
+    icon: str = "fa-solid fa-box"
+
+    # Human-readable names
     verbose_name: str | None = None
     verbose_name_plural: str | None = None
+
+    # URL segment for this model in admin (default: model.__tablename__)
+    slug: str | None = None
 
     # Organize fields into groups: [("Section Title", {"fields": ["f1", "f2"], "description": "..."}), ...]
     fieldsets: list[tuple[str, dict[str, Any]]] = []
@@ -80,7 +86,7 @@ class ModelAdmin:
     def get_verbose_name(self, model) -> str:
         """Get human-readable model name."""
         if self.verbose_name:
-            return self.verbose_name
+            return str(self.verbose_name)
         
         # Use class name if it doesn't look like a generic Model
         name = model.__name__
@@ -95,7 +101,7 @@ class ModelAdmin:
     def get_verbose_name_plural(self, model) -> str:
         """Return the plural name for the model."""
         if self.verbose_name_plural:
-            return self.verbose_name_plural
+            return str(self.verbose_name_plural)
         
         name = self.get_verbose_name(model)
         
@@ -106,6 +112,12 @@ class ModelAdmin:
             return f"{name[:-1]}ies"
         
         return f"{name}s"
+
+    def get_slug(self, model) -> str:
+        """Return the URL slug for the model."""
+        if self.slug:
+            return self.slug
+        return str(getattr(model, "__tablename__", model.__name__.lower()))
 
     def get_list_header_stats(self, model) -> list[dict]:
         """Override to return a list of stat cards for the list view header."""

@@ -26,28 +26,67 @@ graph TD
 
 ---
 
-## 🏗️ Hierarchy & Permissions
+## 🏗️ Relational RBAC (SQL-Backed)
 
-Define your domain-specific roles and their inheritance relationships. Inheritance simplifies management by allowing higher roles to naturally perform the actions of lower ones.
+For production applications, Eden recommends using the **Relational RBAC** system. This stores roles and permissions in your database, allowing you to manage them via the **Admin Panel** without code changes.
+
+### 1. The Relational Models
+
+Eden provides built-in models for Roles and Permissions that support deep hierarchy.
 
 ```python
-from eden.auth import RoleHierarchy
+from eden.auth.models import Role, Permission
+
+# Roles inherit permissions from their parents
+role_user = Role(name="user")
+role_editor = Role(name="editor", parents=[role_user])
+role_admin = Role(name="admin", parents=[role_editor])
+
+# Assign permissions
+perm_view = Permission(name="post:view")
+perm_edit = Permission(name="post:edit")
+
+role_user.permissions = [perm_view]
+role_editor.permissions = [perm_edit]
+```
+
+### 2. Recursive Resolution
+
+When you check `user.has_permission("post:view")`, Eden recursively traverses the role tree:
+
+1. It checks the user's direct roles.
+2. It follows parent relationships (e.g., Admin -> Editor -> User).
+3. It collects all permissions from the entire lineage.
+4. It merges them with any legacy JSON overrides (backward compatibility).
+
+### 3. Admin Panel Management
+
+Once enabled, these models appear automatically in the **Eden Admin Panel**, allowing you to:
+
+- Create new functional permissions.
+- Build complex role hierarchies visually.
+- Assign roles to users via a premium multi-select interface.
+
+---
+
+## 🏗️ In-Memory Hierarchy (Lightweight)
+
+For simple applications or testing, you can use the lightweight `RoleHierarchy` handler.
+
+```python
+from eden.auth.access import RoleHierarchy
 
 # 1. Initialize the Hierarchy Handler
 rbac = RoleHierarchy()
 
 # 2. Define Hierarchy (Role, Parents - roles it inherits FROM)
-# Inheritance simplifies management: higher roles 'are' also their parents.
 rbac.add_role("user")
 rbac.add_role("editor", parents=["user"])
-rbac.add_role("admin", parents=["editor", "user"])
+rbac.add_role("admin", parents=["editor"])
 
 # 3. Assign Atomic Permissions to Roles
 rbac.add_permission("user", "view_posts")
-rbac.add_permission("editor", "create_posts")
-rbac.add_permission("admin", "delete_posts")
-
-# 'admin' now automatically resolves all 3 permissions via deep inheritance
+rbac.add_permission("editor", "edit_posts")
 ```
 
 ---
@@ -187,9 +226,9 @@ All checks include a "God Mode" bypass. If `request.user.is_superuser` is `True`
 
 Eden's RBAC system works in tandem with the **Row-Level Security (RLS)** layer. When a user is authenticated and a tenant context is established, the following handshake occurs:
 
-1.  **Identity Resolution**: The RBAC layer verifies the user has the correct `role` or `permission` for the current tenant.
-2.  **Automatic Filtering**: Even if a user has "Admin" permissions, the database layer automatically injects a `tenant_id` filter into every query if the model is marked as tenant-isolated.
-3.  **Cross-Tenant Prevention**: This ensures that even a malicious request or a bug in a custom query cannot accidentally leak data from Tenant A to an Admin of Tenant B.
+1. **Identity Resolution**: The RBAC layer verifies the user has the correct `role` or `permission` for the current tenant.
+2. **Automatic Filtering**: Even if a user has "Admin" permissions, the database layer automatically injects a `tenant_id` filter into every query if the model is marked as tenant-isolated.
+3. **Cross-Tenant Prevention**: This ensures that even a malicious request or a bug in a custom query cannot accidentally leak data from Tenant A to an Admin of Tenant B.
 
 ### Hybrid Tenancy (Opt-Out)
 

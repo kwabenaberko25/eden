@@ -63,10 +63,10 @@ nav:
     - JSON Functionality: guides/json.md
   - IV. Security & Authentication:
     - Auth Overview: guides/auth.md
-    - Role-Based Access (RBAC): guides/auth-rbac.md
+    - Identity & RBAC Master Class: guides/identity-rbac.md
     - Social Login (OAuth): guides/auth-oauth.md
     - Multi-Backend Auth: guides/multi-backend-auth.md
-    - Multi-Tenancy Patterns: guides/tenancy.md
+    - Multi-Tenancy Master Class: guides/multi-tenancy.md
     - Tenant Persistence (PostgreSQL): guides/tenancy-postgres.md
     - Tenant Config & Lifecycle: guides/tenant-configuration.md
     - Security Best Practices: guides/security.md
@@ -74,10 +74,10 @@ nav:
   - V. UI & Frontend Integration:
     - Templating System: guides/templating.md
     - Directives Guide: guides/DIRECTIVES_USAGE_GUIDE.md
-    - Directives Troubleshooting: guides/DIRECTIVES_TROUBLESHOOTING.md
-    - Server-Side Components: guides/components.md
+    - Component Catalog: guides/components.md
+    - Advanced UI Orchestration: guides/advanced-ui-orchestration.md
     - Forms & Validation: guides/forms.md
-    - Advanced FormField API: guides/formfield-api.md
+    - Fluent FormField API: guides/formfield-api.md
     - HTMX Integration: guides/htmx.md
     - Internationalization (i18n): guides/i18n.md
   - VI. Background Tasks & Real-time:
@@ -103,6 +103,7 @@ nav:
     - OpenAPI & Swagger: guides/openapi.md
     - Payment Integration: guides/payments.md
   - 🍱 Elite Recipes:
+    - Real-Time Kanban Board (SSC): recipes/kanban-board.md
     - Real-time UI Updates: recipes/realtime-updates.md
     - OAuth Social Auth: recipes/social-auth.md
     - Multi-Tenant Isolation: recipes/tenant-isolation.md

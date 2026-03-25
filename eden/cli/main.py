@@ -9,6 +9,9 @@ Commands:
     eden auth      — Authentication management (createsuperuser)
     eden generate  — Code generation (model, form, resource)
     eden tasks     — Task queue management (worker, scheduler)
+    eden shell     — Start an interactive Python shell
+    eden test      — Run the project test suite
+    eden sync      — Synchronize database schema and assets
 """
 
 from __future__ import annotations
@@ -169,9 +172,78 @@ def help(ctx: click.Context, command: str | None) -> None:
 
 
 @cli.command()
-def version() -> None:
-    """Print Eden version."""
-    click.echo(f"🌿 Eden Framework v{eden.__version__}")
+@click.option("--app", "app_path", default=None, help="App import path.")
+def shell(app_path: str | None) -> None:
+    """Start an interactive Python shell with Eden context."""
+    import IPython
+    from traitlets.config import Config
+    
+    click.echo(f"  🌿 Eden Shell v{eden.__version__}")
+    click.echo("  📜 Context: app, db, config, models, f, Q")
+    
+    # Auto-detect app if not provided
+    if app_path is None:
+        # Simplified discovery logic (reuse run discovery if needed)
+        app_path = "app:app"
+
+    try:
+        module_name, obj_name = app_path.split(":")
+        import importlib
+        module = importlib.import_module(module_name)
+        app = getattr(module, obj_name)
+        
+        # Build context
+        context = {
+            "app": app,
+            "db": app.db,
+            "config": app.config,
+            "f": eden.db.f,
+            "Q": eden.db.Q,
+            "models": app.models if hasattr(app, "models") else None
+        }
+        
+        c = Config()
+        c.InteractiveShellApp.extensions = ["eden.auth", "eden.db"]
+        c.TerminalInteractiveShell.banner2 = "  🌿 Happy coding!\n"
+        
+        IPython.start_ipython(argv=[], user_ns=context, config=c)
+    except Exception as e:
+        click.echo(f"  ❌ Error: {e}", err=True)
+
+
+@cli.command()
+@click.argument("files", nargs=-1)
+@click.option("--fail-fast", is_flag=True, help="Stop on first failure.")
+def test(files: tuple[str, ...], fail_fast: bool) -> None:
+    """Run the project test suite using pytest."""
+    import pytest
+    
+    args = list(files) if files else ["tests/"]
+    if fail_fast:
+        args.append("-x")
+    
+    click.echo(f"  🧪 Running Eden tests: {' '.join(args)}")
+    sys.exit(pytest.main(args))
+
+
+@cli.command()
+@click.option("--all-tenants", is_flag=True, help="Sync all tenant schemas.")
+def sync(all_tenants: bool) -> None:
+    """Synchronize database schema and core assets."""
+    from eden.cli.db import db_migrate, db_check
+    
+    click.echo("  🔄 Synchronizing Eden environment...")
+    
+    # Pass context to db_check and db_migrate
+    ctx = click.get_current_context()
+    
+    click.echo("  🕵️  Checking for schema drift...")
+    ctx.invoke(db_check)
+    
+    click.echo(f"  ⬆️  Applying migrations{' (all tenants)' if all_tenants else ''}...")
+    ctx.invoke(db_migrate, all_tenants=all_tenants)
+    
+    click.echo("  ✅ Environment synchronized.")
 
 
 # ────────────────────────────────────────────────────────────────────────────

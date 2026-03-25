@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-main">
+<head>
+    <title>@span(title ?? "Eden Admin")</title>
+    
+    <!-- Design System Tokens -->
+    <style>
+        {{ theme.to_css()|safe }}
+        
+        /* Base Admin Layout Styles */
+        body {
+            background-color: var(--eden-bg-main);
+            color: var(--eden-text-main);
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            margin: 0;
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            width: 280px;
+            background-color: var(--eden-sidebar-bg);
+            color: var(--eden-sidebar-text);
+            display: flex;
+            flex-direction: column;
+            transition: all 0.3s ease;
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            z-index: 50;
+        }
+
+        .main-content {
+            flex: 1;
+            margin-left: 280px;
+            display: flex;
+            flex-direction: column;
+            min-width: 0; /* Prevent flex box overflow */
+        }
+
+        .top-nav {
+            height: 64px;
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(8px);
+            border-bottom: 1px solid var(--eden-border);
+            display: flex;
+            align-items: center;
+            padding: 0 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 40;
+        }
+
+        .card {
+            background: var(--eden-bg-card);
+            border: 1px solid var(--eden-border);
+            border-radius: var(--eden-radius);
+            box-shadow: var(--eden-shadow);
+            padding: 1.5rem;
+        }
+
+        .btn-primary {
+            background-color: var(--eden-primary);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: var(--eden-radius);
+            font-weight: 500;
+            transition: all 0.2s;
+            border: none;
+            cursor: pointer;
+        }
+        .btn-primary:hover {
+            background-color: var(--eden-primary-hover);
+        }
+
+        /* Sidebar Item */
+        .nav-item {
+            padding: 0.75rem 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: var(--eden-sidebar-text);
+            text-decoration: none;
+            transition: all 0.2s;
+            border-left: 4px solid transparent;
+        }
+        .nav-item:hover {
+            background: var(--eden-sidebar-accent);
+            color: var(--eden-sidebar-text-active);
+        }
+        .nav-item.active {
+            background: var(--eden-sidebar-accent);
+            color: var(--eden-sidebar-text-active);
+            border-left-color: var(--eden-primary);
+        }
+
+        /* HTMX Indicator */
+        .htmx-indicator {
+            opacity: 0;
+            transition: opacity 200ms ease-in;
+        }
+        .htmx-request .htmx-indicator {
+            opacity: 1;
+        }
+        .htmx-request.htmx-indicator {
+            opacity: 1;
+        }
+    </style>
+
+    @eden_head
+</head>
+<body x-data="{ sidebarOpen: true }">
+    
+    <!-- Sidebar -->
+    <aside class="sidebar" :class="{ '-translate-x-full': !sidebarOpen }">
+        <div class="p-6 flex items-center gap-3">
+            <div class="h-8 w-8 bg-indigo-500 rounded-lg flex items-center justify-center text-white font-bold">E</div>
+            <span class="text-white font-bold text-xl tracking-tight">Eden <span class="text-indigo-400 font-medium">Elite</span></span>
+        </div>
+
+        <nav class="flex-1 mt-4 overflow-y-auto">
+            <div class="px-6 mb-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">Management</div>
+            
+            <a href="/admin" class="nav-item @active_link('/admin', 'active')">
+                <i class="fa-solid fa-gauge-high"></i>
+                <span>Dashboard</span>
+            </a>
+
+            <!-- Model Links -->
+            @foreach(registry.items() as model, config)
+            <a href="/admin/{{ config.slug }}" class="nav-item @active_link('/admin/' ~ config.slug, 'active')">
+                <i class="@span(config.icon ?? 'fa-solid fa-box')"></i>
+                <span>@span(config.label_plural)</span>
+            </a>
+            @endforeach
+
+            <div class="px-6 mt-8 mb-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">SaaS / Billing</div>
+            
+            <a href="/admin/tenants" class="nav-item @active_link('/admin/tenants', 'active')">
+                <i class="fa-solid fa-building"></i>
+                <span>Tenants</span>
+            </a>
+            <a href="/admin/plans" class="nav-item @active_link('/admin/plans', 'active')">
+                <i class="fa-solid fa-credit-card"></i>
+                <span>Plans & Pricing</span>
+            </a>
+
+            <!-- Admin Config Section -->
+            <div class="px-6 mt-8 mb-2 text-xs font-semibold text-indigo-400 uppercase tracking-wider">Configuration</div>
+            <a href="/admin/settings" class="nav-item @active_link('/admin/settings', 'active')">
+                <i class="fa-solid fa-sliders"></i>
+                <span>Visual Settings</span>
+            </a>
+        </nav>
+
+        <div class="p-4 border-t border-slate-700">
+            <div class="flex items-center gap-3 px-2">
+                <div class="h-8 w-8 rounded-full bg-slate-600"></div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-white truncate">@span(user.name ?? "Admin User")</p>
+                    <p class="text-xs text-slate-400 truncate">@span(user.email ?? "admin@eden.io")</p>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Top Nav -->
+        <header class="top-nav">
+            <button @click="sidebarOpen = !sidebarOpen" class="p-2 text-slate-500 hover:text-slate-700 lg:hidden">
+                <i class="fa-solid fa-bars"></i>
+            </button>
+            <div class="flex-1 px-4">
+                <h1 class="text-lg font-semibold text-slate-800">@yield('header')</h1>
+            </div>
+            <div class="flex items-center gap-4">
+                <div id="loader" class="htmx-indicator">
+                    <i class="fa-solid fa-circle-notch fa-spin text-indigo-500"></i>
+                </div>
+                <!-- Search Box -->
+                <div class="relative hidden md:block">
+                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
+                        <i class="fa-solid fa-search text-xs"></i>
+                    </span>
+                    <input type="text" placeholder="Search..." class="bg-slate-100 border-none rounded-full py-1.5 pl-10 pr-4 text-sm focus:ring-2 focus:ring-indigo-500 w-64">
+                </div>
+                <button class="p-2 text-slate-400 hover:text-slate-600"><i class="fa-solid fa-bell"></i></button>
+                <div class="h-8 w-px bg-slate-200"></div>
+                <a href="/logout" class="text-sm text-slate-500 hover:text-red-600 font-medium">Logout</a>
+            </div>
+        </header>
+
+        <!-- Page Body -->
+        <div class="p-8">
+            @yield('content')
+        </div>
+    </main>
+
+    @eden_toasts
+    @eden_scripts
+    
+    @yield('scripts')
+</body>
+</html>

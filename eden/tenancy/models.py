@@ -5,7 +5,7 @@ The base tenant/organization model for multi-tenant SaaS applications.
 """
 
 
-from eden.db import Model, f
+from eden.db import Model, f, JSON
 
 
 class Tenant(Model):
@@ -39,6 +39,7 @@ class Tenant(Model):
 
     # Optional plan/tier identifier
     plan: str | None = f(max_length=50, nullable=True)
+    plan_id: str | None = f(foreign_key="eden_plans.id", nullable=True)
 
     # Optional PostgreSQL schema name for dedicated isolation
     schema_name: str | None = f(max_length=63, nullable=True)
@@ -144,3 +145,45 @@ class AnonymousTenant:
 
     def __repr__(self) -> str:
         return "<AnonymousTenant>"
+
+
+class Plan(Model):
+    """
+    Tier/Plan definition for SaaS applications.
+    
+    Tablename: eden_plans
+    """
+    __tablename__ = "eden_plans"
+
+    name: str = f(max_length=100, unique=True)
+    slug: str = f(max_length=50, unique=True, index=True)
+    description: str | None = f(nullable=True)
+    is_active: bool = f(default=True)
+    features: dict = f(type_=JSON, default=dict) # JSON list of features/limits
+    
+    # Metadata for billing sync
+    metadata: dict = f(type_=JSON, default=dict)
+
+    def __repr__(self) -> str:
+        return f"<Plan(name='{self.name}')>"
+
+
+class Price(Model):
+    """
+    Pricing tiers for Plans. Supports multi-currency and intervals.
+    
+    Tablename: eden_prices
+    """
+    __tablename__ = "eden_prices"
+
+    plan_id: str = f(foreign_key="eden_plans.id", index=True)
+    currency: str = f(max_length=3, default="USD")
+    amount: int = f(default=0) # In cents
+    interval: str = f(max_length=20, default="month") # month, year, etc.
+    is_active: bool = f(default=True)
+    
+    # Sync fields for external providers (Stripe, etc.)
+    provider_price_id: str | None = f(max_length=255, nullable=True, unique=True)
+
+    def __repr__(self) -> str:
+        return f"<Price(amount={self.amount}, currency='{self.currency}', interval='{self.interval}')>"

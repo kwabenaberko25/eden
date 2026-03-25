@@ -13,15 +13,22 @@ import asyncio
 import random
 from typing import TYPE_CHECKING, Any, Generic, TypeVar, List, Dict, Optional, Callable, Iterable, AsyncGenerator, AsyncIterator
 
-from sqlalchemy import delete, select, update, func, select as sa_select
+from sqlalchemy import delete, select, update, func, select as sa_select, false, text
 from sqlalchemy.orm import selectinload, joinedload
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql import ColumnElement
 
 from .utils import _MISSING
 from eden.db.pagination import Page
 
 if TYPE_CHECKING:
     from .session import Database
+    from .lookups import Q, parse_lookups, extract_involved_models, find_relationship_path, LookupProxy
+    from .aggregates import Aggregate, AggregateExpression
+    from .search import SearchQueryBuilder
+    from .signals import Signal
+    from .access import AccessControl
+    from eden.context import EdenContext
 
 T = TypeVar("T", bound=Any)
 
@@ -54,7 +61,7 @@ class QuerySet(Generic[T]):
         self._return_dicts: bool = False
         self._return_flat: bool = False
         self._annotations: dict[str, Any] = {}
-        self._rbac_applied: bool = session is not _MISSING and session is not None # If session passed, assume context handled RBAC or it's internal
+        self._rbac_applied: bool = False
         self._cache_ttl: int | None = None
 
     def __await__(self):
@@ -111,7 +118,6 @@ class QuerySet(Generic[T]):
     def filter(self, *args: Any, **kwargs: Any) -> QuerySet[T]:
         """Add filter conditions and return a new QuerySet with automatic joining."""
         from eden.db.lookups import Q, parse_lookups, extract_involved_models, find_relationship_path, LookupProxy
-        from sqlalchemy.sql import ColumnElement
 
         clone = self._clone()
         expressions = []
@@ -327,6 +333,15 @@ class QuerySet(Generic[T]):
         clone._cache_ttl = ttl
         return clone
 
+    def bypass_rbac(self) -> QuerySet[T]:
+        """
+        Explicitly bypass RBAC filters for this query.
+        Use with caution - only for background tasks or system scripts.
+        """
+        clone = self._clone()
+        clone._rbac_applied = True
+        return clone
+
     @contextlib.asynccontextmanager
     async def _provide_session(self) -> "AsyncGenerator[AsyncSession, None]":
         """
@@ -421,9 +436,8 @@ class QuerySet(Generic[T]):
         
         if filters is False:
              # Access Denied: return a clone that will always be empty
-             from sqlalchemy import text
              clone = self._clone()
-             clone._stmt = clone._stmt.where(text("1=0"))
+             clone._stmt = clone._stmt.where(false())
              clone._rbac_applied = True
              return clone
         
@@ -766,12 +780,14 @@ class QuerySet(Generic[T]):
 
     async def first(self) -> T | None:
         """Execute query and return the first result, or None."""
-        results = await self.all()
+        qs = self._apply_rbac("read")
+        results = await qs.all()
         return results[0] if results else None
 
     async def last(self) -> T | None:
         """Execute query and return the last result."""
-        results = await self.all()
+        qs = self._apply_rbac("read")
+        results = await qs.all()
         return results[-1] if results else None
 
     async def get(self, id: Any) -> T | None:
@@ -792,24 +808,27 @@ class QuerySet(Generic[T]):
 
     async def count(self) -> int:
         """Return the number of matching records."""
-        async with self._provide_session() as session:
+        qs = self._apply_rbac("read")
+        async with qs._provide_session() as session:
             # Wrap the current statement in a subquery to count correctly
-            count_stmt = select(func.count()).select_from(self._stmt.subquery())
-            result = await self._execute(count_stmt, session)
+            count_stmt = select(func.count()).select_from(qs._stmt.subquery())
+            result = await qs._execute(count_stmt, session)
             return result.scalar() or 0
 
     async def exists(self) -> bool:
         """Return True if any records match the query."""
-        async with self._provide_session() as session:
+        qs = self._apply_rbac("read")
+        async with qs._provide_session() as session:
             # Optimize exists by using limit(1)
-            stmt = self._stmt.limit(1)
-            result = await self._execute(stmt, session)
+            stmt = qs._stmt.limit(1)
+            result = await qs._execute(stmt, session)
             return result.first() is not None
 
     async def paginate(self, page: int = 1, per_page: int = 20) -> Page[T]:
         """Return a Page object for the current query slice."""
         from eden.db.pagination import Page
-
+        
+        # apply_rbac is handled by count() and all() internally
         total = await self.count()
         items = await self.offset((page - 1) * per_page).limit(per_page).all()
         return Page(items=items, total=total, page=page, per_page=per_page)
@@ -824,8 +843,10 @@ class QuerySet(Generic[T]):
         if db is None:
             raise RuntimeError(f"Model {self._model_cls.__name__} is not bound to a database.")
 
+        qs = self._apply_rbac("write")
+        
         # Use transaction layer (will join existing or start new)
-        async with db.transaction(session=self._session) as session:
+        async with db.transaction(session=qs._session) as session:
             from eden.db.lookups import F, _FExpr
             
             # Resolve F-expressions

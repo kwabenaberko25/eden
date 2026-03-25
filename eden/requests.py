@@ -62,7 +62,7 @@ class Request(StarletteRequest):
         Usage:
             return request.render("index.html", user=user)
         """
-        return self.app.eden.render(template_name, context, **kwargs)
+        return self.app.eden.render(template_name, context, request=self, **kwargs)
 
     def url_for(self, name: str, **path_params: Any) -> Any:
         """

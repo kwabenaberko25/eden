@@ -389,7 +389,7 @@ return response
 
 # ✓ Correct - preserve session
 
-response = templates.TemplateResponse("template.html", context)
+response = templates.TemplateResponse(request, "template.html", context)
 return response
 
 ```
@@ -707,7 +707,7 @@ app = Eden(__name__)
 
 @app.get("/")
 def home(request):
-    return app.templates.TemplateResponse("min.html", {})
+    return app.templates.TemplateResponse(request, "min.html", {})
 
 # Run and test
 

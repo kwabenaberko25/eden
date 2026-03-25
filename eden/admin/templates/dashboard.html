@@ -1,0 +1,64 @@
+@extends("base.html")
+@section('header')Dashboard@endsection
+
+@section('content')
+{% from "components.html" import card, stat_card, table %}
+
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    @span(stat_card("Total Tenants", stats.tenants, trend="+5%", icon="fa-solid fa-building"))
+    @span(stat_card("Active Subscriptions", stats.subscriptions, trend="+12%", icon="fa-solid fa-credit-card"))
+    @span(stat_card("Monthly Revenue", stats.revenue|money, trend="+8%", icon="fa-solid fa-wallet"))
+    @span(stat_card("System Health", "99.9%", trend="Stable", icon="fa-solid fa-heart-pulse"))
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <!-- Resource Overviews -->
+    <div class="lg:col-span-2 space-y-8">
+        {% call card(title="Registered Models", icon="fa-solid fa-database") %}
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                @foreach(models_info as info)
+                <a href="/admin/{{ info.table }}/" class="p-4 rounded-xl border border-slate-100 hover:border-indigo-200 hover:bg-indigo-50/50 transition-all flex items-center justify-between group">
+                    <div>
+                        <p class="font-bold text-slate-800">@span(info.name_plural)</p>
+                        <p class="text-xs text-slate-500 uppercase tracking-widest mt-0.5">@span(info.count) records</p>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-slate-300 group-hover:text-indigo-400 transform group-hover:translate-x-1 transition-all"></i>
+                </a>
+                @endforeach
+            </div>
+        {% endcall %}
+
+        {% call card(title="Recent Activity", icon="fa-solid fa-clock-rotate-left") %}
+            @span(table(
+                ["Time", "User", "Action", "Model"],
+                activities
+            ))
+        {% endcall %}
+    </div>
+
+    <!-- Sidebar Cards -->
+    <div class="space-y-8">
+        {% call card(title="Quick Actions", icon="fa-solid fa-bolt") %}
+            <div class="space-y-2">
+                <button class="w-full text-left px-4 py-3 rounded-lg hover:bg-slate-50 text-sm font-medium text-slate-700 flex items-center gap-3">
+                    <i class="fa-solid fa-plus text-indigo-500"></i> New Tenant
+                </button>
+                <button class="w-full text-left px-4 py-3 rounded-lg hover:bg-slate-50 text-sm font-medium text-slate-700 flex items-center gap-3">
+                    <i class="fa-solid fa-file-export text-indigo-500"></i> Export Audit Logs
+                </button>
+                <button class="w-full text-left px-4 py-3 rounded-lg hover:bg-slate-50 text-sm font-medium text-slate-700 flex items-center gap-3">
+                    <i class="fa-solid fa-sync text-indigo-500"></i> Clear System Cache
+                </button>
+            </div>
+        {% endcall %}
+
+        {% call card(title="Eden Framework", icon="fa-solid fa-leaf") %}
+            <div class="text-center py-4">
+                <img src="https://raw.githubusercontent.com/kwabenaberko25/eden/main/docs/assets/logo.png" class="h-12 mx-auto mb-4 opacity-75" alt="Eden">
+                <p class="text-sm text-slate-500 mb-4">Version 1.0.0 (Elite Edition)</p>
+                <a href="https://eden-framework.io/docs" target="_blank" class="text-xs font-bold text-indigo-500 uppercase tracking-widest hover:text-indigo-700">View Documentation</a>
+            </div>
+        {% endcall %}
+    </div>
+</div>
+@endsection

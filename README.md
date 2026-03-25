@@ -27,6 +27,17 @@ pip install eden-framework
 
 ---
 
+## 📚 Documentation
+
+Dive into our comprehensive guides and recipes to master the Eden Framework.
+
+* - 🌿 [The Eden Philosophy](docs/guides/philosophy.md): Why we built an "Integrated Framework" and how we solve micro-framework fatigue.
+- 🏢 [Multi-Tenancy Master Class](docs/guides/multi-tenancy.md): Dynamic PostgreSQL schemas, row-level isolation, and fail-secure design.
+- 🛡️ [Identity & RBAC](docs/guides/auth-and-rbac.md): Tiered admin hierarchies (Global vs. Tenant) and model-level security rules.
+- 📝 [Model-to-Form Bridge](docs/recipes/forms-and-validation.md): Automatically deriving high-fidelity forms and UI metadata from your models.
+
+---
+
 ## 🚀 Quickstart
 
 Create `app.py`:
@@ -78,7 +89,7 @@ Eden replaces the verbose Jinja2 tags with a clean, brace-based `@directive` syn
 }
 ```
 
-### Components & Slots
+## 🧩 Components & Slots
 Create reusable UI components with ease.
 ```html
 @component("card", title="Profile", shadow="lg") {

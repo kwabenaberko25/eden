@@ -57,19 +57,61 @@ class AllowOwner(PermissionRule):
         return getattr(instance, self.field) == user.id
 
 class AllowRoles(PermissionRule):
-    """Grants access if the user has any of the specified roles."""
+    """Grants access if the user has any of the specified roles or their parents."""
     def __init__(self, *roles: str):
         self.roles = roles
     
+    def _extract_role_names(self, user: Any) -> set[str]:
+        """Deep resolution of user role names for RLS filtering."""
+        if not hasattr(user, "roles"):
+            return set()
+            
+        role_list = getattr(user, "roles", [])
+        names = set()
+        
+        # Check relational Role objects
+        visited = set()
+        for r in role_list:
+            if hasattr(r, "name"):
+                names.add(r.name)
+                if hasattr(r, "parents"):
+                    names.update(self._traverse_parents(r, visited))
+            else:
+                # Fallback for simple string roles (JSON)
+                names.add(str(r))
+        
+        # Also check roles_json if present (legacy fallback)
+        if hasattr(user, "roles_json"):
+            names.update(user.roles_json or [])
+            
+        return names
+
+    def _traverse_parents(self, role: Any, visited: set) -> set[str]:
+        """Synchronous traversal for RLS filter generation."""
+        if not hasattr(role, "id") or role.id in visited:
+            return set()
+        visited.add(role.id)
+        
+        results = set()
+        # We rely on 'selectin' loading for Role.parents
+        for p in getattr(role, "parents", []):
+            results.add(p.name)
+            results.update(self._traverse_parents(p, visited))
+        return results
+
     def resolve(self, model_cls, user):
-        if not user or not hasattr(user, "roles"):
+        if not user:
             return False
-        return any(role in user.roles for role in self.roles)
+        
+        names = self._extract_role_names(user)
+        return any(role in names for role in self.roles)
 
     def check_instance(self, instance, user):
-        if not user or not hasattr(user, "roles"):
+        if not user:
             return False
-        return any(role in user.roles for role in self.roles)
+        
+        names = self._extract_role_names(user)
+        return any(role in names for role in self.roles)
 
 class AccessControl:
     """
@@ -102,7 +144,12 @@ class AccessControl:
     def get_security_filters(cls, user: Any, action: str = "read") -> Union[bool, ColumnElement[bool]]:
         """
         Resolve the security rule for the given action and user.
+        Ensures that Global Framework Admins (Superusers) bypass all RBAC.
         """
+        # Global Superuser Bypass
+        if user and getattr(user, "is_superuser", False):
+            return True
+
         rule = cls.__rbac__.get(action)
         if not rule:
             # If no rules are defined at all for this model, we allow access by default.
