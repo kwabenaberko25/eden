@@ -100,9 +100,13 @@ def run(host: str, port: int, reload: bool, no_browser_reload: bool, workers: in
     if resolved_port != port:
         click.echo(f"\n  ⚠️  Port {port} in use → using {resolved_port}")
 
-    click.echo(f"\n  🌿 Eden v{eden.__version__}")
-    click.echo(f"  📡 Running on http://{host}:{resolved_port}")
-    click.echo(f"  🔄 Auto-reload: {'enabled' if reload else 'disabled'}\n")
+    click.secho(f"\n  🌿 Eden v{eden.__version__}", fg="green", bold=True)
+    click.echo(f"  📡 Running on ", nl=False)
+    click.secho(f"http://{host}:{resolved_port}", fg="cyan", nl=False)
+    click.echo("")
+    click.echo(f"  🔄 Auto-reload: ", nl=False)
+    click.secho(f"{'enabled' if reload else 'disabled'}", fg="yellow")
+    click.echo("")
 
     cmd = [
         sys.executable, "-m", "uvicorn", app_path,
@@ -155,6 +159,12 @@ def run(host: str, port: int, reload: bool, no_browser_reload: bool, workers: in
              click.echo("\n  💡 Tip: Try specifying the app instance manually: eden run --app your_file:your_app_instance")
 
 
+@cli.command()
+def version() -> None:
+    """Print the Eden framework version."""
+    click.echo(f"  🌿 Eden v{eden.__version__}")
+
+
 @cli.command("help")
 @click.argument("command", required=False)
 @click.pass_context
@@ -192,6 +202,9 @@ def shell(app_path: str | None) -> None:
         module = importlib.import_module(module_name)
         app = getattr(module, obj_name)
         
+        from eden.responses import Response, JSONResponse
+        from eden import status
+        
         # Build context
         context = {
             "app": app,
@@ -199,12 +212,22 @@ def shell(app_path: str | None) -> None:
             "config": app.config,
             "f": eden.db.f,
             "Q": eden.db.Q,
-            "models": app.models if hasattr(app, "models") else None
+            "models": app.models if hasattr(app, "models") else None,
+            "Response": Response,
+            "JSONResponse": JSONResponse,
+            "status": status
         }
         
         c = Config()
         c.InteractiveShellApp.extensions = ["eden.auth", "eden.db"]
-        c.TerminalInteractiveShell.banner2 = "  🌿 Happy coding!\n"
+        
+        banner = (
+            "\n[bold magenta]Welcome to the Eden Shell[/]\n"
+            "[dim]Pre-imported: Session, Response, JSONResponse, status[/]\n"
+            "[green]Happy debugging! Type 'exit()' to leave.[/]\n"
+        )
+        from rich.console import Console
+        Console().print(banner)
         
         IPython.start_ipython(argv=[], user_ns=context, config=c)
     except Exception as e:
@@ -256,6 +279,7 @@ from eden.cli.auth import auth
 from eden.cli.tasks import tasks
 from eden.cli.forge import generate
 from eden.cli.new import new
+from eden.cli.doctor import doctor
 
 # Register command groups
 cli.add_command(db)
@@ -264,6 +288,7 @@ cli.add_command(tasks)
 cli.add_command(generate, name="generate")
 cli.add_command(generate, name="forge")
 cli.add_command(new)
+cli.add_command(doctor)
 
 
 if __name__ == "__main__":

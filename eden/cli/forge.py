@@ -47,8 +47,16 @@ def model(name: str) -> None:
 
     content = f'''
 class {class_name}(Model):
-    """{class_name} model."""
+    """
+    {class_name} database model.
+    """
+    __tablename__ = "{snake_name}s"
+
+    # Define fields
     name: str = f(max_length=255)
+    
+    def __repr__(self) -> str:
+        return f"<{class_name} {{self.name}}>"
 '''
 
     if layout == "package":
@@ -108,14 +116,20 @@ def route(name: str) -> None:
         return
 
     # 1. Create the route file
-    content = f'''from eden import Router
+    content = f'''from typing import Dict, Any
+from eden import Router
 
 {router_name} = Router()
 
 @{router_name}.get("/")
-async def index():
-    """Index endpoint for {snake_name}."""
-    return {{"message": "Hello from {snake_name} router! 🌿"}}
+async def index() -> Dict[str, Any]:
+    """
+    Index endpoint for {snake_name} router.
+    
+    Returns:
+        JSON response with status and message.
+    """
+    return {{"message": "Hello from {snake_name} router! 🌿", "status": "ok"}}
 '''
     route_file.write_text(content, encoding="utf-8")
     click.echo(f"  ✨ Created route: {prefix_path}/{snake_name}.py")
@@ -173,16 +187,23 @@ def component(name: str) -> None:
         return
 
     # 1. Create Python Logic
-    logic_content = f'''from eden.components import Component, register
+    logic_content = f'''from typing import Any, Dict
+from eden.components import Component, register
 
 @register("{snake_name}")
 class {class_name}(Component):
-    """{class_name} component."""
+    """
+    {class_name} UI component.
+    """
     template_name = "components/{snake_name}.html"
 
-    def get_context_data(self, **kwargs):
-        # Add your component logic here
-        return kwargs
+    def get_context_data(self, **kwargs: Any) -> Dict[str, Any]:
+        """
+        Prepare context data for the {class_name} component template.
+        """
+        context = super().get_context_data(**kwargs)
+        # Add your component-specific logic here
+        return context
 '''
     logic_file.write_text(logic_content, encoding="utf-8")
     click.echo(f"  ✨ Created logic: {prefix_path}/{snake_name}.py")
@@ -267,9 +288,15 @@ def entity(name: str) -> None:
             model_content = f'''from eden.db import Model, f
 
 class {class_name}(Model):
-    """{class_name} model."""
+    """
+    {class_name} model.
+    """
     __tablename__ = "{snake_name}s"
+    
     name: str = f(max_length=255)
+    
+    def __repr__(self) -> str:
+        return f"<{class_name} {{self.name}}>"
 '''
             model_file.write_text(model_content, encoding="utf-8")
             
@@ -286,10 +313,15 @@ class {class_name}(Model):
             model_content = f'''
 
 class {class_name}(db.Model):
-    """{class_name} model."""
+    """
+    {class_name} database model.
+    """
     __tablename__ = "{snake_name}s"
     id: db.Mapped[int] = db.mapped_column(primary_key=True)
     name: db.Mapped[str] = db.mapped_column(db.String(255))
+
+    def __repr__(self) -> str:
+        return f"<{class_name} {{self.name}}>"
 '''
             models_file.write_text(content + model_content, encoding="utf-8")
             click.echo(f"  ✨ Updated models.py")
@@ -321,19 +353,21 @@ class {class_name}Read({class_name}Base):
     route_file = routes_dir / f"{snake_name}.py"
     if not route_file.exists():
         model_imp = f"from {prefix_app}models.{snake_name} import {class_name}" if layout == "package" else f"from models import {class_name}"
-        route_content = f'''from eden import Router, Response, status
+        route_content = f'''from typing import List, Any
+from eden import Router, Response, status
 {model_imp}
 from {prefix_app}schemas.{snake_name} import {class_name}Create, {class_name}Update, {class_name}Read
-from typing import List
 
 {router_name} = Router()
 
 @{router_name}.get("/", response_model=List[{class_name}Read])
-async def list_{snake_name}s():
+async def list_{snake_name}s() -> Any:
+    """Retrieve a list of {class_name} records."""
     return await {class_name}.all()
 
 @{router_name}.post("/", response_model={class_name}Read, status_code=status.HTTP_201_CREATED)
-async def create_{snake_name}(data: {class_name}Create):
+async def create_{snake_name}(data: {class_name}Create) -> Any:
+    """Create a new {class_name} record."""
     return await {class_name}.create(**data.model_dump())
 '''
         route_file.write_text(route_content, encoding="utf-8")
@@ -421,13 +455,15 @@ class {class_name}(db.Model):
     res_file = res_dir / f"{snake_name}.py"
     if not res_file.exists():
         model_imp = f"from {prefix_app}models.{snake_name} import {class_name}" if layout == "package" else f"from models import {class_name}"
-        res_content = f'''from eden.routing import Router
+        res_content = f'''from typing import Dict, Any
+from eden.routing import Router
 {model_imp}
 
 {snake_name}_router = Router(prefix="/{snake_name}s", model={class_name})
 
 @{snake_name}_router.get("/stats")
-async def stats(request):
+async def stats(request: Any) -> Dict[str, int]:
+    """Return summary statistics for {class_name}."""
     count = await {class_name}.count()
     return {{"total": count}}
 '''
@@ -470,3 +506,112 @@ async def stats(request):
 
 if __name__ == "__main__":
     generate()
+@generate.command()
+@click.argument("name")
+def middleware(name: str) -> None:
+    """Scaffold a new Eden middleware."""
+    snake_name = re.sub(r'(?<!^)(?=[A-Z])', '_', name).lower()
+    class_name = name[0].upper() + name[1:] if not name[0].isupper() else name
+    if not class_name.endswith("Middleware"):
+        class_name += "Middleware"
+
+    root, layout = get_project_layout()
+    middleware_dir = root / ("app/middleware" if layout == "package" else "middleware")
+    middleware_dir.mkdir(parents=True, exist_ok=True)
+    
+    middleware_file = middleware_dir / f"{snake_name}.py"
+    if middleware_file.exists():
+        click.echo(f"  ❌ Error: Middleware '{snake_name}' already exists.", err=True)
+        return
+
+    content = f'''from typing import Any, Callable, Awaitable
+from eden.middleware import BaseMiddleware
+from eden.responses import Response
+from starlette.requests import Request
+
+class {class_name}(BaseMiddleware):
+    """
+    Custom {class_name} implementation.
+    """
+    async def __call__(
+        self, 
+        request: Request, 
+        call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
+        """
+        Logic to execute before and after the request.
+        """
+        # 1. Processing before the request
+        # response = await call_next(request)
+        # 2. Processing after the request
+        return await call_next(request)
+'''
+    middleware_file.write_text(content, encoding="utf-8")
+    click.echo(f"  ✨ Created middleware: {middleware_file.relative_to(root)}")
+
+
+@generate.command()
+@click.argument("name")
+def task(name: str) -> None:
+    """Scaffold a new background task."""
+    snake_name = re.sub(r'(?<!^)(?=[A-Z])', '_', name).lower()
+    
+    root, layout = get_project_layout()
+    tasks_dir = root / ("app/tasks" if layout == "package" else "tasks")
+    tasks_dir.mkdir(parents=True, exist_ok=True)
+
+    task_file = tasks_dir / f"{snake_name}.py"
+    if task_file.exists():
+        click.echo(f"  ❌ Error: Task '{snake_name}' already exists.", err=True)
+        return
+
+    content = f'''from typing import Any
+from eden import app
+
+@app.task(name="{snake_name}")
+async def {snake_name}(*args: Any, **kwargs: Any) -> None:
+    """
+    Background task: {snake_name}
+    
+    Args:
+        *args: Variable length argument list.
+        **kwargs: Arbitrary keyword arguments.
+    """
+    # Implementation logic here
+    print(f"Executing background task: {snake_name}")
+'''
+    task_file.write_text(content, encoding="utf-8")
+    click.echo(f"  ✨ Created background task: {task_file.relative_to(root)}")
+
+
+@generate.command()
+@click.argument("name")
+def test(name: str) -> None:
+    """Scaffold a new integration test."""
+    snake_name = re.sub(r'(?<!^)(?=[A-Z])', '_', name).lower()
+    if not snake_name.startswith("test_"):
+        snake_name = f"test_{snake_name}"
+
+    root, _ = get_project_layout()
+    tests_dir = root / "tests"
+    tests_dir.mkdir(parents=True, exist_ok=True)
+
+    test_file = tests_dir / f"{snake_name}.py"
+    if test_file.exists():
+        click.echo(f"  ❌ Error: Test file '{snake_name}' already exists.", err=True)
+        return
+
+    content = f'''import pytest
+from httpx import AsyncClient
+from eden import status
+
+@pytest.mark.asyncio
+async def test_{name.lower()}_basic(client: AsyncClient) -> None:
+    """
+    Basic integration test for {name}.
+    """
+    response = await client.get("/")
+    assert response.status_code == status.HTTP_200_OK
+'''
+    test_file.write_text(content, encoding="utf-8")
+    click.echo(f"  ✨ Created test file: tests/{snake_name}.py")

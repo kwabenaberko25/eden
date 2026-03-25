@@ -122,33 +122,45 @@ def db_downgrade(revision: str, schema: str | None, db_url: str | None) -> None:
     help="Database URL (defaults to config).",
 )
 def db_history(db_url: str) -> None:
-    """Show migration history intelligently."""
-    click.echo("  📜 Migration History:")
+    """Show migration history with a premium overview."""
+    from rich.console import Console
+    from rich.table import Table
     from eden.db.migrations import MigrationManager
     
+    console = Console()
     manager = MigrationManager(db_url)
     history_data = manager.history()
     
     if not history_data:
-        click.echo("     (No migrations found)")
+        click.secho("  ℹ (No migrations found)", fg="yellow")
         return
         
+    table = Table(title="📜 Eden Migration History", show_header=True, header_style="bold magenta")
+    table.add_column("Status", justify="center")
+    table.add_column("Revision", style="dim")
+    table.add_column("Message", width=60)
+    table.add_column("Markers", justify="right")
+    
     for item in history_data:
-        status_color = "green" if item["status"] == "applied" else "yellow"
-        status_icon = "✅" if item["status"] == "applied" else "⏳"
+        is_applied = item["status"] == "applied"
+        status_icon = "[green]✅[/]" if is_applied else "[yellow]⏳[/]"
         
-        flags = []
+        markers = []
         if item["is_head"]:
-            flags.append("HEAD")
+            markers.append("[bold cyan]HEAD[/]")
         if item["is_current"]:
-            flags.append("CURRENT")
+            markers.append("[bold green]CURRENT[/]")
             
-        flag_str = f" [{', '.join(flags)}]" if flags else ""
+        marker_str = " | ".join(markers)
         
-        click.secho(
-            f"  {status_icon} {item['revision']} - {item['message']}{flag_str}",
-            fg=status_color
+        table.add_row(
+            status_icon,
+            item["revision"],
+            item["message"],
+            marker_str
         )
+    
+    console.print(table)
 
 
 @db.command("generate")

@@ -123,15 +123,11 @@ def scheduler(app_path: str) -> None:
 @tasks.command()
 @click.option("--app", "app_path", default="app:app", help="App import path (module:variable).")
 def list(app_path: str) -> None:
-    """
-    List all registered periodic tasks.
+    """List all registered periodic tasks with schedules."""
+    from rich.console import Console
+    from rich.table import Table
     
-    Shows task names, intervals, and status.
-    
-    Example::
-    
-        eden tasks list
-    """
+    console = Console()
     module_name, obj_name = app_path.split(":")
     module = importlib.import_module(module_name)
     app = getattr(module, obj_name)
@@ -139,53 +135,63 @@ def list(app_path: str) -> None:
     tasks_list = app.broker.periodic_tasks
     
     if not tasks_list:
-        click.echo("  ℹ No periodic tasks registered")
+        click.secho("  ℹ No periodic tasks registered", fg="yellow")
         return
 
-    click.echo(f"  📋 Registered Periodic Tasks ({len(tasks_list)}):")
-    click.echo()
+    table = Table(title="📋 Registered Periodic Tasks", show_header=True, header_style="bold cyan")
+    table.add_column("Task Name", style="bold")
+    table.add_column("Interval", justify="right")
+    table.add_column("Status", justify="center")
 
     for task in tasks_list:
-        click.echo(f"    • {task.func.__name__}")
-        click.echo(f"      Interval: {task.interval}s")
-        if task.last_error:
-            click.echo(f"      Last Error: {task.last_error}")
-        click.echo()
+        status = "[red]Error[/]" if task.last_error else "[green]OK[/]"
+        table.add_row(
+            task.func.__name__,
+            f"{task.interval}s",
+            status
+        )
+
+    console.print(table)
 
 
 @tasks.command()
 @click.option("--app", "app_path", default="app:app", help="App import path (module:variable).")
 def status(app_path: str) -> None:
-    """
-    Show task execution status and statistics.
+    """Show detailed task execution statistics."""
+    from rich.console import Console
+    from rich.table import Table
+    from rich.panel import Panel
     
-    Displays broker status, task queue info, and periodic task state.
-    
-    Example::
-    
-        eden tasks status
-    """
+    console = Console()
     module_name, obj_name = app_path.split(":")
     module = importlib.import_module(module_name)
     app = getattr(module, obj_name)
 
     broker = app.broker
-   
-    click.echo(f"  📊 Task Broker Status:")
-    click.echo(f"     Running: {broker.is_running}")
-    click.echo(f"     Periodic Tasks: {len(broker.periodic_tasks)}")
-    click.echo()
+    
+    # Broker Info Panel
+    status_color = "green" if broker.is_running else "red"
+    broker_info = f"[bold]Broker:[/] {'[green]Online[/]' if broker.is_running else '[red]Offline[/]'}\n"
+    broker_info += f"[bold]Periodic Tasks:[/] {len(broker.periodic_tasks)}"
+    
+    console.print(Panel(broker_info, title="📊 Task Broker Status", border_style=status_color))
 
-    # Show details for each periodic task
-    click.echo(f"  🔄 Periodic Task Details:")
-    for task in broker.periodic_tasks:
-        status_icon = "✓" if task.execution_count > 0 else "⏱"
-        click.echo(f"     {status_icon} {task.func.__name__}")
-        click.echo(f"        Executions: {task.execution_count}")
-        click.echo(f"        Interval: {task.interval}s")
-        if task.last_error:
-            click.echo(f"        Last Error: {str(task.last_error)[:60]}...")
-        click.echo()
+    if broker.periodic_tasks:
+        table = Table(title="🔄 Periodic Task Details", show_header=True, header_style="bold blue")
+        table.add_column("Task", style="bold")
+        table.add_column("Executions", justify="right")
+        table.add_column("Interval", justify="right")
+        table.add_column("Last Error", width=40)
+
+        for task in broker.periodic_tasks:
+            error_snippet = f"[red]{str(task.last_error)[:37]}...[/]" if task.last_error else "[green]None[/]"
+            table.add_row(
+                task.func.__name__,
+                str(task.execution_count),
+                f"{task.interval}s",
+                error_snippet
+            )
+        console.print(table)
 
 
 @tasks.command()

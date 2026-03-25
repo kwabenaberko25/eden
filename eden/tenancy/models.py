@@ -162,7 +162,7 @@ class Plan(Model):
     features: dict = f(type_=JSON, default=dict) # JSON list of features/limits
     
     # Metadata for billing sync
-    metadata: dict = f(type_=JSON, default=dict)
+    sync_metadata: dict = f(type_=JSON, default=dict)
 
     def __repr__(self) -> str:
         return f"<Plan(name='{self.name}')>"

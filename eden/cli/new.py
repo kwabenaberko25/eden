@@ -20,6 +20,17 @@ from rich.theme import Theme
 
 import eden
 
+def get_extra_packages(extras: List[str]) -> List[str]:
+    """Map selected features to their required PyPI packages."""
+    packages = []
+    if "Payments (Stripe)" in extras:
+        packages.append("stripe")
+    if "Chats/Websockets" in extras:
+        packages.append("websockets")
+    if "Mail Support" in extras:
+        packages.append("aiosmtplib")
+    return packages
+
 # Custom theme for Eden
 eden_theme = Theme({
     "info": "cyan",
@@ -40,8 +51,10 @@ def welcome_banner():
         padding=(1, 2)
     ))
 
-def generate_minimal(project_dir: Path, name: str, db_type: str, extras: List[str]):
+def generate_minimal(project_dir: Path, name: str, db_type: str, extras: List[str], verbose: bool = False):
     """Generate a single-file minimal project."""
+    if verbose:
+        console.print(f"  [info]Creating minimal project at: {project_dir}[/info]")
     db_config = get_db_config(db_type, name)
     
     main_content = f'''"""
@@ -88,10 +101,14 @@ if __name__ == "__main__":
 '''
     (project_dir / "main.py").write_text(main_content, encoding="utf-8")
     (project_dir / ".env").write_text(f"SECRET_KEY={secrets.token_hex(32)}\nDATABASE_URL={db_config['url']}\n", encoding="utf-8")
-    (project_dir / "requirements.txt").write_text(f"eden-framework\n{db_config['driver']}\n", encoding="utf-8")
+    
+    packages = ["eden-framework", db_config['driver']] + get_extra_packages(extras)
+    (project_dir / "requirements.txt").write_text("\n".join(packages) + "\n", encoding="utf-8")
 
-def generate_complete(project_dir: Path, name: str, db_type: str, extras: List[str]):
+def generate_complete(project_dir: Path, name: str, db_type: str, extras: List[str], verbose: bool = False):
     """Generate a modular complete project structure."""
+    if verbose:
+        console.print(f"  [info]Creating complete project at: {project_dir}[/info]")
     db_config = get_db_config(db_type, name)
     
     # Create directories
@@ -157,7 +174,8 @@ def create_app():
         app_init += '    app.mount_admin("/admin")\n'
 
     if "Mail Support" in extras:
-        app_init += '    # TODO: configure mail support and SMTP settings\n'
+        app_init += '    # TODO: configure mail support (e.g. using aiosmtplib)\n'
+
 
     app_init += '''    
     # Routes
@@ -188,7 +206,8 @@ async def home():
     (project_dir / ".env").write_text(f"SECRET_KEY={secrets.token_hex(32)}\nDATABASE_URL={db_config['url']}\n", encoding="utf-8")
     
     # requirements.txt
-    (project_dir / "requirements.txt").write_text(f"eden-framework\n{db_config['driver']}\n", encoding="utf-8")
+    packages = ["eden-framework", db_config['driver']] + get_extra_packages(extras)
+    (project_dir / "requirements.txt").write_text("\n".join(packages) + "\n", encoding="utf-8")
 
 def get_db_config(db_type: str, project_name: str) -> dict:
     if db_type == "Postgres":
@@ -220,8 +239,9 @@ def generate_flat(project_dir: Path, name: str):
         "scale": "flat"
     }, indent=2))
 
-def create_new_project(project_name: str, target_path: Optional[Path] = None):
+def create_new_project(project_name: str, target_path: Optional[Path] = None, **kwargs):
     """Run the interactive wizard or direct scaffolding."""
+    verbose = kwargs.get("verbose", False)
     if target_path:
         # Direct scaffolding (non-interactive, used by tests)
         if not target_path.exists():
@@ -284,9 +304,9 @@ def create_new_project(project_name: str, target_path: Optional[Path] = None):
         target_path.mkdir(parents=True)
         
         if scale.startswith("Minimal"):
-            generate_minimal(target_path, project_name, db_type, extras)
+            generate_minimal(target_path, project_name, db_type, extras, verbose=kwargs.get("verbose", False))
         else:
-            generate_complete(target_path, project_name, db_type, extras)
+            generate_complete(target_path, project_name, db_type, extras, verbose=kwargs.get("verbose", False))
             
         # Common files
         (target_path / "eden.json").write_text(json.dumps({
@@ -300,13 +320,14 @@ def create_new_project(project_name: str, target_path: Optional[Path] = None):
     console.print(f"\n[success]✨ Project '{project_name}' generated successfully![/success]")
     console.print(f"To get started:")
     console.print(f"  [cyan]cd {project_name}[/cyan]")
-    console.print(f"  [cyan]pip install -r requirements.txt[/cyan]")
+    console.print(f"  [cyan]pip install -r requirements.txt  # (or use uv pip install)[/cyan]")
     console.print(f"  [cyan]eden run[/cyan]\n")
 
 @click.command()
 @click.argument("name")
 @click.argument("path", required=False)
-def new(name: str, path: Optional[str] = None):
+@click.option("--verbose", is_flag=True, help="Show detailed generation logs.")
+def new(name: str, path: Optional[str] = None, verbose: bool = False):
     """Create a new Eden project interactively."""
-    target_path = Path(path) if path else None
-    create_new_project(name, target_path)
+    target_path = Path(path) if path is not None else None
+    create_new_project(name, target_path, verbose=verbose)
