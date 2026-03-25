@@ -280,6 +280,7 @@ from eden.cli.tasks import tasks
 from eden.cli.forge import generate
 from eden.cli.new import new
 from eden.cli.doctor import doctor
+from eden.cli.tenant import tenant
 
 # Register command groups
 cli.add_command(db)
@@ -289,6 +290,7 @@ cli.add_command(generate, name="generate")
 cli.add_command(generate, name="forge")
 cli.add_command(new)
 cli.add_command(doctor)
+cli.add_command(tenant)
 
 
 if __name__ == "__main__":

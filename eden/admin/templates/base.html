@@ -5,7 +5,7 @@
     
     <!-- Design System Tokens -->
     <style>
-        {{ theme.to_css()|safe }}
+        @span(theme.to_css()|safe)
         
         /* Base Admin Layout Styles */
         body {
@@ -29,6 +29,8 @@
             bottom: 0;
             left: 0;
             z-index: 50;
+            /* Replace border with elevation shadow */
+            box-shadow: 4px 0 24px rgba(0,0,0,0.1);
         }
 
         .main-content {
@@ -36,14 +38,15 @@
             margin-left: 280px;
             display: flex;
             flex-direction: column;
-            min-width: 0; /* Prevent flex box overflow */
+            min-width: 0;
         }
 
         .top-nav {
             height: 64px;
             background: rgba(255, 255, 255, 0.8);
-            backdrop-filter: blur(8px);
-            border-bottom: 1px solid var(--eden-border);
+            backdrop-filter: blur(12px);
+            /* REPLACED: border-bottom with background shift */
+            background-color: var(--eden-bg-surface-container-low);
             display: flex;
             align-items: center;
             padding: 0 2rem;
@@ -54,9 +57,11 @@
 
         .card {
             background: var(--eden-bg-card);
-            border: 1px solid var(--eden-border);
+            /* NO-LINE RULE: Remove border, use soft shadow & background shift */
+            border: none;
+            background-color: var(--eden-bg-surface-container);
             border-radius: var(--eden-radius);
-            box-shadow: var(--eden-shadow);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
             padding: 1.5rem;
         }
 
@@ -72,6 +77,7 @@
         }
         .btn-primary:hover {
             background-color: var(--eden-primary-hover);
+            transform: translateY(-1px);
         }
 
         /* Sidebar Item */
@@ -95,15 +101,11 @@
             border-left-color: var(--eden-primary);
         }
 
-        /* HTMX Indicator */
         .htmx-indicator {
             opacity: 0;
             transition: opacity 200ms ease-in;
         }
         .htmx-request .htmx-indicator {
-            opacity: 1;
-        }
-        .htmx-request.htmx-indicator {
             opacity: 1;
         }
     </style>
@@ -115,7 +117,7 @@
     <!-- Sidebar -->
     <aside class="sidebar" :class="{ '-translate-x-full': !sidebarOpen }">
         <div class="p-6 flex items-center gap-3">
-            <div class="h-8 w-8 bg-indigo-500 rounded-lg flex items-center justify-center text-white font-bold">E</div>
+            <div class="h-8 w-8 bg-indigo-500 rounded-lg flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-indigo-500/20">E</div>
             <span class="text-white font-bold text-xl tracking-tight">Eden <span class="text-indigo-400 font-medium">Elite</span></span>
         </div>
 
@@ -128,35 +130,36 @@
             </a>
 
             <!-- Model Links -->
-            @foreach(registry.items() as model, config)
-            <a href="/admin/{{ config.slug }}" class="nav-item @active_link('/admin/' ~ config.slug, 'active')">
+            @foreach(registry.items() as model, config) {
+            <a href="/admin/@span(config.slug)" class="nav-item @active_link('/admin/' ~ config.slug, 'active')">
                 <i class="@span(config.icon ?? 'fa-solid fa-box')"></i>
                 <span>@span(config.label_plural)</span>
             </a>
-            @endforeach
+            }
 
-            <div class="px-6 mt-8 mb-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">SaaS / Billing</div>
+            <div class="px-6 mt-8 mb-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">Services</div>
             
+            <a href="/admin/support" class="nav-item @active_link('/admin/support', 'active')">
+                <i class="fa-solid fa-life-ring"></i>
+                <span>Support Tickets</span>
+            </a>
             <a href="/admin/tenants" class="nav-item @active_link('/admin/tenants', 'active')">
                 <i class="fa-solid fa-building"></i>
                 <span>Tenants</span>
             </a>
-            <a href="/admin/plans" class="nav-item @active_link('/admin/plans', 'active')">
-                <i class="fa-solid fa-credit-card"></i>
-                <span>Plans & Pricing</span>
-            </a>
 
-            <!-- Admin Config Section -->
             <div class="px-6 mt-8 mb-2 text-xs font-semibold text-indigo-400 uppercase tracking-wider">Configuration</div>
             <a href="/admin/settings" class="nav-item @active_link('/admin/settings', 'active')">
                 <i class="fa-solid fa-sliders"></i>
-                <span>Visual Settings</span>
+                <span>Model Display Settings</span>
             </a>
         </nav>
 
-        <div class="p-4 border-t border-slate-700">
+        <div class="p-4 bg-slate-800/50 backdrop-blur-sm">
             <div class="flex items-center gap-3 px-2">
-                <div class="h-8 w-8 rounded-full bg-slate-600"></div>
+                <div class="h-8 w-8 rounded-full bg-slate-600 flex items-center justify-center text-xs font-bold text-white shadow-inner">
+                    @span(user.name[:1] if user.name else "A")
+                </div>
                 <div class="flex-1 min-w-0">
                     <p class="text-sm font-medium text-white truncate">@span(user.name ?? "Admin User")</p>
                     <p class="text-xs text-slate-400 truncate">@span(user.email ?? "admin@eden.io")</p>
@@ -173,7 +176,7 @@
                 <i class="fa-solid fa-bars"></i>
             </button>
             <div class="flex-1 px-4">
-                <h1 class="text-lg font-semibold text-slate-800">@yield('header')</h1>
+                <h1 class="text-lg font-bold text-slate-800 tracking-tight">@yield('header')</h1>
             </div>
             <div class="flex items-center gap-4">
                 <div id="loader" class="htmx-indicator">
@@ -184,11 +187,11 @@
                     <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
                         <i class="fa-solid fa-search text-xs"></i>
                     </span>
-                    <input type="text" placeholder="Search..." class="bg-slate-100 border-none rounded-full py-1.5 pl-10 pr-4 text-sm focus:ring-2 focus:ring-indigo-500 w-64">
+                    <input type="text" placeholder="Search system..." class="bg-slate-100 border-none rounded-full py-1.5 pl-10 pr-4 text-sm focus:ring-2 focus:ring-indigo-500 w-64 transition-all focus:w-80">
                 </div>
-                <button class="p-2 text-slate-400 hover:text-slate-600"><i class="fa-solid fa-bell"></i></button>
-                <div class="h-8 w-px bg-slate-200"></div>
-                <a href="/logout" class="text-sm text-slate-500 hover:text-red-600 font-medium">Logout</a>
+                <button class="p-2 text-slate-400 hover:text-slate-600 transition-colors"><i class="fa-solid fa-bell"></i></button>
+                <div class="h-6 w-px bg-slate-200"></div>
+                <a href="/logout" class="text-sm text-slate-500 hover:text-red-600 font-bold transition-colors">Logout</a>
             </div>
         </header>
 
@@ -200,7 +203,7 @@
 
     @eden_toasts
     @eden_scripts
-    
     @yield('scripts')
 </body>
 </html>
+

@@ -1,0 +1,82 @@
+<div class="support-container" x-data="{ subject: @span(json_encode(subject)), message: @span(json_encode(message)) }">
+    @if(submitted) {
+        <div class="bg-emerald-50 border border-emerald-100 p-8 rounded-2xl text-center shadow-sm h-full flex flex-col items-center justify-center animate-in fade-in zoom-in duration-300">
+            <div class="h-16 w-16 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600 text-3xl mb-4">
+                <i class="fa-solid fa-check-circle"></i>
+            </div>
+            <h3 class="text-xl font-bold text-slate-800 mb-2">Ticket Submitted!</h3>
+            <p class="text-slate-500 mb-6">Our team has received your request and will get back to you shortly via email.</p>
+            <button @click="window.location.reload()" class="px-6 py-2 bg-slate-900 text-white font-bold rounded-lg hover:bg-slate-800 transition-all">
+                Send Another Request
+            </button>
+        </div>
+    } @else {
+        <div class="bg-white/40 backdrop-blur-xl p-8 rounded-3xl border border-white/20 shadow-2xl relative overflow-hidden group">
+            <!-- Decorative Gradient -->
+            <div class="absolute -top-24 -right-24 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl group-hover:bg-indigo-500/20 transition-all"></div>
+            
+            <div class="relative z-10">
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="h-10 w-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white text-xl shadow-lg shadow-indigo-200">
+                        <i class="fa-solid fa-headset"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-2xl font-black text-slate-800 tracking-tight">Need Support?</h2>
+                        <p class="text-sm text-slate-500 font-medium">We're here to help you scaling up.</p>
+                    </div>
+                </div>
+
+                @if(error) {
+                    <div class="mb-6 p-4 bg-red-50 text-red-600 rounded-xl text-sm font-medium border border-red-100 flex items-center gap-2">
+                        <i class="fa-solid fa-circle-exclamation"></i>
+                        @span(error)
+                    </div>
+                }
+
+                <form hx-post="@span(action_url('submit'))" 
+                      hx-target="closest .support-container" 
+                      hx-swap="outerHTML"
+                      @submit.prevent="hx-submit"
+                      class="space-y-6">
+                    
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 px-1">Subject</label>
+                        <input type="text" 
+                               name="subject" 
+                               x-model="subject"
+                               placeholder="What's going on?"
+                               class="w-full bg-slate-50/50 border-none rounded-xl py-3 px-4 text-slate-800 placeholder:text-slate-300 focus:ring-2 focus:ring-indigo-500 transition-all shadow-inner">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 px-1">Detail</label>
+                        <textarea name="message" 
+                                  x-model="message"
+                                  rows="4" 
+                                  placeholder="Describe your issue in detail..."
+                                  class="w-full bg-slate-50/50 border-none rounded-xl py-3 px-4 text-slate-800 placeholder:text-slate-300 focus:ring-2 focus:ring-indigo-500 transition-all shadow-inner resize-none"></textarea>
+                    </div>
+
+                    <button type="submit" 
+                            class="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-2xl transition-all shadow-xl shadow-indigo-200 hover:shadow-indigo-300 active:scale-[0.98] flex items-center justify-center gap-2">
+                        <span>Send Support Ticket</span>
+                        <i class="fa-solid fa-paper-plane text-xs opacity-50"></i>
+                    </button>
+                </form>
+
+                <p class="mt-8 text-center text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">
+                    Average response time: <span class="text-indigo-400">2 hours</span>
+                </p>
+            </div>
+        </div>
+    }
+</div>
+
+<style>
+    .support-container {
+        font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+    .support-container input:focus, .support-container textarea:focus {
+        background-color: white;
+    }
+</style>

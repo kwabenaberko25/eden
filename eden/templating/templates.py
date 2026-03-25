@@ -198,6 +198,13 @@ class EdenTemplates(StarletteJinja2Templates):
         self.env.filters["remove_class"] = filters.remove_class
         self.env.filters["add_error_class"] = filters.add_error_class
         self.env.filters["attr"] = filters.attr
+
+        # ── Register globals ─────────────────────────────────────────────────
+        self.env.globals["json"] = filters.json_encode
+        self.env.globals["json_encode"] = filters.json_encode
+
+        # Standard context globals
+        self.env.globals["render_component"] = components.render_component
         self.env.filters["set_attr"] = filters.set_attr
         self.env.filters["append_attr"] = filters.append_attr
         self.env.filters["remove_attr"] = filters.remove_attr

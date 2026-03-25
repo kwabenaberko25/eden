@@ -1,0 +1,111 @@
+@extends("base.html")
+
+@block("content") {
+<div class="max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <!-- Header & Navigation -->
+    <div class="flex items-center justify-between gap-4">
+        <div class="flex items-center gap-4">
+            <a href="/admin/{{ table_name }}/" class="p-2.5 rounded-xl bg-stone-900/50 text-stone-400 hover:text-white hover:bg-stone-800 transition-all active:scale-95 shadow-lg">
+                <i class="fa-solid fa-chevron-left text-sm"></i>
+            </a>
+            <div>
+                <h1 class="text-3xl font-bold tracking-tight text-white font-display">
+                    {{ 'Add' if is_add else 'Edit' }} {{ model_name }}
+                </h1>
+                <p class="text-stone-500 text-sm mt-0.5">
+                    @if(is_add) {
+                        Create a new entry in the {{ model_name_plural.lower() }} registry.
+                    } @else {
+                        Modify record <span class="text-stone-400 font-mono">{{ record.id[:8] if record.id else '...' }}</span>
+                    }
+                </p>
+            </div>
+        </div>
+    </div>
+
+    @if(error) {
+    <div class="bg-red-500/10 border border-red-500/20 rounded-2xl p-4 flex items-start gap-4 animate-in shake duration-500">
+        <div class="p-2 bg-red-500/20 rounded-lg text-red-400">
+            <i class="fa-solid fa-circle-exclamation text-sm"></i>
+        </div>
+        <div>
+            <h4 class="text-sm font-bold text-red-400">Validation Error</h4>
+            <p class="text-sm text-red-300/80 mt-1">{{ error }}</p>
+        </div>
+    </div>
+    }
+
+    <form method="POST" class="space-y-8 pb-20">
+        <!-- Main Record Card -->
+        <div class="bg-stone-900/40 backdrop-blur-xl rounded-3xl p-8 shadow-2xl shadow-black/20 border-0">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                @for(field in fields) {
+                <div class="space-y-2.5">
+                    <label class="text-xs font-bold text-stone-400 uppercase tracking-widest pl-1">
+                        {{ field.label }}
+                        @if(field.required) { <span class="text-red-500/50 ml-0.5">*</span> }
+                    </label>
+                    
+                    @if(field.type == 'BOOLEAN') {
+                        <div class="flex items-center gap-3 bg-black/40 px-4 py-3.5 rounded-2xl group transition-all">
+                            <input type="checkbox" name="{{ field.key }}" @if(field.value) { checked } 
+                                   class="w-5 h-5 rounded-md border-stone-800 bg-black/60 text-white focus:ring-white/20 transition-all">
+                            <span class="text-sm text-stone-400 group-hover:text-stone-300 transition-colors">Enabled</span>
+                        </div>
+                    } @else if(field.widget == 'textarea' or field.type == 'TEXT') {
+                        <textarea name="{{ field.key }}" rows="4" 
+                                  class="w-full bg-black/40 border-0 rounded-2xl py-3.5 px-5 text-sm text-white placeholder-stone-600 focus:ring-2 focus:ring-white/20 transition-all outline-none resize-none"
+                                  {{ 'readonly' if field.readonly }}>{{ field.value }}</textarea>
+                    } @else {
+                        <input type="{{ 'password' if field.key == 'password' else 'text' }}" 
+                               name="{{ field.key }}" value="{{ field.value }}"
+                               class="w-full bg-black/40 border-0 rounded-2xl py-3.5 px-5 text-sm text-white placeholder-stone-600 focus:ring-2 focus:ring-white/20 transition-all outline-none"
+                               {{ 'readonly' if field.readonly }}>
+                    }
+                </div>
+                }
+            </div>
+        </div>
+
+        <!-- Inlines Section -->
+        @if(inlines) {
+        <div class="space-y-6">
+            @for(inline in inlines) {
+            <div class="bg-stone-900/30 backdrop-blur-xl rounded-3xl p-8 shadow-2xl shadow-black/10 border-0">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-lg font-bold text-white font-display">{{ inline.model_name }}</h3>
+                    <span class="text-xs font-medium text-stone-500 bg-white/5 px-2 py-1 rounded-md">{{ inline.rows|length }} Entries</span>
+                </div>
+                
+                <div class="space-y-4">
+                    @for(row in inline.rows) {
+                    <div class="grid grid-cols-1 md:grid-cols-{{ inline.fields|length }} gap-4 p-4 rounded-2xl bg-black/20 group hover:bg-black/40 transition-all">
+                        @for(cell in row) {
+                        <div class="space-y-1.5">
+                            <label class="text-[10px] font-bold text-stone-600 uppercase tracking-widest">{{ cell.label }}</label>
+                            <input type="text" name="inline_{{ inline.model_name }}_{{ loop.parent.index }}_{{ cell.name }}" value="{{ cell.value }}"
+                                   class="w-full bg-transparent border-0 p-0 text-sm text-stone-300 focus:ring-0 outline-none placeholder-stone-700">
+                        </div>
+                        }
+                    </div>
+                    }
+                </div>
+            </div>
+            }
+        </div>
+        }
+
+        <!-- Persistent Actions Bar -->
+        <div class="fixed bottom-8 left-1/2 -translate-x-1/2 w-full max-w-sm @if(admin_site._registry|length > 0) { md:translate-x-[calc(-50%+140px)] } transition-all duration-500">
+            <div class="mx-6 bg-stone-900/60 backdrop-blur-2xl border border-white/10 rounded-2xl p-3 shadow-3xl shadow-black flex items-center gap-3">
+                <button type="submit" class="flex-1 rounded-xl bg-white px-6 py-3 text-sm font-bold text-black hover:bg-stone-200 transition-all active:scale-95 shadow-xl shadow-white/5">
+                    Save Changes
+                </button>
+                <a href="/admin/{{ table_name }}/" class="rounded-xl bg-stone-800 px-6 py-3 text-sm font-bold text-white hover:bg-stone-700 transition-all active:scale-95">
+                    Cancel
+                </a>
+            </div>
+        </div>
+    </form>
+</div>
+}

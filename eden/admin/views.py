@@ -68,16 +68,17 @@ async def admin_dashboard(request: Request, admin_site: Any) -> Response:
         "tenants": await _get_model_count("Tenant"),
         "subscriptions": await _get_model_count("Subscription"),
         "revenue": 12540.50, # Placeholder
+        "tickets": await _get_model_count("SupportTicket"),
     }
 
     # Fetch recent activities from AuditLog
-    from eden.admin.models import AuditLog
+    from eden.admin.models import AuditLog, SupportTicket
     recent_logs = await AuditLog.query().order_by("-timestamp").limit(5).all()
     activities = []
     for log in recent_logs:
         activities.append([
-            log.timestamp.strftime("%Y-%m-%d %H:%M"),
-            str(log.user_id),
+            log.timestamp.strftime("%m-%d %H:%M"),
+            str(log.user_id)[:8] + "...",
             log.action,
             log.model_name
         ])
@@ -119,15 +120,19 @@ async def admin_list_view(
     from eden.db import _MISSING
     qs = model.query(session or _MISSING)
 
-    page = int(request.query_params.get("page", 1))
-    search = request.query_params.get("q", "").strip()
-    per_page = model_admin.per_page
+    # Fetch dynamic config
+    from eden.admin.models import AdminConfig
+    config_obj = await AdminConfig.query().filter(model_name=model.__name__).first()
+    db_config = config_obj.config if config_obj else {}
+
+    search_fields = db_config.get("search_fields", model_admin.search_fields)
+    list_display = db_config.get("list_display", model_admin.get_list_display(model))
 
     # Search logic
-    if search and model_admin.search_fields:
+    if search and search_fields:
         from eden.db import Q
         conditions = []
-        for field_name in model_admin.search_fields:
+        for field_name in search_fields:
             conditions.append(Q(**{f"{field_name}__icontains": search}))
         if conditions:
             combined_q = conditions[0]
@@ -145,7 +150,7 @@ async def admin_list_view(
     total = page_obj.total
     total_pages = page_obj.total_pages
 
-    columns = model_admin.get_list_display(model)
+    columns = list_display
     model_name_plural = model_admin.get_verbose_name_plural(model)
     
     context = {
@@ -161,6 +166,7 @@ async def admin_list_view(
         "search": search,
         "slug": model_admin.get_slug(model),
         "model_admin": model_admin,
+        "has_custom_config": bool(db_config),
     }
 
     return admin_site.templates.TemplateResponse(request, "list.html", context)
@@ -236,6 +242,35 @@ async def admin_add_view(
             
             await model_admin.save_model(request, instance, form_data, change=False)
             
+            # Save inlines
+            if hasattr(model_admin, "inlines"):
+                for inline_cls in model_admin.inlines:
+                    inline = inline_cls()
+                    inline_model = inline.model
+                    # Parse form data for this inline
+                    # Format: inline_{model_name}_{index}_{field_name}
+                    for key in form_data:
+                        if key.startswith(f"inline_{inline_model.__name__}_"):
+                            parts = key.split("_")
+                            if len(parts) >= 4:
+                                # index = parts[2]
+                                field_name = parts[3]
+                                # This is a bit simplified, usually we'd group by index
+                                # For now, handles single 'extra' row well
+                                val = form_data[key]
+                                if val:
+                                    inline_instance = inline_model()
+                                    # Set foreign key (assuming 'ticket_id' or similar, but need generic way)
+                                    # For SupportTicket -> TicketMessage, it's 'ticket_id'
+                                    fk_name = str(getattr(model, "__tablename__", model.__name__.lower())).rstrip("s") + "_id"
+                                    if hasattr(inline_instance, fk_name):
+                                        setattr(inline_instance, fk_name, instance.id)
+                                    elif hasattr(inline_instance, "ticket_id") and model.__name__ == "SupportTicket":
+                                        setattr(inline_instance, "ticket_id", instance.id)
+                                    
+                                    setattr(inline_instance, field_name, val)
+                                    await inline_instance.save()
+
             # Log action
             user = getattr(request.state, "user", None)
             try:
@@ -266,11 +301,13 @@ async def admin_add_view(
             return admin_site.templates.TemplateResponse(request, "form.html", context)
 
     fields = await _get_fields_data(model, model_admin)
+    inlines = await _get_inlines_data(model, model_admin)
     context = {
         "request": request,
         "model_name": model_admin.get_verbose_name(model),
         "table_name": str(getattr(model, "__tablename__", model.__name__.lower())),
         "fields": fields,
+        "inlines": inlines,
         "slug": model_admin.get_slug(model),
         "is_add": True,
     }
@@ -304,6 +341,28 @@ async def admin_edit_view(
             
             await model_admin.save_model(request, record, form_data, change=True)
             
+            # Save inlines
+            if hasattr(model_admin, "inlines"):
+                for inline_cls in model_admin.inlines:
+                    inline = inline_cls()
+                    inline_model = inline.model
+                    for key in form_data:
+                        if key.startswith(f"inline_{inline_model.__name__}_"):
+                            parts = key.split("_")
+                            if len(parts) >= 4:
+                                field_name = parts[3]
+                                val = form_data[key]
+                                if val:
+                                    inline_instance = inline_model()
+                                    fk_name = str(getattr(model, "__tablename__", model.__name__.lower())).rstrip("s") + "_id"
+                                    if hasattr(inline_instance, fk_name):
+                                        setattr(inline_instance, fk_name, record.id)
+                                    elif hasattr(inline_instance, "ticket_id") and model.__name__ == "SupportTicket":
+                                        setattr(inline_instance, "ticket_id", record.id)
+                                    
+                                    setattr(inline_instance, field_name, val)
+                                    await inline_instance.save()
+
             # Log action
             user = getattr(request.state, "user", None)
             try:
@@ -334,11 +393,13 @@ async def admin_edit_view(
             return admin_site.templates.TemplateResponse(request, "form.html", context)
 
     fields = await _get_fields_data(model, model_admin, record)
+    inlines = await _get_inlines_data(model, model_admin, record)
     context = {
         "request": request,
         "model_name": model_admin.get_verbose_name(model),
         "table_name": str(getattr(model, "__tablename__", model.__name__.lower())),
         "fields": fields,
+        "inlines": inlines,
         "record": record,
         "slug": model_admin.get_slug(model),
         "is_add": False,

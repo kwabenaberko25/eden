@@ -16,15 +16,15 @@
     <div class="lg:col-span-2 space-y-8">
         {% call card(title="Registered Models", icon="fa-solid fa-database") %}
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                @foreach(models_info as info)
-                <a href="/admin/{{ info.table }}/" class="p-4 rounded-xl border border-slate-100 hover:border-indigo-200 hover:bg-indigo-50/50 transition-all flex items-center justify-between group">
+                @foreach(models_info as info) {
+                <a href="/admin/{{ info.table }}/" class="p-4 rounded-xl bg-surface-container-low hover:bg-surface-container transition-all flex items-center justify-between group">
                     <div>
-                        <p class="font-bold text-slate-800">@span(info.name_plural)</p>
-                        <p class="text-xs text-slate-500 uppercase tracking-widest mt-0.5">@span(info.count) records</p>
+                        <p class="font-bold text-on-surface">@span(info.name_plural)</p>
+                        <p class="text-xs text-on-surface-variant uppercase tracking-widest mt-0.5">@span(info.count) records</p>
                     </div>
-                    <i class="fa-solid fa-chevron-right text-slate-300 group-hover:text-indigo-400 transform group-hover:translate-x-1 transition-all"></i>
+                    <i class="fa-solid fa-chevron-right text-on-surface-variant/30 group-hover:text-primary transform group-hover:translate-x-1 transition-all"></i>
                 </a>
-                @endforeach
+                }
             </div>
         {% endcall %}
 
@@ -40,14 +40,14 @@
     <div class="space-y-8">
         {% call card(title="Quick Actions", icon="fa-solid fa-bolt") %}
             <div class="space-y-2">
-                <button class="w-full text-left px-4 py-3 rounded-lg hover:bg-slate-50 text-sm font-medium text-slate-700 flex items-center gap-3">
-                    <i class="fa-solid fa-plus text-indigo-500"></i> New Tenant
+                <button class="w-full text-left px-4 py-3 rounded-lg hover:bg-surface-container text-sm font-semibold text-on-surface flex items-center gap-3 transition-colors">
+                    <i class="fa-solid fa-plus text-primary"></i> New Tenant
                 </button>
-                <button class="w-full text-left px-4 py-3 rounded-lg hover:bg-slate-50 text-sm font-medium text-slate-700 flex items-center gap-3">
-                    <i class="fa-solid fa-file-export text-indigo-500"></i> Export Audit Logs
+                <button class="w-full text-left px-4 py-3 rounded-lg hover:bg-surface-container text-sm font-semibold text-on-surface flex items-center gap-3 transition-colors">
+                    <i class="fa-solid fa-file-export text-primary"></i> Export Audit Logs
                 </button>
-                <button class="w-full text-left px-4 py-3 rounded-lg hover:bg-slate-50 text-sm font-medium text-slate-700 flex items-center gap-3">
-                    <i class="fa-solid fa-sync text-indigo-500"></i> Clear System Cache
+                <button class="w-full text-left px-4 py-3 rounded-lg hover:bg-surface-container text-sm font-semibold text-on-surface flex items-center gap-3 transition-colors">
+                    <i class="fa-solid fa-sync text-primary"></i> Clear System Cache
                 </button>
             </div>
         {% endcall %}
@@ -55,8 +55,8 @@
         {% call card(title="Eden Framework", icon="fa-solid fa-leaf") %}
             <div class="text-center py-4">
                 <img src="https://raw.githubusercontent.com/kwabenaberko25/eden/main/docs/assets/logo.png" class="h-12 mx-auto mb-4 opacity-75" alt="Eden">
-                <p class="text-sm text-slate-500 mb-4">Version 1.0.0 (Elite Edition)</p>
-                <a href="https://eden-framework.io/docs" target="_blank" class="text-xs font-bold text-indigo-500 uppercase tracking-widest hover:text-indigo-700">View Documentation</a>
+                <p class="text-sm text-on-surface-variant mb-4">Version 1.0.0 (Elite Edition)</p>
+                <a href="https://eden-framework.io/docs" target="_blank" class="text-xs font-bold text-primary uppercase tracking-widest hover:text-primary-container transition-colors">View Documentation</a>
             </div>
         {% endcall %}
     </div>

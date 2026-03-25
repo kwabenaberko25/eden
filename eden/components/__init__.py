@@ -157,6 +157,12 @@ class Component:
         ctx["action_url"] = self.action_url
         ctx["component_attrs"] = self.get_hx_attrs()
         ctx.update(kwargs)
+        
+        # Ensure common Eden globals are available in component context
+        from eden.templating import filters
+        ctx.setdefault("json_encode", filters.json_encode)
+        ctx.setdefault("json", filters.json_encode)
+        
         return ctx
 
     @property

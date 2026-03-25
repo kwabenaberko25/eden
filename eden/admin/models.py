@@ -1,6 +1,9 @@
 from datetime import datetime
 from typing import Any
-from eden.db import Model, StringField, TextField, DateTimeField, JSONField, UUIDField, AllowPublic
+from eden.db import (
+    Model, StringField, TextField, DateTimeField, JSONField, UUIDField, 
+    BoolField, ForeignKeyField, AllowPublic, AllowAuthenticated, AllowRoles
+)
 import uuid
 
 class AuditLog(Model):
@@ -35,3 +38,55 @@ class AuditLog(Model):
             record_id=str(record_id),
             changes=changes
         )
+
+class SupportTicket(Model):
+    """
+    A support request from a user or tenant.
+    """
+    __tablename__ = "eden_support_tickets"
+    __rbac__ = {
+        "read": AllowAuthenticated(),
+        "create": AllowAuthenticated(),
+        "update": AllowRoles(["admin", "support"])
+    }
+
+    id: uuid.UUID = UUIDField(primary_key=True, default_factory=uuid.uuid4)
+    tenant_id: str | None = StringField(nullable=True, max_length=255)
+    user_id: str = StringField(max_length=255)
+    subject: str = StringField(max_length=255)
+    status: str = StringField(max_length=20, default="open") # open, pending, resolved, closed
+    priority: str = StringField(max_length=20, default="medium") # low, medium, high, urgent
+    created_at: datetime = DateTimeField(auto_now_add=True)
+    updated_at: datetime = DateTimeField(auto_now=True)
+
+class TicketMessage(Model):
+    """
+    A single message or reply within a support ticket.
+    """
+    __tablename__ = "eden_ticket_messages"
+    __rbac__ = {
+        "read": AllowAuthenticated(),
+        "create": AllowAuthenticated()
+    }
+
+    id: uuid.UUID = UUIDField(primary_key=True, default_factory=uuid.uuid4)
+    ticket_id: uuid.UUID = ForeignKeyField("eden_support_tickets.id")
+    user_id: str = StringField(max_length=255)
+    body: str = TextField()
+    is_admin: bool = BoolField(default=False)
+    created_at: datetime = DateTimeField(auto_now_add=True)
+
+class AdminConfig(Model):
+    """
+    Stores dynamic UI configurations for models (e.g., column visibility, filters).
+    """
+    __tablename__ = "eden_admin_configs"
+    __rbac__ = {
+        "read": AllowPublic(),
+        "update": AllowRoles(["admin"])
+    }
+
+    id: uuid.UUID = UUIDField(primary_key=True, default_factory=uuid.uuid4)
+    model_name: str = StringField(max_length=255, unique=True)
+    config: dict = JSONField(default={}) # e.g., {"list_display": ["id", "name"], "search_fields": ["name"]}
+    updated_at: datetime = DateTimeField(auto_now=True)

@@ -16,9 +16,11 @@ graph TD
     B --> C["Forge Engine: Code Generation"]
     B --> D["DB Manager: Migration Suite"]
     B --> E["Identity: Auth & Superuser"]
-    C --> F["Auto-Registration: "main.py Injection"]
-    D --> G["Multi-Schema Strategy: Postgres/SQLite"]
-    F --> H["Project: models / routes / templates"]
+    B --> F["Doctor: Health Diagnostics"]
+    B --> G["Tenant: Multi-Tenancy Ops"]
+    C --> H["Auto-Registration: main.py Injection"]
+    D --> I["Multi-Schema Strategy: Postgres/SQLite"]
+    H --> J["Project: models / routes / templates"]
 ```
 
 ---
@@ -28,7 +30,11 @@ graph TD
 Start every high-fidelity project with the interactive project wizard.
 
 ```bash
+# Basic setup
 eden new my-enterprise-app
+
+# Verbose setup (detailed logs)
+eden new my-enterprise-app --verbose
 ```
 
 The wizard allows you to select your **Scale** and **Features** upfront:
@@ -38,31 +44,54 @@ The wizard allows you to select your **Scale** and **Features** upfront:
 
 ---
 
+## 🩺 Health & Diagnostics: `eden doctor`
+
+Ensure your development environment is in peak condition with automated health checks.
+
+```bash
+eden doctor
+```
+
+The `doctor` command performs a 360-degree audit of your project:
+-   ✅ **PyVersion**: Validates Python version compatibility.
+-   ✅ **OS Check**: Detects operating system and architecture.
+-   ✅ **Structure**: Verifies essential files (`eden.json`, `main.py`, `.env`).
+-   ✅ **Database**: Tests connectivity to your configured database.
+
+---
+
 ## 🔨 The Elite Forge: `eden generate`
 
 The "Forge" is the crown jewel of the Eden CLI. It doesn't just create files; it understands your project structure and **auto-registers** your new code into the main application.
 
-### 1. Generating Models
-Scaffold a new ORM model with full Pydantic validation and Admin UI support.
+### 1. Generating Models & Routes
+Scaffold core application components with full validation and auto-registration.
 
 ```bash
+# Create a tenant-aware model
 eden generate model Task --tenant-aware --audit
-```
-*Creates `models/task.py` and registers it with the database registry.*
 
-### 2. Generating Routes & Routers
-Create a modular router and automatically mount it to your main `Eden` instance.
-
-```bash
+# Create a modular router mapped to /api/v1/billing
 eden generate router billing --path /api/v1/billing
 ```
-*Creates `routes/billing.py` and injects the `app.include_router()` call into your main application.*
 
-### 3. Class-Based Views
-Scaffold complex logic with standard Eden patterns for CRUD or Custom Actions.
+### 2. Generating Middleware & Tasks
+Expand framework capabilities with a single command.
 
 ```bash
-eden generate view ProfileView --template profile.html
+# Create custom middleware (e.g., logging)
+eden generate middleware RequestLogger
+
+# Create a background task
+eden generate task SyncInventory
+```
+
+### 3. Automated Testing
+Generate test scaffolds linked to your existing components.
+
+```bash
+# Create unit tests for a specific module
+eden generate test auth --type unit
 ```
 
 ---
@@ -76,37 +105,25 @@ Manage your schema evolution with integrated migrations that support multi-schem
 | `eden db init` | Initializes the `alembic` environment for async migrations. |
 | `eden db generate -m "..."` | Auto-detects model changes and generates a revision script. |
 | `eden db migrate` | Applies pending migrations (Handles multiple schemas for Postgres). |
+| `eden db history` | **Premium View**: Shows a Rich-powered table of all schema revisions. |
 | `eden db check` | Verifies the physical database matches your ORM definitions. |
 | `eden sync` | **Atomic Sync**: Runs `check` and `migrate` in one command. |
 
-> [!TIP]
-> Use `eden sync --all-tenants` for local development when you have multiple specialized schemas that need to stay in lock-step with your core model definitions.
-
 ---
 
-## 🛡️ Identity Management: `eden auth`
+## 🏢 SaaS Operations: `eden tenant`
 
-Manage users and security from the terminal.
-
-### `eden auth createsuperuser`
-Create an administrative account with full shell permissions.
+Manage your multi-tenant infrastructure directly from the terminal without manual SQL.
 
 ```bash
-eden auth createsuperuser --email "ops@eden.sh" --full-name "DevOps Admin"
-```
+# List all registered tenants and their status
+eden tenant list
 
----
+# Provision schemas for all active tenants
+eden tenant provision
 
-## 🏢 SaaS Operations (Tenant Management)
-
-Provision and manage tenants directly from the terminal without manual SQL.
-
-```bash
-# Provision a new tenant for a client
-eden tenant provision --name "Initech Corp" --plan "enterprise"
-
-# Shortcut to reconcile all tenant schemas
-eden sync --all-tenants
+# Detailed inspection of a specific tenant
+eden tenant info acme-corp
 ```
 
 ---
@@ -116,18 +133,17 @@ eden sync --all-tenants
 Eden provides high-utility commands to reduce context switching during core feature development.
 
 ### 1. The Interactive Shell: `eden shell`
-Launch a pre-configured IPython shell with your entire application context loaded. No more dry imports.
+Launch a premium IPython shell with your entire application context pre-loaded.
 
 ```python
 # $ eden shell
->>> app.db
-<eden.db.Database object at 0x...>
->>> await User.query(session).all()
-[...]
+# Welcome to Eden Shell! Context: app, db, config, models, f, Q
+>>> await User.filter_one(email="admin@eden.sh")
+<User: admin@eden.sh>
 ```
 
 ### 2. The Integrated Test Runner: `eden test`
-A wrapper around `pytest` that enforces Eden's testing standards, including automatic database cleanup and environment isolation.
+A wrapper around `pytest` that enforces Eden's testing standards.
 
 ```bash
 # Run all tests
@@ -149,24 +165,25 @@ eden run --port 8000 --workers 4
 ```
 
 ### `eden tasks`
-Manage and monitor background task queues and periodic schedulers.
+Manage and monitor background task queues with Rich status tables.
 
 ```bash
 # Start a task worker
 eden tasks worker
 
-# Start the periodic task scheduler (Cron)
-eden tasks scheduler
+# Monitor task status and history
+eden tasks status
+eden tasks list
 ```
 
 ---
 
 ## 💡 Best Practices
 
-1.  **Forge First**: Never create a model or route from scratch. Use the `forge` to ensure all boilerplate (imports, registrations) is handled correctly.
-2.  **Migration Safety**: Always run `eden db check` before committing code to ensure your local schema is in sync with your models.
-3.  **Tenant Provisioning**: Use the `eden tenant` commands for local testing of multi-tenant isolation before deploying to production.
-4.  **Audit Your Schema**: Regularly use `eden db check --drift` in CI/CD to prevent manual DB changes from breaking the ORM.
+1.  **Forge First**: Never create a model or route from scratch. Use the `forge` to ensure all registration is handled correctly.
+2.  **Regular Health Checks**: Run `eden doctor` whenever you update dependencies or change your environment.
+3.  **Migration Safety**: Use `eden db history` and `eden db check` to verify schema state before deployment.
+4.  **Audit Your Code**: Use `eden generate test` to maintain high coverage as you build new features.
 
 ---
 

@@ -577,15 +577,31 @@ def render_enhanced_template_error(
     search_dirs = []
     if hasattr(app, "_templates") and app._templates:
         try:
-            from jinja2 import FileSystemLoader
-            if isinstance(app._templates.env.loader, FileSystemLoader):
-                search_dirs.extend(app._templates.env.loader.searchpath)
+            from jinja2 import FileSystemLoader, ChoiceLoader
+            loader = app._templates.env.loader
+            
+            def get_search_paths(ld):
+                if isinstance(ld, FileSystemLoader):
+                    return list(ld.searchpath)
+                elif isinstance(ld, ChoiceLoader):
+                    paths = []
+                    for l in ld.loaders:
+                        paths.extend(get_search_paths(l))
+                    return paths
+                return []
+
+            search_dirs.extend(get_search_paths(loader))
         except (ImportError, AttributeError):
             pass
     
+    # Normalize search_dirs to absolute paths for better matching
+    search_dirs = [os.path.abspath(d) for d in search_dirs if d]
     if not search_dirs:
         template_dir = getattr(app, "template_dir", "templates")
-        search_dirs = [template_dir] if isinstance(template_dir, str) else (template_dir or [])
+        if isinstance(template_dir, str):
+            search_dirs = [os.path.abspath(template_dir)]
+        else:
+            search_dirs = [os.path.abspath(d) for d in (template_dir or []) if d]
 
     template_path = None
     template_source = None
@@ -611,33 +627,47 @@ def render_enhanced_template_error(
                     template_path = p
                     break
 
-    # Recover context from traceback
+    # Recover context and template info from traceback
     found_context = {}
     if app.debug:
         try:
-            for frame_info in inspect.trace():
-                if (not name or name == "Unknown Template"):
+            # We use inspect.trace() to look at the frames of the exception being handled
+            trace = inspect.trace()
+            for frame_info in trace:
+                frame_filename = os.path.abspath(str(frame_info.filename))
+                
+                # Try to identify if this is a template frame
+                if (not name or name == "Unknown Template") or not template_path:
                     for d in search_dirs:
-                        if d and str(d) in str(frame_info.filename):
-                            name = os.path.relpath(str(frame_info.filename), str(d))
-                            template_path = str(frame_info.filename)
+                        if d and frame_filename.startswith(d):
+                            name = os.path.relpath(frame_filename, d)
+                            template_path = frame_filename
                             break
+                    
+                    # Heuristic: if it ends in .html or .jinja and is in a "templates" folder
+                    if (not template_path) and (".html" in frame_filename or ".jinja" in frame_filename):
+                        if "templates" in frame_filename:
+                            template_path = frame_filename
+                            name = os.path.basename(frame_filename)
 
-                if (not lineno or lineno <= 0) and template_path:
-                    if frame_info.filename == template_path:
+                # Capture line number from the template frame if we don't have it
+                if template_path and frame_filename == template_path:
+                    if not lineno or lineno <= 0:
                         lineno = frame_info.lineno
                 
+                # Extract context if present (Jinja2 often names it 'context' or 'ctx')
                 if not found_context:
                     for ctx_key in ("context", "ctx"):
                         if ctx_key in frame_info.frame.f_locals:
                             ctx_obj = frame_info.frame.f_locals[ctx_key]
-                            if hasattr(ctx_obj, "get_all"):
+                            if hasattr(ctx_obj, "get_all"): # Jinja2 Context object
                                 found_context = ctx_obj.get_all()
                                 break
                             elif isinstance(ctx_obj, dict):
                                 found_context = ctx_obj
                                 break
-                    if not found_context and template_path and frame_info.filename == template_path:
+                    
+                    if not found_context and template_path and frame_filename == template_path:
                         found_context = frame_info.frame.f_locals
         except Exception:
             pass
@@ -645,13 +675,15 @@ def render_enhanced_template_error(
     code_frame = ""
     if template_path or template_source:
         try:
+            source_lines = []
             if template_source:
                 source_lines = template_source.splitlines(keepends=True)
             elif template_path:
                 with open(template_path, encoding="utf-8") as f:
                     source_lines = f.readlines()
-            else:
-                source_lines = []
+            
+            if source_lines:
+                # Calculate the window to display
                 if lineno > 0 and lineno <= len(source_lines):
                     start = max(0, lineno - 6)
                     end = min(len(source_lines), lineno + 5)
@@ -696,10 +728,23 @@ def render_enhanced_template_error(
                             safe_col = column or 0
                             frame_lines.append(" " * (safe_col + 6) + "^")
                     code_frame = f"<pre class='p-6 text-sm font-mono leading-relaxed overflow-x-auto bg-slate-900/50 rounded-xl text-slate-300'><code>{html_mod.escape(charjoin(frame_lines))}</code></pre>"
+            else:
+                code_frame = f"<div class='p-8 border border-red-500/20 bg-red-500/5 rounded-2xl'><p class='text-red-400 font-medium'>Could not read template source</p></div>"
         except Exception:
             code_frame = f"<div class='p-8 border border-red-500/20 bg-red-500/5 rounded-2xl'><p class='text-red-400 font-medium'>Could not read template source</p></div>"
     else:
-        code_frame = f"<div class='p-12 text-center bg-slate-800/20 rounded-2xl border border-white/5'><div class='text-slate-400 font-medium'>Source template not found</div></div>"
+        unique_dirs = sorted(list(set(search_dirs)))
+        code_frame = (
+            f"<div class='p-12 text-center bg-slate-900/40 rounded-3xl border border-white/5 shadow-inner'>"
+            f"<div class='h-16 w-16 bg-red-500/10 rounded-2xl flex items-center justify-center text-red-500 mx-auto mb-6 shadow-lg shadow-red-500/5'>"
+            f"<svg class='w-8 h-8' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z'></path></svg></div>"
+            f"<h3 class='text-white font-bold text-lg mb-2'>Source template not found</h3>"
+            f"<p class='text-slate-500 text-sm mb-8 max-w-xs mx-auto'>The engine couldn't resolve <b class='text-slate-300'>{html_mod.escape(template_name)}</b> in the current load paths.</p>"
+            f"<div class='text-[10px] font-mono text-slate-500 bg-black/40 p-5 rounded-2xl inline-block w-full max-w-md break-all text-left border border-white/5 shadow-2xl'>"
+            f"<div class='flex items-center gap-2 mb-3 text-indigo-400 font-black tracking-tighter opacity-80'>SEARCH PATHS</div>"
+            + "".join([f"<div class='flex gap-2 mb-1.5 last:mb-0'><span class='text-slate-700 font-black'>•</span><span class='opacity-80'>{html_mod.escape(d)}</span></div>" for d in unique_dirs])
+            + f"</div></div>"
+        )
 
     # Prepare request info for the renderer
     request_info = {

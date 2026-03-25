@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="h-full bg-slate-900">
+<html lang="en" class="h-full">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,27 +10,37 @@
         {{ theme.to_css()|safe }}
         
         body {
-            background: radial-gradient(circle at top right, #1e293b, #0f172a);
-            color: #f8fafc;
+            background: radial-gradient(circle at top right, var(--eden-surface-container-high), var(--eden-surface));
+            color: var(--eden-on-surface);
             font-family: 'Plus Jakarta Sans', sans-serif;
+            margin: 0;
+            overflow: hidden;
         }
 
         .glass-card {
-            background: rgba(30, 41, 59, 0.7);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            background: var(--eden-surface-container-low);
+            backdrop-filter: blur(20px);
+            box-shadow: var(--eden-shadow-xl);
         }
 
         .input-pill {
-            background: rgba(15, 23, 42, 0.6);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            transition: all 0.2s;
+            background: var(--eden-surface-container);
+            border: none;
+            color: var(--eden-on-surface);
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .input-pill:focus {
-            border-color: var(--eden-primary);
-            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+            background: var(--eden-surface-container-high);
+            box-shadow: 0 0 0 2px var(--eden-primary-container);
             outline: none;
+        }
+        
+        @font-face {
+            font-family: 'Plus Jakarta Sans';
+            font-style: normal;
+            font-weight: 400 800;
+            font-display: swap;
+            src: url(https://fonts.gstatic.com/s/plusjakartasans/v8/L0x5DF4xlVMF-BfR8bXMIjhLq38.woff2) format('woff2');
         }
     </style>
 
@@ -40,47 +50,47 @@
     <div class="w-full max-w-md" x-data="{ loading: false }">
         <!-- Logo -->
         <div class="text-center mb-8">
-            <div class="h-16 w-16 bg-gradient-to-tr from-indigo-500 to-violet-600 rounded-2xl flex items-center justify-center text-white text-3xl font-bold mx-auto mb-4 shadow-xl shadow-indigo-500/20">
+            <div class="h-16 w-16 bg-gradient-to-tr from-primary to-primary-container rounded-2xl flex items-center justify-center text-on-primary text-3xl font-bold mx-auto mb-4 shadow-xl shadow-primary/20">
                 E
             </div>
-            <h1 class="text-2xl font-bold tracking-tight">Eden <span class="text-indigo-400">Elite</span></h1>
-            <p class="text-slate-400 text-sm mt-1">Production-Grade Infrastructure Management</p>
+            <h1 class="text-2xl font-bold tracking-tight text-on-surface">Eden <span class="text-primary">Elite</span></h1>
+            <p class="text-on-surface-variant text-sm mt-1">Production-Grade Infrastructure Management</p>
         </div>
 
         <!-- Login Card -->
         <div class="glass-card rounded-3xl p-8 md:p-10">
-            <h2 class="text-xl font-semibold mb-6">Sign In</h2>
+            <h2 class="text-xl font-semibold mb-6 text-on-surface">Sign In</h2>
 
-            @if(error)
-            <div class="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm flex items-center gap-3">
+            @if(error) {
+            <div class="mb-6 p-4 rounded-xl bg-error/10 text-error text-sm flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
                 <i class="fa-solid fa-circle-exclamation"></i>
                 <span>@span(error)</span>
             </div>
-            @endif
+            }
 
             <form action="/admin/login?next=@span(next_url)" method="POST" @submit="loading = true">
                 @csrf
                 
                 <div class="space-y-5">
                     <div>
-                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 px-1">Email Address</label>
+                        <label class="block text-xs font-black text-on-surface-variant uppercase tracking-widest mb-2 px-1">Email Address</label>
                         <input type="email" name="email" required 
-                            class="w-full input-pill rounded-xl px-4 py-3 text-sm placeholder-slate-600"
+                            class="w-full input-pill rounded-xl px-4 py-3 text-sm placeholder-on-surface-variant/40"
                             placeholder="name@company.com" autofocus>
                     </div>
 
                     <div>
                         <div class="flex items-center justify-between mb-2 px-1">
-                            <label class="text-xs font-bold text-slate-500 uppercase tracking-widest">Password</label>
-                            <a href="#" class="text-xs font-semibold text-indigo-400 hover:text-indigo-300">Forgot?</a>
+                            <label class="text-xs font-black text-on-surface-variant uppercase tracking-widest">Password</label>
+                            <a href="#" class="text-xs font-bold text-primary hover:text-primary-container transition-colors">Forgot?</a>
                         </div>
                         <input type="password" name="password" required 
-                            class="w-full input-pill rounded-xl px-4 py-3 text-sm placeholder-slate-600"
+                            class="w-full input-pill rounded-xl px-4 py-3 text-sm placeholder-on-surface-variant/40"
                             placeholder="••••••••">
                     </div>
 
                     <button type="submit" 
-                        class="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-indigo-500/25 flex items-center justify-center gap-2 group"
+                        class="w-full bg-primary hover:bg-primary-container text-on-primary font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-primary/25 flex items-center justify-center gap-2 group"
                         :disabled="loading">
                         <template x-if="!loading">
                             <span class="flex items-center gap-2">
@@ -96,9 +106,9 @@
             </form>
         </div>
 
-        <p class="text-center text-slate-500 text-xs mt-8">
+        <p class="text-center text-on-surface-variant/60 text-xs mt-8">
             &copy; 2026 Eden Framework. All rights reserved.<br>
-            <span class="opacity-50">Enterprise License Active</span>
+            <span class="font-bold opacity-50 uppercase tracking-widest">Enterprise License Active</span>
         </p>
     </div>
 

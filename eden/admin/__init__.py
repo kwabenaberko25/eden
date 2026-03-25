@@ -224,13 +224,36 @@ class AdminSite:
             pass
 
         try:
-            from eden.admin.models import AuditLog
+            from eden.admin.models import AuditLog, SupportTicket, TicketMessage, AdminConfig
             if not self.is_registered(AuditLog):
                 class AuditLogAdmin(ModelAdmin):
                     list_display = ["timestamp", "user_id", "action", "model_name", "record_id"]
                     list_filter = ["action", "model_name"]
                     readonly_fields = ["id", "timestamp", "user_id", "action", "model_name", "record_id", "changes"]
                 self.register(AuditLog, AuditLogAdmin)
+
+            if not self.is_registered(SupportTicket):
+                from eden.admin.models import TicketMessage
+                class TicketMessageInline(self.TabularInline):
+                    model = TicketMessage
+                    extra = 1
+
+                class SupportTicketAdmin(ModelAdmin):
+                    list_display = ["subject", "user_id", "status", "priority", "created_at"]
+                    list_filter = ["status", "priority"]
+                    search_fields = ["subject", "user_id"]
+                    readonly_fields = ["created_at", "updated_at"]
+                    inlines = [TicketMessageInline]
+                    icon = "fa-solid fa-headset"
+                self.register(SupportTicket, SupportTicketAdmin)
+
+            if not self.is_registered(AdminConfig):
+                class AdminConfigAdmin(ModelAdmin):
+                    list_display = ["model_name", "updated_at"]
+                    search_fields = ["model_name"]
+                    readonly_fields = ["updated_at"]
+                    icon = "fa-solid fa-sliders"
+                self.register(AdminConfig, AdminConfigAdmin)
         except ImportError:
             pass
 

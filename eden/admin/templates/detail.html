@@ -1,0 +1,100 @@
+@layout('base.html')
+
+@section('header')
+    @span(model_name) Details: #@span(record_id)
+@endsection
+
+@section('content')
+<div class="flex flex-col gap-6">
+    <!-- Action Bar -->
+    <div class="flex items-center justify-between bg-white/50 backdrop-blur-md p-4 rounded-xl shadow-sm">
+        <div class="flex items-center gap-3">
+            <a href="/admin/@span(table_name)/" class="text-slate-500 hover:text-slate-800 transition-colors">
+                <i class="fa-solid fa-arrow-left"></i> Back to List
+            </a>
+            <div class="h-4 w-px bg-slate-200"></div>
+            <span class="text-sm font-medium text-slate-400">Viewing Record</span>
+        </div>
+        <div class="flex items-center gap-2">
+            <a href="/admin/@span(table_name)/@span(record_id)/edit" class="btn-primary flex items-center gap-2">
+                <i class="fa-solid fa-pen-to-square"></i>
+                <span>Edit Record</span>
+            </a>
+            <a href="/admin/@span(table_name)/@span(record_id)/delete" class="px-4 py-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 font-medium transition-all flex items-center gap-2">
+                <i class="fa-solid fa-trash-can"></i>
+                <span>Delete</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Details Card -->
+    <div class="card overflow-hidden">
+        <div class="mb-6 p-2 bg-indigo-50/50 rounded-lg inline-flex items-center gap-2 text-indigo-700 text-xs font-bold tracking-wider uppercase">
+            <i class="fa-solid fa-circle-info"></i>
+            Core Information
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            @foreach(fields as field) {
+            <div class="group">
+                <label class="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-1.5 transition-colors group-hover:text-indigo-500">
+                    @span(field.label)
+                </label>
+                <div class="text-slate-800 font-medium bg-slate-50/50 p-3 rounded-lg border-b-2 border-transparent group-hover:bg-white group-hover:shadow-sm transition-all">
+                    @if(field.value is None or field.value == "") {
+                        <span class="text-slate-300 italic">None</span>
+                    } @else if(field.type == "BOOLEAN") {
+                        @if(field.value) {
+                            <span class="inline-flex items-center gap-1.5 text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full text-xs font-bold">
+                                <i class="fa-solid fa-circle-check"></i> True
+                            </span>
+                        } @else {
+                            <span class="inline-flex items-center gap-1.5 text-slate-400 bg-slate-100 px-2.5 py-1 rounded-full text-xs font-bold">
+                                <i class="fa-solid fa-circle-xmark"></i> False
+                            </span>
+                        }
+                    } @else {
+                        @span(field.value)
+                    }
+                </div>
+            </div>
+            }
+        </div>
+    </div>
+
+    @if(record.id and model_name == "Support Ticket") {
+    <!-- Special Section for Support Tickets -->
+    <div class="card mt-2">
+        <div class="mb-6 p-2 bg-amber-50/50 rounded-lg inline-flex items-center gap-2 text-amber-700 text-xs font-bold tracking-wider uppercase">
+            <i class="fa-solid fa-comments"></i>
+            Conversation Thread
+        </div>
+        
+        <div class="space-y-4">
+            @foreach(record.messages as msg) {
+            <div class="flex gap-4 @span('flex-row-reverse text-right' if msg.is_admin else '')">
+                <div class="h-10 w-10 shrink-0 rounded-full bg-slate-200 flex items-center justify-center font-bold text-slate-500 shadow-inner">
+                    @span(msg.author_name[:1] if msg.author_name else "U")
+                </div>
+                <div class="max-w-[80%]">
+                    <div class="p-4 rounded-2xl @span('bg-indigo-600 text-white rounded-tr-none shadow-indigo-200' if msg.is_admin else 'bg-slate-100 text-slate-800 rounded-tl-none shadow-slate-200') shadow-lg">
+                        <p class="text-sm leading-relaxed">@span(msg.content)</p>
+                    </div>
+                    <p class="mt-1.5 text-[10px] text-slate-400 font-medium uppercase tracking-tighter">
+                        @span(msg.created_at.strftime('%b %d, %H:%M'))
+                    </p>
+                </div>
+            </div>
+            }
+        </div>
+        
+        <div class="mt-8 pt-6 border-t border-slate-100">
+            <a href="/admin/@span(table_name)/@span(record_id)/edit" class="text-indigo-600 font-bold hover:text-indigo-800 transition-colors flex items-center gap-2">
+                <i class="fa-solid fa-reply"></i>
+                <span>Jump to Reply</span>
+            </a>
+        </div>
+    </div>
+    }
+</div>
+@endsection

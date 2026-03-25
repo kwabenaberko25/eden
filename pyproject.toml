@@ -33,6 +33,7 @@ dependencies = [
     "pydantic>=2.0",
     # CLI & Shell
     "click>=8.1.0",
+    "ipython>=8.0.0",
     # Templating
     "jinja2>=3.1.0",
     # HTTP Utilities

@@ -1,0 +1,56 @@
+@extends("eden/base.html")
+
+@block("title") { Eden Support Center }
+
+@block("head") {
+    <style>
+        .hero-gradient {
+            background: radial-gradient(circle at top right, rgba(99, 102, 241, 0.15), transparent),
+                        radial-gradient(circle at bottom left, rgba(163, 230, 53, 0.1), transparent);
+        }
+    </style>
+}
+
+@block("content") {
+    <div class="min-h-[80vh] flex flex-col items-center justify-center hero-gradient py-12 px-4">
+        <div class="w-full max-w-lg">
+            <!-- Header -->
+            <div class="text-center mb-10">
+                <h1 class="text-4xl font-extrabold text-white tracking-tight mb-4">
+                    Support <span class="text-indigo-400">Hub</span>
+                </h1>
+                <p class="text-slate-400 max-w-md mx-auto">
+                    Experiencing technical difficulties or have a feature request? 
+                    Submit a ticket below and our elite engineers will handle it.
+                </p>
+            </div>
+
+            <!-- Support Component -->
+            @component("support_ticket")
+            
+            <!-- Quick Links -->
+            <div class="mt-12 grid grid-cols-2 gap-4">
+                <div class="p-4 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 transition-all cursor-pointer group">
+                    <div class="h-8 w-8 bg-indigo-500/20 rounded-lg flex items-center justify-center text-indigo-400 mb-2 group-hover:scale-110 transition-transform">
+                        <i class="fa-solid fa-book"></i>
+                    </div>
+                    <h4 class="text-sm font-bold text-white mb-1">Documentation</h4>
+                    <p class="text-xs text-slate-500">Read the Eden SDK guide</p>
+                </div>
+                <div class="p-4 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 transition-all cursor-pointer group">
+                    <div class="h-8 w-8 bg-emerald-500/20 rounded-lg flex items-center justify-center text-emerald-400 mb-2 group-hover:scale-110 transition-transform">
+                        <i class="fa-solid fa-circle-nodes"></i>
+                    </div>
+                    <h4 class="text-sm font-bold text-white mb-1">System Status</h4>
+                    <p class="text-xs text-slate-500">All systems operational</p>
+                </div>
+            </div>
+
+            <!-- Footer Meta -->
+            <div class="mt-10 pt-8 border-t border-white/5 flex items-center justify-between text-[10px] text-slate-600 font-bold uppercase tracking-widest">
+                <span>Enterprise Support v@span(version ?? '1.0.4')</span>
+                <span>Response SLA: 2h</span>
+            </div>
+        </div>
+    </div>
+}
