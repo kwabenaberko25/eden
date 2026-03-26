@@ -197,11 +197,14 @@ A practical, real-world guide to every Eden templating directive with examples.
 <!-- Only visible to logged-in users -->
 @auth {
     <div class="user-menu">
-        <p>Welcome, {{ request.user.name }}!</p>
+        <p>Welcome, {{ user.name }}!</p>
         <a href="@url('profile')">My Profile</a>
         <a href="@url('logout')">Logout</a>
     </div>
 }
+
+> [!TIP]
+> Eden automatically injects the `user` object into the context from `request.state.user`. You can access it directly as `user` or via `request.user`.
 
 <!-- Used in navigation -->
 <nav>
@@ -680,17 +683,29 @@ Include a partial template only when a condition is false.
 
 ### @span - Safe Interpolation
 
-The `@span` directive is a shorthand for `{{ }}` wrap, often used for clean inline interpolation or within complex attributes.
+The `@span` directive is a shorthand for `{{ }}` wrap, providing clean inline interpolation. It includes a built-in **Null-Coalescing Shorthand** using the `??` operator.
 
 ```html
 <!-- Direct output -->
 <p>Hello, @span(user.name)!</p>
 
+<!-- Null-Coalescing Shorthand (??) -->
+<!-- Renders 'Guest' if user.display_name is None/Null -->
+<p>Welcome, @span(user.display_name ?? 'Guest')</p>
+
+<!-- Complex fallback logic -->
+<div class="status">
+    @span(user.bio ?? 'No bio provided for this user.')
+</div>
+
 <!-- With design system filters -->
 <h1 class="{{ 'bold' | eden_text }}">
-    @span(post.title | title_case)
+    @span(post.title | title_case ?? 'Untitled Post')
 </h1>
 ```
+
+> [!NOTE]
+> The `??` operator inside `@span` is automatically transformed into Jinja2's `| default` filter during pre-processing, ensuring high performance while maintaining a clean developer experience.
 
 ---
 

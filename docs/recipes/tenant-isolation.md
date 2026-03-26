@@ -189,4 +189,5 @@ If you encounter `UndefinedTableError` during a tenant migration, verify:
 
 ---
 
-**Next Steps**: [SaaS Admin Panel](admin.md) | [Real-time UI Updates](realtime-updates.md) | [OAuth Social Auth](social-auth.md)
+**Next Steps**: [SaaS Admin Panel](../guides/admin.md) | [Real-time UI Updates](realtime-updates.md) | [OAuth Social Auth](social-auth.md)
+

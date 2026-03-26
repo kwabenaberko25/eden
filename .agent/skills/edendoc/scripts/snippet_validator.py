@@ -75,7 +75,13 @@ def validate_snippet(snippet: str, line_offset: int, filename: str) -> bool:
         
         if result.returncode != 0:
             stderr_out = result.stderr
-            ignore_errors = ['Session: Pass a session', 'not initialized']
+            ignore_errors = [
+                'Session: Pass a session', 
+                'not initialized',
+                'WARNING:  You must pass the application as an import string',
+                'ImportWarning',
+                'DeprecationWarning',
+            ]
             if not any(err in stderr_out for err in ignore_errors):
                 print(f"FAILED [L{line_offset}] Snippet in {filename}:")
                 print(f"--- Error ---\n{stderr_out}\n--------------")

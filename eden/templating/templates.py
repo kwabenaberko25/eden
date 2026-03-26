@@ -78,6 +78,10 @@ class EdenTemplates(StarletteJinja2Templates):
         context = context or {}
         if "request" not in context:
             context["request"] = request
+        
+        # Auto-inject user from request state if present for developer convenience
+        if "user" not in context and hasattr(request.state, "user"):
+            context["user"] = request.state.user
             
         # Initialize reactive channel set for server-side verification
         if not hasattr(request.state, "eden_channels"):
@@ -204,6 +208,7 @@ class EdenTemplates(StarletteJinja2Templates):
         self.env.globals["json_encode"] = filters.json_encode
 
         # Standard context globals
+        from eden import components
         self.env.globals["render_component"] = components.render_component
         self.env.filters["set_attr"] = filters.set_attr
         self.env.filters["append_attr"] = filters.append_attr

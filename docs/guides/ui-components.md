@@ -397,4 +397,5 @@ Eden uses CSS Variables for easy white-labeling. Update these in your global sty
 ```
 
 > [!TIP]
-> For advanced layout control, see the [Layout API Layouts Guide](../layouts/api.md).
+> For advanced layout control, see the [Layout API Layouts Guide](api.md).
+

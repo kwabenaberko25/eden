@@ -493,9 +493,9 @@ class PerformanceTelemetryMiddleware:
                         # Record in global metrics registry
                         metrics.increment("http_requests_total", labels=labels)
                         metrics.observe("http_request_duration_seconds", total_ms / 1000.0, labels=labels)
-                        metrics.observe("eden_db_time_seconds", db_ms / 1000.0, labels=labels)
-                        metrics.increment("eden_db_queries_total", db_queries, labels=labels)
-                        metrics.set_gauge("eden_memory_delta_mb", mem_delta, labels=labels)
+                        metrics.observe("db_request_time_seconds", db_ms / 1000.0, labels=labels)
+                        metrics.increment("request_db_queries_total", db_queries, labels=labels)
+                        metrics.set_gauge("request_memory_delta_megabytes", mem_delta, labels=labels)
 
                         # Construct Server-Timing header
                         # https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Server-Timing

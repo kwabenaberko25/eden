@@ -348,7 +348,7 @@ class LocalStorageBackend(StorageBackend):
         unique_name = f"{uuid.uuid4().hex}{ext}"
 
         target_path = self.base_path / folder / unique_name
-        target_path.parent.mkdir(parents=True, exist_ok=True)
+        await asyncio.to_thread(target_path.parent.mkdir, parents=True, exist_ok=True)
 
         # Track bytes written for progress callback
         bytes_written = 0
@@ -385,8 +385,8 @@ class LocalStorageBackend(StorageBackend):
     async def delete(self, name: str):
         """Delete file from disk."""
         target_path = self.base_path / name
-        if target_path.exists():
-            target_path.unlink()
+        if await asyncio.to_thread(target_path.exists):
+            await asyncio.to_thread(target_path.unlink)
             logger.debug(f"Deleted file: {name}")
 
     def url(self, name: str) -> str:
@@ -405,8 +405,10 @@ class LocalStorageBackend(StorageBackend):
     def open(self, name: str) -> Any:
         """Open a local file for async reading."""
         target_path = self.base_path / name
-        if not target_path.exists():
-            raise FileNotFoundError(f"File not found: {name}")
+        # We check existence in sync here because it's usually inside a context manager 
+        # or called as a factory. But it's safer to avoid blocking if possible.
+        # However, aiofiles.open won't block the loop on the exist check since it's just a file wrapper.
+        # But for correctness, let's keep it clean.
         return aiofiles.open(target_path, "rb")
 
 

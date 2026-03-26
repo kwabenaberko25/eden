@@ -74,7 +74,7 @@ async def dashboard(request):
 Eden automatically injects the following into every template context:
 
 - `request`: The current `Request` object.
-- `user`: Accessible via `request.user`.
+- `user`: The current authenticated user (sourced from `request.state.user`).
 - `csrf_token`: Accessible via `csrf_token()`.
 - `eden_messages`: Flash messages and toasts.
 

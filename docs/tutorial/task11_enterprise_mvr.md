@@ -179,4 +179,5 @@ eden db migrate upgrade --all-tenants
 
 ---
 
-**Next Task**: [Native Real-Time Sync (Reactive ORM)](./task12_reactive_orm.md)
+**Next Task**: [Native Real-Time Sync (Reactive ORM)](../guides/realtime.md)
+

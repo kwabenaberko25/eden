@@ -24,13 +24,6 @@ graph TD
 
 ---
 
-## 📊 Real-time Telemetry
-
-Eden automatically tracks request-scoped metrics like database query count, total execution time, and memory delta.
-
-### Request-Scoped Metrics
-You can access the current telemetry data anywhere in your request context.
-
 ```python
 from eden.telemetry import get_telemetry
 
@@ -44,6 +37,49 @@ async def dashboard_view(request):
     
     return app.render("dashboard.html")
 ```
+
+---
+
+## 📈 Production Metrics (Prometheus)
+
+While Request-Scoped Telemetry is excellent for debugging individual requests, **Production Metrics** provide a holistic view of your application's health and performance across all users and worker processes.
+
+Eden includes a unified metrics engine that automatically exports data in the **Prometheus text format**, ready for scraping by Prometheus, Grafana, or Datadog agents.
+
+### Unified Metrics Pipeline
+
+Eden bridges request-scoped telemetry directly into a global registry. This means every database query, template render, and API call automatically updates the application-wide performance counters.
+
+| Metric Name | Type | Description |
+| :--- | :--- | :--- |
+| `http_requests_total` | `Counter` | Total number of HTTP requests processed. |
+| `http_request_duration_seconds` | `Histogram` | Latency distribution of HTTP requests. |
+| `db_queries_total` | `Counter` | Total number of SQL queries executed. |
+| `template_renders_total` | `Counter` | Total number of Jinja2/Eden templates rendered. |
+| `system_memory_usage_bytes` | `Gauge` | Current memory usage of the application process. |
+
+### Configuration
+
+You can configure the metrics engine using environment variables or your `eden.config.Config` object.
+
+```bash
+# Enable the Prometheus exporter (enabled by default)
+EDEN_METRICS_ENABLED=true
+
+# Change the metrics endpoint URL (default: /metrics)
+EDEN_METRICS_URL=/internal/prometheus/metrics
+```
+
+### Accessing the Endpoint
+
+When enabled, Eden automatically mounts a public `/metrics` endpoint (or your custom URL).
+
+```bash
+curl http://localhost:8000/metrics
+```
+
+> [!TIP]
+> **Security Note**: We recommend restricting access to the `/metrics` endpoint at the infrastructure level (e.g., via Nginx allow-lists or VPC rules), or by checking for a specific header in a custom middleware.
 
 ---
 

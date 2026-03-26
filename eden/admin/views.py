@@ -305,6 +305,7 @@ async def admin_add_view(
     context = {
         "request": request,
         "model_name": model_admin.get_verbose_name(model),
+        "model_name_plural": model_admin.get_verbose_name_plural(model),
         "table_name": str(getattr(model, "__tablename__", model.__name__.lower())),
         "fields": fields,
         "inlines": inlines,
@@ -383,6 +384,7 @@ async def admin_edit_view(
             context = {
                 "request": request,
                 "model_name": model_admin.get_verbose_name(model),
+                "model_name_plural": model_admin.get_verbose_name_plural(model),
                 "table_name": str(getattr(model, "__tablename__", model.__name__.lower())),
                 "fields": fields,
                 "record": record,
@@ -397,6 +399,7 @@ async def admin_edit_view(
     context = {
         "request": request,
         "model_name": model_admin.get_verbose_name(model),
+        "model_name_plural": model_admin.get_verbose_name_plural(model),
         "table_name": str(getattr(model, "__tablename__", model.__name__.lower())),
         "fields": fields,
         "inlines": inlines,

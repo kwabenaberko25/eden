@@ -123,6 +123,10 @@ class Config(BaseModel):
         
         # Messaging
         messages_session_key: Session key for flash messages (default: _eden_messages)
+        
+        # Observability
+        metrics_enabled: Enable Prometheus metrics endpoint (/metrics)
+        metrics_url: URL path for metrics exposition
     """
     
     model_config = ConfigDict(
@@ -268,6 +272,16 @@ class Config(BaseModel):
     messages_session_key: str = Field(
         default="_eden_messages",
         description="Session key for flash messages"
+    )
+    
+    # Observability
+    metrics_enabled: bool = Field(
+        default=True,
+        description="Enable Prometheus metrics endpoint (/metrics)"
+    )
+    metrics_url: str = Field(
+        default="/metrics",
+        description="URL path for metrics exposition"
     )
     
     # Development
@@ -483,6 +497,8 @@ class ConfigManager:
             allowed_hosts=os.getenv("ALLOWED_HOSTS", "*").split(","),
             cors_origins=os.getenv("CORS_ORIGINS", "").split(",") if os.getenv("CORS_ORIGINS") else [],
             messages_session_key=os.getenv("EDEN_MESSAGES_SESSION_KEY", "_eden_messages"),
+            metrics_enabled=os.getenv("EDEN_METRICS_ENABLED", "true").lower() in ("true", "1", "yes"),
+            metrics_url=os.getenv("EDEN_METRICS_URL", "/metrics"),
             browser_reload=os.getenv("EDEN_BROWSER_RELOAD", "true").lower() in ("true", "1", "yes"),
         )
         

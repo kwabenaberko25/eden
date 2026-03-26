@@ -61,6 +61,9 @@ class ConnectionManager:
         self._worker_id: str = str(uuid.uuid4())
         self._distributed_listener_task: asyncio.Task | None = None
         
+        # Socket context (socket -> metadata like user_id)
+        self._socket_context: dict[WebSocket, dict[str, Any]] = {}
+        
         # Security configuration
         self.allowed_origins = [re.compile(o) for o in (allowed_origins or [])]
         self.require_csrf = require_csrf
@@ -96,6 +99,8 @@ class ConnectionManager:
             await websocket.accept()
         
         self._socket_channels[websocket] = set()
+        self._socket_context[websocket] = {"user_id": str(user_id) if user_id else None}
+        
         if user_id:
             self._user_sockets[str(user_id)].add(websocket)
             
@@ -119,15 +124,55 @@ class ConnectionManager:
             sockets.discard(websocket)
             if not sockets:
                 self._user_sockets.pop(user_id, None)
+        
+        self._socket_context.pop(websocket, None)
                 
         # Update metrics
         metrics.set_gauge("websocket_active_connections", self.count())
         metrics.increment("websocket_disconnect_total")
 
-    async def subscribe(self, websocket: WebSocket, channel: str) -> None:
-        """Subscribe a websocket to a channel (or 'room')."""
+    async def subscribe(self, websocket: WebSocket, channel: str) -> bool:
+        """
+        Subscribe a websocket to a channel (or 'room').
+        Returns True if authorized, False otherwise.
+        """
+        if not await self.authorize_subscribe(websocket, channel):
+            logger.warning(f"WebSocket subscription to '{channel}' REJECTED for unauthorized user.")
+            return False
+
         self._channels[channel].add(websocket)
         self._socket_channels[websocket].add(channel)
+        return True
+
+    async def authorize_subscribe(self, websocket: WebSocket, channel: str) -> bool:
+        """
+        Verify if the current WebSocket is authorized to join the requested channel.
+        
+        Default Logic:
+        - If channel starts with 'user:{id}:', user_id MUST match.
+        - If channel starts with 'tenant:{id}:', tenant_id MUST match (optional).
+        - Broad channels (e.g. 'tasks') are allowed for any connected user.
+        """
+        ctx = self._socket_context.get(websocket, {})
+        user_id = ctx.get("user_id")
+
+        # 1. User-level isolation check
+        # Match pattern user:ID:tableName
+        if "user:" in channel:
+            parts = channel.split(":")
+            # Find the 'user' segment to extract the ID following it
+            try:
+                idx = parts.index("user")
+                if idx + 1 < len(parts):
+                    required_user_id = parts[idx + 1]
+                    if user_id != required_user_id:
+                        return False
+            except ValueError:
+                pass
+
+        # 2. Add further custom hooks here if necessary (Org isolation, etc)
+        
+        return True
 
     async def unsubscribe(self, websocket: WebSocket, channel: str) -> None:
         """Unsubscribe a websocket from a channel."""

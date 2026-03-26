@@ -41,6 +41,8 @@ nav:
     - Development Cycle: guides/development-cycle.md
     - Project Structure: getting-started/structure.md
     - Learning Path: getting-started/learning-path.md
+    - The Eden Philosophy (Deep Dive): guides/philosophy.md
+
   - II. Core Application Framework:
     - Core Application: guides/core-app.md
     - Routing System: guides/routing.md
@@ -51,7 +53,10 @@ nav:
     - Exception Handling: guides/exceptions.md
     - Sessions: guides/sessions.md
     - Requests & Responses: guides/requests-responses.md
-    - Service Layer: guides/services.md
+    - Service Layer Pattern: guides/services.md
+    - Service Layer Abstraction: guides/service-layer.md
+    - API Versioning: guides/api-versioning.md
+
     - Caching: guides/caching.md
     - CLI Suite: guides/cli.md
   - III. Database & ORM:
@@ -69,12 +74,19 @@ nav:
     - Multi-Tenancy Master Class: guides/multi-tenancy.md
     - Tenant Persistence (PostgreSQL): guides/tenancy-postgres.md
     - Tenant Config & Lifecycle: guides/tenant-configuration.md
+    - Tenancy Overview: guides/tenancy.md
+    - Auth & RBAC (Extended): guides/auth-and-rbac.md
+    - Auth & RBAC (Legacy): guides/auth-rbac.md
     - Security Best Practices: guides/security.md
+
     - CSRF Protection: guides/csrf-protection.md
   - V. UI & Frontend Integration:
     - Templating System: guides/templating.md
     - Directives Guide: guides/DIRECTIVES_USAGE_GUIDE.md
     - Component Catalog: guides/components.md
+    - UI Component Master Class: guides/ui-components.md
+    - Directives Troubleshooting: guides/DIRECTIVES_TROUBLESHOOTING.md
+
     - Advanced UI Orchestration: guides/advanced-ui-orchestration.md
     - Forms & Validation: guides/forms.md
     - Fluent FormField API: guides/formfield-api.md
@@ -107,6 +119,8 @@ nav:
     - Real-time UI Updates: recipes/realtime-updates.md
     - OAuth Social Auth: recipes/social-auth.md
     - Multi-Tenant Isolation: recipes/tenant-isolation.md
+    - Model-to-Form Bridge: recipes/forms-and-validation.md
+
   - Tutorial (Task-Based):
     - 1. Environment Setup: tutorial/task1_setup.md
     - 2. App Configuration: tutorial/task2_core.md
@@ -118,6 +132,16 @@ nav:
     - 8. SaaS Features: tutorial/task8_saas.md
     - 9. Deployment: tutorial/task9_deployment.md
     - 10. Testing: tutorial/task10_testing.md
+    - 11. Enterprise MVR: tutorial/task11_enterprise_mvr.md
+  - Extra:
+    - What Next?: donextondocs.md
+
+  - IX. AI & Security Intelligence:
+
+    - AI & Semantic Search: guides/ai-search.md
+    - Premium SaaS Components: guides/premium-saas-components.md
+    - AI Context Strategy: guides/recipes.md
+
 
 extra_javascript:
   - https://unpkg.com/mermaid@10/dist/mermaid.min.js

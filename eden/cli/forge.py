@@ -578,7 +578,9 @@ async def {snake_name}(*args: Any, **kwargs: Any) -> None:
         **kwargs: Arbitrary keyword arguments.
     """
     # Implementation logic here
-    print(f"Executing background task: {snake_name}")
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"Executing background task: {snake_name}")
 '''
     task_file.write_text(content, encoding="utf-8")
     click.echo(f"  ✨ Created background task: {task_file.relative_to(root)}")

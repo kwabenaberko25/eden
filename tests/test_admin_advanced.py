@@ -41,10 +41,8 @@ async def test_admin_add_view():
     request = Request(scope)
     
     # We need to register the model
-    admin.register(AdminCategory, AdminCategoryAdmin)
-    ma = admin._registry[AdminCategory]
-    
-    response = await admin_add_view(request, AdminCategory, ma)
+    ma = AdminCategoryAdmin()
+    response = await admin_add_view(request, AdminCategory, ma, admin)
     assert response.status_code == 200
     assert b"Add Category" in response.body
 
@@ -73,7 +71,7 @@ async def test_admin_edit_view_logic():
     request = Request(scope)
     
     ma = AdminCategoryAdmin()
-    response = await admin_edit_view(request, AdminCategory, ma, "1")
+    response = await admin_edit_view(request, AdminCategory, ma, "1", admin)
     assert response.status_code == 200
     assert b"Edit Category" in response.body
     assert b"Electronics" in response.body

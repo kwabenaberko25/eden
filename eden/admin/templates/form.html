@@ -16,7 +16,7 @@
                     @if(is_add) {
                         Create a new entry in the {{ model_name_plural.lower() }} registry.
                     } @else {
-                        Modify record <span class="text-stone-400 font-mono">{{ record.id[:8] if record.id else '...' }}</span>
+                        Modify record <span class="text-stone-400 font-mono">{{ (record.id|string)[:8] if record and record.id else '...' }}</span>
                     }
                 </p>
             </div>
@@ -79,11 +79,12 @@
                 
                 <div class="space-y-4">
                     @for(row in inline.rows) {
+                    @let(row_index = loop.index0)
                     <div class="grid grid-cols-1 md:grid-cols-{{ inline.fields|length }} gap-4 p-4 rounded-2xl bg-black/20 group hover:bg-black/40 transition-all">
                         @for(cell in row) {
                         <div class="space-y-1.5">
                             <label class="text-[10px] font-bold text-stone-600 uppercase tracking-widest">{{ cell.label }}</label>
-                            <input type="text" name="inline_{{ inline.model_name }}_{{ loop.parent.index }}_{{ cell.name }}" value="{{ cell.value }}"
+                            <input type="text" name="inline_{{ inline.model_name }}_{{ row_index }}_{{ cell.name }}" value="{{ cell.value }}"
                                    class="w-full bg-transparent border-0 p-0 text-sm text-stone-300 focus:ring-0 outline-none placeholder-stone-700">
                         </div>
                         }

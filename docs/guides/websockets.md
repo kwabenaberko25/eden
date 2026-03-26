@@ -35,7 +35,6 @@ async def handle_chat(socket, data, manager):
 chat_ws.mount(app)
 ```
 
-### Protocol & Message Format
 The `WebSocketRouter` expects JSON messages with an `event` key. If no `event` key is found, it defaults to the `"message"` event.
 
 ```json
@@ -62,6 +61,7 @@ The `manager` instance provided to your handlers is a powerful tool for targetin
 Eden's "Killer" real-time feature is its **Reactive Layer**. When a model is marked as reactive, Eden automatically broadcasts changes to a dedicated WebSocket channel.
 
 ### 1. Enable Reactivity
+
 ```python
 class Task(Model):
     __reactive__ = True  # Automatically triggers broadcasts on save/delete
@@ -70,6 +70,7 @@ class Task(Model):
 ```
 
 ### 2. Frontend Integration (HTMX + WebSockets)
+
 Eden ships with a custom HTMX extension to handle these model broadcasts without you writing a single line of JS.
 
 ```html
@@ -88,6 +89,7 @@ Eden ships with a custom HTMX extension to handle these model broadcasts without
 ## Security & Persistence 🔐
 
 ### Authentication
+
 Eden's `WebSocketRouter` automatically integrates with your `SessionMiddleware`. The `socket` object in your handlers has a `.user` attribute populated if the user is logged in.
 
 ```python
@@ -99,7 +101,6 @@ async def secure_connect(socket, manager):
 ```
 
 ### Multi-Tenancy
-When using Eden's built-in Multi-Tenancy, you should always include the `tenant_id` in your room names to ensure isolation.
 
 ```python
 @ws.on("message")
@@ -108,6 +109,66 @@ async def handle_tenant_msg(socket, data, manager):
     room = f"tenant_{socket.user.tenant_id}_chat"
     await manager.broadcast(data, room=room)
 ```
+
+---
+
+## 🔒 Security & Channel Authorization
+
+In production, it is vital to ensure that users can only subscribe to channels they are authorized to see. Eden provides a specialized hook in the `ConnectionManager` for this purpose.
+
+### The Connection Handshake
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant A as Eden Auth Middleware
+    participant W as WebSocket Hub
+    participant M as ConnectionManager
+
+    C->>A: WebSocket Handshake (with Cookies/Headers)
+    A->>A: Resolve Identity (user_id)
+    A->>W: Upgrade with User Context
+    C->>W: Send "subscribe" (channel: orders:123)
+    W->>M: authorize_subscribe(socket, "orders:123")
+    alt Authorized
+        M->>W: Allow
+        W->>C: Subscription Confirmed
+    else Unauthorized
+        M->>W: Deny
+        W->>C: Send Error: "Unauthorized subscription"
+    end
+```
+
+### Implementing `authorize_subscribe`
+
+By default, Eden allows all subscriptions for authenticated users. You can override this behavior in your `ConnectionManager` (reachable via `app.manager`) to implement strict isolation.
+
+```python
+# Typically configured in your app entry point
+class SecureConnectionManager(ConnectionManager):
+    async def authorize_subscribe(self, socket, channel: str) -> bool:
+        """
+        Custom logic to permit or deny a subscription.
+        Automatically called by Eden on every "subscribe" event.
+        """
+        # Example: Isolation by User ID
+        if channel.startswith("user:"):
+             authorized_user_id = channel.split(":")[1]
+             return str(socket.user.id) == authorized_user_id
+             
+        # Example: Isolation by Product ID
+        if channel.startswith("product:"):
+             product_id = channel.split(":")[1]
+             return await check_product_permission(socket.user, product_id)
+
+        return True
+
+# Initialize app with custom manager
+app = Eden(__name__, manager=SecureConnectionManager())
+```
+
+> [!IMPORTANT]
+> **User Context**: Every `socket` object in Eden now carries a `user_id` and `user` object extracted during the initial handshake. This context is immutable and verified against your main session/auth store.
 
 ---
 

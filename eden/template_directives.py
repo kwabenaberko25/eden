@@ -167,7 +167,14 @@ def render_props(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str)
 
 @directive("span")
 def render_span(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -> str:
-    return f'{{{{ {expr.replace("$", "")} }}}}' if expr else ""
+    if not expr:
+        return ""
+    # Support ?? for null-coalescing shorthand, converting it to Jinja2 default filter
+    if "??" in expr:
+        import re
+        # Basic support for a ?? b -> a | default(b)
+        expr = re.sub(r'(.*?)\s*\?\?\s*(.*)', r'\1 | default(\2)', expr)
+    return f'{{{{ {expr.replace("$", "")} }}}}'
 
 @directive("json")
 def render_json(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -> str:

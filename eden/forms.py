@@ -1035,9 +1035,6 @@ class Schema(BaseModel, metaclass=SchemaMeta):
     model_config = {"extra": "ignore", "arbitrary_types_allowed": True}
 
     def __init_subclass__(cls, **kwargs):
-        # Prevent annotation dictionary sharing
-        if "__annotations__" not in cls.__dict__:
-            setattr(cls, "__annotations__", {})
         super().__init_subclass__(**kwargs)
 
     @classmethod

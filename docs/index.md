@@ -9,7 +9,8 @@ Eden is a high-performance, async-first web framework designed for developers wh
 Learn the core concepts and the philosophy behind the framework.
 
 - **[The Eden Philosophy](guides/philosophy.md)**: Why we built an "Integrated Framework" and how it solves micro-framework fatigue.
-- **[Quickstart Guide](../README.md#quickstart)**: Get your first app running in 30 seconds.
+- **[Quickstart Guide](getting-started/quickstart.md)**: Get your first app running in 30 seconds.
+
 
 ## 🏢 Scaling & Architecture
 
@@ -24,8 +25,9 @@ Deep dives into the advanced features that make Eden production-ready.
 Practical guides for common development tasks.
 
 - **[The Model-to-Form Bridge](recipes/forms-and-validation.md)**: Automatically deriving high-fidelity forms from your database models.
-- **[Storage & File Management](recipes/storage.md)**: Local, S3, and Cloudfront integration (Coming Soon).
-- **[Payments with Stripe](recipes/payments.md)**: Subscriptions, checkouts, and webhooks (Coming Soon).
+- **[Storage & File Management](guides/storage.md)**: Local, S3, and Cloudfront integration.
+- **[Payments with Stripe](guides/payments.md)**: Subscriptions, checkouts, and webhooks.
+
 
 ---
 

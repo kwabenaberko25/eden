@@ -122,7 +122,8 @@ async def get_billing_service():
 
 ## Related Guides
 
-- [Dependency Injection](dependencies.md)
+- [Dependency Injection](dependency-injection.md)
+
 - [Unit Testing](testing.md)
 - [ORM Querying](orm-querying.md)
 - [Admin Panel](admin.md)

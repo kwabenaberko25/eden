@@ -867,14 +867,24 @@ class Eden:
         from eden.websocket import connection_manager as manager
 
         async def sync_websocket(websocket: WebSocket) -> None:
-            await manager.connect(websocket)
+            # Extract user from scope (populated by AuthenticationMiddleware)
+            user = websocket.scope.get("user")
+            user_id = str(getattr(user, "id", "")) if user and hasattr(user, "id") else None
+            
+            await manager.connect(websocket, user_id=user_id)
             try:
                 while True:
                     data = await websocket.receive_json()
                     action = data.get("action")
                     channel = data.get("channel")
                     if action == "subscribe" and channel:
-                        await manager.subscribe(websocket, channel)
+                        # subscribe() now returns a boolean for authorization status
+                        authorized = await manager.subscribe(websocket, channel)
+                        if not authorized:
+                            await websocket.send_json({
+                                "type": "error",
+                                "detail": f"Unauthorized subscription to channel: {channel}"
+                            })
                     elif action == "unsubscribe" and channel:
                         await manager.unsubscribe(websocket, channel)
             except Exception:
@@ -961,6 +971,18 @@ class Eden:
             self.setup_defaults()
             starlette_routes = self._router.to_starlette_routes()
             self._build_websockets(starlette_routes)
+            
+            # Metrics exposition
+            if getattr(self.config, "metrics_enabled", True):
+                from starlette.responses import Response
+                from starlette.routing import Route
+                
+                async def metrics_endpoint(request: Any) -> Response:
+                    content = self.metrics.export_prometheus()
+                    return Response(content, media_type="text/plain; version=0.0.4; charset=utf-8")
+                
+                metrics_url = getattr(self.config, "metrics_url", "/metrics")
+                starlette_routes.append(Route(metrics_url, metrics_endpoint, name="eden:metrics"))
             
             from eden.components import get_component_router
             starlette_routes.extend(get_component_router().to_starlette_routes())

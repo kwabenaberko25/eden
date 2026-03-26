@@ -13,8 +13,8 @@ Eden is a high-performance, async-first web framework designed for developers wh
 - **🛠️ Zero-Config ORM:** SQLAlchemy 2.0 wrapped in a Django-inspired interface with automatic session injection.
 - **🛡️ Built-in Security:** First-class middleware for CSRF, security headers, rate limiting, and API Token authentication.
 - **🏢 Native Multi-Tenancy:** Async-safe row-level isolation built into the core ORM.
-- **💳 Payment Integration:** Ready-to-use Stripe integration for subscriptions and checkouts.
-- **☁️ Cloud Storage:** Pluggable storage backends with native S3 support.
+- **📈 Production Observability:** Unified Prometheus-compatible metrics and request-scoped performance telemetry.
+- **🔌 Real-Time Synergy:** Native WebSocket support with secure channel authorization and reactive ORM broadcasts.
 - **🚥 Premium Debug UI:** A stunning, glassmorphic error interface for effortless debugging.
 
 ---
@@ -31,9 +31,12 @@ pip install eden-framework
 
 Dive into our comprehensive guides and recipes to master the Eden Framework.
 
-* - 🌿 [The Eden Philosophy](docs/guides/philosophy.md): Why we built an "Integrated Framework" and how we solve micro-framework fatigue.
+- 🌿 [The Eden Philosophy](docs/guides/philosophy.md): Why we built an "Integrated Framework" and how we solve micro-framework fatigue.
+
 - 🏢 [Multi-Tenancy Master Class](docs/guides/multi-tenancy.md): Dynamic PostgreSQL schemas, row-level isolation, and fail-secure design.
+
 - 🛡️ [Identity & RBAC](docs/guides/auth-and-rbac.md): Tiered admin hierarchies (Global vs. Tenant) and model-level security rules.
+
 - 📝 [Model-to-Form Bridge](docs/recipes/forms-and-validation.md): Automatically deriving high-fidelity forms and UI metadata from your models.
 
 ---
@@ -64,6 +67,7 @@ if __name__ == "__main__":
 ```
 
 Run your app:
+
 ```bash
 python app.py
 ```
@@ -75,6 +79,7 @@ python app.py
 Eden replaces the verbose Jinja2 tags with a clean, brace-based `@directive` syntax. It's fully line-preserving, ensuring that error traces point to the exact location in your original source.
 
 ### Control Flows
+
 ```html
 @if (user.is_authenticated) {
     <div class="welcome">Welcome back, {{ user.name }}!</div>
@@ -91,6 +96,7 @@ Eden replaces the verbose Jinja2 tags with a clean, brace-based `@directive` syn
 
 ## 🧩 Components & Slots
 Create reusable UI components with ease.
+
 ```html
 @component("card", title="Profile", shadow="lg") {
     @slot("header") {
@@ -178,7 +184,9 @@ async def admin_area():
 Eden comes packed with everything you need to build a production-ready SaaS.
 
 ### 🔑 API Token Authentication
+
 Securely authenticate requests using hashed API keys.
+
 ```python
 from eden import APIKey
 
@@ -187,7 +195,9 @@ key_obj, raw_key = await APIKey.generate(user_id=user.id, name="Pro Plan Key")
 ```
 
 ### 🏢 Multi-Tenancy
+
 Scope your data automatically to the current tenant.
+
 ```python
 class Post(EdenModel, TenantMixin):
     title: Mapped[str] = StringField()
@@ -263,10 +273,10 @@ my_project/
 - [x] **Payment Integration:** Stripe-first billing primitives.
 - [x] **S3 Storage:** Async cloud storage backend.
 - [x] **Supabase Storage:** Direct Supabase storage integration.
-- [x] **Task Scheduling:** Cron-based advanced background tasks.
-- [ ] **Eden CLI:** Scaffolding and automated migrations (Work in progress).
+- [x] **Eden CLI:** Scaffolding and automated migrations.
+- [x] **Real-time:** Native WebSocket support for reactive UIs and secure channel isolation.
+- [x] **Observability:** Unified Prometheus-compatible metrics engine.
 - [ ] **Native HTMX Integration:** Deeply integrated partial rendering and fragment control.
-- [ ] **Real-time:** Native WebSocket support for reactive UIs.
 
 ---
 

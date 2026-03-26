@@ -56,6 +56,31 @@ class RegistrationSchema(Schema):
 
 ---
 
+## 🧬 Schema Inheritance & Extensions
+
+Eden support standard Python inheritance for Schemas. Field definitions and type annotations are correctly propagated and merged in subclasses, allowing for modular form design.
+
+```python
+class BaseContactSchema(Schema):
+    email: EmailStr = field(label="Email Address")
+    subject: str = field(min_length=5)
+
+class SupportSchema(BaseContactSchema):
+    # Inherits email and subject
+    # Adds priority and category
+    priority: str = field(widget="select", choices=[("low", "Low"), ("high", "High")])
+    category: str = field(default="general")
+
+# You can also override inherited fields
+class CorporateContactSchema(BaseContactSchema):
+    email: EmailStr = field(label="Corporate Email ONLY")
+```
+
+> [!TIP]
+> Use inheritance to share common fields like `address`, `user_metadata`, or `audit_trails` across different parts of your application.
+
+---
+
 ## 🧬 Field Types & Widgets
 
 Eden maps Python types to HTML5 widgets automatically, but you can override them for advanced UI.

@@ -86,7 +86,9 @@ class ConsoleBackend(EmailBackend):
         output += f"{'=' * 60}\n"
 
         if self.stream == "stdout":
-            print(output)
+            import sys
+            sys.stdout.write(output + "\n")
+            sys.stdout.flush()
         else:
             logger.info(output)
 

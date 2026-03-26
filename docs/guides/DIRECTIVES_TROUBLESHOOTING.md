@@ -9,7 +9,8 @@ Comprehensive troubleshooting for Eden templating directives.
 **Is an @directive not working?**
 
 1. Check the [Directive Syntax](#directive-syntax) table below
-2. Verify [Route Names](templating.md#url-routing-and-navigation) if using @url or @active_link
+2. Verify [Route Names](templating.md#navigation-active-states) if using @url or @active_link
+
 3. Enable [Debug Logging](#enable-debug-logging)
 4. Check the [Common Issues](#common-issues) section
 

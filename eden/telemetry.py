@@ -61,12 +61,28 @@ def record_query(duration_ms: float) -> None:
     if data:
         data.db_queries += 1
         data.db_time_ms += duration_ms
+    
+    # Bridge to global metrics for monitoring
+    try:
+        from eden.core.metrics import metrics
+        metrics.increment("db_queries_total")
+        metrics.observe("db_query_duration_seconds", duration_ms / 1000.0)
+    except (ImportError, Exception):
+        pass
 
 def record_template_render(duration_ms: float) -> None:
     """Record a template rendering operation."""
     data = _telemetry_ctx.get()
     if data:
         data.template_time_ms += duration_ms
+        
+    # Bridge to global metrics
+    try:
+        from eden.core.metrics import metrics
+        metrics.increment("template_renders_total")
+        metrics.observe("template_render_duration_seconds", duration_ms / 1000.0)
+    except (ImportError, Exception):
+        pass
 
 def record_metric(name: str, value: float) -> None:
     """Record a custom performance metric."""
