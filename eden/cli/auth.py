@@ -42,8 +42,8 @@ def createsuperuser(email, full_name, password):
                     is_active=True,
                     is_staff=True,
                     is_superuser=True,
-                    roles=["admin"],
-                    permissions=["*"]
+                    roles_json=["admin"],
+                    permissions_json=["*"]
                 )
                 user.set_password(password)
                 await user.save(session)

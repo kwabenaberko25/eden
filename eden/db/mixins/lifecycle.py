@@ -48,7 +48,8 @@ class LifecycleMixin:
         if not is_new:
             try:
                 insp = sa_inspect(self)
-                for attr in insp.attrs:
+                # 🛡️ Fix: Use column_attrs to avoid triggering lazy-loads of relationships
+                for attr in insp.mapper.column_attrs:
                     history = attributes.get_history(self, attr.key)
                     if history.has_changes():
                         changes[attr.key] = {
@@ -193,7 +194,8 @@ class LifecycleMixin:
                 changes = {}
                 from sqlalchemy import inspect as sa_inspect
                 insp = sa_inspect(self)
-                for attr in insp.attrs:
+                # 🛡️ Fix: Use column_attrs to avoid triggering lazy-loads of relationships
+                for attr in insp.mapper.column_attrs:
                     val = getattr(self, attr.key)
                     if val is not None:
                         changes[attr.key] = {"old": None, "new": self._make_json_safe(val)}

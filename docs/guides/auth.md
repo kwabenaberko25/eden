@@ -29,6 +29,17 @@ graph TD
 
 ---
 
+## 🏗️ Core Identity: The `User` Model
+
+Beyond authentication, Eden provides a robust identity system for managing users, passwords, and profile data. Whether you need the [JSON-Light](./user-identity.md#mode-a-json-light-lightweight) mode for simple apps or [Relational RBAC](./user-identity.md#mode-b-relational-rbac-enterprise) for enterprise scale, the setup is seamless.
+
+Check out the [User Identity Guide](./user-identity.md) for details on:
+* **Password Hashing** with Argon2id.
+* **CLI Bootstrapping** of superusers.
+* **Role Management** (JSON vs Models).
+
+---
+
 ## ⚡ 60-Second Auth Setup
 
 Ready to protect your first route? Follow this pattern to bootstrap a fully secure endpoint in under a minute.

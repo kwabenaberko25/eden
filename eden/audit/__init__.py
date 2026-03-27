@@ -91,11 +91,8 @@ def _trigger_audit(target: Any, action: str):
     
     if action == "update":
         insp = inspect(target)
-        for attr in insp.attrs:
-            # Skip relationships and internal state
-            if not hasattr(attr, "key"):
-                continue
-            
+        # 🛡️ Fix: Use column_attrs to avoid triggering lazy-loads of relationships
+        for attr in insp.mapper.column_attrs:
             history = attributes.get_history(target, attr.key)
             if history.has_changes():
                 changes[attr.key] = {
