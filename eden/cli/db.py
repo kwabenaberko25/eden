@@ -4,6 +4,7 @@ Eden DB — CLI database migration utilities.
 
 from __future__ import annotations
 
+import asyncio
 import sys
 import click
 from eden.db.migrations import (
@@ -45,17 +46,8 @@ def db_init(db_url: str | None) -> None:
         sys.exit(1)
 
 
-@db.command("migrate")
-@click.option("--revision", default="head", help="Target revision.")
-@click.option("--schema", default=None, help="Target specific tenant schema.")
-@click.option("--all-tenants", is_flag=True, help="Apply migrations to ALL active tenant schemas.")
-@click.option(
-    "--db-url",
-    default=None,
-    help="Database URL (defaults to config).",
-)
-def db_migrate(revision: str, schema: str | None, all_tenants: bool, db_url: str | None) -> None:
-    """Apply pending migrations."""
+def _execute_migration(revision: str, schema: str | None, all_tenants: bool, db_url: str | None) -> None:
+    """Helper to execute migration logic."""
     if schema and all_tenants:
         click.echo("  ❌ Error: Cannot use both --schema and --all-tenants.", err=True)
         sys.exit(1)
@@ -71,6 +63,20 @@ def db_migrate(revision: str, schema: str | None, all_tenants: bool, db_url: str
     click.echo("  ✅ Database migrated.")
 
 
+@db.command("migrate")
+@click.option("--revision", default="head", help="Target revision.")
+@click.option("--schema", default=None, help="Target specific tenant schema.")
+@click.option("--all-tenants", is_flag=True, help="Apply migrations to ALL active tenant schemas.")
+@click.option(
+    "--db-url",
+    default=None,
+    help="Database URL (defaults to config).",
+)
+def db_migrate(revision: str, schema: str | None, all_tenants: bool, db_url: str | None) -> None:
+    """Apply pending migrations."""
+    _execute_migration(revision=revision, schema=schema, all_tenants=all_tenants, db_url=db_url)
+
+
 @db.command("apply")
 @click.option("--revision", default="head", help="Target revision.")
 @click.option("--schema", default=None, help="Target specific tenant schema.")
@@ -82,7 +88,7 @@ def db_migrate(revision: str, schema: str | None, all_tenants: bool, db_url: str
 )
 def db_apply(revision: str, schema: str | None, all_tenants: bool, db_url: str | None) -> None:
     """Apply pending migrations (alias for migrate)."""
-    db_migrate(revision=revision, schema=schema, all_tenants=all_tenants, db_url=db_url)
+    _execute_migration(revision=revision, schema=schema, all_tenants=all_tenants, db_url=db_url)
 
 
 @db.command("upgrade")
@@ -96,7 +102,7 @@ def db_apply(revision: str, schema: str | None, all_tenants: bool, db_url: str |
 )
 def db_upgrade(revision: str, schema: str | None, all_tenants: bool, db_url: str | None) -> None:
     """Apply pending migrations."""
-    db_migrate(revision=revision, schema=schema, all_tenants=all_tenants, db_url=db_url)
+    _execute_migration(revision=revision, schema=schema, all_tenants=all_tenants, db_url=db_url)
 
 
 @db.command("downgrade")
@@ -121,15 +127,14 @@ def db_downgrade(revision: str, schema: str | None, db_url: str | None) -> None:
     default=None,
     help="Database URL (defaults to config).",
 )
-def db_history(db_url: str) -> None:
+def db_history(db_url: str | None) -> None:
     """Show migration history with a premium overview."""
     from rich.console import Console
     from rich.table import Table
-    from eden.db.migrations import MigrationManager
     
     console = Console()
     manager = MigrationManager(db_url)
-    history_data = manager.history()
+    history_data = asyncio.run(manager.history())
     
     if not history_data:
         click.secho("  ℹ (No migrations found)", fg="yellow")
@@ -179,7 +184,7 @@ def db_generate(message: str, tenant: bool, db_url: str | None) -> None:
     click.echo(f"  🔄 Generating {label} migration: {message}")
     try:
         manager = MigrationManager(db_url)
-        manager.generate(message=message, tenant_isolated=tenant)
+        asyncio.run(manager.generate(message=message, tenant_isolated=tenant))
         click.echo("  ✅ Migration created in migrations/versions/")
     except alembic.util.exc.CommandError as e:
         if "Path doesn't exist" in str(e):
@@ -196,7 +201,7 @@ def db_generate(message: str, tenant: bool, db_url: str | None) -> None:
     default=None,
     help="Database URL (defaults to config).",
 )
-def db_check(db_url: str) -> None:
+def db_check(db_url: str | None) -> None:
     """Check for schema drift across all tenants."""
     click.echo("  🕵️  Checking for schema drift...")
     results = run_check(db_url=db_url)

@@ -4,7 +4,7 @@
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Template Error — syntax_jinja.html:3</title>
+        <title>Template Error — mistake.html:4</title>
         <script src="https://cdn.tailwindcss.com"></script>
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -30,7 +30,7 @@
                 border-radius: 2px;
                 z-index: 10;
             }
-            .error-line .column-marker { left: calc(-1ch + 3.45rem); }
+            .error-line .column-marker { left: calc(0ch + 3.45rem); }
 
             ::-webkit-scrollbar { width: 5px; height: 5px; }
             ::-webkit-scrollbar-track { background: transparent; }
@@ -45,12 +45,12 @@
                 <span class="bg-rose-500/20 text-rose-500 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-md border border-rose-500/30 shadow-[0_0_20px_rgba(244,63,94,0.3)]">
                     CRITICAL ERROR
                 </span>
-                <span class="text-slate-600 font-mono text-[10px] tracking-widest">ID: EDN-2952-ERR</span>
+                <span class="text-slate-600 font-mono text-[10px] tracking-widest">ID: EDN-16752-ERR</span>
             </div>
             
             <div class="space-y-2">
                 <h1 class="text-4xl md:text-5xl font-black tracking-tight text-white leading-tight">
-                    <span class="text-rose-500">Syntax Error:</span> expected token &#x27;:&#x27;, got &#x27;}&#x27;
+                    <span class="text-rose-500">Undefined Variable:</span> &#x27;emp&#x27; is undefined
                 </h1>
                 <p class="text-slate-500 text-sm font-medium tracking-tight flex items-center gap-2">
                     Occurrence detected in <span class="text-blue-400 font-mono select-all">local-development</span>. Immediate resolution required.
@@ -67,12 +67,12 @@
                         </svg>
                     </div>
                     <div class="space-y-1">
-                        <p class="text-xl font-semibold text-white leading-tight">expected token &#x27;:&#x27;, got &#x27;}&#x27;</p>
+                        <p class="text-xl font-semibold text-white leading-tight">&#x27;emp&#x27; is undefined</p>
                         <div class="flex items-center gap-2 text-slate-400 font-medium text-xs">
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                            <span class="text-blue-400 select-all font-mono">syntax_jinja.html</span>
+                            <span class="text-blue-400 select-all font-mono">mistake.html</span>
                             <span class="text-slate-600 px-0.5">•</span>
-                            <span class="text-slate-300">Line 3</span>
+                            <span class="text-slate-300">Line 4</span>
                         </div>
                     </div>
                 </div>
@@ -93,14 +93,15 @@
                             <div class="w-2.5 h-2.5 rounded-full bg-amber-500/20 border border-amber-500/30"></div>
                             <div class="w-2.5 h-2.5 rounded-full bg-emerald-500/20 border border-emerald-500/30"></div>
                         </div>
-                        <div class="text-[9px] text-slate-500 font-mono tracking-wider uppercase opacity-50">syntax_jinja.html</div>
+                        <div class="text-[9px] text-slate-500 font-mono tracking-wider uppercase opacity-50">mistake.html</div>
                     </div>
                     <div class="code-explorer p-4 text-xs font-mono leading-relaxed overflow-x-auto">
                         <pre class="p-0 border-0 bg-transparent"><code><div class="normal-line"><span class="line-no">   1</span>
-</div><div class="normal-line"><span class="line-no">   2</span>            {% for emp in workers
-</div><div class="error-line"><span class="line-no">   3</span>                <span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>{{ emp.name }}<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
-</div><div class="normal-line"><span class="line-no">   4</span>            {% endfor %}
-</div><div class="normal-line"><span class="line-no">   5</span>            
+</div><div class="normal-line"><span class="line-no">   2</span>    <span class="p">&lt;</span><span class="nt">h1</span><span class="p">&gt;</span>Employee List<span class="p">&lt;/</span><span class="nt">h1</span><span class="p">&gt;</span>
+</div><div class="normal-line"><span class="line-no">   3</span>    for (emp in workers) {
+</div><div class="error-line"><span class="line-no">   4</span>        <span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>{{ emp }}<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+</div><div class="normal-line"><span class="line-no">   5</span>    }
+</div><div class="normal-line"><span class="line-no">   6</span>    
 </div></code></pre>
                     </div>
                 </div>
@@ -133,7 +134,7 @@
 
             <tr class="border-b border-slate-800/50 last:border-0">
                 <td class="py-2.5 pr-4 font-mono text-xs text-blue-400 align-top w-1/3">workers</td>
-                <td class="py-2.5 font-mono text-xs text-slate-300 break-all"><span class="text-slate-400 font-mono">list(0 items)</span></td>
+                <td class="py-2.5 font-mono text-xs text-slate-300 break-all"><span class="text-slate-400 font-mono">list(2 items)</span></td>
             </tr>
             
                                     </tbody>
@@ -155,7 +156,7 @@
                                         <div class="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1.5 opacity-60">Method & URL</div>
                                         <div class="flex items-center gap-2">
                                             <span class="px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 text-[10px] font-black uppercase ring-1 ring-inset ring-blue-500/20">GET</span>
-                                            <span class="text-xs font-mono text-slate-300 select-all truncate">http://testserver/syntax</span>
+                                            <span class="text-xs font-mono text-slate-300 select-all truncate">http://testserver/</span>
                                         </div>
                                     </div>
                                     <div>
@@ -207,28 +208,14 @@
                 <div class="mt-0.5 text-blue-400">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                 </div>
-                <p class="text-[11px] text-slate-300 leading-relaxed font-medium">Check for missing or unclosed <code>@directive</code> blocks. Most directives like <code>@section</code>, <code>@if</code>, or <code>@for</code> require a closing <code>}</code>.</p>
+                <p class="text-[11px] text-slate-300 leading-relaxed font-medium">Ensure that <code>emp</code> is passed in the context during template rendering.</p>
             </div>
             
             <div class="flex items-start gap-3 p-3 bg-blue-500/5 rounded-xl border border-blue-500/10 mb-2 last:mb-0">
                 <div class="mt-0.5 text-blue-400">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                 </div>
-                <p class="text-[11px] text-slate-300 leading-relaxed font-medium">Verify that any logic inside directive arguments <code>@directive(...)</code> follows valid Python-like expression syntax.</p>
-            </div>
-            
-            <div class="flex items-start gap-3 p-3 bg-blue-500/5 rounded-xl border border-blue-500/10 mb-2 last:mb-0">
-                <div class="mt-0.5 text-blue-400">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                </div>
-                <p class="text-[11px] text-slate-300 leading-relaxed font-medium">Ensure that your curly braces <code>{ ... }</code> are properly balanced around your HTML content.</p>
-            </div>
-            
-            <div class="flex items-start gap-3 p-3 bg-blue-500/5 rounded-xl border border-blue-500/10 mb-2 last:mb-0">
-                <div class="mt-0.5 text-blue-400">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                </div>
-                <p class="text-[11px] text-slate-300 leading-relaxed font-medium">Eden uses a modern <code>@directive { ... }</code> syntax instead of Jinja's <code>{% block %}</code> syntax. You might want to update this to Eden's syntax.</p>
+                <p class="text-[11px] text-slate-300 leading-relaxed font-medium">It looks like you might be trying to use a <code>@for</code> directive at line 3. Did you forget to add the <code>@</code> prefix?</p>
             </div>
             
                             </div>

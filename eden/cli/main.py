@@ -14,15 +14,13 @@ Commands:
     eden sync      — Synchronize database schema and assets
 """
 
-from __future__ import annotations
-
 import os
 import sys
+import click
 from pathlib import Path
 
-import click
-
 import eden
+from eden.cli.utils import discover_app
 
 
 @click.group()
@@ -47,49 +45,12 @@ def run(host: str, port: int, reload: bool, no_browser_reload: bool, workers: in
 
     # Smart discovery if no app path provided
     if app_path is None:
-        # First check if eden.json has a saved app_path
-        eden_json_path = Path("eden.json")
-        if eden_json_path.exists():
-            try:
-                config = json.loads(eden_json_path.read_text(encoding="utf-8"))
-                app_path = config.get("app_path")
-                if app_path:
-                    click.echo(f"  📖 Using app from eden.json: {app_path}")
-            except (json.JSONDecodeError, KeyError):
-                app_path = None
-
-        # If not found in eden.json, auto-detect
-        if app_path is None:
-            discovery_order = ["app.py", "main.py", "nexus.py", "run.py"]
-            found_file = None
-            for filename in discovery_order:
-                if Path(filename).exists():
-                    content = Path(filename).read_text(encoding="utf-8")
-                    if "app = Eden(" in content or "app: Eden =" in content or "app = create_app" in content:
-                        found_file = filename
-                        break
-            
-            if found_file:
-                module_name = Path(found_file).stem
-                app_path = f"{module_name}:app"
-                click.echo(f"  🔍 Auto-detected app entry: {app_path}")
-                
-                # Update eden.json with discovered app_path
-                if eden_json_path.exists():
-                    try:
-                        config = json.loads(eden_json_path.read_text(encoding="utf-8"))
-                    except json.JSONDecodeError:
-                        config = {}
-                else:
-                    config = {}
-                
-                config["app_path"] = app_path
-                eden_json_path.write_text(json.dumps(config, indent=2), encoding="utf-8")
-                click.echo(f"  💾 Saved to eden.json for faster startup")
-            else:
-                # Fallback to default if nothing found
-                app_path = "app:app"
-                click.echo(f"  ℹ️  No app detected, using default: {app_path}")
+        app_path = discover_app()
+        if app_path:
+            click.echo(f"  📖 Using app: {app_path}")
+        else:
+            app_path = "app:app"
+            click.echo(f"  ℹ️  No app detected, using default: {app_path}")
 
     # Set environment for browser reload control
     if no_browser_reload:
@@ -193,8 +154,7 @@ def shell(app_path: str | None) -> None:
     
     # Auto-detect app if not provided
     if app_path is None:
-        # Simplified discovery logic (reuse run discovery if needed)
-        app_path = "app:app"
+        app_path = discover_app()
 
     try:
         module_name, obj_name = app_path.split(":")

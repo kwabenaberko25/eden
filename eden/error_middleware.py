@@ -87,8 +87,13 @@ class ErrorHandlerMiddleware(BaseHTTPMiddleware):
             try:
                 from jinja2.exceptions import TemplateError as JinjaTemplateError
                 eden_app = getattr(app, "eden", app)
-                if isinstance(exc, JinjaTemplateError) and getattr(eden_app, "debug", False):
-                    return eden_app._render_enhanced_template_error(request, exc)
+                if getattr(eden_app, "debug", False):
+                    if isinstance(exc, JinjaTemplateError):
+                        return eden_app._render_enhanced_template_error(request, exc)
+                    
+                    # Handle all other exceptions in debug mode with the premium debug page
+                    if hasattr(eden_app, "_render_enhanced_exception"):
+                        return eden_app._render_enhanced_exception(request, exc)
             except (ImportError, AttributeError):
                 pass
             

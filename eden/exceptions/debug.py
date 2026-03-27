@@ -1,9 +1,17 @@
 from __future__ import annotations
-import html as html_mod
+import inspect
+import traceback
+import difflib
 import platform
-import sys
+import re
 import os
-from typing import Any, TYPE_CHECKING
+import sys
+from datetime import datetime
+from typing import Any, TYPE_CHECKING, Optional, Union, Callable
+import html as html_mod
+
+import jinja2
+from jinja2.exceptions import TemplateSyntaxError, UndefinedError
 from starlette.responses import HTMLResponse
 
 if TYPE_CHECKING:
@@ -203,6 +211,60 @@ def render_error_response(
     </div>
 </body>
 </html>"""
+def collect_debug_metadata(request: "Request") -> dict[str, Any]:
+    """
+    Standardize metadata extraction from the request for the debug page.
+    """
+    import os
+    import platform
+    from datetime import datetime
+    
+    # Try to get version from eden
+    try:
+        from eden import __version__
+    except ImportError:
+        __version__ = "1.0.0"
+
+    metadata = {
+        "Request": {
+            "URL": str(request.url),
+            "Method": request.method,
+            "Headers": dict(request.headers),
+            "Path": request.url.path,
+        },
+        "Environment": {
+            "System": platform.system(),
+            "Platform": platform.platform(),
+            "Release": platform.release(),
+            "Python": f"{platform.python_implementation()} {platform.python_version()}",
+            "PID": os.getpid(),
+            "User": os.getenv("USER") or os.getenv("USERNAME") or "Unknown",
+            "CWD": os.getcwd(),
+            "Eden Version": __version__,
+        },
+    }
+
+    # Add optional features if they exist
+    # Add optional features if they exist
+    if "session" in request.scope:
+        metadata["Session"] = dict(request.session)
+    
+    if request.cookies:
+        metadata["Cookies"] = dict(request.cookies)
+
+    # Get payload for POST/PUT if available and not too large
+    if request.method in ("POST", "PUT", "PATCH"):
+        try:
+            # Note: This might be tricky as we can't always await here in a sync context
+            # but usually by this point standard middlewares have parsed it.
+            if hasattr(request, "_form") and request._form is not None:
+                metadata["Payload (Form)"] = dict(request._form)
+            elif hasattr(request, "_json") and request._json is not None:
+                metadata["Payload (JSON)"] = request._json
+        except Exception:
+            pass
+            
+    return metadata
 
 def render_premium_debug_page(
     title: str,
@@ -212,12 +274,13 @@ def render_premium_debug_page(
     column: int,
     code_frame: str,
     context_vars: dict,
-    request_info: dict[str, Any],
-    suggestions: list[str],
-    is_htmx: bool,
-    badge: str
+    metadata: dict[str, Any],
+    traceback_html: str = "",
+    suggestions: list[str] | None = None,
+    status_code: int = 500,
+    badge: str = "ERROR"
 ) -> HTMLResponse:
-    """Renders the high-fidelity Eden debug/error page with template variables."""
+    """Renders the high-fidelity Eden debug/error page with code context and request details."""
     jakarta_sans = "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
     outfit = "https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700&display=swap"
     
@@ -246,36 +309,78 @@ def render_premium_debug_page(
 
     # Format suggestions
     suggestions_html = ""
-    for suggestion in suggestions:
-        suggestions_html += f"""
-        <div class="flex items-start gap-3 p-3 bg-blue-500/5 rounded-xl border border-blue-500/10 mb-2 last:mb-0">
-             <div class="mt-0.5 text-blue-400">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-             </div>
-             <p class="text-[11px] text-slate-300 leading-relaxed font-medium">{suggestion}</p>
-        </div>
-        """
-
-    # Format payload if exists
-    payload_html = ""
-    payload = request_info.get("payload")
-    if payload:
-        import json
-        try:
-            formatted_payload = json.dumps(payload, indent=2)
-            payload_html = f"""
-            <div class="mt-8 space-y-3">
-                <h2 class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 flex items-center gap-2 px-1">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
-                    Request Payload
-                </h2>
-                <div class="bg-[#0b1222] rounded-xl border border-white/5 p-4 shadow-sm">
-                    <pre class="text-[10px] font-mono text-amber-200/80 overflow-x-auto"><code>{html_mod.escape(formatted_payload)}</code></pre>
+    if suggestions:
+        for suggestion in suggestions:
+            suggestions_html += f"""
+            <div class="flex items-start gap-3 p-3 bg-blue-500/5 rounded-xl border border-blue-500/10 mb-2 last:mb-0">
+                <div class="mt-0.5 text-blue-400">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                 </div>
+                <p class="text-[11px] text-slate-300 leading-relaxed font-medium">{suggestion}</p>
             </div>
             """
-        except Exception:
+    # Prepare Metadata Tabs
+    def dict_to_table(d, title):
+        if not d:
+            return f'<p class="text-slate-500 italic text-xs p-4">No {title} data available</p>'
+        
+        rows = []
+        for k, v in sorted(d.items()):
+            rows.append(f"""
+            <tr class="border-b border-white/5 last:border-0 hover:bg-white/[0.02] transition-colors">
+                <td class="py-3 px-4 font-mono text-[11px] text-blue-400 align-top w-1/3 break-all">{html_mod.escape(str(k))}</td>
+                <td class="py-3 px-4 font-mono text-[11px] text-slate-300 break-all">{format_value(v)}</td>
+            </tr>
+            """)
+        return f'<table class="w-full text-left border-collapse"><tbody>{"".join(rows)}</tbody></table>'
+
+    request_data = metadata.get("Request", {})
+    env_data = metadata.get("Environment", {})
+    session_data = metadata.get("Session", {})
+    cookies_data = metadata.get("Cookies", {})
+    payload_data_form = metadata.get("Payload (Form)", {})
+    payload_data_json = metadata.get("Payload (JSON)", {})
+
+    tabs = {
+        "Request": dict_to_table(request_data, "request"),
+        "Environment": dict_to_table(env_data, "environment"),
+        "Session": dict_to_table(session_data, "session"),
+        "Cookies": dict_to_table(cookies_data, "cookies")
+    }
+
+    if payload_data_form:
+        tabs["Payload (Form)"] = dict_to_table(payload_data_form, "payload (form)")
+    if payload_data_json:
+        import json
+        try:
+            formatted_payload = json.dumps(payload_data_json, indent=2)
+            tabs["Payload (JSON)"] = f'<pre class="p-4 text-[11px] font-mono text-amber-200/80 overflow-x-auto bg-black/20"><code>{html_mod.escape(formatted_payload)}</code></pre>'
+        except:
             pass
+
+    tabs_nav = []
+    tabs_content = []
+    
+    for i, (name, content) in enumerate(tabs.items()):
+        safe_id = name.lower().replace(" ", "-").replace("(", "").replace(")", "")
+        is_active = i == 0
+        active_class = "text-blue-400 border-b-2 border-blue-500 active" if is_active else "text-slate-500 hover:text-slate-300"
+        hidden_class = "" if is_active else "hidden"
+        
+        tabs_nav.append(f"""
+        <button onclick="switchTab(this, '{safe_id}')" 
+                id="tab-btn-{safe_id}" 
+                data-tab-link="{safe_id}"
+                class="tab-btn pb-3 text-[10px] font-bold uppercase tracking-widest transition-all {active_class}">
+            {name}
+        </button>
+        """)
+        
+        tabs_content.append(f"""
+        <div id="tab-content-{safe_id}" class="tab-pane {hidden_class} animate-in fade-in duration-300">
+            {content}
+        </div>
+        """)
 
     context_html = ""
     if context_vars:
@@ -285,12 +390,12 @@ def render_premium_debug_page(
             if key.startswith("__") or key in ("app", "debug", "found_context"):
                 continue
             rows.append(f"""
-            <tr class="border-b border-slate-800/50 last:border-0">
-                <td class="py-2.5 pr-4 font-mono text-xs text-blue-400 align-top w-1/3">{key}</td>
-                <td class="py-2.5 font-mono text-xs text-slate-300 break-all">{format_value(val)}</td>
+            <tr class="border-b border-slate-800/50 last:border-0 hover:bg-white/[0.01]">
+                <td class="py-2.5 px-4 font-mono text-[11px] text-indigo-400 align-top w-1/3">{key}</td>
+                <td class="py-2.5 px-4 font-mono text-[11px] text-slate-300 break-all">{format_value(val)}</td>
             </tr>
             """)
-        context_html = "\n".join(rows)
+        context_html = "".join(rows)
 
     html = f"""
     <!DOCTYPE html>
@@ -298,200 +403,154 @@ def render_premium_debug_page(
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>{title} — {filename}:{lineno}{f":{column}" if column > 0 else ""}</title>
+        <title>{title} — {filename}:{lineno}{f":{column + 1}" if column >= 0 else ""}</title>
         <script src="https://cdn.tailwindcss.com"></script>
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link href="{jakarta_sans}" rel="stylesheet">
         <link href="{outfit}" rel="stylesheet">
         <style>
-            body {{ font-family: 'Plus Jakarta Sans', sans-serif; background: #020617; }}
+            body {{ font-family: 'Plus Jakarta Sans', sans-serif; background: #020617; color: #cbd5e1; overflow-x: hidden; }}
             h1, h2, h3, .font-heading {{ font-family: 'Outfit', sans-serif; }}
-            .glass {{ background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.05); }}
-            .error-line {{ background: rgba(239, 68, 68, 0.1); border-left: 3px solid #f43f5e; margin-left: -3px; position: relative; }}
-            .squiggle {{
-                text-decoration: underline wavy #f43f5e;
-                text-underline-offset: 4px;
+            .glass {{ background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.05); }}
+            .error-line {{ background: rgba(239, 68, 68, 0.08); border-left: 3px solid #f43f5e; margin-left: -3px; position: relative; width: 100%; }}
+            .line-no {{ 
+                color: #475569; 
+                margin-right: 0.5rem; 
+                user-select: none; 
+                width: 3.5rem; 
+                display: inline-block; 
+                text-align: right; 
+                font-size: 0.72rem; 
+                font-weight: 700; 
+                opacity: 0.4; 
+                font-family: ui-monospace, monospace;
             }}
-            .line-no {{ color: #475569; margin-right: 1.25rem; user-select: none; width: 2.2rem; display: inline-block; text-align: right; font-size: 0.75rem; font-weight: 500; }}
-            pre {{ font-family: 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', monospace; font-size: 0.85rem; }}
+            pre {{ font-family: 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', monospace; }}
             .column-marker {{ 
                 position: absolute; 
                 bottom: -2px; 
                 height: 3px; 
                 width: 1ch;
                 background: linear-gradient(90deg, #f43f5e, #fb7185); 
-                box-shadow: 0 0 12px rgba(244, 63, 94, 0.6); 
+                box-shadow: 0 0 15px rgba(244, 63, 94, 0.9); 
                 border-radius: 2px;
-                z-index: 10;
+                z-index: 30;
+                pointer-events: none;
             }}
-            .error-line .column-marker {{ left: calc({column}ch + 3.45rem); }}
-
-            ::-webkit-scrollbar {{ width: 5px; height: 5px; }}
+            .error-line .column-marker {{ left: calc(4.0rem + {column}ch); }}
+            .code-explorer {{ max-height: 520px; overflow-y: auto; scrollbar-gutter: stable; background: #0b1222; }}
+            ::-webkit-scrollbar {{ width: 6px; height: 6px; }}
             ::-webkit-scrollbar-track {{ background: transparent; }}
-            ::-webkit-scrollbar-thumb {{ background: #334155; border-radius: 10px; }}
-            .code-explorer {{ max-height: 500px; overflow-y: auto; scrollbar-gutter: stable; }}
+            ::-webkit-scrollbar-thumb {{ background: #1e293b; border-radius: 10px; }}
+            ::-webkit-scrollbar-thumb:hover {{ background: #334155; }}
+            
+            @keyframes slideIn {{
+                from {{ transform: translateY(10px); opacity: 0; }}
+                to {{ transform: translateY(0); opacity: 1; }}
+            }}
+            .animate-slide {{ animation: slideIn 0.4s ease-out forwards; }}
+            .tab-btn.active {{ color: #60a5fa; border-color: #3b82f6; }}
         </style>
     </head>
-    <body class="bg-[#020617] text-slate-200 min-h-screen selection:bg-blue-500/30">
-        <!-- Header -->
-        <header class="py-12 px-6 md:px-10 max-w-7xl mx-auto space-y-6">
-            <div class="flex items-center gap-4 animate-in fade-in slide-in-from-top-4 duration-700">
-                <span class="bg-rose-500/20 text-rose-500 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-md border border-rose-500/30 shadow-[0_0_20px_rgba(244,63,94,0.3)]">
-                    CRITICAL ERROR
-                </span>
-                <span class="text-slate-600 font-mono text-[10px] tracking-widest">ID: EDN-{os.getpid()}-ERR</span>
-            </div>
-            
-            <div class="space-y-2">
-                <h1 class="text-4xl md:text-5xl font-black tracking-tight text-white leading-tight">
-                    <span class="text-rose-500">{badge}:</span> {html_mod.escape(message.split(' (Did you mean:')[0])}
-                </h1>
-                <p class="text-slate-500 text-sm font-medium tracking-tight flex items-center gap-2">
-                    Occurrence detected in <span class="text-blue-400 font-mono select-all">local-development</span>. Immediate resolution required.
-                </p>
-            </div>
-        </header>
-
-        <main class="max-w-7xl mx-auto px-6 md:px-10 pb-20 space-y-10">
-            <section class="space-y-3">
-                <div class="flex items-start gap-4">
-                    <div class="bg-red-500/10 p-3 rounded-xl border border-red-500/20 mt-1">
-                        <svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
-                        </svg>
+    <body class="bg-[#020617] text-slate-300 min-h-screen selection:bg-rose-500/20">
+        <!-- Persistent Header -->
+        <div class="sticky top-0 z-50 glass border-b border-white/5 px-6 py-4 mb-8">
+            <div class="max-w-7xl mx-auto flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 bg-rose-500/10 rounded-lg flex items-center justify-center border border-rose-500/20 text-rose-500">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
                     </div>
-                    <div class="space-y-1">
-                        <p class="text-xl font-semibold text-white leading-tight">{html_mod.escape(message)}</p>
-                        <div class="flex items-center gap-2 text-slate-400 font-medium text-xs">
-                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                            <span class="text-blue-400 select-all font-mono">{filename}</span>
-                            <span class="text-slate-600 px-0.5">•</span>
-                            <span class="text-slate-300">Line {lineno}{f", Column {column}" if column > 0 else ""}</span>
-                        </div>
+                    <div>
+                        <h1 class="text-sm font-bold text-white tracking-tight">{badge}: {title}</h1>
+                        <p class="text-[10px] text-slate-500 font-medium">Eden Framework Diagnostic Utility</p>
                     </div>
                 </div>
+                <div class="flex items-center gap-4">
+                    <span class="text-[10px] text-slate-500 font-mono tracking-tighter uppercase">{filename}:{lineno}{f":{column + 1}" if column >= 0 else ""}</span>
+                    <button onclick="window.location.reload()" class="p-2 hover:bg-white/5 rounded-lg transition-colors text-slate-400">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <main class="max-w-7xl mx-auto px-6 pb-24 space-y-12">
+            <!-- Exception Summary -->
+            <section class="space-y-4 animate-slide">
+                <div class="space-y-1">
+                    <h2 class="text-rose-400 font-bold text-lg mb-2 flex items-center gap-2">
+                        <span class="text-rose-500">{badge}:</span> {html_mod.escape(message.split(' (Did you mean:')[0])}
+                    </h2>
+                    <div class="flex flex-wrap items-center gap-4 text-xs font-mono text-slate-500">
+                        <div class="flex items-center gap-1.5 px-2.5 py-1 bg-white/5 rounded-full border border-white/5 shadow-inner">
+                            <span class="text-indigo-400 opacity-60">FILE:</span> {html_mod.escape(str(filename))}
+                        </div>
+                        <div class="flex items-center gap-1.5 px-2.5 py-1 bg-white/5 rounded-full border border-white/5 shadow-inner">
+                            <span class="text-emerald-400 opacity-60">LINE:</span> {lineno}
+                        </div>
+                        {f'<div class="flex items-center gap-1.5 px-2.5 py-1 bg-white/5 rounded-full border border-white/5 shadow-inner"><span class="text-amber-400 opacity-60">COL:</span> {column + 1}</div>' if column >= 0 else ''}
+                        
+                        <button onclick="copyToClipboard(event, '{html_mod.escape(message.replace("'", "\\'"))}')" class="ml-auto flex items-center gap-2 px-3 py-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded-full border border-rose-500/20 transition-all text-[10px] font-bold tracking-tight uppercase group">
+                            <svg class="w-3 h-3 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+                            Copy Error
+                        </button>
+                    </div>
+                </div>
+                {suggestions_html}
             </section>
 
             <!-- Code Explorer -->
-            <section class="space-y-2">
+            <section class="space-y-3 animate-slide" style="animation-delay: 0.1s">
                 <div class="flex items-center justify-between px-1">
-                    <h2 class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 flex items-center gap-2">
+                    <h3 class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 flex items-center gap-2">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
-                        Code Explorer
-                    </h2>
+                        Source Explorer
+                    </h3>
+                    <span class="text-[9px] text-slate-600 font-mono opacity-60 truncate max-w-md">{filename}:{lineno}{f":{column + 1}" if column >= 0 else ""}</span>
                 </div>
-                <div class="bg-[#0b1222] rounded-xl border border-white/5 shadow-2xl overflow-hidden">
-                    <div class="flex items-center justify-between bg-slate-900/50 px-4 py-2 border-b border-white/5">
-                        <div class="flex gap-1.5">
-                            <div class="w-2.5 h-2.5 rounded-full bg-red-500/20 border border-red-500/30"></div>
-                            <div class="w-2.5 h-2.5 rounded-full bg-amber-500/20 border border-amber-500/30"></div>
-                            <div class="w-2.5 h-2.5 rounded-full bg-emerald-500/20 border border-emerald-500/30"></div>
-                        </div>
-                        <div class="text-[9px] text-slate-500 font-mono tracking-wider uppercase opacity-50">{filename}</div>
+                <div class="rounded-2xl border border-white/5 shadow-2xl overflow-hidden bg-[#0b1222]">
+                    <div class="flex items-center gap-1.5 px-4 py-3 bg-white/[0.02] border-b border-white/5">
+                        <div class="w-2.5 h-2.5 rounded-full bg-rose-500/20 border border-rose-500/40"></div>
+                        <div class="w-2.5 h-2.5 rounded-full bg-amber-500/20 border border-amber-500/40"></div>
+                        <div class="w-2.5 h-2.5 rounded-full bg-emerald-500/20 border border-emerald-500/40"></div>
                     </div>
-                    <div class="code-explorer p-4 text-xs font-mono leading-relaxed overflow-x-auto">
+                    <div class="code-explorer p-6 text-[12px] leading-relaxed">
                         {code_frame}
                     </div>
                 </div>
             </section>
 
-            <div class="grid md:grid-cols-3 gap-10 items-start">
-                <section class="md:col-span-2 space-y-10">
+            <div class="grid lg:grid-cols-3 gap-12 items-start">
+                <div class="lg:col-span-2 space-y-12 animate-slide" style="animation-delay: 0.2s">
+                    <!-- Metadata Tabs -->
+                    <section class="space-y-6">
+                        <div class="flex items-center gap-8 border-b border-white/5 px-2">
+                            {"".join(tabs_nav)}
+                        </div>
+                        <div class="bg-[#0b1222] rounded-2xl border border-white/5 overflow-hidden shadow-xl">
+                            {"".join(tabs_content)}
+                        </div>
+                    </section>
+
+                    {traceback_html}
+                </div>
+
+                <div class="space-y-12 animate-slide" style="animation-delay: 0.3s">
                     <!-- Context Variables -->
-                    <div class="space-y-3">
-                        <h2 class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 flex items-center gap-2 px-1">
+                    <section class="space-y-4">
+                        <h3 class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 flex items-center gap-2 px-1">
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 1.1.9 2 2 2h12a2 2 0 002-2V7a2 2 0 00-2-2H6a2 2 0 00-2 2zM9 12h.01M13 12h.01M17 12h.01"></path></svg>
-                            Context Variables
-                        </h2>
-                        <div class="bg-[#0b1222] rounded-xl border border-white/5 overflow-hidden shadow-sm">
+                            Frame Locals
+                        </h3>
+                        <div class="bg-[#0b1222] rounded-2xl border border-white/10 overflow-hidden shadow-2xl">
                             <div class="overflow-x-auto">
-                                <table class="w-full text-left border-collapse context-table">
-                                    <tbody class="divide-y divide-slate-800/50">
-                                        {context_html if context_html else '<tr><td class="p-6 text-center text-slate-500 italic text-sm">No context variables detected</td></tr>'}
+                                <table class="w-full text-left border-collapse">
+                                    <tbody class="divide-y divide-white/5">
+                                        {context_html if context_html else '<tr><td class="p-8 text-center text-slate-600 italic text-xs">No local variables to display</td></tr>'}
                                     </tbody>
                                 </table>
                             </div>
                         </div>
-                    </div>
-
-                    <!-- Request Info -->
-                    <div class="space-y-3">
-                        <h2 class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 flex items-center gap-2 px-1">
-                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                            Request Information
-                        </h2>
-                        <div class="bg-[#0b1222] rounded-xl border border-white/5 p-6 shadow-sm overflow-hidden">
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                <div class="space-y-4">
-                                    <div>
-                                        <div class="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1.5 opacity-60">Method & URL</div>
-                                        <div class="flex items-center gap-2">
-                                            <span class="px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 text-[10px] font-black uppercase ring-1 ring-inset ring-blue-500/20">{request_info.get('method')}</span>
-                                            <span class="text-xs font-mono text-slate-300 select-all truncate">{request_info.get('url')}</span>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <div class="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1.5 opacity-60">Client Host</div>
-                                        <div class="flex items-center gap-2 text-xs text-slate-400 font-mono">
-                                            {request_info.get('client', 'unknown')}
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="space-y-4">
-                                    <div class="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1.5 opacity-60">Common Headers</div>
-                                    <div class="space-y-2" style="font-size: 10px;">
-                                        <div class="flex justify-between items-center">
-                                            <span class="text-slate-500 font-mono">User-Agent</span>
-                                            <span class="text-slate-400 truncate max-w-[150px] text-right" title="{html_mod.escape(str(request_info.get('headers', {}).get('user-agent', 'N/A')))}">{html_mod.escape(str(request_info.get('headers', {}).get('user-agent', 'N/A'))[:25])}...</span>
-                                        </div>
-                                        <div class="flex justify-between items-center">
-                                            <span class="text-slate-500 font-mono">Host</span>
-                                            <span class="text-slate-400">{request_info.get('headers', {}).get('host', 'N/A')}</span>
-                                        </div>
-                                        <div class="flex justify-between items-center">
-                                            <span class="text-slate-500 font-mono">Accept</span>
-                                            <span class="text-slate-400 truncate max-w-[150px] text-right">{html_mod.escape(str(request_info.get('headers', {}).get('accept', '*/*'))[:25])}...</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    {payload_html}
-                </section>
-
-                <!-- Sidebar -->
-                <aside class="space-y-8">
-                    <div class="space-y-4">
-                        <h2 class="text-sm font-bold uppercase tracking-widest text-slate-500 px-1">Recommended Action</h2>
-                        <div class="bg-emerald-500/10 rounded-2xl border border-emerald-500/20 p-5 space-y-4">
-                            <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center border border-emerald-500/30">
-                                    <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg>
-                                </div>
-                                <span class="text-xs font-bold text-emerald-300 uppercase tracking-wider">Analysis Result</span>
-                            </div>
-                            <div class="space-y-3">
-                                {suggestions_html}
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="space-y-4">
-                        <h2 class="text-sm font-bold uppercase tracking-widest text-slate-500 px-1">Support</h2>
-                        <div class="bg-blue-600/10 rounded-2xl border border-blue-500/20 p-5 space-y-4">
-                            <p class="text-xs text-blue-200/70 leading-relaxed">
-                                Need help? The Eden community is here to assist you with template issues and architectural patterns.
-                            </p>
-                            <div class="flex flex-col gap-2">
-                                <a href="https://github.com/kwabenaberko25/eden" target="_blank" class="flex items-center justify-between group p-3 bg-blue-600/20 rounded-xl hover:bg-blue-600/30 transition-all border border-blue-500/20">
-                                    <span class="text-xs font-semibold text-blue-300 tracking-wide">Documentation</span>
-                                    <svg class="w-3.5 h-3.5 text-blue-400 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-
                     <div class="space-y-4">
                         <h2 class="text-sm font-bold uppercase tracking-widest text-slate-500 px-1">Eden Framework</h2>
                         <div class="bg-slate-900/30 rounded-2xl border border-white/5 p-5">
@@ -513,65 +572,199 @@ def render_premium_debug_page(
                 <span class="h-px w-8 bg-slate-700"></span>
             </div>
         </footer>
+        <script>
+            function switchTab(el, tabId) {{
+                const tabBtns = document.querySelectorAll('.tab-btn');
+                const tabPanes = document.querySelectorAll('.tab-pane');
+
+                tabBtns.forEach(btn => {{
+                    btn.classList.remove('text-blue-400', 'border-b-2', 'border-blue-500', 'active');
+                    btn.classList.add('text-slate-500', 'hover:text-slate-300');
+                }});
+                tabPanes.forEach(pane => {{
+                    pane.classList.add('hidden');
+                }});
+
+                if (el) {{
+                    el.classList.add('text-blue-400', 'border-b-2', 'border-blue-500', 'active');
+                    el.classList.remove('text-slate-500', 'hover:text-slate-300');
+                }}
+                
+                const activePane = document.getElementById(`tab-content-${{tabId}}`);
+                if (activePane) {{
+                    activePane.classList.remove('hidden');
+                }}
+            }}
+
+            function copyToClipboard(event, text) {{
+                navigator.clipboard.writeText(text).then(() => {{
+                    const btn = event.currentTarget;
+                    const originalText = btn.innerHTML;
+                    btn.innerHTML = `<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Copied!`;
+                    btn.classList.replace('text-rose-400', 'text-emerald-400');
+                    setTimeout(() => {{
+                        btn.innerHTML = originalText;
+                        btn.classList.replace('text-emerald-400', 'text-rose-400');
+                    }}, 2000);
+                }}).catch(err => {{
+                    console.error('Failed to copy text: ', err);
+                }});
+            }}
+        </script>
     </body>
     </html>
     """
-    return HTMLResponse(content=html, status_code=500)
+    return HTMLResponse(content=html, status_code=status_code)
 
 def render_enhanced_template_error(
-    app: Eden, 
-    request: Request, 
+    app: "Eden", 
+    request: "Request", 
     exc: Exception
 ) -> HTMLResponse:
     """Render a high-fidelity debug page for template errors."""
-    import difflib
-    import re
-    import inspect
-    import jinja2
-    from jinja2.exceptions import TemplateSyntaxError, UndefinedError
-
     status_code = 500
     title = "Template Error"
-    name = getattr(exc, "name", "Unknown Template")
-    lineno = getattr(exc, "lineno", 0)
-    column = getattr(exc, "column", 0)
     
-    # Extract message
+    # Initialize basic info
+    name = getattr(exc, "name", None) or getattr(exc, "filename", None) or "Unknown Template"
+    lineno = getattr(exc, "lineno", 0) or getattr(exc, "line", 0)
+    column: int = getattr(exc, "column", -1) or -1
+    found_context = {}
+
+    # 1. Recover context and template info from traceback (Do this first!)
+    if exc.__traceback__:
+        tb = exc.__traceback__
+        try:
+            # Walk back from the error to find the template frame
+            # summary = traceback.extract_tb(tb)
+            tb_iter = list(traceback.walk_tb(tb))
+            
+            # Walk BACKWARDS (from most specific/deepest to highest)
+            for i in range(len(tb_iter) - 1, -1, -1):
+                frame_obj, frame_lineno = tb_iter[i]
+                frame_filename = os.path.abspath(str(frame_obj.f_code.co_filename))
+
+                # Check for template file extension matching
+                if frame_filename.endswith((".html", ".eden", ".j2")):
+                    # We found a template frame. Take its coordinates.
+                    name = frame_filename
+                    lineno = frame_lineno
+                    
+                    # Try to get column from the traceback summary if accessible
+                    summary = traceback.extract_tb(tb)
+                    if i < len(summary):
+                        fs = summary[i]
+                        column = getattr(fs, "colno", -1) or -1
+
+                    # Also try to get found_context from this frame
+                    if not found_context:
+                        for ctx_key in ("context", "ctx"):
+                            if ctx_key in frame_obj.f_locals:
+                                ctx_obj_val = frame_obj.f_locals[ctx_key]
+                                if hasattr(ctx_obj_val, "get_all"):  # Jinja2 Context object
+                                    found_context = ctx_obj_val.get_all()
+                                    break
+                                elif isinstance(ctx_obj_val, dict):
+                                    found_context = ctx_obj_val
+                                    break
+                        if not found_context:
+                            found_context = dict(frame_obj.f_locals)
+                    break
+        except Exception:
+            pass
+
+    # 2. Extract message & Fallback coordinates
     message = str(exc) if exc else ""
+    
+    # Try to get coordinates from exception if traceback didn't yield them
+    if column < 0:
+        if getattr(exc, "column", None) is not None:
+            try:
+                column = int(getattr(exc, "column", -1))
+            except (ValueError, TypeError):
+                pass
+        elif getattr(exc, "offset", None) is not None:
+            try:
+                column = int(getattr(exc, "offset", 1)) - 1
+            except (ValueError, TypeError):
+                pass
+
     exc_message = getattr(exc, "message", None)
     if exc_message: # jinja2 syntax errors often use .message
         message = exc_message
     
     if not message or message.strip() == "":
-        message = getattr(exc, "message", None) or getattr(exc, "msg", None) or f"{type(exc).__name__}: An error occurred"
+        message = f"{type(exc).__name__}: An error occurred"
     
     # Determine specific error type for badge
     badge = "Template Error"
     if isinstance(exc, TemplateSyntaxError):
         badge = "Syntax Error"
-        # Often TemplateSyntaxError message contains the line info already, let's clean it
-        message = re.sub(r"at line \d+", "", message).strip()
+        message = re.sub(r"(at )?line \d+", "", message).strip().strip(":").strip()
     elif isinstance(exc, UndefinedError):
         badge = "Undefined Variable"
 
-    # Fuzzy suggestions
+    # 3. Fuzzy suggestions (Now that we have found_context)
     suggestions = []
+    EDEN_DIRECTIVES = [
+        "if", "else", "elif", "for", "parent", "unless", "set", "section", 
+        "yield", "auth", "guest", "include", "extends", "component", "slot", 
+        "switch", "case", "default"
+    ]
+
     if isinstance(exc, UndefinedError):
         match = re.search(r"'([^']+)' is undefined", message)
         if match:
             missing_var = match.group(1)
             candidates = ["request", "user", "url_for", "static", "csrf_token"]
-            matches = difflib.get_close_matches(missing_var, candidates, n=3, cutoff=0.6)
+            if found_context:
+                candidates.extend(found_context.keys())
+            
+            matches = difflib.get_close_matches(missing_var, candidates, n=3, cutoff=0.7)
             if matches:
-                suggestions.append(f"Check if you meant to use: <code>{', '.join(matches)}</code>")
-            suggestions.append(f"Ensure that <code>{missing_var}</code> is passed in the context during template rendering.")
+                suggestions.append(f"Check if you meant to use: {', '.join([f'<code>{m}</code>' for m in matches])}")
+            
+            suggestions.append(f"Ensure that <code>{missing_var}</code> is explicitly passed into the <code>render()</code> context in your view.")
+    
     elif isinstance(exc, TemplateSyntaxError):
-        suggestions.append("Check for missing or unclosed Jinja2 tags (e.g., <code>{{{{ ... }}}}</code> vs <code>{{% ... %}}</code>).")
-        suggestions.append("Verify that filtering or logic inside tags follows correct Jinja2 syntax.")
+        # 1. Spelling check for directives
+        if "@" in message or "directive" in message.lower():
+            word_match = re.search(r"@(\w+)", message)
+            if word_match:
+                d_name = word_match.group(1)
+                if d_name not in EDEN_DIRECTIVES:
+                    matches = difflib.get_close_matches(d_name, EDEN_DIRECTIVES, n=1, cutoff=0.7)
+                    if matches:
+                        suggestions.append(f"The directive <code>@{d_name}</code> is unknown. Did you mean <code>@{matches[0]}</code>?")
+
+        # 2. Block unclosed errors
+        if "Unclosed block" in message or "unexpected end of template" in message.lower():
+            suggestions.append("A block (likely <code>@for</code>, <code>@if</code>, or <code>@section</code>) is missing its closing <code>}</code>.")
+            suggestions.append("Check that every opening <code>{</code> following a directive has a corresponding <code>}</code>.")
+        
+        # 3. Common Jinja2 syntax mistakes
+        if "{%" in message or "%}" in message:
+            suggestions.append("Eden uses a modern <code>@directive { ... }</code> style. Replace <code>{% directive %}</code> with the <code>@</code> syntax.")
+        
+        # 4. Filter issues
+        if "no filter named" in message.lower():
+            filter_match = re.search(r"filter named '([^']+)'", message.lower())
+            if filter_match:
+                suggestions.append(f"The filter <code>{filter_match.group(1)}</code> might not be registered or is misspelled.")
+        
+        # 5. Missing @ in directives
+        if re.search(r"\b(?:for|if|unless|section|auth)\s*\(", message):
+            suggestions.append("It looks like you're using a directive without the <code>@</code> prefix. In Eden, use <code>@for (...) { ... }</code>.")
+
+    elif isinstance(exc, TypeError):
+        if "NoneType" in message and "iterable" in message:
+            suggestions.append("You are trying to loop over a variable that is <code>None</code>. Check if the query returned any results.")
+        else:
+            suggestions.append("There is a type mismatch in your template expression. Ensure your variables are of the expected types (e.g., don't add strings to integers).")
     
     if not suggestions:
-        suggestions.append("Verify that all variables used in the template are properly defined in your view function.")
-        suggestions.append("Check for typos in variable names within the template file.")
+        suggestions.append("Verify the syntax at the marked line. Eden templates require strict <code>@directive { ... }</code> structure.")
+        suggestions.append("Check for typos in variable names or misplaced brackets.")
 
     # Find the template file
     search_dirs = []
@@ -605,6 +798,7 @@ def render_enhanced_template_error(
 
     template_path = None
     template_source = None
+    
     if name and name != "Unknown Template":
         # 1. Try to get source from loader (supports DictLoader, etc)
         try:
@@ -618,59 +812,15 @@ def render_enhanced_template_error(
         except Exception:
             pass
 
-        # 2. Fallback to physical file search
-        if not template_path:
-            for d in search_dirs:
-                if not d: continue
-                p = os.path.join(d, name)
-                if os.path.exists(p):
-                    template_path = p
-                    break
-
-    # Recover context and template info from traceback
-    found_context = {}
-    if app.debug:
-        try:
-            # We use inspect.trace() to look at the frames of the exception being handled
-            trace = inspect.trace()
-            for frame_info in trace:
-                frame_filename = os.path.abspath(str(frame_info.filename))
-                
-                # Try to identify if this is a template frame
-                if (not name or name == "Unknown Template") or not template_path:
-                    for d in search_dirs:
-                        if d and frame_filename.startswith(d):
-                            name = os.path.relpath(frame_filename, d)
-                            template_path = frame_filename
-                            break
-                    
-                    # Heuristic: if it ends in .html or .jinja and is in a "templates" folder
-                    if (not template_path) and (".html" in frame_filename or ".jinja" in frame_filename):
-                        if "templates" in frame_filename:
-                            template_path = frame_filename
-                            name = os.path.basename(frame_filename)
-
-                # Capture line number from the template frame if we don't have it
-                if template_path and frame_filename == template_path:
-                    if not lineno or lineno <= 0:
-                        lineno = frame_info.lineno
-                
-                # Extract context if present (Jinja2 often names it 'context' or 'ctx')
-                if not found_context:
-                    for ctx_key in ("context", "ctx"):
-                        if ctx_key in frame_info.frame.f_locals:
-                            ctx_obj = frame_info.frame.f_locals[ctx_key]
-                            if hasattr(ctx_obj, "get_all"): # Jinja2 Context object
-                                found_context = ctx_obj.get_all()
-                                break
-                            elif isinstance(ctx_obj, dict):
-                                found_context = ctx_obj
-                                break
-                    
-                    if not found_context and template_path and frame_filename == template_path:
-                        found_context = frame_info.frame.f_locals
-        except Exception:
-            pass
+    # 2. Fallback to physical file search
+    if not template_path:
+        for d in search_dirs:
+            if not d:
+                continue
+            p = os.path.join(d, name)
+            if os.path.exists(p):
+                template_path = p
+                break
 
     code_frame = ""
     if template_path or template_source:
@@ -683,11 +833,75 @@ def render_enhanced_template_error(
                     source_lines = f.readlines()
             
             if source_lines:
+                # --- ENHANCE COORDINATES: Try to determine column if missing ---
+                safe_lineno = int(lineno or 0)
+                if column < 0 and safe_lineno > 0 and safe_lineno <= len(source_lines):
+                    if isinstance(exc, UndefinedError):
+                        coord_match = re.search(r"'([^']+)' is undefined", str(exc))
+                        if coord_match:
+                            missing_var_name = coord_match.group(1)
+                            target_line = source_lines[safe_lineno - 1]
+                            word_match = re.search(rf"\b{re.escape(missing_var_name)}\b", target_line)
+                            if word_match:
+                                column = int(word_match.start())
+                            elif missing_var_name in target_line:
+                                column = int(target_line.find(missing_var_name))
+
+                # --- HEURISTIC: Backward Search for Missing @ Directives ---
+                if isinstance(exc, UndefinedError) and safe_lineno > 0:
+                    curr_lineno = safe_lineno
+                    match = re.search(r"'([^']+)' is undefined", str(exc))
+                    if match:
+                        missing_var = match.group(1)
+                        # Look back up to 10 lines
+                        for i in range(max(0, curr_lineno - 10), curr_lineno):
+                            line_text = source_lines[i]
+                            # Check for directive-like patterns without @
+                            # e.g. "for (item in items) {" or "if (user.active) {"
+                            directive_pattern = r"\b(if|for|section|auth|guest|unless|switch)\s*\("
+                            directive_match = re.search(directive_pattern, line_text)
+                            if directive_match:
+                                if "{" in line_text or i < curr_lineno - 1:
+                                    keyword = directive_match.group(1)
+                                    sugg_text = (
+                                        f"It looks like you might be trying to use a <code>@{keyword}</code> directive at line {i+1}. "
+                                        f"In Eden, directives MUST be prefixed with <code>@</code> (e.g., <code>@{keyword} (...) {{ ... }}</code>)."
+                                    )
+                                    suggestions.append(sugg_text)
+                                    break
+                            
+                            # Also check for directives with @ but no {
+                            # e.g. "@for (item in items)" without {
+                            at_directive_pattern = r"@(?:for|if|elif|else|unless|auth|guest|section)\s*\("
+                            if re.search(at_directive_pattern, line_text) and "{" not in line_text:
+                                if missing_var in line_text or i < curr_lineno - 1:
+                                    suggestions.append(f"The <code>@directive</code> at line {i+1} is missing an opening <code>{{</code>. Eden requires directives to use braces to define scope.")
+                                    break
+                
+                elif isinstance(exc, TemplateSyntaxError) and safe_lineno > 0:
+                    curr_lineno = safe_lineno
+                    # Look back up to 5 lines for Jinja syntax or missing braces
+                    for i in range(max(0, curr_lineno - 5), min(len(source_lines), curr_lineno)):
+                        line_text = source_lines[i].strip()
+                        if "{%" in line_text or "%}" in line_text:
+                            suggestions.append("Eden uses a modern <code>@directive { ... }</code> syntax instead of Jinja's <code>{% block %}</code> syntax. Please migrate to the Eden syntax.")
+                            break
+                        
+                        # Check for missing opening brace after a directive
+                        if re.search(r"@(?:for|if|elif|else|unless|auth|guest|section)\b[^{]*$", line_text) and "{" not in line_text and "}" not in line_text:
+                            suggestions.append(f"Ensure you include an opening <code>{{</code> for your <code>@directive</code> block at line {i+1}.")
+                            break
+                        
+                        # Check for missing closing brace (if next line is an empty block closing or similar, or it's just missing)
+                        if "{" in line_text and "}" not in line_text and "unexpected" in str(exc).lower():
+                            suggestions.append("Make sure you have a corresponding closing <code>}</code> for your template directives.")
+                            break
+                # ---------------------------------------------------------
                 # Calculate the window to display
-                if lineno > 0 and lineno <= len(source_lines):
-                    start = max(0, lineno - 6)
-                    end = min(len(source_lines), lineno + 5)
-                    mark_line = lineno
+                if safe_lineno > 0 and safe_lineno <= len(source_lines):
+                    start = max(0, safe_lineno - 6)
+                    end = min(len(source_lines), safe_lineno + 5)
+                    mark_line = safe_lineno
                 else:
                     start, end, mark_line = 0, min(len(source_lines), 10), -1
 
@@ -708,7 +922,7 @@ def render_enhanced_template_error(
                         
                         # Add column marker if it's the error line
                         marker_html = ""
-                        if is_error and column > 0:
+                        if is_error and column >= 0:
                             marker_html = f'<div class="column-marker" style="left: calc({column}ch + 3.2rem)"></div>'
                         
                         highlighted_lines.append(
@@ -727,7 +941,7 @@ def render_enhanced_template_error(
                         if is_error and column > 0:
                             safe_col = column or 0
                             frame_lines.append(" " * (safe_col + 6) + "^")
-                    code_frame = f"<pre class='p-6 text-sm font-mono leading-relaxed overflow-x-auto bg-slate-900/50 rounded-xl text-slate-300'><code>{html_mod.escape(charjoin(frame_lines))}</code></pre>"
+                    code_frame = f"<pre class='p-6 text-sm font-mono leading-relaxed overflow-x-auto bg-slate-900/50 rounded-xl text-slate-300'><code>{html_mod.escape(chr(10).join(frame_lines))}</code></pre>"
             else:
                 code_frame = f"<div class='p-8 border border-red-500/20 bg-red-500/5 rounded-2xl'><p class='text-red-400 font-medium'>Could not read template source</p></div>"
         except Exception:
@@ -739,43 +953,191 @@ def render_enhanced_template_error(
             f"<div class='h-16 w-16 bg-red-500/10 rounded-2xl flex items-center justify-center text-red-500 mx-auto mb-6 shadow-lg shadow-red-500/5'>"
             f"<svg class='w-8 h-8' fill='none' stroke='currentColor' viewBox='0 0 24 24'><path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z'></path></svg></div>"
             f"<h3 class='text-white font-bold text-lg mb-2'>Source template not found</h3>"
-            f"<p class='text-slate-500 text-sm mb-8 max-w-xs mx-auto'>The engine couldn't resolve <b class='text-slate-300'>{html_mod.escape(template_name)}</b> in the current load paths.</p>"
+            f"<p class='text-slate-500 text-sm mb-8 max-w-xs mx-auto'>The engine couldn't resolve <b class='text-slate-300'>{html_mod.escape(str(name))}</b> in the current load paths.</p>"
             f"<div class='text-[10px] font-mono text-slate-500 bg-black/40 p-5 rounded-2xl inline-block w-full max-w-md break-all text-left border border-white/5 shadow-2xl'>"
             f"<div class='flex items-center gap-2 mb-3 text-indigo-400 font-black tracking-tighter opacity-80'>SEARCH PATHS</div>"
             + "".join([f"<div class='flex gap-2 mb-1.5 last:mb-0'><span class='text-slate-700 font-black'>•</span><span class='opacity-80'>{html_mod.escape(d)}</span></div>" for d in unique_dirs])
             + f"</div></div>"
         )
 
-    # Prepare request info for the renderer
-    request_info = {
-        "method": getattr(request, "method", "GET"),
-        "url": str(getattr(request, "url", "/")),
-        "headers": dict(getattr(request, "headers", {})),
-        "query_params": dict(getattr(request, "query_params", {})),
-        "client": getattr(request.client, "host", "unknown") if hasattr(request, "client") and request.client else "unknown",
-    }
-    
-    try:
-        # Try to capture payload if already read
-        if hasattr(request, "_json"):
-            request_info["payload"] = request._json
-        elif hasattr(request, "_form"):
-            request_info["payload"] = dict(request._form)
-    except Exception:
-        pass
+    # Prepare Metadata
+    metadata = collect_debug_metadata(request)
+
+    # Final coordinate cleanup
+    safe_lineno = int(lineno or 0)
+    safe_column = int(column if column is not None else -1)
 
     return render_premium_debug_page(
         title=title,
         message=message,
         filename=name,
-        lineno=lineno,
-        column=column or 0,
+        lineno=safe_lineno,
+        column=safe_column,
         code_frame=code_frame,
         context_vars=found_context,
-        request_info=request_info,
+        metadata=metadata,
         suggestions=suggestions,
-        is_htmx=getattr(request, "headers", {}).get("HX-Request") == "true",
-        badge=badge
+        badge=badge,
+        status_code=status_code
+    )
+
+def render_enhanced_exception(
+    app: "Eden", 
+    request: "Request", 
+    exc: Exception
+) -> HTMLResponse:
+    """
+    Renders a high-fidelity debug page for any Python exception.
+    """
+    status_code = 500
+    title = type(exc).__name__
+    message = str(exc)
+    
+    # 1. Capture the most relevant frame from traceback
+    tb = exc.__traceback__
+    summary = traceback.extract_tb(tb)
+    
+    filename = "Unknown"
+    lineno = 0
+    column = -1
+    frame = None
+    
+    if summary:
+        last_frame = summary[-1]
+        filename = last_frame.filename
+        lineno = int(last_frame.lineno or 0)
+        # Use colno if available (Python 3.11+)
+        column = int(getattr(last_frame, "colno", -1) or -1)
+    
+    # SyntaxError special handling
+    if isinstance(exc, SyntaxError):
+        if exc.filename: filename = str(exc.filename)
+        if exc.lineno: lineno = int(exc.lineno)
+        if getattr(exc, "offset", None) is not None: 
+            column = int(getattr(exc, "offset", 1)) - 1
+
+    # 2. Extract local variables for that frame
+    context_vars: dict[str, Any] = {}
+    frames: list[Any] = []
+    curr_tb = tb
+    while curr_tb:
+        frames.append(curr_tb.tb_frame)
+        curr_tb = curr_tb.tb_next
+    
+    if frames:
+        frame = frames[-1]
+        if frame is not None:
+            for k, v in frame.f_locals.items():
+                if not k.startswith("__"):
+                    context_vars[k] = v
+
+    # 3. Generate Code Frame
+    code_frame = ""
+    safe_lineno = int(lineno or 0)
+    safe_column = int(column or -1)
+    
+    if os.path.exists(filename) and safe_lineno > 0:
+        try:
+            with open(filename, encoding="utf-8") as f:
+                source_lines = f.readlines()
+            
+            if safe_lineno <= len(source_lines):
+                start = max(0, safe_lineno - 6)
+                end = min(len(source_lines), safe_lineno + 5)
+                code_slice = "".join(source_lines[start:end])
+                
+                try:
+                    from pygments import highlight
+                    from pygments.lexers import get_lexer_for_filename
+                    from pygments.formatters import HtmlFormatter
+                    lexer = get_lexer_for_filename(filename)
+                    formatter = HtmlFormatter(nowrap=True)
+                    highlighted = highlight(code_slice, lexer, formatter)
+                    highlighted_lines = highlighted.splitlines()
+                except Exception:
+                    highlighted_lines = [html_mod.escape(line.rstrip()) for line in source_lines[start:end]]
+
+                inner_frame = ""
+                for i, line in enumerate(highlighted_lines):
+                    curr_ln = start + i + 1
+                    is_active = (curr_ln == safe_lineno)
+                    marker = ""
+                    if is_active and safe_column >= 0:
+                        marker = f'<div class="column-marker" style="margin-left: {safe_column}ch">^</div>'
+                    
+                    line_class = "code-line-active" if is_active else ""
+                    inner_frame += f'<div class="code-line {line_class}" data-line="{curr_ln}">'
+                    inner_frame += f'<span class="line-number">{curr_ln}</span>'
+                    inner_frame += f'<span class="line-content">{line}</span>'
+                    inner_frame += f'</div>{marker}'
+                
+                code_frame = f'<pre class="p-0 border-0 bg-transparent"><code>{inner_frame}</code></pre>'
+        except Exception:
+            code_frame = f"<div class='p-8 border border-red-500/20 bg-red-500/5 rounded-2xl'><p class='text-red-400 font-medium'>Could not read source file: {filename}</p></div>"
+
+    # 4. Generate Traceback Section
+    formatted_tb = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+    traceback_html = f"""
+    <div class="mt-8 space-y-3">
+        <h2 class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 flex items-center gap-2 px-1">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2a4 4 0 00-4-4H5m11 0h.01M16 21h4a2 2 0 002-2v-9a2 2 0 00-2-2H4a2 2 0 00-2 2v9a2 2 0 002 2h4"></path></svg>
+            Stack Traceback
+        </h2>
+        <div class="bg-[#0b1222] rounded-xl border border-white/5 p-4 shadow-sm">
+            <pre class="text-[10px] font-mono text-slate-400 overflow-x-auto leading-relaxed"><code>{html_mod.escape(formatted_tb)}</code></pre>
+        </div>
+    </div>
+    """
+
+    # 5. Suggestions
+    suggestions = []
+    if isinstance(exc, NameError):
+        var_name = str(exc).split("'")[1] if "'" in str(exc) else ""
+        if var_name:
+            suggestions.append(f"Ensure that <code>{var_name}</code> is defined before it is used.")
+            if frame is not None:
+                matches = difflib.get_close_matches(var_name, frame.f_locals.keys(), n=3, cutoff=0.6)
+                if matches:
+                    suggestions.append(f"Did you mean: {', '.join([f'<code>{m}</code>' for m in matches])}?")
+    elif isinstance(exc, ImportError):
+        suggestions.append("Check if the package is installed in your virtual environment.")
+        suggestions.append("Verify the import path spelling and module presence.")
+    elif isinstance(exc, AttributeError):
+        attr_match = re.search(r"object has no attribute '([^']+)'", message)
+        if attr_match:
+            missing_attr = attr_match.group(1)
+            # Try to find the object in locals to suggest alternatives
+            obj_name_match = re.search(r"'([^']+)' object has no attribute", message)
+            if obj_name_match:
+                obj_type_name = obj_name_match.group(1)
+                for var_name, var_val in context_vars.items():
+                    if type(var_val).__name__ == obj_type_name:
+                        matches = difflib.get_close_matches(missing_attr, dir(var_val), n=3, cutoff=0.7)
+                        if matches:
+                            suggestions.append(f"Did you mean one of these attributes on <code>{var_name}</code>: {', '.join([f'<code>{m}</code>' for m in matches])}?")
+                            break
+        suggestions.append("Check for typos in attribute names or ensure the object is of the expected type.")
+    
+    if not suggestions:
+        suggestions.append("Verify the logic at the failing line and check related variable states.")
+        suggestions.append("Look at the stack traceback below to trace the execution path.")
+
+    # Prepare Metadata
+    metadata = collect_debug_metadata(request)
+
+    return render_premium_debug_page(
+        title=title,
+        message=message,
+        filename=os.path.basename(filename),
+        lineno=safe_lineno,
+        column=safe_column,
+        code_frame=code_frame,
+        context_vars=context_vars,
+        metadata=metadata,
+        traceback_html=traceback_html,
+        suggestions=suggestions,
+        badge="Exception",
+        status_code=status_code
     )
 
 def charjoin(lines: list[str]) -> str:

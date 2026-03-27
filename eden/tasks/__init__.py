@@ -87,6 +87,9 @@ class TaskResult:
     created_at: datetime = datetime.now()
     started_at: datetime | None = None
     completed_at: datetime | None = None
+    progress: float = 0.0
+    status_message: str | None = None
+    metadata: dict[str, Any] | None = None
     ttl_seconds: int = 604800  # 7 days default
 
     def to_dict(self) -> dict[str, Any]:
@@ -113,36 +116,54 @@ class TaskResult:
 
 
 class TaskResultBackend:
-    """In-memory storage for task execution results and dead-letter queue."""
+    """Backend for storing and retrieving task results."""
 
-    def __init__(self) -> None:
-        self._results: dict[str, TaskResult] = {}
+    def __init__(self, backend: Optional[DistributedBackend] = None) -> None:
+        self._distributed = backend
+        self._local_results: dict[str, TaskResult] = {}
         self._dead_letter: list[TaskResult] = []
+        self._prefix = "eden:tasks:result:"
 
     async def store_result(self, task_id: str, result: TaskResult) -> None:
         """Store a task result."""
-        self._results[task_id] = result
+        if self._distributed:
+            # TTL for result (default 7 days)
+            await self._distributed.set(self._prefix + task_id, result.to_dict(), ttl=result.ttl_seconds)
+            # If failed, add to a set of dead-letter tasks for easy retrieval
+            if result.status == "dead_letter":
+                # We store the ID in a dead_letter set
+                dl_key = "eden:tasks:dead_letter"
+                current_dl = await self._distributed.get(dl_key) or []
+                if task_id not in current_dl:
+                    current_dl.append(task_id)
+                    await self._distributed.set(dl_key, current_dl)
+        
+        self._local_results[task_id] = result
         logger.debug("Stored task result: %s (status=%s)", task_id, result.status)
-        if result.status == "dead_letter":
+        if result.status == "dead_letter" and result not in self._dead_letter:
             self._dead_letter.append(result)
 
     async def get_result(self, task_id: str) -> TaskResult | None:
         """Retrieve a stored task result."""
-        return self._results.get(task_id)
+        if self._distributed:
+            data = await self._distributed.get(self._prefix + task_id)
+            if data:
+                return TaskResult.from_dict(data)
+        return self._local_results.get(task_id)
 
     async def get_all_results(self, limit: int = 100) -> list[TaskResult]:
-        """Get the most recent task results."""
+        """Get the most recent task results (local only for now)."""
         return sorted(
-            self._results.values(), 
+            self._local_results.values(), 
             key=lambda x: x.created_at, 
             reverse=True
         )[:limit]
 
     async def cleanup_expired(self) -> int:
-        """Remove expired results based on TTL."""
+        """Remove expired results (local only). Redis handles TTL automatically."""
         now = datetime.now()
         expired_ids = []
-        for task_id, result in self._results.items():
+        for task_id, result in self._local_results.items():
             completed_at = result.completed_at
             if completed_at is not None:
                 if (now - completed_at).total_seconds() > result.ttl_seconds:
@@ -150,21 +171,30 @@ class TaskResultBackend:
 
         for task_id in expired_ids:
             # Check if it was in dead_letter
-            result = self._results.get(task_id)
+            result = self._local_results.get(task_id)
             if result and result in self._dead_letter:
                 self._dead_letter.remove(result)
-            del self._results[task_id]
+            del self._local_results[task_id]
             
-        if expired_ids:
-            logger.info("Cleaned up %d expired task results", len(expired_ids))
         return len(expired_ids)
 
     async def get_dead_letter_tasks(self) -> list[TaskResult]:
         """Get all tasks in the dead-letter queue."""
+        if self._distributed:
+            dl_key = "eden:tasks:dead_letter"
+            ids = await self._distributed.get(dl_key) or []
+            results = []
+            for tid in ids:
+                res = await self.get_result(tid)
+                if res:
+                    results.append(res)
+            return results
         return list(self._dead_letter)
 
     async def clear_dead_letter(self) -> int:
         """Clear dead letters."""
+        if self._distributed:
+            await self._distributed.delete("eden:tasks:dead_letter")
         count = len(self._dead_letter)
         self._dead_letter.clear()
         return count
@@ -405,9 +435,32 @@ class EdenBroker:
         """Whether the broker is currently running."""
         return self._running
 
+    @classmethod
+    def get_current(cls) -> EdenBroker | None:
+        """Get the current active EdenBroker instance."""
+        from eden.app import Eden
+        app = Eden.get_current()
+        if app:
+            return app.broker
+        return None
+
+    async def get_result(self, task_id: str) -> TaskResult | None:
+        """Retrieve a stored task result."""
+        return await self._result_backend.get_result(task_id)
+
+    async def get_all_results(self, limit: int = 100) -> list[TaskResult]:
+        """Get the most recent task results."""
+        return await self._result_backend.get_all_results(limit)
+
+    async def get_dead_letter_tasks(self) -> list[TaskResult]:
+        """Get all tasks in the dead-letter queue."""
+        return await self._result_backend.get_dead_letter_tasks()
+
     def set_distributed_backend(self, backend: DistributedBackend) -> None:
         """Set a distributed backend for task coordination."""
         self._distributed_backend = backend
+        # Re-initialize result backend with the distributed backend
+        self._result_backend = TaskResultBackend(backend)
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
         """Alias so @app.task() works like @app.task.task()."""
@@ -565,6 +618,21 @@ class EdenBroker:
                     logger.debug("Executing task '%s' (attempt %d, ID %s)", func.__name__, attempt, task_id)
                     logger.debug("Executing task '%s' attempt %d", func.__name__, attempt)
 
+                    from eden.tasks.context import _CURRENT_TASK_ID, _CURRENT_BROKER
+                    _CURRENT_TASK_ID.set(task_id)
+                    _CURRENT_BROKER.set(self)
+
+                    # Initial recording as 'running'
+                    start_info = TaskResult(
+                        task_id=task_id,
+                        task_name=func.__name__,
+                        status="running",
+                        correlation_id=correlation_id,
+                        started_at=start_time,
+                    )
+                    if self._result_backend:
+                        await self._result_backend.store_result(task_id, start_info)
+
                     if asyncio.iscoroutinefunction(func):
                         res = await func(*args, **final_kwargs)
                     else:
@@ -576,6 +644,8 @@ class EdenBroker:
                         task_name=func.__name__,
                         status="success",
                         result=res,
+                        progress=100.0,
+                        status_message="Completed",
                         retries=attempt,
                         correlation_id=correlation_id,
                         started_at=start_time,

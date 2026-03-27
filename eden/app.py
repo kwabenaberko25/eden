@@ -125,10 +125,10 @@ class Eden:
         self._apply_config()
         
         self.browser_reload = self.config.browser_reload
-        self.template_dir = "templates"
+        self.template_dir = templates_dir
         self.media_dir = "media"
-        self.static_dir = "static"
-        self.static_url = "/static"
+        self.static_dir = static_dir
+        self.static_url = static_url
 
         self._router = Router()
         self._middleware_stack: list[tuple[type, dict[str, Any], int]] = []
@@ -987,6 +987,10 @@ class Eden:
             from eden.components import get_component_router
             starlette_routes.extend(get_component_router().to_starlette_routes())
 
+            # Eden internal: Tasks Status API
+            from eden.tasks.routes import router as tasks_router
+            starlette_routes.extend(tasks_router.to_starlette_routes(prefix="/api/eden/tasks"))
+
             self._build_services()
             self._configure_static_files(starlette_routes)
             
@@ -1080,6 +1084,10 @@ class Eden:
     def _render_enhanced_template_error(self, request: Request, exc: Exception) -> StarletteResponse:
         from eden.exceptions.debug import render_enhanced_template_error
         return render_enhanced_template_error(self, request, exc)
+
+    def _render_enhanced_exception(self, request: Request, exc: Exception) -> StarletteResponse:
+        from eden.exceptions.debug import render_enhanced_exception
+        return render_enhanced_exception(self, request, exc)
 
     async def _error_response(self, request: Request, status_code: int, detail: str, traceback_text: str | None = None) -> StarletteResponse:
         return await self._exception_dispatcher._error_response(request, status_code, detail, traceback_text)

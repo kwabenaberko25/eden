@@ -104,6 +104,47 @@ Eden's periodic engine uses **Distributed Locks** (via your DistributedBackend) 
 
 ---
 
+## 📊 Real-time Progress Tracking
+
+For long-running tasks like CSV exports or data migrations, Eden provides a premium API to report progress back to the UI in real-time.
+
+### 1. Reporting Status from a Task
+Use `update_task_state()` inside any background task. Eden automatically resolves the current `task_id` and `broker` context.
+
+```python
+from eden.tasks import update_task_state
+
+@app.task()
+async def long_running_export():
+    total = 1000
+    for i in range(total):
+        # Processing logic...
+        
+        # Update state every 10%
+        if (i + 1) % 100 == 0:
+            progress = ((i + 1) / total) * 100
+            await update_task_state(
+                progress=progress,
+                status_message=f"Processed {i+1} of {total} records",
+                metadata={"current_row": i}
+            )
+```
+
+### 2. Real-time UI Tracking (HTMX)
+Eden includes a pre-styled, high-fidelity `TaskProgress` component that polls the backend automatically.
+
+```python
+from eden.tasks.components import TaskProgress
+
+@app.get("/export")
+async def start_export(request):
+    task = await app.task.defer(long_running_export)
+    # Render the progress bar immediately
+    return TaskProgress(task.task_id)
+```
+
+---
+
 ## 🔁 Resiliency: Retries & Dead-Letter Queue
 
 Background tasks can fail due to external API downtime. Eden provides a resilient execution loop with **Exponential Backoff**.

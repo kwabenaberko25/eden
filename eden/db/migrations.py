@@ -226,7 +226,7 @@ revision = ${repr(up_revision)}
 down_revision = ${repr(down_revision)}
 branch_labels = ${repr(branch_labels)}
 depends_on = ${repr(depends_on)}
-__eden_tenant_isolated__ = ${tenant_isolated}
+__eden_tenant_isolated__ = ${context.get("tenant_isolated", config.attributes.get("tenant_isolated", False))}
 
 
 def upgrade() -> None:
@@ -316,12 +316,30 @@ def downgrade() -> None:
 
         # Pass options via config attributes for env.py to pick up
         self.config.attributes["include_object"] = self._make_include_object(tenant_isolated)
+        # Pass tenant_isolated via attributes for mako to pick up as a fallback
+        self.config.attributes["tenant_isolated"] = tenant_isolated
+        
         if tenant_isolated:
             self.config.set_main_option("version_table", "alembic_version_tenant")
 
+        def process_revision_directives(context, revision, directives):
+            """Hook to inject custom variables into the mako template context."""
+            for script in directives:
+                # Ensure template_args exist and set tenant_isolated
+                if not hasattr(script, "template_args"):
+                    script.template_args = {}
+                # The template uses ${tenant_isolated}
+                script.template_args["tenant_isolated"] = tenant_isolated
+
         try:
-            # Pass tenant_isolated to the template context
-            await asyncio.to_thread(command.revision, self.config, message=message, autogenerate=True, tenant_isolated=tenant_isolated)
+            # Pass custom data via process_revision_directives instead of direct keyword arguments
+            await asyncio.to_thread(
+                command.revision, 
+                self.config, 
+                message=message, 
+                autogenerate=True, 
+                process_revision_directives=process_revision_directives
+            )
             logger.info(f"Migrations: {label} revision successfully generated.")
         except Exception as e:
             logger.error(f"Migration Error: {e}")
@@ -608,10 +626,10 @@ def init_migrations(db_url: str | None = None):
     asyncio.run(manager.init())
 
 
-def create_migration(message: str, db_url: str | None = None):
+def create_migration(message: str, db_url: str | None = None, tenant_isolated: bool = False):
     import asyncio
     manager = MigrationManager(db_url)
-    asyncio.run(manager.generate(message))
+    asyncio.run(manager.generate(message, tenant_isolated=tenant_isolated))
 
 
 def run_upgrade(revision: str, db_url: str | None = None, schema: str | None = None, all_tenants: bool = False):

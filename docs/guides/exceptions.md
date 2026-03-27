@@ -7,16 +7,43 @@ Eden provides a robust system for capturing and responding to errors, from autom
 Eden automatically catches common errors and converts them into safe, aesthetic HTTP responses.
 
 ### The Debug Error Page
-In development mode (`debug=True`), Eden displays a "Premium" high-fidelity error page. It includes:
-- **Glassmorphic Design**: A clean, modern aesthetic with obsidian themes and backdrop blurs.
-- **Code Explorer**: 
-    - **Syntax Highlighting**: Powered by Pygments for clear code reading.
-    - **Line-Level Accuracy**: Even for complex template errors, Eden performs traceback recovery to find the exact line.
-    - **Predictive Diagnostics**: Automatically suggests fixes for common typos (e.g., "Did you mean: user?").
-- **Intelligent Context Analysis**: 
-    - **Variable State**: Inspect the exact state of your template variables at the moment of failure.
-    - **Request Context**: Inspect headers, cookies, and query parameters.
-- **Environment Details**: See the current state of your system.
+
+In development mode (`debug=True`), Eden displays a "Premium" high-fidelity error page. This is not just a traceback but a full developer cockpit:
+
+- **Glassmorphic Design**: A clean, modern aesthetic with obsidian themes, backdrop blurs, and premium typography.
+- **High-Precision Diagnostics**:
+  - **Column Markers**: Syntax errors in templates feature a high-precision `^` marker pointing to the exact character causing the failure.
+  - **Line-Level Accuracy**: Even for complex template errors, Eden performs traceback recovery to find the exact line and column in your source file.
+  - **Breadcrumb Header**: The top of the explorer displays the full `filename:line:col` path for instant identification.
+- **Predictive Intelligence**:
+  - **Fuzzy Suggestions**: Automatically recovers context to suggest fixes for common typos (e.g., "Undefined variable 'user_nam'. Did you mean: 'user_name'?").
+  - **Directive Recovery**: Suggests correct names for misspelled template tags or filters.
+- **Deep Context Inspection**:
+  - **Variable State**: Inspect the exact state of your template variables at the moment of failure.
+  - **Request Metadata Tabs**: Dedicated, interactive tabs to inspect:
+    - **Request**: Headers, Method, Path, and Full URL.
+    - **Environment**: OS details, Python version, and system paths.
+    - **Session**: Active session data (if `SessionMiddleware` is present).
+    - **Cookies**: All cookies sent with the request.
+- **Developer Utilities**:
+  - **One-Click Copy**: Use the "Copy Error" button in the header to grab a formatted diagnostic report for sharing or LLM debugging.
+  - **Live Reload**: Built-in support for instant recovery once the source file is saved.
+
+### Diagnostic Flow
+
+Here is how Eden processes an error to provide your "Premium" debugging experience:
+
+```mermaid
+graph TD
+    A[Request Error] --> B{debug=True?}
+    B -->|No| C[Generic HTTP Response]
+    B -->|Yes| D[Collect Request Metadata]
+    D --> E[Extract Source & Traceback]
+    E --> F[Context Recovery & Fuzzy Search]
+    F --> G[Syntax Highlighting & Formatting]
+    G --> H[Render Premium Debug Page]
+    H --> I[One-Click Copy/Reload]
+```
 
 ---
 
@@ -61,6 +88,7 @@ app.register_error_handler(MyAdvancedHandler())
 ```
 
 ### Common HTTP Exceptions
+
 It's often useful to override default handlers for common status codes like 404 or 500.
 
 ```python
