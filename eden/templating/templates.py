@@ -311,6 +311,7 @@ class EdenTemplates(StarletteJinja2Templates):
             from eden.context import is_active
 
             self.env.globals["is_active"] = is_active
+            self.env.globals["hasattr"] = hasattr
         except ImportError:
             pass
 

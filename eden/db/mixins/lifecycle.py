@@ -56,8 +56,9 @@ class LifecycleMixin:
                             "old": self._make_json_safe(history.deleted[0]) if history.deleted else None,
                             "new": self._make_json_safe(history.added[0]) if history.added else None
                         }
-            except Exception:
-                pass
+            except Exception as e:
+                from eden.logging import get_logger
+                get_logger(__name__).error("Silent exception caught: %s", e, exc_info=True)
 
         # Detect and flag JSON fields as modified (SQLAlchemy won't detect mutation otherwise)
         if not is_new:

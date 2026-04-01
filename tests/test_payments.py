@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, AsyncMock
 
 from eden.payments.providers import PaymentProvider
 from eden.payments.webhooks import WebhookRouter
-from eden.payments.mixins import CustomerMixin
+from eden.payments.mixins import BillableMixin, CustomerMixin
 
 
 # ── PaymentProvider Tests ─────────────────────────────────────────────
@@ -88,17 +88,17 @@ class TestWebhookRouter:
         assert results == ["h1", "h2"]
 
 
-# ── CustomerMixin Tests ──────────────────────────────────────────────
+# ── BillableMixin Tests ──────────────────────────────────────────────
 
 
-class TestCustomerMixin:
-    """Tests for the CustomerMixin methods."""
+class TestBillableMixin:
+    """Tests for the BillableMixin methods."""
 
     @pytest.mark.asyncio
     async def test_is_subscribed_default(self):
         """Default is_subscribed should return False."""
 
-        class MockUser(CustomerMixin):
+        class MockUser(BillableMixin):
             id = "user-123"
 
         user = MockUser()

@@ -49,6 +49,14 @@ _request_id_ctx: contextvars.ContextVar[str] = contextvars.ContextVar("eden_requ
 _tenant_id_ctx: contextvars.ContextVar[Any] = contextvars.ContextVar("eden_tenant_id", default=None)
 _organization_id_ctx: contextvars.ContextVar[Any] = contextvars.ContextVar("eden_organization_id", default=None)
 
+# Per-request token storage: each asyncio task gets its own dict of tokens.
+# This replaces the old instance-level _tokens dict on ContextManager, which
+# was a shared mutable dict that caused cross-request data leakage under
+# concurrent ASGI workloads.
+_context_tokens: contextvars.ContextVar[dict[str, contextvars.Token] | None] = contextvars.ContextVar(
+    "eden_context_tokens", default=None
+)
+
 
 class ContextManager:
     """
@@ -72,8 +80,22 @@ class ContextManager:
     """
 
     def __init__(self):
-        # Store tokens for proper context reset
-        self._tokens: dict[str, contextvars.Token] = {}
+        # Token storage is now in the _context_tokens ContextVar (per-request).
+        # No instance-level mutable state.
+        pass
+
+    def _get_tokens(self) -> dict[str, contextvars.Token]:
+        """
+        Get the per-request token dictionary, creating one if needed.
+        
+        Returns:
+            A dict that is scoped to the current asyncio task (request).
+        """
+        tokens = _context_tokens.get(None)
+        if tokens is None:
+            tokens = {}
+            _context_tokens.set(tokens)
+        return tokens
 
     async def on_request_start(
         self, request: "Request", app: Any
@@ -89,19 +111,24 @@ class ContextManager:
             app: Eden application instance
 
         Implementation Notes:
+            - Creates a fresh per-request token dict via ContextVar
             - Generates unique request_id for this request (for logging correlation)
             - Sets app and request in context
-            - Saves tokens from set() for proper cleanup via reset()
+            - Saves tokens for proper cleanup via reset()
             - User/tenant remain unset until explicitly set by auth/tenancy middleware
-            - Safe to call multiple times (idempotent per context copy)
+            - Each concurrent request gets its own isolated token dict
         """
+        # Create a fresh token dict for THIS request's async context
+        tokens: dict[str, contextvars.Token] = {}
+        _context_tokens.set(tokens)
+
         # Generate unique request ID for correlation across logs
         request_id = str(uuid.uuid4())
 
         # Set context vars and save tokens for proper reset on cleanup
-        self._tokens["request_id"] = _request_id_ctx.set(request_id)
-        self._tokens["app"] = _app_ctx.set(app)
-        self._tokens["request"] = _request_ctx.set(request)
+        tokens["request_id"] = _request_id_ctx.set(request_id)
+        tokens["app"] = _app_ctx.set(app)
+        tokens["request"] = _request_ctx.set(request)
         # User and tenant remain None until explicitly set
 
         logger.debug(
@@ -118,10 +145,16 @@ class ContextManager:
         None in the current scope, while reset() properly reverts the value.
 
         Implementation Notes:
+            - Retrieves tokens from the per-request ContextVar (no shared state)
             - Safe to call even if context wasn't initialized
             - Idempotent (multiple calls have same effect)
             - Does NOT raise exceptions; logs warnings instead
         """
+        tokens = _context_tokens.get(None)
+        if tokens is None:
+            # No context was initialized for this request — nothing to clean up
+            return
+
         try:
             # Log any user/tenant context for audit trail
             user = _user_ctx.get(None)
@@ -136,41 +169,34 @@ class ContextManager:
                     )
 
             # Reset context vars using saved tokens (proper ContextVar cleanup)
-            # We iterate through all keys to ensure nothing is missed
-            for key in list(self._tokens.keys()):
-                token = self._tokens.pop(key, None)
+            # Import tenancy context var for cross-module cleanup
+            try:
+                from eden.tenancy.context import _tenant_ctx
+            except ImportError:
+                _tenant_ctx = None
+
+            _ctx_var_map = {
+                "request_id": _request_id_ctx,
+                "app": _app_ctx,
+                "request": _request_ctx,
+                "user": _user_ctx,
+                "tenant_id": _tenant_id_ctx,
+                "organization_id": _organization_id_ctx,
+                "tenancy_ctx": _tenant_ctx,  # eden.tenancy.context._tenant_ctx
+            }
+            for key in list(tokens.keys()):
+                token = tokens.pop(key, None)
                 if token is not None:
                     try:
-                        ctx_var = {
-                            "request_id": _request_id_ctx,
-                            "app": _app_ctx,
-                            "request": _request_ctx,
-                            "user": _user_ctx,
-                            "tenant_id": _tenant_id_ctx,
-                            "organization_id": _organization_id_ctx,
-                        }.get(key)
-                        
+                        ctx_var = _ctx_var_map.get(key)
                         if ctx_var:
                             ctx_var.reset(token)
                     except (ValueError, LookupError):
                         # Token already used or from different context — safe to ignore
                         pass
-            
-            # Explicitly set defaults as a secondary safety measure
-            # (In case some middleware set vars without going through manager)
-            _user_ctx.set(None)
-            _tenant_id_ctx.set(None)
-            _organization_id_ctx.set(None)
-            _app_ctx.set(None)
-            _request_ctx.set(None)
 
-            # Sync cleanup with internal tenancy context for ORM isolation
-            try:
-                from eden.tenancy.context import _tenant_ctx
-                _tenant_ctx.set(None)
-            except ImportError:
-                # If tenancy is not available, nothing to cleanup
-                pass
+            # Clear the per-request token dict itself
+            _context_tokens.set(None)
 
         except Exception as e:
             if hasattr(logger, "warning"):
@@ -181,15 +207,15 @@ class ContextManager:
         Forcefully clear all context variables.
         Use with caution, primarily for testing or extreme cleanup scenarios.
         """
-        # We can't actually 'clear' a ContextVar without tokens, 
-        # but we can set them to their default (None) values
+        # Set all ContextVars to their default (None) values
         _user_ctx.set(None)
         _tenant_id_ctx.set(None)
         _organization_id_ctx.set(None)
         _app_ctx.set(None)
         _request_ctx.set(None)
         _request_id_ctx.set("")
-        self._tokens.clear()
+        # Clear the per-request token storage
+        _context_tokens.set(None)
 
         try:
             from eden.tenancy.context import _tenant_ctx
@@ -209,23 +235,35 @@ class ContextManager:
             >>> user = await get_current_user(request)
             >>> token = context_manager.set_user(user)
         """
-        return _user_ctx.set(user)
+        token = _user_ctx.set(user)
+        # Store token in per-request dict for proper cleanup
+        tokens = self._get_tokens()
+        tokens["user"] = token
+        return token
 
     def set_tenant(self, tenant_id: str) -> None:
         """
         Set current tenant in context (called by multi-tenant middleware).
         """
-        _tenant_id_ctx.set(tenant_id)
+        token = _tenant_id_ctx.set(tenant_id)
+        # Store token in per-request dict for proper cleanup
+        tokens = self._get_tokens()
+        tokens["tenant_id"] = token
 
         # Sync with internal tenancy context for ORM isolation
+        # Save the token so on_request_end() can reset it via the token system
         from eden.tenancy.context import _tenant_ctx
-        _tenant_ctx.set(tenant_id)
+        tenancy_token = _tenant_ctx.set(tenant_id)
+        tokens["tenancy_ctx"] = tenancy_token
 
     def set_organization(self, org_id: str) -> None:
         """
         Set current organization in context.
         """
-        _organization_id_ctx.set(org_id)
+        token = _organization_id_ctx.set(org_id)
+        # Store token in per-request dict for proper cleanup
+        tokens = self._get_tokens()
+        tokens["organization_id"] = token
 
     def get_app(self) -> Any:
         """

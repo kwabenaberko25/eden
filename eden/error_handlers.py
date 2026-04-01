@@ -321,8 +321,9 @@ class ValidationErrorHandler(ErrorHandler):
                     loc = err.get('loc', ['unknown'])[0]
                     msg = err.get('msg', 'Invalid value')
                     errors_dict[str(loc)] = msg
-        except Exception:
-            pass
+        except Exception as e:
+            from eden.logging import get_logger
+            get_logger(__name__).error("Silent exception caught: %s", e, exc_info=True)
         
         context.setdefault("error_type", "validation_error")
         context.setdefault("message", "Validation failed")

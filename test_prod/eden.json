@@ -1,7 +1,0 @@
-{
-  "name": "test_prod",
-  "version": "1.0.0",
-  "profile": "production",
-  "database_engine": "sqlite",
-  "created_with_eden": "1.0.0"
-}

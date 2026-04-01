@@ -105,24 +105,34 @@ class AdminErrorHandler(ErrorHandler):
         return False
     
     def _get_error_details(self, exc: Exception, status_code: int) -> dict:
-        """Extract error details from exception."""
+        """Extract error details from exception with environment awareness."""
+        from eden.config import get_config
+        config = get_config()
+        
         details = {
             "status_code": status_code,
             "error_id": uuid.uuid4().hex[:8].upper(),
             "title": self._get_error_title(status_code),
-            "message": self._get_error_message(exc, status_code),
         }
         
-        # Extract context if available
-        if isinstance(exc, EdenException):
-            context = exc.context or {}
-            details["context"] = context
-            details["details"] = str(exc.detail) if hasattr(exc, 'detail') else str(exc)
+        # In production (non-debug), we only show sanitized messages
+        if config.debug:
+            details["message"] = self._get_error_message(exc, status_code)
+            # Extract context if available
+            if isinstance(exc, EdenException):
+                context = exc.context or {}
+                details["context"] = context
+                details["details"] = str(exc.detail) if hasattr(exc, 'detail') else str(exc)
+            else:
+                details["details"] = str(exc)
         else:
-            details["details"] = str(exc)
-        
+            # Production: Hide details and use sanitized message
+            details["message"] = self._get_error_message(exc, status_code, is_debug=False)
+            details["details"] = None
+            details["context"] = None
+            
         return details
-    
+
     def _get_error_title(self, status_code: int) -> str:
         """Get human-readable error title."""
         titles = {
@@ -136,12 +146,16 @@ class AdminErrorHandler(ErrorHandler):
             503: "Service Unavailable",
         }
         return titles.get(status_code, f"Error {status_code}")
-    
-    def _get_error_message(self, exc: Exception, status_code: int) -> str:
-        """Get user-friendly error message."""
+
+    def _get_error_message(self, exc: Exception, status_code: int, is_debug: bool = True) -> str:
+        """Get user-friendly error message, sanitized for production if needed."""
         if isinstance(exc, EdenException):
             return str(exc.detail) if hasattr(exc, 'detail') else str(exc)
         
+        # Check for 5xx errors in production
+        if not is_debug and status_code >= 500:
+            return "An internal server error occurred. Our team has been notified."
+            
         messages = {
             400: "The request could not be understood or was malformed.",
             401: "Authentication required. Please log in.",
@@ -153,7 +167,9 @@ class AdminErrorHandler(ErrorHandler):
             503: "The service is temporarily unavailable. Please try again later.",
         }
         
-        return messages.get(status_code, str(exc))
+        # Fallback to exception string ONLY in debug mode or for client errors
+        fallback = str(exc) if is_debug or status_code < 500 else messages.get(status_code, "An unexpected error occurred.")
+        return messages.get(status_code, fallback)
     
     async def handle(self, exc: Exception, request: Request) -> Response:
         """Handle error and render HTML or JSON response."""

@@ -151,8 +151,9 @@ class Translations:
             templates = app.templates
             templates.env.globals["_"] = _
             templates.env.globals["ngettext"] = ngettext
-        except Exception:
-            pass
+        except Exception as e:
+            from eden.logging import get_logger
+            get_logger(__name__).error("Silent exception caught: %s", e, exc_info=True)
 
         # Store on app for access
         app.i18n = i18n

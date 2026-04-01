@@ -68,7 +68,7 @@ class AuthenticatedWebSocket:
         """
         Authenticate using session cookie.
         """
-        session = getattr(self.websocket, "session", {})
+        session = self.websocket.scope.get("session", {})
         user_id = session.get("user_id")
         
         if not user_id:

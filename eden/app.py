@@ -28,24 +28,25 @@ import uvicorn
 
 if TYPE_CHECKING:
     from eden.cache import CacheBackend
+    from eden.storage import LocalStorageBackend
+    from eden.websocket.manager import ConnectionManager
 
-from eden.exceptions import EdenException
 from eden.middleware import get_middleware_class
 from eden.requests import Request
-from eden.responses import HtmlResponse, JsonResponse
+from eden.responses import JsonResponse
 from eden.routing import Router
-from eden.storage import LocalStorageBackend
-from eden.storage import storage as eden_storage
-from eden.tasks import EdenBroker, create_broker
 from eden.templating import EdenTemplates
-from eden.core.backends.redis import RedisBackend
 from eden.core.metrics import metrics
-from eden.core.idempotency import IdempotencyManager
-from eden.websocket.manager import connection_manager
 
-if TYPE_CHECKING:
-    from eden.storage import StorageManager
-    from eden.config import Config
+from enum import Enum
+
+
+class AppStatus(str, Enum):
+    """Application lifecycle states."""
+    STARTING = "starting"
+    RUNNING = "running"
+    STOPPED = "stopped"
+    CRITICAL_ERROR = "critical_error"
 
 
 class Eden:
@@ -114,11 +115,24 @@ class Eden:
         self.openapi_url = openapi_url
         self.docs_url = docs_url
         self.redoc_url = redoc_url
-        self.secret_key = secret_key or self.config.secret_key or "eden-insecure-secret-key"
+        self.secret_key = secret_key or self.config.secret_key or ""
+        
+        # SECURITY: Fail hard in all non-test environments if no secret_key is configured.
+        # This prevents accidental deployment of insecure applications.
+        if not self.secret_key and not self.is_test():
+            raise RuntimeError(
+                "SECURITY: No secret_key configured. "
+                "Set the SECRET_KEY environment variable or pass secret_key= to Eden(). "
+                "Running without a secret_key outside of tests exposes sessions, CSRF tokens, "
+                "and JWT signatures to trivial forgery. If this is a test, ensure EDEN_ENV='test'."
+            )
         
         # debug is special as it's a bool
         # Priority: Explicit True > Config > Default False
         self.debug = debug or self.config.debug or False
+        
+        # Initial status for lifecycle tracking
+        self.status = AppStatus.STARTING
         
         # Apply config to state for bootstrappers and other components
         self.state = State()
@@ -142,7 +156,11 @@ class Eden:
         self._startup_handlers: list[Callable] = []
         self._shutdown_handlers: list[Callable] = []
 
+        from eden.diagnostics import StartupDiagnostics
+        self._diagnostics = StartupDiagnostics()
+
         # Task Queue with safety fallback
+        from eden.tasks import EdenBroker, create_broker
         try:
             # In test mode, we default to InMemoryBroker unless redis_url is explicitly set
             is_test = self.is_test()
@@ -161,27 +179,51 @@ class Eden:
         self._eden_broker = EdenBroker(self._raw_broker)
         self._eden_broker.app = self
         self.broker = self._eden_broker
+
+        # Register broker diagnostics
+        broker_type = type(self._raw_broker).__name__
+        if broker_type == "InMemoryBroker" or not redis_url:
+            self._diagnostics.register(
+                "Task Broker", "degraded",
+                f"Using {broker_type} — tasks will not survive restarts. "
+                "Set REDIS_URL for production."
+            )
+        else:
+            self._diagnostics.register("Task Broker", "ok", f"{broker_type} (Redis-backed)")
         
         # Distributed Backend (Locking / PubSub)
         self.distributed_backend = None
         self.metrics = metrics
-        self.idempotency: Optional[IdempotencyManager] = None
+        self.idempotency: Optional["IdempotencyManager"] = None
         
         if redis_url:
             try:
+                from eden.core.backends.redis import RedisBackend
+                from eden.core.idempotency import IdempotencyManager
                 self.distributed_backend = RedisBackend(url=redis_url)
                 self.metrics.set_distributed_backend(self.distributed_backend)
                 self.idempotency = IdempotencyManager(self.distributed_backend)
                 self.broker.set_distributed_backend(self.distributed_backend)
-                # We'll initialize the connection_manager in build() or lifespan
+                self._diagnostics.register("Distributed Backend", "ok", "Redis-backed locking, pub/sub, idempotency")
             except Exception as e:
                 from eden.logging import get_logger
                 get_logger("eden").warning(f"Failed to initialize distributed backend: {e}")
+                self._diagnostics.register(
+                    "Distributed Backend", "degraded",
+                    f"Redis connection failed: {e}. Distributed locking, pub/sub, and idempotency disabled."
+                )
+        else:
+            self._diagnostics.register(
+                "Distributed Backend", "degraded",
+                "No REDIS_URL configured — distributed locking, pub/sub, and idempotency disabled."
+            )
         
         # Templating
         self._templates: EdenTemplates | None = None
         
         # Storage
+        from eden.storage import LocalStorageBackend
+        from eden.storage import storage as eden_storage
         self.storage: "StorageManager" = eden_storage
         self.storage.register(
             "local",
@@ -191,6 +233,8 @@ class Eden:
 
         # Built ASGI app (lazy)
         self._app: Starlette | None = None
+        # NOTE: asyncio.Lock() in __init__ is safe in Python 3.10+
+        # (Lock no longer auto-binds to the running loop; Eden requires ≥3.10)
         self._build_lock = asyncio.Lock()
 
         # Health checks
@@ -218,7 +262,22 @@ class Eden:
         self._default_api_version: str = "v1"
         self._version_transformers: dict[str, Any] = {}
 
-        self.setup_defaults()
+
+        # Register secret_key diagnostic
+        if not self.secret_key:
+            self._diagnostics.register(
+                "Session/CSRF", "degraded",
+                "No SECRET_KEY configured — session, CSRF, and message middleware disabled."
+            )
+        else:
+            self._diagnostics.register("Session/CSRF", "ok", "Secret key configured")
+
+        # Report all registered diagnostics at init completion
+        self._diagnostics.report()
+
+        # NOTE: setup_defaults() is intentionally NOT called here.
+        # It runs in build() to ensure middleware/routers added after Eden()
+        # construction but before build() are included in the default stack.
 
     def _apply_config(self) -> None:
         """Sync configuration values to internal attributes and app state."""
@@ -489,8 +548,11 @@ class Eden:
                 from eden.context import get_request
                 request = get_request()
                 ctx["request"] = request
-            except Exception:
-                pass
+            except Exception as e:
+                from eden.logging import get_logger
+                get_logger("eden.templating").debug(
+                    "Could not resolve request from context for template rendering: %s", e
+                )
         
         return self.templates.TemplateResponse(request, template_name, ctx)
 
@@ -601,7 +663,7 @@ class Eden:
                 self.add_middleware("logging")
 
     @property
-    def task(self) -> EdenBroker:
+    def task(self) -> "EdenBroker":
         return self._eden_broker
 
     @task.setter
@@ -677,26 +739,49 @@ class Eden:
                     m for m in self._middleware_stack
                     if not (isinstance(m[0], type) and issubclass(m[0], CORSMiddleware))
                 ]
-        except Exception:
-            pass
+        except Exception as e:
+            from eden.logging import get_logger
+            get_logger("eden.middleware").debug(
+                "Could not check custom CORS middleware during add_middleware: %s", e
+            )
 
         self._middleware_stack.append((cls, kwargs, priority))
 
     def is_test(self) -> bool:
-        """Determines if the application is running in a test environment."""
-        import sys
+        """
+        Determines if the application is running in a test environment.
+        
+        Detection is based ONLY on explicit configuration:
+        1. EDEN_ENV environment variable set to 'test' or 'testing'
+        2. Config.env == 'test'
+        3. Config.is_test() returns True (if callable)
+        
+        NOTE: We intentionally do NOT check 'pytest in sys.modules'.
+        That heuristic can fire in production if any dependency imports pytest,
+        silently disabling Session and CSRF middleware — a critical security risk.
+        
+        Returns:
+            True if the environment is explicitly configured for testing.
+        """
         # Explicit env var takes precedence
         env = os.getenv("EDEN_ENV", "").lower()
-        if env == "test" or env == "testing":
+        if env in ("test", "testing"):
             return True
         if env in ("production", "prod", "development", "dev"):
             return False
 
-        return (
-            getattr(self.config, "env", "") == "test" or
-            (hasattr(self.config, "is_test") and self.config.is_test() if callable(getattr(self.config, "is_test", None)) else getattr(self.config, "is_test", False)) or
-            "pytest" in sys.modules
-        )
+        # Fall back to config object
+        config_env = getattr(self.config, "env", "")
+        if isinstance(config_env, str) and config_env.lower() == "test":
+            return True
+        
+        config_is_test = getattr(self.config, "is_test", None)
+        if callable(config_is_test):
+            return bool(config_is_test())
+        if isinstance(config_is_test, bool):
+            return config_is_test
+        
+        return False
 
     def middleware(self, middleware_type: str) -> Callable:
         """
@@ -708,10 +793,6 @@ class Eden:
             return func
         return decorator
 
-    def configure_mail(self, backend: Any) -> None:
-        """Configure the default mail backend."""
-        from eden.mail import configure_mail
-        configure_mail(backend)
 
     def configure_payments(self, provider: Any) -> None:
         """Configure the default payment provider."""
@@ -724,10 +805,6 @@ class Eden:
         return self._router.routes
 
 
-    def mount_admin(self, path: str = "/admin") -> None:
-        """Mount the admin panel router at the specified path."""
-        from eden.admin import admin
-        self.include_router(admin.build_router(prefix=path))
 
     def mount_webhooks(self, path: str, router: Any) -> None:
         """Mount a webhook router at the specified path."""
@@ -858,8 +935,12 @@ class Eden:
                 try:
                     while True:
                         await websocket.receive_text()
-                except Exception:
-                    pass
+                except Exception as e:
+                    # WebSocket disconnect during browser reload is expected
+                    from eden.logging import get_logger
+                    get_logger("eden.websocket").debug(
+                        "Browser reload WebSocket closed: %s", e
+                    )
             routes.insert(0, StarletteWebSocketRoute("/_eden/reload", reload_websocket))
 
         from starlette.routing import WebSocketRoute as StarletteWebSocketRoute
@@ -887,8 +968,13 @@ class Eden:
                             })
                     elif action == "unsubscribe" and channel:
                         await manager.unsubscribe(websocket, channel)
-            except Exception:
-                pass
+            except Exception as e:
+                # WebSocket disconnect is normal — log unexpected errors
+                from eden.logging import get_logger
+                if not isinstance(e, (ConnectionError, asyncio.CancelledError)):
+                    get_logger("eden.websocket").warning(
+                        "Sync WebSocket handler error: %s", e
+                    )
             finally:
                 await manager.disconnect(websocket)
         routes.insert(0, StarletteWebSocketRoute("/_eden/sync", sync_websocket, name="eden:sync"))
@@ -989,7 +1075,7 @@ class Eden:
 
             # Eden internal: Tasks Status API
             from eden.tasks.routes import router as tasks_router
-            starlette_routes.extend(tasks_router.to_starlette_routes(prefix="/api/eden/tasks"))
+            starlette_routes.extend(tasks_router.to_starlette_routes())
 
             self._build_services()
             self._configure_static_files(starlette_routes)
@@ -1026,12 +1112,27 @@ class Eden:
             # Set app on metrics
             self.metrics.set_gauge("app_info", 1, labels={"version": "1.0", "env": getattr(self.config, "env", "development")})
                 
-            await self.broker.startup()
-            for handler in self._startup_handlers:
-                result = handler()
-                if inspect.isawaitable(result):
-                    await result
+            try:
+                await self.broker.startup()
+                for handler in self._startup_handlers:
+                    result = handler()
+                    if inspect.isawaitable(result):
+                        await result
+                
+                # App is now fully running
+                self.status = AppStatus.RUNNING
+                
+            except Exception as e:
+                self.status = AppStatus.CRITICAL_ERROR
+                from eden.logging import get_logger
+                get_logger("eden").critical(f"App failed to start: {e}", exc_info=True)
+                raise
+                
             yield
+            
+            # Application is stopping
+            self.status = AppStatus.STOPPED
+            
             # Graceful shutdown order:
             # 0. Wait for tracked background tasks (e.g. Audit logs)
             if self._background_tasks:

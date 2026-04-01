@@ -1,0 +1,1200 @@
+FFFFFFFFFFFFFFF                                                          [100%]
+================================== FAILURES ===================================
+_______________________________ test_query_rbac _______________________________
+tests\test_auth_audit.py:127: in test_query_rbac
+    assert "1 = 0" in str(applied_qs._stmt) or "1=0" in str(applied_qs._stmt)
+E   AssertionError: assert ('1 = 0' in 'SELECT protected.id, protected.created_at, protected.updated_at \nFROM protected \nWHERE false' or '1=0' in 'SELECT protected.id, protected.created_at, protected.updated_at \nFROM protected \nWHERE false')
+E    +  where 'SELECT protected.id, protected.created_at, protected.updated_at \nFROM protected \nWHERE false' = str(<sqlalchemy.sql.selectable.Select object at 0x0000028529597390>)
+E    +    where <sqlalchemy.sql.selectable.Select object at 0x0000028529597390> = <eden.db.query.QuerySet object at 0x0000028529596C10>._stmt
+E    +  and   'SELECT protected.id, protected.created_at, protected.updated_at \nFROM protected \nWHERE false' = str(<sqlalchemy.sql.selectable.Select object at 0x0000028529597390>)
+E    +    where <sqlalchemy.sql.selectable.Select object at 0x0000028529597390> = <eden.db.query.QuerySet object at 0x0000028529596C10>._stmt
+---------------------------- Captured stdout call -----------------------------
+
+Testing Query-Level RBAC Enforcement...
+__________________________ test_forge_route_refined ___________________________
+tests\test_cli_refined.py:65: in test_forge_route_refined
+    assert result.exit_code == 0
+E   assert 2 == 0
+E    +  where 2 = <Result SystemExit(2)>.exit_code
+_____________________________ test_orm_timestamps _____________________________
+tests\test_orm.py:66: in test_orm_timestamps
+    assert task.updated_at > updated_at
+E   assert datetime.datetime(2026, 4, 1, 0, 52, 0, 183868) > datetime.datetime(2026, 4, 1, 1, 51, 59, 59746)
+E    +  where datetime.datetime(2026, 4, 1, 0, 52, 0, 183868) = <tests.test_orm.Task object at 0x00000285295E3CB0>.updated_at
+---------------------------- Captured stdout setup ----------------------------
+2026-04-01 00:51:59,003 INFO sqlalchemy.engine.Engine select pg_catalog.version()
+2026-04-01 00:51:59,004 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-04-01 00:51:59,007 INFO sqlalchemy.engine.Engine select current_schema()
+2026-04-01 00:51:59,007 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-04-01 00:51:59,009 INFO sqlalchemy.engine.Engine show standard_conforming_strings
+2026-04-01 00:51:59,009 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-04-01 00:51:59,011 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-04-01 00:51:59,014 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-01 00:51:59,015 INFO sqlalchemy.engine.Engine [generated in 0.00057s] ('file_references', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-01 00:51:59,019 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-01 00:51:59,020 INFO sqlalchemy.engine.Engine [cached since 0.005683s ago] ('eden_audit_logs', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-01 00:51:59,021 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-01 00:51:59,021 INFO sqlalchemy.engine.Engine [cached since 0.007165s ago] ('eden_tenants', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-01 00:51:59,022 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-01 00:51:59,022 INFO sqlalchemy.engine.Engine [cached since 0.008231s ago] ('eden_plans', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-01 00:51:59,023 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-01 00:51:59,023 INFO sqlalchemy.engine.Engine [cached since 0.009154s ago] ('eden_prices', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-01 00:51:59,024 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-01 00:51:59,024 INFO sqlalchemy.engine.Engine [cached since 0.01012s ago] ('eden_support_tickets', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-01 00:51:59,025 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-01 00:51:59,025 INFO sqlalchemy.engine.Engine [cached since 0.01102s ago] ('eden_ticket_messages', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-01 00:51:59,026 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-01 00:51:59,026 INFO sqlalchemy.engine.Engine [cached since 0.01173s ago] ('eden_admin_configs', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-01 00:51:59,026 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-01 00:51:59,027 INFO sqlalchemy.engine.Engine [cached since 0.01243s ago] ('eden_user_roles', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-01 00:51:59,027 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-01 00:51:59,027 INFO sqlalchemy.engine.Engine [cached since 0.01313s ago] ('eden_role_permissions', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-01 00:51:59,028 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-01 00:51:59,028 INFO sqlalchemy.engine.Engine [cached since 0.01383s ago] ('eden_role_hierarchy', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-01 00:51:59,028 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-01 00:51:59,029 INFO sqlalchemy.engine.Engine [cached since 0.01452s ago] ('eden_permissions', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-01 00:51:59,029 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-01 00:51:59,029 INFO sqlalchemy.engine.Engine [cached since 0.01528s ago] ('eden_roles', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-01 00:51:59,030 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-01 00:51:59,030 INFO sqlalchemy.engine.Engine [cached since 0.01599s ago] ('eden_customers', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-01 00:51:59,031 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-01 00:51:59,031 INFO sqlalchemy.engine.Engine [cached since 0.01669s ago] ('eden_subscriptions', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-01 00:51:59,031 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-01 00:51:59,031 INFO sqlalchemy.engine.Engine [cached since 0.0174s ago] ('eden_payment_events', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-01 00:51:59,032 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-01 00:51:59,032 INFO sqlalchemy.engine.Engine [cached since 0.01809s ago] ('eden_users', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-01 00:51:59,033 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-01 00:51:59,033 INFO sqlalchemy.engine.Engine [cached since 0.01882s ago] ('eden_social_accounts', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-01 00:51:59,033 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-01 00:51:59,034 INFO sqlalchemy.engine.Engine [cached since 0.01953s ago] ('password_reset_tokens', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-01 00:51:59,034 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-01 00:51:59,034 INFO sqlalchemy.engine.Engine [cached since 0.02026s ago] ('eden_api_keys', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-01 00:51:59,035 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-01 00:51:59,035 INFO sqlalchemy.engine.Engine [cached since 0.02102s ago] ('tasks', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-01 00:51:59,036 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-01 00:51:59,036 INFO sqlalchemy.engine.Engine [cached since 0.02182s ago] ('protected', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-01 00:51:59,037 INFO sqlalchemy.engine.Engine COMMIT
+2026-04-01 00:51:59,039 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-04-01 00:51:59,039 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-01 00:51:59,040 INFO sqlalchemy.engine.Engine [cached since 0.02541s ago] ('file_references', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-01 00:51:59,040 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-01 00:51:59,041 INFO sqlalchemy.engine.Engine [cached since 0.02641s ago] ('eden_audit_logs', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-01 00:51:59,041 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-01 00:51:59,041 INFO sqlalchemy.engine.Engine [cached since 0.02712s ago] ('eden_tenants', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-01 00:51:59,042 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-01 00:51:59,042 INFO sqlalchemy.engine.Engine [cached since 0.02791s ago] ('eden_plans', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-01 00:51:59,043 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-01 00:51:59,043 INFO sqlalchemy.engine.Engine [cached since 0.02862s ago] ('eden_prices', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-01 00:51:59,043 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-01 00:51:59,043 INFO sqlalchemy.engine.Engine [cached since 0.02932s ago] ('eden_support_tickets', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-01 00:51:59,044 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-01 00:51:59,044 INFO sqlalchemy.engine.Engine [cached since 0.03001s ago] ('eden_ticket_messages', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-01 00:51:59,045 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-01 00:51:59,045 INFO sqlalchemy.engine.Engine [cached since 0.03072s ago] ('eden_admin_configs', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-01 00:51:59,045 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-01 00:51:59,045 INFO sqlalchemy.engine.Engine [cached since 0.0314s ago] ('eden_user_roles', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-01 00:51:59,046 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-01 00:51:59,046 INFO sqlalchemy.engine.Engine [cached since 0.0321s ago] ('eden_role_permissions', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-01 00:51:59,047 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-01 00:51:59,047 INFO sqlalchemy.engine.Engine [cached since 0.03279s ago] ('eden_role_hierarchy', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-01 00:51:59,047 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-01 00:51:59,048 INFO sqlalchemy.engine.Engine [cached since 0.0335s ago] ('eden_permissions', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-01 00:51:59,048 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-01 00:51:59,048 INFO sqlalchemy.engine.Engine [cached since 0.0342s ago] ('eden_roles', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-01 00:51:59,049 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-01 00:51:59,049 INFO sqlalchemy.engine.Engine [cached since 0.03489s ago] ('eden_customers', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-01 00:51:59,050 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-01 00:51:59,050 INFO sqlalchemy.engine.Engine [cached since 0.03563s ago] ('eden_subscriptions', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-01 00:51:59,050 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-01 00:51:59,050 INFO sqlalchemy.engine.Engine [cached since 0.03632s ago] ('eden_payment_events', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-01 00:51:59,051 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-01 00:51:59,051 INFO sqlalchemy.engine.Engine [cached since 0.03696s ago] ('eden_users', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-01 00:51:59,052 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-01 00:51:59,052 INFO sqlalchemy.engine.Engine [cached since 0.03759s ago] ('eden_social_accounts', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-01 00:51:59,052 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-01 00:51:59,052 INFO sqlalchemy.engine.Engine [cached since 0.03823s ago] ('password_reset_tokens', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-01 00:51:59,053 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-01 00:51:59,053 INFO sqlalchemy.engine.Engine [cached since 0.03886s ago] ('eden_api_keys', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-01 00:51:59,053 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-01 00:51:59,054 INFO sqlalchemy.engine.Engine [cached since 0.03949s ago] ('tasks', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-01 00:51:59,054 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-01 00:51:59,054 INFO sqlalchemy.engine.Engine [cached since 0.04014s ago] ('protected', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-01 00:51:59,055 INFO sqlalchemy.engine.Engine COMMIT
+2026-04-01 00:51:59,056 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+----------------------------- Captured log setup ------------------------------
+INFO     sqlalchemy.engine.Engine:base.py:1846 select pg_catalog.version()
+INFO     sqlalchemy.engine.Engine:base.py:1846 [raw sql] ()
+INFO     sqlalchemy.engine.Engine:base.py:1846 select current_schema()
+INFO     sqlalchemy.engine.Engine:base.py:1846 [raw sql] ()
+INFO     sqlalchemy.engine.Engine:base.py:1846 show standard_conforming_strings
+INFO     sqlalchemy.engine.Engine:base.py:1846 [raw sql] ()
+INFO     sqlalchemy.engine.Engine:base.py:2710 BEGIN (implicit)
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [generated in 0.00057s] ('file_references', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.005683s ago] ('eden_audit_logs', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.007165s ago] ('eden_tenants', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.008231s ago] ('eden_plans', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.009154s ago] ('eden_prices', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.01012s ago] ('eden_support_tickets', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.01102s ago] ('eden_ticket_messages', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.01173s ago] ('eden_admin_configs', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.01243s ago] ('eden_user_roles', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.01313s ago] ('eden_role_permissions', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.01383s ago] ('eden_role_hierarchy', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.01452s ago] ('eden_permissions', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.01528s ago] ('eden_roles', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.01599s ago] ('eden_customers', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.01669s ago] ('eden_subscriptions', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.0174s ago] ('eden_payment_events', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.01809s ago] ('eden_users', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.01882s ago] ('eden_social_accounts', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.01953s ago] ('password_reset_tokens', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.02026s ago] ('eden_api_keys', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.02102s ago] ('tasks', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.02182s ago] ('protected', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:2716 COMMIT
+INFO     sqlalchemy.engine.Engine:base.py:2710 BEGIN (implicit)
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.02541s ago] ('file_references', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.02641s ago] ('eden_audit_logs', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.02712s ago] ('eden_tenants', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.02791s ago] ('eden_plans', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.02862s ago] ('eden_prices', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.02932s ago] ('eden_support_tickets', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.03001s ago] ('eden_ticket_messages', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.03072s ago] ('eden_admin_configs', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.0314s ago] ('eden_user_roles', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.0321s ago] ('eden_role_permissions', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.03279s ago] ('eden_role_hierarchy', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.0335s ago] ('eden_permissions', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.0342s ago] ('eden_roles', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.03489s ago] ('eden_customers', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.03563s ago] ('eden_subscriptions', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.03632s ago] ('eden_payment_events', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.03696s ago] ('eden_users', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.03759s ago] ('eden_social_accounts', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.03823s ago] ('password_reset_tokens', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.03886s ago] ('eden_api_keys', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.03949s ago] ('tasks', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.04014s ago] ('protected', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:2716 COMMIT
+INFO     sqlalchemy.engine.Engine:base.py:2710 BEGIN (implicit)
+---------------------------- Captured stdout call -----------------------------
+2026-04-01 00:51:59,059 INFO sqlalchemy.engine.Engine SAVEPOINT sa_savepoint_1
+2026-04-01 00:51:59,059 INFO sqlalchemy.engine.Engine [no key 0.00023s] ()
+2026-04-01 00:51:59,060 INFO sqlalchemy.engine.Engine SAVEPOINT sa_savepoint_2
+2026-04-01 00:51:59,060 INFO sqlalchemy.engine.Engine [no key 0.00016s] ()
+2026-04-01 00:51:59,062 INFO sqlalchemy.engine.Engine INSERT INTO tasks (title, is_done, id) VALUES ($1::VARCHAR, $2::BOOLEAN, $3::UUID) RETURNING tasks.created_at, tasks.updated_at
+2026-04-01 00:51:59,063 INFO sqlalchemy.engine.Engine [generated in 0.00027s] ('Timestamp Test', False, UUID('a1669cd9-4927-4d18-b8ea-5c9e617c11e4'))
+2026-04-01 00:51:59,067 INFO sqlalchemy.engine.Engine SELECT tasks.title, tasks.is_done, tasks.id, tasks.created_at, tasks.updated_at 
+FROM tasks 
+WHERE tasks.id = $1::UUID
+2026-04-01 00:51:59,067 INFO sqlalchemy.engine.Engine [generated in 0.00023s] (UUID('a1669cd9-4927-4d18-b8ea-5c9e617c11e4'),)
+2026-04-01 00:51:59,070 INFO sqlalchemy.engine.Engine SAVEPOINT sa_savepoint_3
+2026-04-01 00:51:59,071 INFO sqlalchemy.engine.Engine [no key 0.00079s] ()
+2026-04-01 00:51:59,074 INFO sqlalchemy.engine.Engine INSERT INTO eden_audit_logs (id, tenant_id, user_id, correlation_id, action, model_name, record_id, changes, timestamp) VALUES ($1::UUID, $2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR, $7::VARCHAR, $8::JSON, $9::TIMESTAMP WITHOUT TIME ZONE) RETURNING eden_audit_logs.created_at, eden_audit_logs.updated_at
+2026-04-01 00:51:59,074 INFO sqlalchemy.engine.Engine [generated in 0.00039s] (UUID('80ae4650-9839-42da-bb6d-6d1316698d8f'), None, None, '', 'create', 'Task', 'a1669cd9-4927-4d18-b8ea-5c9e617c11e4', '{"title": {"old": null, "new": "Timestamp Test"}, "is_done": {"old": null, "new": false}, "id": {"old": null, "new": "a1669cd9-4927-4d18-b8ea-5c9e617c11e4"}, "created_at": {"old": null, "new": "2026-04-01T01:51:59.059746"}, "updated_at": {"old": null, "new": "2026-04-01T01:51:59.059746"}}', datetime.datetime(2026, 4, 1, 0, 51, 59, 73999))
+2026-04-01 00:51:59,075 INFO sqlalchemy.engine.Engine ROLLBACK TO SAVEPOINT sa_savepoint_3
+2026-04-01 00:51:59,075 INFO sqlalchemy.engine.Engine [no key 0.00018s] ()
+2026-04-01 00:51:59,077 INFO sqlalchemy.engine.Engine RELEASE SAVEPOINT sa_savepoint_2
+2026-04-01 00:51:59,077 INFO sqlalchemy.engine.Engine [no key 0.00017s] ()
+2026-04-01 00:52:00,185 INFO sqlalchemy.engine.Engine UPDATE tasks SET title=$1::VARCHAR, updated_at=$2::TIMESTAMP WITHOUT TIME ZONE WHERE tasks.id = $3::UUID
+2026-04-01 00:52:00,185 INFO sqlalchemy.engine.Engine [generated in 0.00030s] ('Updated', datetime.datetime(2026, 4, 1, 0, 52, 0, 183868), UUID('a1669cd9-4927-4d18-b8ea-5c9e617c11e4'))
+2026-04-01 00:52:00,187 INFO sqlalchemy.engine.Engine SAVEPOINT sa_savepoint_4
+2026-04-01 00:52:00,187 INFO sqlalchemy.engine.Engine [no key 0.00017s] ()
+2026-04-01 00:52:00,188 INFO sqlalchemy.engine.Engine SELECT tasks.title, tasks.is_done, tasks.id, tasks.created_at, tasks.updated_at 
+FROM tasks 
+WHERE tasks.id = $1::UUID
+2026-04-01 00:52:00,188 INFO sqlalchemy.engine.Engine [cached since 1.121s ago] (UUID('a1669cd9-4927-4d18-b8ea-5c9e617c11e4'),)
+2026-04-01 00:52:00,189 INFO sqlalchemy.engine.Engine SAVEPOINT sa_savepoint_5
+2026-04-01 00:52:00,189 INFO sqlalchemy.engine.Engine [no key 0.00014s] ()
+2026-04-01 00:52:00,190 INFO sqlalchemy.engine.Engine INSERT INTO eden_audit_logs (id, tenant_id, user_id, correlation_id, action, model_name, record_id, changes, timestamp) VALUES ($1::UUID, $2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR, $7::VARCHAR, $8::JSON, $9::TIMESTAMP WITHOUT TIME ZONE) RETURNING eden_audit_logs.created_at, eden_audit_logs.updated_at
+2026-04-01 00:52:00,190 INFO sqlalchemy.engine.Engine [cached since 1.117s ago] (UUID('de8f8263-f6d1-4024-a6d7-c12f488f1994'), None, None, '', 'update', 'Task', 'a1669cd9-4927-4d18-b8ea-5c9e617c11e4', '{"title": {"old": "Timestamp Test", "new": "Updated"}}', datetime.datetime(2026, 4, 1, 0, 52, 0, 190690))
+2026-04-01 00:52:00,191 INFO sqlalchemy.engine.Engine ROLLBACK TO SAVEPOINT sa_savepoint_5
+2026-04-01 00:52:00,192 INFO sqlalchemy.engine.Engine [no key 0.00015s] ()
+2026-04-01 00:52:00,193 INFO sqlalchemy.engine.Engine RELEASE SAVEPOINT sa_savepoint_4
+2026-04-01 00:52:00,193 INFO sqlalchemy.engine.Engine [no key 0.00014s] ()
+------------------------------ Captured log call ------------------------------
+INFO     sqlalchemy.engine.Engine:base.py:1846 SAVEPOINT sa_savepoint_1
+INFO     sqlalchemy.engine.Engine:base.py:1846 [no key 0.00023s] ()
+INFO     sqlalchemy.engine.Engine:base.py:1846 SAVEPOINT sa_savepoint_2
+INFO     sqlalchemy.engine.Engine:base.py:1846 [no key 0.00016s] ()
+INFO     sqlalchemy.engine.Engine:base.py:1846 INSERT INTO tasks (title, is_done, id) VALUES ($1::VARCHAR, $2::BOOLEAN, $3::UUID) RETURNING tasks.created_at, tasks.updated_at
+INFO     sqlalchemy.engine.Engine:base.py:1846 [generated in 0.00027s] ('Timestamp Test', False, UUID('a1669cd9-4927-4d18-b8ea-5c9e617c11e4'))
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT tasks.title, tasks.is_done, tasks.id, tasks.created_at, tasks.updated_at 
+FROM tasks 
+WHERE tasks.id = $1::UUID
+INFO     sqlalchemy.engine.Engine:base.py:1846 [generated in 0.00023s] (UUID('a1669cd9-4927-4d18-b8ea-5c9e617c11e4'),)
+INFO     sqlalchemy.engine.Engine:base.py:1846 SAVEPOINT sa_savepoint_3
+INFO     sqlalchemy.engine.Engine:base.py:1846 [no key 0.00079s] ()
+INFO     sqlalchemy.engine.Engine:base.py:1846 INSERT INTO eden_audit_logs (id, tenant_id, user_id, correlation_id, action, model_name, record_id, changes, timestamp) VALUES ($1::UUID, $2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR, $7::VARCHAR, $8::JSON, $9::TIMESTAMP WITHOUT TIME ZONE) RETURNING eden_audit_logs.created_at, eden_audit_logs.updated_at
+INFO     sqlalchemy.engine.Engine:base.py:1846 [generated in 0.00039s] (UUID('80ae4650-9839-42da-bb6d-6d1316698d8f'), None, None, '', 'create', 'Task', 'a1669cd9-4927-4d18-b8ea-5c9e617c11e4', '{"title": {"old": null, "new": "Timestamp Test"}, "is_done": {"old": null, "new": false}, "id": {"old": null, "new": "a1669cd9-4927-4d18-b8ea-5c9e617c11e4"}, "created_at": {"old": null, "new": "2026-04-01T01:51:59.059746"}, "updated_at": {"old": null, "new": "2026-04-01T01:51:59.059746"}}', datetime.datetime(2026, 4, 1, 0, 51, 59, 73999))
+INFO     sqlalchemy.engine.Engine:base.py:1846 ROLLBACK TO SAVEPOINT sa_savepoint_3
+INFO     sqlalchemy.engine.Engine:base.py:1846 [no key 0.00018s] ()
+WARNING  eden.db.lifecycle:lifecycle.py:212 Audit logging failed for Task: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedColumnError'>: column "tenant_id" of relation "eden_audit_logs" does not exist
+[SQL: INSERT INTO eden_audit_logs (id, tenant_id, user_id, correlation_id, action, model_name, record_id, changes, timestamp) VALUES ($1::UUID, $2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR, $7::VARCHAR, $8::JSON, $9::TIMESTAMP WITHOUT TIME ZONE) RETURNING eden_audit_logs.created_at, eden_audit_logs.updated_at]
+[parameters: (UUID('80ae4650-9839-42da-bb6d-6d1316698d8f'), None, None, '', 'create', 'Task', 'a1669cd9-4927-4d18-b8ea-5c9e617c11e4', '{"title": {"old": null, "new": "Timestamp Test"}, "is_done": {"old": null, "new": false}, "id": {"old": null, "new": "a1669cd9-4927-4d18-b8ea-5c9e617c11e4"}, "created_at": {"old": null, "new": "2026-04-01T01:51:59.059746"}, "updated_at": {"old": null, "new": "2026-04-01T01:51:59.059746"}}', datetime.datetime(2026, 4, 1, 0, 51, 59, 73999))]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+INFO     sqlalchemy.engine.Engine:base.py:1846 RELEASE SAVEPOINT sa_savepoint_2
+INFO     sqlalchemy.engine.Engine:base.py:1846 [no key 0.00017s] ()
+INFO     sqlalchemy.engine.Engine:base.py:1846 UPDATE tasks SET title=$1::VARCHAR, updated_at=$2::TIMESTAMP WITHOUT TIME ZONE WHERE tasks.id = $3::UUID
+INFO     sqlalchemy.engine.Engine:base.py:1846 [generated in 0.00030s] ('Updated', datetime.datetime(2026, 4, 1, 0, 52, 0, 183868), UUID('a1669cd9-4927-4d18-b8ea-5c9e617c11e4'))
+INFO     sqlalchemy.engine.Engine:base.py:1846 SAVEPOINT sa_savepoint_4
+INFO     sqlalchemy.engine.Engine:base.py:1846 [no key 0.00017s] ()
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT tasks.title, tasks.is_done, tasks.id, tasks.created_at, tasks.updated_at 
+FROM tasks 
+WHERE tasks.id = $1::UUID
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 1.121s ago] (UUID('a1669cd9-4927-4d18-b8ea-5c9e617c11e4'),)
+INFO     sqlalchemy.engine.Engine:base.py:1846 SAVEPOINT sa_savepoint_5
+INFO     sqlalchemy.engine.Engine:base.py:1846 [no key 0.00014s] ()
+INFO     sqlalchemy.engine.Engine:base.py:1846 INSERT INTO eden_audit_logs (id, tenant_id, user_id, correlation_id, action, model_name, record_id, changes, timestamp) VALUES ($1::UUID, $2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR, $7::VARCHAR, $8::JSON, $9::TIMESTAMP WITHOUT TIME ZONE) RETURNING eden_audit_logs.created_at, eden_audit_logs.updated_at
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 1.117s ago] (UUID('de8f8263-f6d1-4024-a6d7-c12f488f1994'), None, None, '', 'update', 'Task', 'a1669cd9-4927-4d18-b8ea-5c9e617c11e4', '{"title": {"old": "Timestamp Test", "new": "Updated"}}', datetime.datetime(2026, 4, 1, 0, 52, 0, 190690))
+INFO     sqlalchemy.engine.Engine:base.py:1846 ROLLBACK TO SAVEPOINT sa_savepoint_5
+INFO     sqlalchemy.engine.Engine:base.py:1846 [no key 0.00015s] ()
+WARNING  eden.db.lifecycle:lifecycle.py:212 Audit logging failed for Task: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedColumnError'>: column "tenant_id" of relation "eden_audit_logs" does not exist
+[SQL: INSERT INTO eden_audit_logs (id, tenant_id, user_id, correlation_id, action, model_name, record_id, changes, timestamp) VALUES ($1::UUID, $2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR, $7::VARCHAR, $8::JSON, $9::TIMESTAMP WITHOUT TIME ZONE) RETURNING eden_audit_logs.created_at, eden_audit_logs.updated_at]
+[parameters: (UUID('de8f8263-f6d1-4024-a6d7-c12f488f1994'), None, None, '', 'update', 'Task', 'a1669cd9-4927-4d18-b8ea-5c9e617c11e4', '{"title": {"old": "Timestamp Test", "new": "Updated"}}', datetime.datetime(2026, 4, 1, 0, 52, 0, 190690))]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+INFO     sqlalchemy.engine.Engine:base.py:1846 RELEASE SAVEPOINT sa_savepoint_4
+INFO     sqlalchemy.engine.Engine:base.py:1846 [no key 0.00014s] ()
+-------------------------- Captured stdout teardown ---------------------------
+2026-04-01 00:52:00,197 INFO sqlalchemy.engine.Engine ROLLBACK
+---------------------------- Captured log teardown ----------------------------
+INFO     sqlalchemy.engine.Engine:base.py:2713 ROLLBACK
+__________ TestUnclosedBlocks.test_error_message_includes_brace_hint __________
+tests\test_parser_recovery.py:41: in test_error_message_includes_brace_hint
+    parse("@if(x) { hello")
+tests\test_parser_recovery.py:22: in parse
+    return parser.parse()
+           ^^^^^^^^^^^^^^
+eden\templating\parser.py:68: in parse
+    node = self.parse_node()
+           ^^^^^^^^^^^^^^^^^
+eden\templating\parser.py:238: in parse_node
+    raise TemplateSyntaxError(
+E   eden.templating.parser.TemplateSyntaxError: Unclosed block for @if. Expected '}'.
+E     line 1
+
+During handling of the above exception, another exception occurred:
+tests\test_parser_recovery.py:40: in test_error_message_includes_brace_hint
+    with pytest.raises(TemplateSyntaxError, match="mismatched braces"):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AssertionError: Regex pattern did not match.
+E     Expected regex: 'mismatched braces'
+E     Actual message: "Unclosed block for @if. Expected '}'.\n  line 1"
+_______________ TestLoginRequired.test_function_unauthenticated _______________
+tests\test_routing_auth_powerup.py:259: in test_function_unauthenticated
+    assert resp.status_code == 401
+E   assert 500 == 401
+E    +  where 500 = <Response [500 Internal Server Error]>.status_code
+------------------------------ Captured log call ------------------------------
+ERROR    eden.error_middleware:error_middleware.py:80 Unauthorized in GET /secret: Login required.
+Traceback (most recent call last):
+  File "C:\PROJECTS\eden-framework\eden\error_middleware.py", line 72, in dispatch
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "C:\PROJECTS\eden-framework\eden\middleware\__init__.py", line 335, in __call__
+    await self.app(scope, receive, send_with_headers)
+  File "C:\PROJECTS\eden-framework\eden\auth\middleware.py", line 121, in __call__
+    await self.app(scope, receive, send)
+  File "C:\PROJECTS\eden-framework\eden\auth\middleware.py", line 196, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\cors.py", line 87, in __call__
+    await self.app(scope, receive, send)
+  File "C:\PROJECTS\eden-framework\tests\test_routing_auth_powerup.py", line 131, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\gzip.py", line 29, in __call__
+    await responder(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\gzip.py", line 130, in __call__
+    await super().__call__(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\gzip.py", line 46, in __call__
+    await self.app(scope, receive, self.send_with_compression)
+  File "C:\PROJECTS\eden-framework\eden\middleware\__init__.py", line 452, in __call__
+    await self.app(scope, receive, send_wrapper)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\routing.py", line 716, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\routing.py", line 736, in app
+    await route.handle(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\routing.py", line 290, in handle
+    await self.app(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\routing.py", line 78, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\routing.py", line 75, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\eden\routing.py", line 685, in endpoint
+    return await _eden_route.handle(eden_request, **path_params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\eden\routing.py", line 65, in handle
+    result = await result
+             ^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\eden\auth\decorators.py", line 199, in wrapper
+    raise Unauthorized(detail="Login required.")
+eden.exceptions.Unauthorized: Login required.
+____________ TestLoginRequired.test_cbv_per_method_unauthenticated ____________
+tests\test_routing_auth_powerup.py:272: in test_cbv_per_method_unauthenticated
+    assert resp.status_code == 401
+E   assert 500 == 401
+E    +  where 500 = <Response [500 Internal Server Error]>.status_code
+------------------------------ Captured log call ------------------------------
+ERROR    eden.error_middleware:error_middleware.py:80 Unauthorized in GET /protected: Login required.
+Traceback (most recent call last):
+  File "C:\PROJECTS\eden-framework\eden\error_middleware.py", line 72, in dispatch
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "C:\PROJECTS\eden-framework\eden\middleware\__init__.py", line 335, in __call__
+    await self.app(scope, receive, send_with_headers)
+  File "C:\PROJECTS\eden-framework\eden\auth\middleware.py", line 121, in __call__
+    await self.app(scope, receive, send)
+  File "C:\PROJECTS\eden-framework\eden\auth\middleware.py", line 196, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\cors.py", line 87, in __call__
+    await self.app(scope, receive, send)
+  File "C:\PROJECTS\eden-framework\tests\test_routing_auth_powerup.py", line 131, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\gzip.py", line 29, in __call__
+    await responder(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\gzip.py", line 130, in __call__
+    await super().__call__(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\gzip.py", line 46, in __call__
+    await self.app(scope, receive, self.send_with_compression)
+  File "C:\PROJECTS\eden-framework\eden\middleware\__init__.py", line 452, in __call__
+    await self.app(scope, receive, send_wrapper)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\routing.py", line 716, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\routing.py", line 736, in app
+    await route.handle(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\routing.py", line 290, in handle
+    await self.app(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\routing.py", line 78, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\routing.py", line 75, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\eden\routing.py", line 685, in endpoint
+    return await _eden_route.handle(eden_request, **path_params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\eden\routing.py", line 65, in handle
+    result = await result
+             ^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\eden\routing.py", line 128, in dispatch
+    result = await result
+             ^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\eden\auth\decorators.py", line 199, in wrapper
+    raise Unauthorized(detail="Login required.")
+eden.exceptions.Unauthorized: Login required.
+__________ TestLoginRequired.test_view_decorator_blocks_all_methods ___________
+tests\test_routing_auth_powerup.py:284: in test_view_decorator_blocks_all_methods
+    assert (await client.get("/fully-protected")).status_code == 401
+E   assert 500 == 401
+E    +  where 500 = <Response [500 Internal Server Error]>.status_code
+------------------------------ Captured log call ------------------------------
+ERROR    eden.error_middleware:error_middleware.py:80 Unauthorized in GET /fully-protected: Login required.
+Traceback (most recent call last):
+  File "C:\PROJECTS\eden-framework\eden\error_middleware.py", line 72, in dispatch
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "C:\PROJECTS\eden-framework\eden\middleware\__init__.py", line 335, in __call__
+    await self.app(scope, receive, send_with_headers)
+  File "C:\PROJECTS\eden-framework\eden\auth\middleware.py", line 121, in __call__
+    await self.app(scope, receive, send)
+  File "C:\PROJECTS\eden-framework\eden\auth\middleware.py", line 196, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\cors.py", line 87, in __call__
+    await self.app(scope, receive, send)
+  File "C:\PROJECTS\eden-framework\tests\test_routing_auth_powerup.py", line 131, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\gzip.py", line 29, in __call__
+    await responder(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\gzip.py", line 130, in __call__
+    await super().__call__(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\gzip.py", line 46, in __call__
+    await self.app(scope, receive, self.send_with_compression)
+  File "C:\PROJECTS\eden-framework\eden\middleware\__init__.py", line 452, in __call__
+    await self.app(scope, receive, send_wrapper)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\routing.py", line 716, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\routing.py", line 736, in app
+    await route.handle(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\routing.py", line 290, in handle
+    await self.app(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\routing.py", line 78, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\routing.py", line 75, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\eden\routing.py", line 685, in endpoint
+    return await _eden_route.handle(eden_request, **path_params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\eden\routing.py", line 65, in handle
+    result = await result
+             ^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\eden\routing.py", line 128, in dispatch
+    result = await result
+             ^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\eden\auth\decorators.py", line 199, in wrapper
+    raise Unauthorized(detail="Login required.")
+eden.exceptions.Unauthorized: Login required.
+________________ TestRolesRequired.test_roles_required_missing ________________
+tests\test_routing_auth_powerup.py:307: in test_roles_required_missing
+    assert resp.status_code == 403
+E   assert 500 == 403
+E    +  where 500 = <Response [500 Internal Server Error]>.status_code
+------------------------------ Captured log call ------------------------------
+ERROR    eden.error_middleware:error_middleware.py:80 PermissionDenied in GET /admin: Missing one of the required roles: admin
+Traceback (most recent call last):
+  File "C:\PROJECTS\eden-framework\eden\error_middleware.py", line 72, in dispatch
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "C:\PROJECTS\eden-framework\eden\middleware\__init__.py", line 335, in __call__
+    await self.app(scope, receive, send_with_headers)
+  File "C:\PROJECTS\eden-framework\eden\auth\middleware.py", line 121, in __call__
+    await self.app(scope, receive, send)
+  File "C:\PROJECTS\eden-framework\eden\auth\middleware.py", line 196, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\cors.py", line 87, in __call__
+    await self.app(scope, receive, send)
+  File "C:\PROJECTS\eden-framework\tests\test_routing_auth_powerup.py", line 131, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\gzip.py", line 29, in __call__
+    await responder(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\gzip.py", line 130, in __call__
+    await super().__call__(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\gzip.py", line 46, in __call__
+    await self.app(scope, receive, self.send_with_compression)
+  File "C:\PROJECTS\eden-framework\eden\middleware\__init__.py", line 452, in __call__
+    await self.app(scope, receive, send_wrapper)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\routing.py", line 716, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\routing.py", line 736, in app
+    await route.handle(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\routing.py", line 290, in handle
+    await self.app(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\routing.py", line 78, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\routing.py", line 75, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\eden\routing.py", line 685, in endpoint
+    return await _eden_route.handle(eden_request, **path_params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\eden\routing.py", line 65, in handle
+    result = await result
+             ^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\eden\routing.py", line 128, in dispatch
+    result = await result
+             ^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\eden\auth\decorators.py", line 254, in wrapper
+    raise PermissionDenied(
+        detail=f"Missing one of the required roles: {', '.join(roles)}"
+    )
+eden.exceptions.PermissionDenied: Missing one of the required roles: admin
+_________________ TestRolesRequired.test_require_role_single __________________
+tests\test_routing_auth_powerup.py:336: in test_require_role_single
+    assert resp.status_code == 403
+E   assert 500 == 403
+E    +  where 500 = <Response [500 Internal Server Error]>.status_code
+------------------------------ Captured log call ------------------------------
+ERROR    eden.error_middleware:error_middleware.py:80 PermissionDenied in GET /editor: Missing required role: editor
+Traceback (most recent call last):
+  File "C:\PROJECTS\eden-framework\eden\error_middleware.py", line 72, in dispatch
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "C:\PROJECTS\eden-framework\eden\middleware\__init__.py", line 335, in __call__
+    await self.app(scope, receive, send_with_headers)
+  File "C:\PROJECTS\eden-framework\eden\auth\middleware.py", line 121, in __call__
+    await self.app(scope, receive, send)
+  File "C:\PROJECTS\eden-framework\eden\auth\middleware.py", line 196, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\cors.py", line 87, in __call__
+    await self.app(scope, receive, send)
+  File "C:\PROJECTS\eden-framework\tests\test_routing_auth_powerup.py", line 131, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\gzip.py", line 29, in __call__
+    await responder(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\gzip.py", line 130, in __call__
+    await super().__call__(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\gzip.py", line 46, in __call__
+    await self.app(scope, receive, self.send_with_compression)
+  File "C:\PROJECTS\eden-framework\eden\middleware\__init__.py", line 452, in __call__
+    await self.app(scope, receive, send_wrapper)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\routing.py", line 716, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\routing.py", line 736, in app
+    await route.handle(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\routing.py", line 290, in handle
+    await self.app(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\routing.py", line 78, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\routing.py", line 75, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\eden\routing.py", line 685, in endpoint
+    return await _eden_route.handle(eden_request, **path_params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\eden\routing.py", line 65, in handle
+    result = await result
+             ^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\eden\routing.py", line 128, in dispatch
+    result = await result
+             ^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\eden\auth\decorators.py", line 286, in wrapper
+    raise PermissionDenied(detail=f"Missing required role: {role}")
+eden.exceptions.PermissionDenied: Missing required role: editor
+___________________ TestRolesRequired.test_require_any_role ___________________
+tests\test_routing_auth_powerup.py:353: in test_require_any_role
+    assert resp.status_code == 403
+E   assert 500 == 403
+E    +  where 500 = <Response [500 Internal Server Error]>.status_code
+------------------------------ Captured log call ------------------------------
+ERROR    eden.error_middleware:error_middleware.py:80 PermissionDenied in GET /any-role: Missing at least one of the required roles: moderator, admin
+Traceback (most recent call last):
+  File "C:\PROJECTS\eden-framework\eden\error_middleware.py", line 72, in dispatch
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "C:\PROJECTS\eden-framework\eden\middleware\__init__.py", line 335, in __call__
+    await self.app(scope, receive, send_with_headers)
+  File "C:\PROJECTS\eden-framework\eden\auth\middleware.py", line 121, in __call__
+    await self.app(scope, receive, send)
+  File "C:\PROJECTS\eden-framework\eden\auth\middleware.py", line 196, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\cors.py", line 87, in __call__
+    await self.app(scope, receive, send)
+  File "C:\PROJECTS\eden-framework\tests\test_routing_auth_powerup.py", line 131, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\gzip.py", line 29, in __call__
+    await responder(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\gzip.py", line 130, in __call__
+    await super().__call__(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\gzip.py", line 46, in __call__
+    await self.app(scope, receive, self.send_with_compression)
+  File "C:\PROJECTS\eden-framework\eden\middleware\__init__.py", line 452, in __call__
+    await self.app(scope, receive, send_wrapper)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\routing.py", line 716, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\routing.py", line 736, in app
+    await route.handle(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\routing.py", line 290, in handle
+    await self.app(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\routing.py", line 78, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\routing.py", line 75, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\eden\routing.py", line 685, in endpoint
+    return await _eden_route.handle(eden_request, **path_params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\eden\routing.py", line 65, in handle
+    result = await result
+             ^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\eden\routing.py", line 128, in dispatch
+    result = await result
+             ^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\eden\auth\decorators.py", line 316, in wrapper
+    raise PermissionDenied(
+        detail=f"Missing at least one of the required roles: {', '.join(roles)}"
+    )
+eden.exceptions.PermissionDenied: Missing at least one of the required roles: moderator, admin
+____________ TestPermissions.test_permissions_required_missing_one ____________
+tests\test_routing_auth_powerup.py:379: in test_permissions_required_missing_one
+    assert resp.status_code == 403
+E   assert 500 == 403
+E    +  where 500 = <Response [500 Internal Server Error]>.status_code
+------------------------------ Captured log call ------------------------------
+ERROR    eden.error_middleware:error_middleware.py:80 PermissionDenied in GET /permissions: Missing required permissions: posts.write
+Traceback (most recent call last):
+  File "C:\PROJECTS\eden-framework\eden\error_middleware.py", line 72, in dispatch
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "C:\PROJECTS\eden-framework\eden\middleware\__init__.py", line 335, in __call__
+    await self.app(scope, receive, send_with_headers)
+  File "C:\PROJECTS\eden-framework\eden\auth\middleware.py", line 121, in __call__
+    await self.app(scope, receive, send)
+  File "C:\PROJECTS\eden-framework\eden\auth\middleware.py", line 196, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\cors.py", line 87, in __call__
+    await self.app(scope, receive, send)
+  File "C:\PROJECTS\eden-framework\tests\test_routing_auth_powerup.py", line 131, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\gzip.py", line 29, in __call__
+    await responder(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\gzip.py", line 130, in __call__
+    await super().__call__(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\gzip.py", line 46, in __call__
+    await self.app(scope, receive, self.send_with_compression)
+  File "C:\PROJECTS\eden-framework\eden\middleware\__init__.py", line 452, in __call__
+    await self.app(scope, receive, send_wrapper)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\routing.py", line 716, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\routing.py", line 736, in app
+    await route.handle(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\routing.py", line 290, in handle
+    await self.app(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\routing.py", line 78, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\routing.py", line 75, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\eden\routing.py", line 685, in endpoint
+    return await _eden_route.handle(eden_request, **path_params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\eden\routing.py", line 65, in handle
+    result = await result
+             ^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\eden\routing.py", line 128, in dispatch
+    result = await result
+             ^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\eden\auth\decorators.py", line 358, in wrapper
+    raise PermissionDenied(
+        detail=f"Missing required permissions: {', '.join(missing)}"
+    )
+eden.exceptions.PermissionDenied: Missing required permissions: posts.write
+_________________ TestPermissions.test_require_any_permission _________________
+tests\test_routing_auth_powerup.py:416: in test_require_any_permission
+    assert resp.status_code == 403
+E   assert 500 == 403
+E    +  where 500 = <Response [500 Internal Server Error]>.status_code
+------------------------------ Captured log call ------------------------------
+ERROR    eden.error_middleware:error_middleware.py:80 PermissionDenied in GET /billing: Missing at least one of the required permissions: billing.read, billing.write
+Traceback (most recent call last):
+  File "C:\PROJECTS\eden-framework\eden\error_middleware.py", line 72, in dispatch
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "C:\PROJECTS\eden-framework\eden\middleware\__init__.py", line 335, in __call__
+    await self.app(scope, receive, send_with_headers)
+  File "C:\PROJECTS\eden-framework\eden\auth\middleware.py", line 121, in __call__
+    await self.app(scope, receive, send)
+  File "C:\PROJECTS\eden-framework\eden\auth\middleware.py", line 196, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\cors.py", line 87, in __call__
+    await self.app(scope, receive, send)
+  File "C:\PROJECTS\eden-framework\tests\test_routing_auth_powerup.py", line 131, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\gzip.py", line 29, in __call__
+    await responder(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\gzip.py", line 130, in __call__
+    await super().__call__(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\gzip.py", line 46, in __call__
+    await self.app(scope, receive, self.send_with_compression)
+  File "C:\PROJECTS\eden-framework\eden\middleware\__init__.py", line 452, in __call__
+    await self.app(scope, receive, send_wrapper)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\routing.py", line 716, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\routing.py", line 736, in app
+    await route.handle(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\routing.py", line 290, in handle
+    await self.app(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\routing.py", line 78, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\routing.py", line 75, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\eden\routing.py", line 685, in endpoint
+    return await _eden_route.handle(eden_request, **path_params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\eden\routing.py", line 65, in handle
+    result = await result
+             ^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\eden\routing.py", line 128, in dispatch
+    result = await result
+             ^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\eden\auth\decorators.py", line 435, in wrapper
+    raise PermissionDenied(
+        detail=f"Missing at least one of the required permissions: {', '.join(permissions)}"
+    )
+eden.exceptions.PermissionDenied: Missing at least one of the required permissions: billing.read, billing.write
+________________ TestTenantAwareAuth.test_tenant_scoped_roles _________________
+tests\test_routing_auth_powerup.py:466: in test_tenant_scoped_roles
+    assert resp.status_code == 403
+E   assert 500 == 403
+E    +  where 500 = <Response [500 Internal Server Error]>.status_code
+------------------------------ Captured log call ------------------------------
+ERROR    eden.error_middleware:error_middleware.py:80 PermissionDenied in GET /tenant-admin: Missing one of the required roles: tenant_admin
+Traceback (most recent call last):
+  File "C:\PROJECTS\eden-framework\eden\error_middleware.py", line 72, in dispatch
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "C:\PROJECTS\eden-framework\eden\middleware\__init__.py", line 335, in __call__
+    await self.app(scope, receive, send_with_headers)
+  File "C:\PROJECTS\eden-framework\eden\auth\middleware.py", line 121, in __call__
+    await self.app(scope, receive, send)
+  File "C:\PROJECTS\eden-framework\eden\auth\middleware.py", line 196, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\cors.py", line 87, in __call__
+    await self.app(scope, receive, send)
+  File "C:\PROJECTS\eden-framework\tests\test_routing_auth_powerup.py", line 131, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\gzip.py", line 29, in __call__
+    await responder(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\gzip.py", line 130, in __call__
+    await super().__call__(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\gzip.py", line 46, in __call__
+    await self.app(scope, receive, self.send_with_compression)
+  File "C:\PROJECTS\eden-framework\eden\middleware\__init__.py", line 452, in __call__
+    await self.app(scope, receive, send_wrapper)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\routing.py", line 716, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\routing.py", line 736, in app
+    await route.handle(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\routing.py", line 290, in handle
+    await self.app(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\routing.py", line 78, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\routing.py", line 75, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\eden\routing.py", line 685, in endpoint
+    return await _eden_route.handle(eden_request, **path_params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\eden\routing.py", line 65, in handle
+    result = await result
+             ^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\eden\routing.py", line 128, in dispatch
+    result = await result
+             ^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\eden\auth\decorators.py", line 254, in wrapper
+    raise PermissionDenied(
+        detail=f"Missing one of the required roles: {', '.join(roles)}"
+    )
+eden.exceptions.PermissionDenied: Missing one of the required roles: tenant_admin
+____________ TestTenantAwareAuth.test_unauthenticated_returns_401 _____________
+tests\test_routing_auth_powerup.py:485: in test_unauthenticated_returns_401
+    assert resp.status_code == 401
+E   assert 500 == 401
+E    +  where 500 = <Response [500 Internal Server Error]>.status_code
+------------------------------ Captured log call ------------------------------
+ERROR    eden.error_middleware:error_middleware.py:80 Unauthorized in GET /tenant-admin: Login required.
+Traceback (most recent call last):
+  File "C:\PROJECTS\eden-framework\eden\error_middleware.py", line 72, in dispatch
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\base.py", line 168, in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\base.py", line 144, in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+  File "C:\PROJECTS\eden-framework\eden\middleware\__init__.py", line 335, in __call__
+    await self.app(scope, receive, send_with_headers)
+  File "C:\PROJECTS\eden-framework\eden\auth\middleware.py", line 121, in __call__
+    await self.app(scope, receive, send)
+  File "C:\PROJECTS\eden-framework\eden\auth\middleware.py", line 196, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\cors.py", line 87, in __call__
+    await self.app(scope, receive, send)
+  File "C:\PROJECTS\eden-framework\tests\test_routing_auth_powerup.py", line 131, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\gzip.py", line 29, in __call__
+    await responder(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\gzip.py", line 130, in __call__
+    await super().__call__(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\gzip.py", line 46, in __call__
+    await self.app(scope, receive, self.send_with_compression)
+  File "C:\PROJECTS\eden-framework\eden\middleware\__init__.py", line 452, in __call__
+    await self.app(scope, receive, send_wrapper)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\routing.py", line 716, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\routing.py", line 736, in app
+    await route.handle(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\routing.py", line 290, in handle
+    await self.app(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\routing.py", line 78, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\routing.py", line 75, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\eden\routing.py", line 685, in endpoint
+    return await _eden_route.handle(eden_request, **path_params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\eden\routing.py", line 65, in handle
+    result = await result
+             ^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\eden\routing.py", line 128, in dispatch
+    result = await result
+             ^^^^^^^^^^^^
+  File "C:\PROJECTS\eden-framework\eden\auth\decorators.py", line 247, in wrapper
+    raise Unauthorized(detail="Login required.")
+eden.exceptions.Unauthorized: Login required.
+_________________________ test_syntax_error_rendering _________________________
+tests\test_template_errors.py:46: in test_syntax_error_rendering
+    assert "Line 3" in response.text
+E   assert 'Line 3' in '\n    <!DOCTYPE html>\n    <html lang="en" class="dark">\n    <head>\n        <meta charset="UTF-8">\n        <meta n...             }, 500);\n            };\n        }\n        connect();\n    })();\n</script>\n</body>\n    </html>\n    '
+E    +  where '\n    <!DOCTYPE html>\n    <html lang="en" class="dark">\n    <head>\n        <meta charset="UTF-8">\n        <meta n...             }, 500);\n            };\n        }\n        connect();\n    })();\n</script>\n</body>\n    </html>\n    ' = <Response [500 Internal Server Error]>.text
+------------------------------ Captured log call ------------------------------
+ERROR    eden.exceptions.debug:debug.py:816 Silent exception caught: C:\Users\COBBY\AppData\Local\Temp\pytest-of-COBBY\pytest-325\test_syntax_error_rendering0\templates\error.html
+Traceback (most recent call last):
+  File "C:\PROJECTS\eden-framework\eden\exceptions\debug.py", line 810, in render_enhanced_template_error
+    src, filename, _ = loader.get_source(app._templates.env, name)
+                       ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\jinja2\loaders.py", line 593, in get_source
+    raise TemplateNotFound(template)
+jinja2.exceptions.TemplateNotFound: C:\Users\COBBY\AppData\Local\Temp\pytest-of-COBBY\pytest-325\test_syntax_error_rendering0\templates\error.html
+=========================== short test summary info ===========================
+FAILED tests/test_auth_audit.py::test_query_rbac - AssertionError: assert ('1...
+FAILED tests/test_cli_refined.py::test_forge_route_refined - assert 2 == 0
+FAILED tests/test_orm.py::test_orm_timestamps - assert datetime.datetime(2026...
+FAILED tests/test_parser_recovery.py::TestUnclosedBlocks::test_error_message_includes_brace_hint
+FAILED tests/test_routing_auth_powerup.py::TestLoginRequired::test_function_unauthenticated
+FAILED tests/test_routing_auth_powerup.py::TestLoginRequired::test_cbv_per_method_unauthenticated
+FAILED tests/test_routing_auth_powerup.py::TestLoginRequired::test_view_decorator_blocks_all_methods
+FAILED tests/test_routing_auth_powerup.py::TestRolesRequired::test_roles_required_missing
+FAILED tests/test_routing_auth_powerup.py::TestRolesRequired::test_require_role_single
+FAILED tests/test_routing_auth_powerup.py::TestRolesRequired::test_require_any_role
+FAILED tests/test_routing_auth_powerup.py::TestPermissions::test_permissions_required_missing_one
+FAILED tests/test_routing_auth_powerup.py::TestPermissions::test_require_any_permission
+FAILED tests/test_routing_auth_powerup.py::TestTenantAwareAuth::test_tenant_scoped_roles
+FAILED tests/test_routing_auth_powerup.py::TestTenantAwareAuth::test_unauthenticated_returns_401
+FAILED tests/test_template_errors.py::test_syntax_error_rendering - assert 'L...
+15 failed, 24 deselected in 2.46s

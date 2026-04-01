@@ -105,8 +105,9 @@ async def _get_model_count(model_name: str) -> int:
         for subclass in Model.__subclasses__():
             if subclass.__name__ == model_name:
                 return await subclass.count()
-    except Exception:
-        pass
+    except Exception as e:
+        from eden.logging import get_logger
+        get_logger(__name__).error("Silent exception caught: %s", e, exc_info=True)
     return 0
 
 

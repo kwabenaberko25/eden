@@ -170,8 +170,9 @@ def _coerce_type(value: Any, target_type: Any) -> Any:
             return target_type.parse_obj(value)
         elif hasattr(target_type, "model_validate"):  # Pydantic v2
             return target_type.model_validate(value)
-    except Exception:
-        pass
+    except Exception as e:
+        from eden.logging import get_logger
+        get_logger(__name__).error("Silent exception caught: %s", e, exc_info=True)
     
     # Return original value if all coercion attempts fail
     return value
@@ -570,9 +571,13 @@ class DependencyResolver:
                     except StopAsyncIteration:
                         # Expected: generator is exhausted
                         pass
-                    except Exception:
-                        # Generator cleanup error, suppress
-                        pass
+                    except Exception as e:
+                        from eden.logging import get_logger
+                        get_logger("eden.dependencies").error(
+                            "Async generator cleanup failed for %s: %s",
+                            getattr(obj, '__qualname__', repr(obj)), e,
+                            exc_info=True
+                        )
 
                 elif kind == "sync_gen":
                     # Sync generator: calling next() again triggers finally block
@@ -581,29 +586,50 @@ class DependencyResolver:
                     except StopIteration:
                         # Expected: generator is exhausted
                         pass
-                    except Exception:
-                        # Generator cleanup error, suppress
-                        pass
+                    except Exception as e:
+                        from eden.logging import get_logger
+                        get_logger("eden.dependencies").error(
+                            "Sync generator cleanup failed for %s: %s",
+                            getattr(obj, '__qualname__', repr(obj)), e,
+                            exc_info=True
+                        )
 
                 elif kind == "async_context_manager":
                     # Async context manager: call __aexit__
                     try:
                         await obj.__aexit__(None, None, None)
-                    except Exception:
-                        # Context manager cleanup error, suppress
-                        pass
+                    except Exception as e:
+                        from eden.logging import get_logger
+                        get_logger("eden.dependencies").error(
+                            "Async context manager cleanup failed for %s: %s",
+                            getattr(obj, '__qualname__', repr(obj)), e,
+                            exc_info=True
+                        )
 
                 elif kind == "sync_context_manager":
                     # Sync context manager: call __exit__
                     try:
                         obj.__exit__(None, None, None)
-                    except Exception:
-                        # Context manager cleanup error, suppress
-                        pass
+                    except Exception as e:
+                        from eden.logging import get_logger
+                        get_logger("eden.dependencies").error(
+                            "Sync context manager cleanup failed for %s: %s",
+                            getattr(obj, '__qualname__', repr(obj)), e,
+                            exc_info=True
+                        )
 
-            except Exception:
-                # Outer exception handler: ensure we continue cleaning up other resources
-                pass
+            except BaseException as e:
+                # Catch BaseException to handle CancelledError (Python 3.9+)
+                # and TimeoutError during graceful shutdown / client disconnect.
+                if isinstance(e, (KeyboardInterrupt, SystemExit)):
+                    # Never suppress process-termination signals
+                    raise
+                from eden.logging import get_logger
+                get_logger("eden.dependencies").error(
+                    "DI cleanup failed for %s(%s): %s",
+                    kind, getattr(obj, '__qualname__', repr(obj)), e,
+                    exc_info=True
+                )
 
         # Clear stacks for next request
         self._cleanup_stack.clear()

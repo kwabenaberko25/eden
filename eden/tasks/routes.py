@@ -13,9 +13,7 @@ from eden.routing import Router
 from eden.requests import Request
 from eden.tasks import EdenBroker
 from eden.tasks.components import TaskProgress
-
-router = Router()
-
+router = Router(prefix="/api/eden/tasks")
 @router.get("/{task_id}/status", name="eden.tasks.status")
 async def get_task_status(request: Request, task_id: str) -> JsonResponse | HtmlResponse:
     """

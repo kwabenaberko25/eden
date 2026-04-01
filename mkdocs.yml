@@ -22,7 +22,6 @@ theme:
         name: Switch to dark mode
   features:
     - navigation.instant
-    - navigation.tabs
     - navigation.sections
     - navigation.expand
     - content.code.copy
@@ -32,112 +31,98 @@ theme:
 
 nav:
   - Home: index.md
-  - I. Getting Started:
-    - The Eden Ethos: getting-started/philosophy.md
+  - Foundations:
     - Installation: getting-started/installation.md
     - Quick Start: getting-started/quickstart.md
-    - Example Snippets: getting-started/example-snippets.md
-    - Killer Features: guides/killer-features.md
-    - Development Cycle: guides/development-cycle.md
-    - Project Structure: getting-started/structure.md
     - Learning Path: getting-started/learning-path.md
-    - The Eden Philosophy (Deep Dive): guides/philosophy.md
+    - Project Structure: getting-started/structure.md
+    - Killer Features: guides/killer-features.md
 
-  - II. Core Application Framework:
-    - Core Application: guides/core-app.md
+  - The Eden Zen:
+    - Philosophy & Ethos: getting-started/philosophy.md
+    - Core Architecture: guides/philosophy.md
+    - Development Lifecycle: guides/development-cycle.md
+
+  - Core Application:
+    - Core App Instance: guides/core-app.md
     - Routing System: guides/routing.md
     - Advanced Routing: guides/advanced-routing.md
     - Context Variables: guides/context-variables.md
     - Dependency Injection: guides/dependency-injection.md
-    - Middleware & Security: guides/middleware.md
+    - Middleware Stack: guides/middleware.md
     - Exception Handling: guides/exceptions.md
     - Sessions: guides/sessions.md
     - Requests & Responses: guides/requests-responses.md
     - Service Layer Pattern: guides/services.md
-    - Service Layer Abstraction: guides/service-layer.md
     - API Versioning: guides/api-versioning.md
-
-    - Caching: guides/caching.md
     - CLI Suite: guides/cli.md
-  - III. Database & ORM:
+
+  - Database & ORM:
     - ORM Overview: guides/orm.md
     - QuerySet & Lookups: guides/orm-querying.md
     - Relationship Patterns: guides/orm-relationships.md
     - Transactions & Atomicity: guides/orm-transactions.md
     - Migrations: guides/orm-migrations.md
     - JSON Functionality: guides/json.md
-  - IV. Security & Authentication:
-    - Auth Overview: guides/auth.md
-    - Identity & RBAC Master Class: guides/identity-rbac.md
-    - Social Login (OAuth): guides/auth-oauth.md
+
+  - Security & Identity:
+    - 🔒 Master Manual: guides/security-and-identity.md
+    - Advanced OAuth Strategy: guides/auth-oauth.md
     - Multi-Backend Auth: guides/multi-backend-auth.md
-    - Multi-Tenancy Master Class: guides/multi-tenancy.md
-    - Tenant Persistence (PostgreSQL): guides/tenancy-postgres.md
-    - Tenant Config & Lifecycle: guides/tenant-configuration.md
-    - Tenancy Overview: guides/tenancy.md
-    - Auth & RBAC (Extended): guides/auth-and-rbac.md
-    - Auth & RBAC (Legacy): guides/auth-rbac.md
-    - Security Best Practices: guides/security.md
+    - WebSocket Security: guides/websocket-auth.md
+    - Legacy Security Reference: guides/security.md
 
-    - CSRF Protection: guides/csrf-protection.md
-  - V. UI & Frontend Integration:
+  - Multi-Tenancy & SaaS:
+    - 🏢 Master Manual: guides/multi-tenancy-masterclass.md
+    - Advanced Postgres RLS: guides/tenancy-postgres.md
+    - Tenant Lifecycle: guides/tenant-configuration.md
+
+  - UI & Frontend:
     - Templating System: guides/templating.md
-    - Directives Guide: guides/DIRECTIVES_USAGE_GUIDE.md
-    - Component Catalog: guides/components.md
+    - Directives Usage: guides/DIRECTIVES_USAGE_GUIDE.md
     - UI Component Master Class: guides/ui-components.md
-    - Directives Troubleshooting: guides/DIRECTIVES_TROUBLESHOOTING.md
-
-    - Advanced UI Orchestration: guides/advanced-ui-orchestration.md
     - Forms & Validation: guides/forms.md
     - Fluent FormField API: guides/formfield-api.md
     - HTMX Integration: guides/htmx.md
     - Internationalization (i18n): guides/i18n.md
-  - VI. Background Tasks & Real-time:
+
+  - Background & Real-time:
     - Background Tasks: guides/background-tasks.md
     - WebSockets & Streaming: guides/websockets.md
-    - Real-time Operations: guides/realtime.md
-    - WebSocket Auth: guides/websocket-auth.md
-  - VII. Storage & Assets:
-    - File Storage: guides/storage.md
-    - Asset Pipeline: guides/assets.md
-    - Optional Extras: guides/optional-extras.md
-  - VIII. Testing & Debugging:
-    - Testing Framework: guides/testing.md
-    - Troubleshooting & FAQ: guides/troubleshooting.md
-    - Performance Tuning: guides/performance.md
-  - IX. Built-in Admin & Audit:
+    - Live Reactivity: guides/realtime.md
+
+  - Built-in Tools:
     - Admin Panel: guides/admin.md
     - Audit System: guides/audit.md
     - Logging & Telemetry: guides/logging.md
-  - X. Deployment & Operations:
+    - Asset Pipeline: guides/assets.md
+    - Caching: guides/caching.md
+
+  - Deployment & Docs:
     - Deployment Guide: guides/deployment.md
-    - API Standards: guides/api.md
-    - OpenAPI & Swagger: guides/openapi.md
+    - API Specs (OpenAPI): guides/openapi.md
     - Payment Integration: guides/payments.md
-  - 🍱 Elite Recipes:
-    - Real-Time Kanban Board (SSC): recipes/kanban-board.md
-    - Real-time UI Updates: recipes/realtime-updates.md
-    - OAuth Social Auth: recipes/social-auth.md
+
+  - Elite Recipes:
+    - Real-Time Kanban Board: recipes/kanban-board.md
     - Multi-Tenant Isolation: recipes/tenant-isolation.md
+    - Social Auth (OAuth): recipes/social-auth.md
     - Model-to-Form Bridge: recipes/forms-and-validation.md
 
-  - Tutorial (Task-Based):
-    - 1. Environment Setup: tutorial/task1_setup.md
-    - 2. App Configuration: tutorial/task2_core.md
-    - 3. Data Models (ORM): tutorial/task3_orm.md
-    - 4. Routes & Views: tutorial/task4_routing.md
-    - 5. Premium Templating: tutorial/task5_templating.md
-    - 6. Forms & Validation: tutorial/task6_forms.md
-    - 7. Security & RBAC: tutorial/task7_security.md
+  - Task-Based Tutorial:
+    - 1. Environment: tutorial/task1_setup.md
+    - 2. Core App: tutorial/task2_core.md
+    - 3. Data Models: tutorial/task3_orm.md
+    - 4. Routes: tutorial/task4_routing.md
+    - 5. Templating: tutorial/task5_templating.md
+    - 6. Forms: tutorial/task6_forms.md
+    - 7. Security: tutorial/task7_security.md
     - 8. SaaS Features: tutorial/task8_saas.md
     - 9. Deployment: tutorial/task9_deployment.md
     - 10. Testing: tutorial/task10_testing.md
     - 11. Enterprise MVR: tutorial/task11_enterprise_mvr.md
-  - Extra:
-    - What Next?: donextondocs.md
 
-  - IX. AI & Security Intelligence:
-
+  - AI & Security Intelligence:
     - AI & Semantic Search: guides/ai-search.md
     - Premium SaaS Components: guides/premium-saas-components.md
     - AI Context Strategy: guides/recipes.md

@@ -1,0 +1,7 @@
+{
+  "name": "test_minimal",
+  "version": "1.0.0",
+  "profile": "minimal",
+  "database_engine": "sqlite",
+  "created_with_eden": "1.0.0"
+}

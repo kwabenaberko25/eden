@@ -24,6 +24,7 @@ def mock_websocket():
     from starlette.websockets import WebSocketState
     ws = AsyncMock()
     ws.query_params = {"token": "valid_token"}
+    ws.scope = {"session": {"user_id": "user123"}}
     ws.session = {"user_id": "user123"}
     ws.accept = AsyncMock()
     ws.send_json = AsyncMock()
@@ -164,8 +165,7 @@ class TestAuthenticatedWebSocket:
     
     @pytest.mark.asyncio
     async def test_authenticate_with_cookie_no_session(self, authenticated_websocket, mock_websocket):
-        """Test cookie auth with no session."""
-        mock_websocket.session = {}  # No user_id
+        mock_websocket.scope = {"session": {}}  # No user_id
         
         with pytest.raises(AuthenticationError):
             await authenticated_websocket.authenticate_with_cookie()

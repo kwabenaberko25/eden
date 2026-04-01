@@ -141,15 +141,15 @@ class TenantMiddleware:
                         from eden.db import get_db
                         db_manager = get_db(request)
                         await db_manager.set_schema(db_session, "public")
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        get_logger(__name__).error("Silent exception caught: %s", e, exc_info=True)
             
             # Clean up database session
             if db_cleanup:
                 try:
                     await db_cleanup()
-                except Exception:
-                    pass
+                except Exception as e:
+                    get_logger(__name__).error("Silent exception caught: %s", e, exc_info=True)
             if db_token:
                 from eden.db.session import reset_session
                 reset_session(db_token)
@@ -261,15 +261,15 @@ class TenantMiddleware:
                         from eden.db import get_db
                         db_manager = get_db(request)
                         await db_manager.set_schema(db_session, "public")
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        get_logger(__name__).error("Silent exception caught: %s", e, exc_info=True)
             
             # Clean up database session
             if db_cleanup:
                 try:
                     await db_cleanup()
-                except Exception:
-                    pass
+                except Exception as e:
+                    get_logger(__name__).error("Silent exception caught: %s", e, exc_info=True)
             if db_token:
                 from eden.db.session import reset_session
                 reset_session(db_token)

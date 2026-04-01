@@ -127,8 +127,9 @@ class AdminSite:
                 global_site = globals().get("admin")
                 if global_site and self is not global_site and model not in global_site._registry:
                     global_site.register(model, admin_cls)
-            except Exception:
-                pass
+            except Exception as e:
+                from eden.logging import get_logger
+                get_logger(__name__).error("Silent exception caught: %s", e, exc_info=True)
 
         # 1. Direct call with specified admin class
         if admin_class is not None:

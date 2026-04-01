@@ -53,8 +53,9 @@ def discover_app() -> Optional[str]:
                             config = {}
                         config["app_path"] = app_path
                         eden_json_path.write_text(json.dumps(config, indent=2), encoding="utf-8")
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        from eden.logging import get_logger
+                        get_logger(__name__).error("Silent exception caught: %s", e, exc_info=True)
                     return app_path
             except Exception:
                 continue

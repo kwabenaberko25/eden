@@ -1,0 +1,101 @@
+============================= test session starts =============================
+platform win32 -- Python 3.14.3, pytest-9.0.2, pluggy-1.6.0
+rootdir: C:\PROJECTS\eden-framework
+configfile: pyproject.toml
+plugins: anyio-4.12.1, asyncio-1.3.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=session, asyncio_default_test_loop_scope=session
+DEBUG: sys.path[0] = C:\PROJECTS\eden-framework
+DEBUG: eden file = C:\PROJECTS\eden-framework\eden\__init__.py
+collected 3 items / 2 deselected / 1 selected
+
+tests\test_postgres_full_session.py DEBUG: Inserted Alpha Author with ID 45af1419-1955-4ea5-94c7-362fa7e245c2
+DEBUG: Inserted Beta Author with ID 6babccdd-e754-4fba-ba6d-58dea7b85ab7
+DEBUG: search_path for query: tenant_alpha, public
+DEBUG: _base_select for LiveAuthor: isolated=True, applied=False
+DEBUG: applied tenant filter for LiveAuthor
+DEBUG: resolving RBAC for LiveAuthor (read): rule=<eden.db.access.AllowPublic object at 0x000001DD605BF4D0>
+DEBUG: rule.resolve returned: True
+DEBUG: RBAC filters for LiveAuthor (read) for user None: True
+DEBUG: _base_select for LiveAuthor: isolated=True, applied=False
+DEBUG: applied tenant filter for LiveAuthor
+DEBUG: EXEC SQL: SELECT live_authors.name, live_authors.tenant_id, live_authors.id, live_authors.created_at, live_authors.updated_at 
+FROM live_authors 
+WHERE false
+DEBUG: Authors in Alpha: []
+F
+
+================================== FAILURES ===================================
+_____________________ test_postgres_multi_tenancy_schemas _____________________
+
+db_pg = <eden.db.session.Database object at 0x000001DD5CDD12B0>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001DD609EF6F0>
+
+    @pytest.mark.asyncio
+    async def test_postgres_multi_tenancy_schemas(db_pg, monkeypatch):
+        """
+        3. Multi tenancy works with the postgres schema setup.
+        Verifies isolation using PG search_path and Tenant.provision_schema.
+        """
+        # Mock MigrationManager.stamp to avoid failure if migrations folder doesn't exist
+        from eden.db.migrations import MigrationManager
+        monkeypatch.setattr(MigrationManager, "stamp", AsyncMock())
+        # 1. Clean state
+        async with db_pg.transaction() as session:
+            await session.execute(text("DROP SCHEMA IF EXISTS tenant_alpha CASCADE"))
+            await session.execute(text("DROP SCHEMA IF EXISTS tenant_beta CASCADE"))
+            await session.execute(text("DELETE FROM live_authors"))
+            await session.execute(text("DELETE FROM eden_tenants"))
+    
+        # 2. Create tenants
+        async with db_pg.transaction() as session:
+            t1 = Tenant(name="Tenant Alpha", slug="alpha", schema_name="tenant_alpha")
+            t2 = Tenant(name="Tenant Beta", slug="beta", schema_name="tenant_beta")
+            session.add_all([t1, t2])
+            await session.flush()
+    
+            # Provision t1
+            await t1.provision_schema(session)
+            # Check if table exists in alpha
+            res = await session.execute(text("SELECT count(*) FROM information_schema.tables WHERE table_schema = 'tenant_alpha' AND table_name = 'live_authors'"))
+            assert res.scalar() == 1, "Table live_authors not found in tenant_alpha"
+    
+            # Provision t2
+            await t2.provision_schema(session)
+            # Check if table exists in beta
+            res = await session.execute(text("SELECT count(*) FROM information_schema.tables WHERE table_schema = 'tenant_beta' AND table_name = 'live_authors'"))
+            assert res.scalar() == 1, "Table live_authors not found in tenant_beta"
+    
+        # 3. Insert Alpha data
+        async with db_pg.transaction() as session:
+            await db_pg.set_schema(session, "tenant_alpha")
+            author = LiveAuthor(name="Alpha Author")
+            session.add(author)
+            await session.flush()
+            print(f"DEBUG: Inserted Alpha Author with ID {author.id}")
+    
+        # 4. Insert Beta data
+        async with db_pg.transaction() as session:
+            await db_pg.set_schema(session, "tenant_beta")
+            author = LiveAuthor(name="Beta Author")
+            session.add(author)
+            await session.flush()
+            print(f"DEBUG: Inserted Beta Author with ID {author.id}")
+    
+        # 5. Verify Isolation
+        async with db_pg.transaction() as session:
+            # Verify Alpha only has Alpha
+            await db_pg.set_schema(session, "tenant_alpha")
+            res = await session.execute(text("SHOW search_path"))
+            print(f"DEBUG: search_path for query: {res.scalar()}")
+            authors = await LiveAuthor.query().all()
+            names = [a.name for a in authors]
+            print(f"DEBUG: Authors in Alpha: {names}")
+>           assert len(authors) == 1, f"Alpha expected 1, got {names}"
+E           AssertionError: Alpha expected 1, got []
+E           assert 0 == 1
+E            +  where 0 = len([])
+
+tests\test_postgres_full_session.py:219: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_postgres_full_session.py::test_postgres_multi_tenancy_schemas
+======================= 1 failed, 2 deselected in 1.31s =======================

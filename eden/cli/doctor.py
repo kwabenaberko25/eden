@@ -43,11 +43,11 @@ def check_structure() -> list[tuple[str, str, str]]:
 
 async def check_db() -> list[tuple[str, str, str]]:
     """Verify database connection and migrations."""
-    from eden.config import get_db_url
+    from eden.config import get_config
     from sqlalchemy.ext.asyncio import create_async_engine
     
     results = []
-    db_url = get_db_url()
+    db_url = get_config().get_database_url()
     
     if not db_url:
         results.append(("Database URL", "Not configured in environment", "red"))
@@ -56,10 +56,11 @@ async def check_db() -> list[tuple[str, str, str]]:
     results.append(("Database URL", f"{db_url[:15]}...", "blue"))
     
     try:
+        from sqlalchemy import text
         engine = create_async_engine(db_url)
         # Try a simple connection
         async with engine.connect() as conn:
-            await conn.execute("SELECT 1")
+            await conn.execute(text("SELECT 1"))
         results.append(("DB Connection", "Healthy", "green"))
     except Exception as e:
         results.append(("DB Connection", f"Failed: {str(e)[:50]}", "red"))

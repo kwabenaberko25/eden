@@ -126,8 +126,9 @@ class Tenant(Model):
                     # Even if reset fails, we try to at least set it to safe default
                     try:
                         await session.execute(text("SET search_path TO public"))
-                    except Exception:
-                        pass  # If this fails too, let exception from main block propagate
+                    except Exception as e:
+                        from eden.logging import get_logger
+                        get_logger(__name__).error("Silent exception caught: %s", e, exc_info=True)  # If this fails too, let exception from main block propagate
 
 
 class AnonymousTenant:

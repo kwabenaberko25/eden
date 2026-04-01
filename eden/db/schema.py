@@ -254,8 +254,9 @@ class SchemaInferenceEngine:
                             'datetime': datetime, 'date': date
                         })
                         attr_hint = eval(attr_hint, namespace)
-                except Exception:
-                    pass
+                except Exception as e:
+                    from eden.logging import get_logger
+                    get_logger(__name__).error("Silent exception caught: %s", e, exc_info=True)
             
             hint = attr_hint
             metadata, final_type, is_list, is_union, target_name = cls._analyze_type_hint(hint)

@@ -1,3 +1,0 @@
-eden-framework>=0.1.0
-uvicorn[standard]>=0.29.0
-aiosqlite>=0.20.0

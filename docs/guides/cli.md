@@ -173,6 +173,7 @@ Eden's Security CLI handles the foundational identity setup of your application,
 | **`createsuperuser`** | Creates a global administrator with "God Mode" (`is_superuser=True`). |
 
 ### 1. Bootstrapping Superusers
+
 Use this command to create your first administrative user. This user bypasses all RBAC guards and is granted full access to the **Eden Admin Panel**.
 
 ```bash
@@ -191,6 +192,46 @@ For a deep dive into user lifecycles, password hashing, and role modes (JSON vs 
 
 ---
 
+## 🏗️ Project Creation: `eden new`
+
+Start a brand new Eden application through an interactive wizard that configures your database, auth, and extras automatically.
+
+```bash
+# Start the interactive wizard
+eden new my_project
+
+# Non-interactive scaffolding to a specific path
+eden new my_project ./custom-path --verbose
+```
+
+---
+
+## ⏰ Background Jobs: `eden tasks`
+
+Eden integrates tightly with Taskiq for asynchronous background processing. Control your worker fleet from here.
+
+| Command | Elite Capability |
+| :--- | :--- |
+| **`eden tasks worker`** | Starts the worker process to consume background tasks in real-time. |
+| **`eden tasks scheduler`** | Boots up the cron scheduler for dispatching periodic tasks. |
+| **`eden tasks status`** | Shows execution statistics, queue lengths, and processing rates. |
+| **`eden tasks list`** | Lists all registered periodic tasks and their schedules. |
+| **`eden tasks dead-letter`** | Inspect processes that completely failed after exhausting retries. |
+
+---
+
+## 🏢 Fleet Management: `eden tenant`
+
+A dedicated toolkit to control multi-tenant provisioning (schema creation) directly from the terminal.
+
+| Command | Elite Capability |
+| :--- | :--- |
+| **`eden tenant list`** | Shows all registered tenants (customer organizations) globally. |
+| **`eden tenant info`** | Deep dive into a specific tenant's resource allocation and status. |
+| **`eden tenant provision`** | Forces the schema creation & migration lifecycle for isolated tenants. |
+
+---
+
 ## 💡 Best Practices
 
 1. **Forge First**: Never manually write a model; use `generate model` to ensure correct metadata and registration.
@@ -200,4 +241,4 @@ For a deep dive into user lifecycles, password hashing, and role modes (JSON vs 
 
 ---
 
-**Next Steps**: [User Identity](./user-identity.md) | [SaaS Multi-Tenancy](./multi-tenancy.md)
+**Next Steps**: [Security & Identity](./security-and-identity.md) | [Multi-Tenancy Masterclass](./multi-tenancy-masterclass.md)

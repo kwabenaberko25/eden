@@ -411,8 +411,8 @@ def downgrade() -> None:
         if url_from_config:
             url = url_from_config
         else:
-            from eden.config import get_db_url
-            url = self.database_url or get_db_url()
+            from eden.config import get_config
+            url = self.database_url or get_config().get_database_url()
 
         engine = create_async_engine(url, poolclass=NullPool)
 
@@ -480,8 +480,8 @@ def downgrade() -> None:
             if url_from_config:
                 url = url_from_config
             else:
-                from eden.config import get_db_url
-                url = self.database_url or get_db_url()
+                from eden.config import get_config
+                url = self.database_url or get_config().get_database_url()
             engine = create_async_engine(url, poolclass=NullPool)
             try:
                 async with engine.connect() as conn:

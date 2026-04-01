@@ -78,8 +78,9 @@ def _get_tenant_roles(user: Any) -> list[str]:
                 result = get_tenant_roles_fn(tenant_id)
                 if isinstance(result, (list, tuple, set)):
                     return list(result)
-        except Exception:
-            pass
+        except Exception as e:
+            from eden.logging import get_logger
+            get_logger(__name__).error("Silent exception caught: %s", e, exc_info=True)
 
     # 2. Check for pre-resolved tenant_roles attribute
     tenant_roles = getattr(user, "tenant_roles", None)
@@ -110,8 +111,9 @@ def _get_tenant_permissions(user: Any) -> list[str]:
                 result = get_tenant_perms_fn(tenant_id)
                 if isinstance(result, (list, tuple, set)):
                     all_perms.update(result)
-        except Exception:
-            pass
+        except Exception as e:
+            from eden.logging import get_logger
+            get_logger(__name__).error("Silent exception caught: %s", e, exc_info=True)
     else:
         # Fallback to pre-resolved or flat permissions
         tenant_perms = getattr(user, "tenant_permissions", None)

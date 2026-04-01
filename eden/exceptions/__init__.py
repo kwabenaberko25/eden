@@ -200,6 +200,52 @@ class InternalServerError(EdenException):
     detail = "Internal server error."
 
 
+class EdenDatabaseError(EdenException):
+    """
+    Wraps raw database/ORM exceptions into a structured Eden error.
+
+    Provides diagnostic context (operation, model) while hiding
+    raw SQLAlchemy internals from API callers.
+
+    Attributes:
+        operation: The ORM operation that failed (e.g., "bulk_create", "save")
+        model_name: The model class name involved
+        original: The original database exception (also chained via __cause__)
+
+    Example:
+        try:
+            await User.bulk_create([...])
+        except EdenDatabaseError as e:
+            print(e.operation)    # "bulk_create"
+            print(e.model_name)   # "User"
+            print(e.original)     # IntegrityError(...)
+    """
+
+    status_code = HTTP_500_INTERNAL_SERVER_ERROR
+
+    def __init__(
+        self,
+        detail: str = "A database operation failed.",
+        *,
+        operation: str = "",
+        model_name: str = "",
+        original: Exception | None = None,
+        **kwargs: Any,
+    ) -> None:
+        self.operation = operation
+        self.model_name = model_name
+        self.original = original
+        super().__init__(
+            detail=detail,
+            context={
+                "operation": operation,
+                "model": model_name,
+                "original_error": repr(original) if original else "",
+            },
+            **kwargs,
+        )
+
+
 # ────────────────────────────────────────────────────────────────────────────
 # Global Error Handler System (Layer 5-6)
 # ────────────────────────────────────────────────────────────────────────────
@@ -236,23 +282,11 @@ class ErrorHandler(ABC):
         app.register_error_handler(DatabaseErrorHandler())
     """
 
-    @abstractmethod
-    def matches(self, exc: Exception) -> bool:
-        """
-        Check if this handler handles the given exception.
-        
-        Args:
-            exc: Exception to check
-        
-        Returns:
-            True if handler should process this exception
-        
-        Implementation Notes:
-            - Should be fast (checked for every exception)
-            - Can check exception type, attributes, conditions
-            - Called before handle(), so no I/O here
-        """
-        pass
+    def _is_json_request(self, request) -> bool:
+        """Check if the request prefers a JSON response."""
+        accept = request.headers.get("accept", "").lower()
+        content_type = request.headers.get("content-type", "").lower()
+        return "application/json" in accept or "application/json" in content_type
 
     @abstractmethod
     async def handle(self, exc: Exception, request, app):
@@ -286,6 +320,10 @@ class DefaultErrorHandler(ErrorHandler):
         """Matches all exceptions (fallback)."""
         return True
 
+    def _should_render_html(self, request, app) -> bool:
+        """Check if we should render the high-fidelity HTML debug page."""
+        return app.debug and not self._is_json_request(request)
+
     async def handle(self, exc: Exception, request, app):
         """Convert exception to JSON response."""
         from eden.responses import JsonResponse
@@ -293,12 +331,16 @@ class DefaultErrorHandler(ErrorHandler):
         # Log context if available
         if isinstance(exc, EdenException):
             exc.log_context()
+            if self._should_render_html(request, app):
+                return app._render_enhanced_exception(request, exc)
             return JsonResponse(exc.to_dict(), status_code=exc.status_code)
 
         # Fallback for Starlette HTTPException or any object with status_code
         status_code = getattr(exc, "status_code", None)
         detail = getattr(exc, "detail", None) or str(exc)
         if status_code is not None:
+             if self._should_render_html(request, app):
+                 return app._render_enhanced_exception(request, exc)
              return JsonResponse(
                 {
                     "error": True,
@@ -331,11 +373,19 @@ class StarletteHTTPErrorHandler(ErrorHandler):
             return True
         return hasattr(exc, "status_code") and hasattr(exc, "detail") and not isinstance(exc, EdenException)
 
+    def _should_render_html(self, request, app) -> bool:
+        """Check if we should render the high-fidelity HTML debug page."""
+        return app.debug and not self._is_json_request(request)
+
     async def handle(self, exc: Exception, request, app):
         from eden.responses import JsonResponse
         # exc is known to be StarletteHTTPException here (or have equivalent attributes)
         status_code = getattr(exc, "status_code", 500)
         detail = getattr(exc, "detail", None) or str(exc)
+        
+        if self._should_render_html(request, app):
+            return app._render_enhanced_exception(request, exc)
+            
         return JsonResponse(
             {
                 "error": True,

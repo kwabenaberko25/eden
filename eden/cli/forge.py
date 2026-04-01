@@ -92,8 +92,9 @@ class {class_name}(Model):
 
 @generate.command()
 @click.argument("name")
-def route(name: str) -> None:
-    """Scaffold a new routing module."""
+@click.option("--path", type=str, default=None, help="The versioned path prefix for the router (e.g., /api/v1/billing).")
+def router(name: str, path: str | None) -> None:
+    """Scaffold a full CRUD-ready router with versioned path mapping."""
     snake_name = re.sub(r'(?<!^)(?=[A-Z])', '_', name).lower()
     router_name = f"{snake_name}_router"
 
@@ -116,20 +117,36 @@ def route(name: str) -> None:
         return
 
     # 1. Create the route file
-    content = f'''from typing import Dict, Any
-from eden import Router
+    prefix_str = f', prefix="{path}"' if path else ""
+    content = f'''from typing import Dict, Any, List
+from eden import Router, Response, status
 
-{router_name} = Router()
+{router_name} = Router(name="{snake_name}"{prefix_str})
 
 @{router_name}.get("/")
-async def index() -> Dict[str, Any]:
-    """
-    Index endpoint for {snake_name} router.
-    
-    Returns:
-        JSON response with status and message.
-    """
-    return {{"message": "Hello from {snake_name} router! 🌿", "status": "ok"}}
+async def list_{snake_name}() -> Dict[str, Any]:
+    """Retrieve a list of {snake_name} resources."""
+    return {{"data": [], "status": "ok"}}
+
+@{router_name}.post("/", status_code=status.HTTP_201_CREATED)
+async def create_{snake_name}(data: dict) -> Dict[str, Any]:
+    """Create a new {snake_name} resource."""
+    return {{"data": data, "message": "Created successfully", "status": "ok"}}
+
+@{router_name}.get("/{{id}}")
+async def get_{snake_name}(id: int) -> Dict[str, Any]:
+    """Retrieve a specific {snake_name} resource."""
+    return {{"data": {{"id": id}}, "status": "ok"}}
+
+@{router_name}.put("/{{id}}")
+async def update_{snake_name}(id: int, data: dict) -> Dict[str, Any]:
+    """Update a specific {snake_name} resource."""
+    return {{"data": {{"id": id, **data}}, "message": "Updated successfully", "status": "ok"}}
+
+@{router_name}.delete("/{{id}}")
+async def delete_{snake_name}(id: int) -> Dict[str, Any]:
+    """Delete a specific {snake_name} resource."""
+    return {{"message": "Deleted successfully", "status": "ok"}}
 '''
     route_file.write_text(content, encoding="utf-8")
     click.echo(f"  ✨ Created route: {prefix_path}/{snake_name}.py")

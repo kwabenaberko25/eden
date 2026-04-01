@@ -5,7 +5,7 @@ Available commands:
   eden run       - Start the development server
   eden new       - Scaffold a new project (minimal/standard/production)
   eden db        - Database migration management (init, migrate, upgrade, downgrade)
-  eden auth      - Authentication management (createsuperuser)
+  eden auth      - Authentication management (createsuperuser, changepassword)
   eden generate  - Code generation (model, route)
   eden tasks     - Task queue management (worker, scheduler)
   eden version   - Print Eden version

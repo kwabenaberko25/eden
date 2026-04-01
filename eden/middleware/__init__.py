@@ -244,8 +244,9 @@ class CSRFMiddleware:
                 try:
                     form = await request.form()
                     submitted_token = form.get(self.TOKEN_FIELD)
-                except Exception:
-                    pass
+                except Exception as e:
+                    from eden.logging import get_logger
+                    get_logger(__name__).error("Silent exception caught: %s", e, exc_info=True)
 
         # HTMX often uses X-XSRF-TOKEN or similar, but we'll stick to X-CSRF-Token or Form
 
@@ -583,8 +584,9 @@ class CacheMiddleware:
                     "body": cached.get("body", b"")
                 })
                 return
-        except Exception:
-            pass
+        except Exception as e:
+            from eden.logging import get_logger
+            get_logger(__name__).error("Silent exception caught: %s", e, exc_info=True)
 
         # 2. Cache Miss: Capture response
         response_data = {
@@ -613,8 +615,9 @@ class CacheMiddleware:
                                     if idx != -1:
                                         rem = val_str[idx+8:].split(",")[0].split(";")[0].strip()
                                         response_data["ttl"] = int(rem)
-                                except Exception:
-                                    pass
+                                except Exception as e:
+                                    from eden.logging import get_logger
+                                    get_logger(__name__).error("Silent exception caught: %s", e, exc_info=True)
 
                 # Store headers for caching (without our HIT/MISS header)
                 response_data["headers"] = orig_headers
@@ -635,8 +638,9 @@ class CacheMiddleware:
                                 "headers": response_data["headers"],
                                 "body": response_data["body"]
                             }, ttl=response_data["ttl"])
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            from eden.logging import get_logger
+                            get_logger(__name__).error("Silent exception caught: %s", e, exc_info=True)
 
             await send(message)
 

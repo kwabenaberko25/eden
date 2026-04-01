@@ -12,9 +12,40 @@ def _get_attr_or_item(obj: Any, key: str, default: Any = None) -> Any:
     if hasattr(obj, "model_dump"):
         try:
             return getattr(obj, key, default)
-        except Exception:
-            pass
+        except Exception as e:
+            from eden.logging import get_logger
+            get_logger(__name__).error("Silent exception caught: %s", e, exc_info=True)
     return getattr(obj, key, default)
+
+import asyncio
+import contextvars
+
+async def broadcast_update(target: Any, event: str = "updated") -> None:
+    """
+    Manually trigger a reactive broadcast for a model instance.
+    Aligned with the @reactive decorator logic.
+    """
+    if target is None:
+        return
+        
+    channels = get_reactive_channels(target)
+    if not channels:
+        return
+        
+    data = extract_reactive_data(target)
+    
+    # Import here to avoid circular dependencies
+    from eden.db.listeners import _async_broadcast
+    
+    try:
+        loop = asyncio.get_running_loop()
+        if loop.is_running():
+            ctx = contextvars.copy_context()
+            # We still use create_task to keep it non-blocking for the caller if desired,
+            # but making the function async allows 'await' without TypeError.
+            loop.create_task(ctx.run(_async_broadcast, channels, event, data))
+    except (RuntimeError, NameError):
+        pass
 
 def get_reactive_channels(target: Any) -> List[str]:
     """

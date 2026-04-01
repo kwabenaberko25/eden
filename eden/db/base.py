@@ -342,16 +342,25 @@ class Model(Base, AccessControl, ValidatorMixin, LifecycleMixin, SerializationMi
             await post_save.send(sender=cls, instance=inst, is_new=True, session=sess)
 
         db = cls._get_db()
-        async with db.transaction(session=session) as sess:
-            for i, inst in enumerate(actual_instances):
-                await _internal_save(inst, sess)
-                if batch_size and (batch_size > 0) and (i + 1) % batch_size == 0:
-                    await sess.flush()
-            
-            await sess.flush()
-            for inst in actual_instances:
-                await _internal_after(inst, sess)
-            return actual_instances
+        try:
+            async with db.transaction(session=session) as sess:
+                for i, inst in enumerate(actual_instances):
+                    await _internal_save(inst, sess)
+                    if batch_size and (batch_size > 0) and (i + 1) % batch_size == 0:
+                        await sess.flush()
+                
+                await sess.flush()
+                for inst in actual_instances:
+                    await _internal_after(inst, sess)
+                return actual_instances
+        except Exception as e:
+            from eden.exceptions import EdenDatabaseError
+            raise EdenDatabaseError(
+                detail=f"bulk_create failed for {cls.__name__}: {e}",
+                operation="bulk_create",
+                model_name=cls.__name__,
+                original=e,
+            ) from e
 
     @classmethod
     async def bulk_update_mapping(
@@ -374,10 +383,19 @@ class Model(Base, AccessControl, ValidatorMixin, LifecycleMixin, SerializationMi
                 set_values[field] = case(*whens, else_=getattr(cls, field))
         stmt = update(cls).where(id_col.in_(ids)).values(set_values)
         db = cls._get_db()
-        async with db.transaction(session=session) as sess:
-            result = await sess.execute(stmt)
-            await sess.flush()
-            return result.rowcount
+        try:
+            async with db.transaction(session=session) as sess:
+                result = await sess.execute(stmt)
+                await sess.flush()
+                return result.rowcount
+        except Exception as e:
+            from eden.exceptions import EdenDatabaseError
+            raise EdenDatabaseError(
+                detail=f"bulk_update_mapping failed for {cls.__name__}: {e}",
+                operation="bulk_update_mapping",
+                model_name=cls.__name__,
+                original=e,
+            ) from e
 
     @classmethod
     async def checkpoint(cls, session: Optional[Any] = None) -> Any:

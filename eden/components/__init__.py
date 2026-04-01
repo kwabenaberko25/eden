@@ -613,8 +613,9 @@ async def component_action_handler(
         try:
             form_data = await request.form()
             state.update(dict(form_data))
-        except Exception:
-            pass
+        except Exception as e:
+            from eden.logging import get_logger
+            get_logger(__name__).error("Silent exception caught: %s", e, exc_info=True)
     state.update(dict(request.query_params))
     
     # Filter out common request params that aren't component state
@@ -686,8 +687,9 @@ async def component_dispatcher(request: Any) -> Any:
         try:
             form_data = await request.form()
             raw_state.update({k: v for k, v in form_data.items()})
-        except Exception:
-            pass
+        except Exception as e:
+            from eden.logging import get_logger
+            get_logger(__name__).error("Silent exception caught: %s", e, exc_info=True)
     raw_state.update({k: v for k, v in request.query_params.items()})
     
     # Instantiate and call

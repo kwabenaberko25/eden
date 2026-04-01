@@ -212,8 +212,9 @@ def cache_view(
                         status_code=cached.get("status", 200),
                         headers={"X-Eden-Cache": "HIT", "Content-Type": cached.get("content_type", "text/html")},
                     )
-            except Exception:
-                pass
+            except Exception as e:
+                from eden.logging import get_logger
+                get_logger(__name__).error("Silent exception caught: %s", e, exc_info=True)
 
             response = await func(*args, **kwargs)
 
@@ -231,8 +232,9 @@ def cache_view(
                         },
                         ttl=ttl,
                     )
-            except Exception:
-                pass
+            except Exception as e:
+                from eden.logging import get_logger
+                get_logger(__name__).error("Silent exception caught: %s", e, exc_info=True)
 
             return response
 

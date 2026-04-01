@@ -67,9 +67,9 @@ class BillingManager:
 
 from sqlalchemy.orm import Mapped
 
-class CustomerMixin:
+class BillableMixin:
     """
-    Adds Stripe customer integration to an Eden Model.
+    Adds billing integration to an Eden Model.
     Typically used on the User or Organization model.
     """
     stripe_customer_id: Mapped[Optional[str]] = f(max_length=255, nullable=True, index=True)
@@ -108,4 +108,8 @@ class CustomerMixin:
             return False
 
     def __repr__(self) -> str:
-        return f"<Customer(stripe_id='{self.stripe_customer_id}')>"
+        return f"<Billable(stripe_id='{self.stripe_customer_id}')>"
+
+
+# Deprecated alias
+CustomerMixin = BillableMixin

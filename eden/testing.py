@@ -157,6 +157,18 @@ class EdenTestClient(httpx.AsyncClient):
 
 # --- Pytest Fixtures ---
 
+def eden_config_fixture():
+    """Pytest fixture factory that ensures ConfigManager is reset between tests."""
+    import pytest
+    
+    @pytest.fixture(autouse=True)
+    def _reset_eden_config():
+        from eden.config import ConfigManager
+        yield
+        ConfigManager.instance().reset()
+    
+    return _reset_eden_config
+
 # Pytest-asyncio session-scoped event loop is configured in pyproject.toml
 
 @pytest.fixture(scope="session")
@@ -429,4 +441,5 @@ __all__ = [
     "assert_status",
     "UserFactory",
     "TenantFactory",
+    "eden_config_fixture",
 ]

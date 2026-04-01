@@ -38,7 +38,7 @@ def tenant_list() -> None:
         
         async with db.transaction() as session:
             from sqlalchemy import select
-            stmt = select(Tenant).order_name(Tenant.name)
+            stmt = select(Tenant).order_by(Tenant.name)
             result = await session.execute(stmt)
             tenants = result.scalars().all()
             

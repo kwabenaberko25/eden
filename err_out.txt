@@ -1,0 +1,125 @@
+============================= test session starts =============================
+platform win32 -- Python 3.14.3, pytest-9.0.2, pluggy-1.6.0
+rootdir: C:\PROJECTS\eden-framework
+configfile: pyproject.toml
+plugins: anyio-4.12.1, asyncio-1.3.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=session, asyncio_default_test_loop_scope=session
+collected 1271 items / 1269 deselected / 2 selected
+
+tests\audit\test_session_hygiene.py F
+
+================================== FAILURES ===================================
+_____________ test_session_middleware_not_present_without_secret ______________
+
+    @pytest.mark.asyncio
+    async def test_session_middleware_not_present_without_secret():
+        """Verify that sessions/csrf are NOT added if secret_key is missing."""
+        class MockConfig:
+            secret_key = None
+            title = "Eden"
+            version = "1.0.0"
+            debug = False
+            browser_reload = False
+    
+>       app = Eden(secret_key=None, config=MockConfig())
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\audit\test_session_hygiene.py:15: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <eden.app.Eden object at 0x000001C91566A3C0>, title = None
+version = '1.0.0', debug = False, description = None, secret_key = None
+contact = None, license_info = None, openapi_url = '/openapi.json'
+docs_url = '/docs', redoc_url = '/redoc'
+config = <test_session_hygiene.test_session_middleware_not_present_without_secret.<locals>.MockConfig object at 0x000001C915669E80>
+static_dir = 'static', static_url = '/static', templates_dir = 'templates'
+browser_reload = True
+
+    def __init__(
+        self,
+        title: str | None = None,
+        version: str = "1.0.0",
+        debug: bool = False,
+        description: str | None = None,
+        secret_key: str | None = None,
+        contact: dict[str, str] | None = None,
+        license_info: dict[str, str] | None = None,
+        openapi_url: str | None = "/openapi.json",
+        docs_url: str | None = "/docs",
+        redoc_url: str | None = "/redoc",
+        config: dict[str, Any] | Config | None = None,
+        static_dir: str = "static",
+        static_url: str = "/static",
+        templates_dir: str = "templates",
+        browser_reload: bool = True,
+    ) -> None:
+        from eden.context import set_app
+        set_app(self)
+    
+        # Precedence: Explicit constructor arguments > config object values
+        # Load configuration if not provided
+        from eden.config import Config, get_config
+        if config is None:
+            self.config = get_config()
+        elif isinstance(config, dict):
+            self.config = Config(**config)
+        else:
+            self.config = config
+    
+        # Configure with explicit overrides
+        self.title = title or self.config.title or "Eden App"
+        self.version = version or self.config.version or "0.1.0"
+        self.description = description or getattr(self.config, "description", None)
+        self.contact = contact
+        self.license_info = license_info
+        self.openapi_url = openapi_url
+        self.docs_url = docs_url
+        self.redoc_url = redoc_url
+        self.secret_key = secret_key or self.config.secret_key or ""
+    
+        # SECURITY: Fail hard in all non-test environments if no secret_key is configured.
+        # This prevents accidental deployment of insecure applications.
+        if not self.secret_key and not self.is_test():
+>           raise RuntimeError(
+                "SECURITY: No secret_key configured. "
+                "Set the SECRET_KEY environment variable or pass secret_key= to Eden(). "
+                "Running without a secret_key outside of tests exposes sessions, CSRF tokens, "
+                "and JWT signatures to trivial forgery. If this is a test, ensure EDEN_ENV='test'."
+            )
+E           RuntimeError: SECURITY: No secret_key configured. Set the SECRET_KEY environment variable or pass secret_key= to Eden(). Running without a secret_key outside of tests exposes sessions, CSRF tokens, and JWT signatures to trivial forgery. If this is a test, ensure EDEN_ENV='test'.
+
+eden\app.py:123: RuntimeError
+============================== warnings summary ===============================
+eden\testing.py:64
+  C:\PROJECTS\eden-framework\eden\testing.py:64: PytestCollectionWarning: cannot collect test class 'EdenTestClient' because it has a __init__ constructor (from: tests/test_config_and_testing.py)
+    class EdenTestClient(httpx.AsyncClient):
+
+tests\test_db_lifecycle_fixes.py:7
+  C:\PROJECTS\eden-framework\tests\test_db_lifecycle_fixes.py:7: PytestCollectionWarning: cannot collect test class 'TestModel' because it has a __init__ constructor (from: tests/test_db_lifecycle_fixes.py)
+    class TestModel(Model):
+
+tests\test_directives_integration.py:295
+  C:\PROJECTS\eden-framework\tests\test_directives_integration.py:295: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.unit
+
+tests\test_directives_integration.py:313
+  C:\PROJECTS\eden-framework\tests\test_directives_integration.py:313: PytestUnknownMarkWarning: Unknown pytest.mark.integration - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.integration
+
+tests\test_forms_standalone.py:14
+  C:\PROJECTS\eden-framework\tests\test_forms_standalone.py:14: PytestCollectionWarning: cannot collect test class 'TestSchema' because it has a __init__ constructor (from: tests/test_forms_standalone.py)
+    class TestSchema(Schema):
+
+tests\test_storage_cleanup.py:26
+  C:\PROJECTS\eden-framework\tests\test_storage_cleanup.py:26: PytestCollectionWarning: cannot collect test class 'TestUser' because it has a __init__ constructor (from: tests/test_storage_cleanup.py)
+    class TestUser(Model):
+
+tests\test_storage_cleanup.py:34
+  C:\PROJECTS\eden-framework\tests\test_storage_cleanup.py:34: PytestCollectionWarning: cannot collect test class 'TestPost' because it has a __init__ constructor (from: tests/test_storage_cleanup.py)
+    class TestPost(Model):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/audit/test_session_hygiene.py::test_session_middleware_not_present_without_secret
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!
+=============== 1 failed, 1269 deselected, 7 warnings in 2.28s ================

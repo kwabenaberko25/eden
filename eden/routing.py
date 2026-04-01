@@ -524,7 +524,7 @@ class Router:
                 
                 # 3. Handle failure
                 if template:
-                    if hasattr(request, "session"):
+                    if "session" in request.scope:
                         request.session["_old_input"] = form.data
                     
                     from eden.templating import render_template

@@ -222,8 +222,9 @@ class Config(BaseModel):
     
     # Cache & Real-time
     redis_url: str = Field(
-        default="redis://localhost:6379",
-        description="Redis connection string"
+        default="",
+        description="Redis connection string (e.g., redis://localhost:6379). "
+                    "Leave empty for in-memory fallback (tasks, caching, pub/sub will be local-only)."
     )
     cache_ttl: int = Field(
         default=3600,
@@ -323,8 +324,8 @@ class Config(BaseModel):
                 "Set SECRET_KEY environment variable."
             )
         
-        # Auto-generate secrets in dev/test
-        if not self.secret_key and self.env in (Environment.DEV, Environment.TEST):
+        # Auto-generate secrets ONLY in test mode to prevent session reset in dev
+        if not self.secret_key and self.env == Environment.TEST:
             import secrets
             self.secret_key = secrets.token_urlsafe(32)
         
@@ -332,7 +333,7 @@ class Config(BaseModel):
         if not self.jwt_secret:
             if self.secret_key:
                 self.jwt_secret = self.secret_key
-            elif self.env in (Environment.DEV, Environment.TEST):
+            elif self.env == Environment.TEST:
                 import secrets
                 self.jwt_secret = secrets.token_urlsafe(32)
         
@@ -489,7 +490,7 @@ class ConfigManager:
             aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY", ""),
             aws_s3_bucket=os.getenv("AWS_S3_BUCKET", ""),
             aws_s3_region=os.getenv("AWS_S3_REGION", "us-east-1"),
-            redis_url=os.getenv("REDIS_URL", "redis://localhost:6379"),
+            redis_url=os.getenv("REDIS_URL", ""),
             cache_ttl=int(os.getenv("CACHE_TTL", "3600")),
             title=os.getenv("EDEN_TITLE", os.getenv("TITLE", "Eden")),
             version=os.getenv("EDEN_VERSION", os.getenv("VERSION", "1.0.0")),
@@ -518,7 +519,18 @@ class ConfigManager:
         return self._config
     
     def reset(self) -> None:
-        """Reset configuration (useful for testing)."""
+        """
+        Reset configuration state. 
+        
+        After reset(), the next call to get() will re-load from environment.
+        This is REQUIRED in test fixtures to prevent state leakage between tests.
+        
+        Usage (pytest fixture):
+            @pytest.fixture(autouse=True)
+            def reset_config():
+                yield
+                ConfigManager.instance().reset()
+        """
         self._config = None
     
     def set(self, config: Config) -> None:

@@ -14,13 +14,14 @@ from .context import (
 )
 from .middleware import TenantMiddleware
 from .models import AnonymousTenant, Tenant
-from .mixins import TenantMixin
+from .mixins import TenantMixin, OrganizationMixin
 
 
 __all__ = [
     "Tenant",
     "AnonymousTenant",
     "TenantMixin",
+    "OrganizationMixin",
     "TenantMiddleware",
     "set_current_tenant",
     "get_current_tenant",

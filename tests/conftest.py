@@ -4,7 +4,12 @@ Pytest Configuration and Shared Fixtures
 This file enables the Eden testing infrastructure for the entire test suite.
 """
 
+import os
 import pytest
+
+# Ensure all tests run in test mode so the security guard in Eden.__init__
+# allows construction without a secret_key.
+os.environ.setdefault("EDEN_ENV", "test")
 from eden.testing import (
     EdenTestClient as TestClient,
     test_app,

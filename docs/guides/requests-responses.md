@@ -10,7 +10,9 @@ Eden provides a high-level API for handling HTTP requests and crafting responses
 
 The `eden.Request` object provides helpers for common data extraction patterns.
 
-### Body & Form Parsing
+### Body & Form Parsing (POST, PUT, PATCH)
+
+You can extract submitted data using built-in asynchronous methods. These work identically across `POST`, `PUT`, and `PATCH` routes.
 
 ```python
 from eden import Eden
@@ -18,13 +20,17 @@ app = Eden()
 
 @app.post("/submit")
 async def handle_submit(request):
-    # 1. Parse JSON body
+    # 1. JSON Data (returns dict)
     data = await request.json()
     
-    # 2. Parse Form data (Multipart or URL-encoded)
-    form = await request.form()
+    # 2. Eden's Dictionary Form parser (returns dict[str, Any])
+    # Best for standard application/x-www-form-urlencoded inputs
+    form_dict = await request.form_data()
+    username = form_dict.get("username")
     
-    # 3. Access files
+    # 3. Raw Form Data (returns Starlette FormData object)
+    # Best when dealing with multipart/form-data requiring file uploads
+    form = await request.form()
     upload = form.get("avatar")
     if upload:
         content = await upload.read()

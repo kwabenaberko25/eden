@@ -261,8 +261,9 @@ def collect_debug_metadata(request: "Request") -> dict[str, Any]:
                 metadata["Payload (Form)"] = dict(request._form)
             elif hasattr(request, "_json") and request._json is not None:
                 metadata["Payload (JSON)"] = request._json
-        except Exception:
-            pass
+        except Exception as e:
+            from eden.logging import get_logger
+            get_logger(__name__).error("Silent exception caught: %s", e, exc_info=True)
             
     return metadata
 
@@ -622,7 +623,7 @@ def render_enhanced_template_error(
     exc: Exception
 ) -> HTMLResponse:
     """Render a high-fidelity debug page for template errors."""
-    status_code = 500
+    status_code = getattr(exc, "status_code", 500)
     title = "Template Error"
     
     # Initialize basic info
@@ -670,8 +671,9 @@ def render_enhanced_template_error(
                         if not found_context:
                             found_context = dict(frame_obj.f_locals)
                     break
-        except Exception:
-            pass
+        except Exception as e:
+            from eden.logging import get_logger
+            get_logger(__name__).error("Silent exception caught: %s", e, exc_info=True)
 
     # 2. Extract message & Fallback coordinates
     message = str(exc) if exc else ""
@@ -809,8 +811,9 @@ def render_enhanced_template_error(
                     template_source = src
                     if filename and os.path.exists(filename):
                         template_path = filename
-        except Exception:
-            pass
+        except Exception as e:
+            from eden.logging import get_logger
+            get_logger(__name__).error("Silent exception caught: %s", e, exc_info=True)
 
     # 2. Fallback to physical file search
     if not template_path:
@@ -964,8 +967,12 @@ def render_enhanced_template_error(
     metadata = collect_debug_metadata(request)
 
     # Final coordinate cleanup
-    safe_lineno = int(lineno or 0)
-    safe_column = int(column if column is not None else -1)
+    # Determine badge based on status code
+    badge = "Template Error"
+    if status_code == 404: badge = "Not Found 🔍"
+    elif status_code == 403: badge = "Forbidden 🚫"
+    elif status_code == 401: badge = "Unauthorized 🔑"
+    elif status_code >= 500: badge = "Error 💥"
 
     return render_premium_debug_page(
         title=title,
@@ -989,7 +996,7 @@ def render_enhanced_exception(
     """
     Renders a high-fidelity debug page for any Python exception.
     """
-    status_code = 500
+    status_code = getattr(exc, "status_code", 500)
     title = type(exc).__name__
     message = str(exc)
     
@@ -1125,6 +1132,12 @@ def render_enhanced_exception(
     # Prepare Metadata
     metadata = collect_debug_metadata(request)
 
+    badge = "Exception"
+    if status_code == 404: badge = "Not Found 🔍"
+    elif status_code == 403: badge = "Forbidden 🚫"
+    elif status_code == 401: badge = "Unauthorized 🔑"
+    elif status_code >= 500: badge = "Error 💥"
+
     return render_premium_debug_page(
         title=title,
         message=message,
@@ -1136,7 +1149,7 @@ def render_enhanced_exception(
         metadata=metadata,
         traceback_html=traceback_html,
         suggestions=suggestions,
-        badge="Exception",
+        badge=badge,
         status_code=status_code
     )
 

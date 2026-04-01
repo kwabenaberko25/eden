@@ -3,8 +3,12 @@ from eden.app import Eden
 from starlette.middleware import Middleware
 
 @pytest.mark.asyncio
-async def test_session_middleware_not_present_without_secret():
+async def test_session_middleware_not_present_without_secret(monkeypatch):
     """Verify that sessions/csrf are NOT added if secret_key is missing."""
+    # EDEN_ENV=test is required because the security guard raises RuntimeError
+    # when no secret_key is configured outside of test mode.
+    monkeypatch.setenv("EDEN_ENV", "test")
+
     class MockConfig:
         secret_key = None
         title = "Eden"

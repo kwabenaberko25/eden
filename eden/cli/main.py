@@ -6,7 +6,7 @@ Commands:
     eden new       — Scaffold a new Eden project
     eden version   — Print Eden version
     eden db        — Database management (init, migrate, upgrade, downgrade)
-    eden auth      — Authentication management (createsuperuser)
+    eden auth      — Authentication management (createsuperuser, changepassword)
     eden generate  — Code generation (model, form, resource)
     eden tasks     — Task queue management (worker, scheduler)
     eden shell     — Start an interactive Python shell
@@ -16,6 +16,18 @@ Commands:
 
 import os
 import sys
+
+# Force UTF-8 encoding for Windows terminals to support emojis
+try:
+    if sys.stdout and sys.stdout.encoding.lower() != "utf-8":
+        sys.stdout.reconfigure(encoding="utf-8")
+except (AttributeError, Exception):
+    pass
+
+# Ensure the current directory is in sys.path so we can import the user's project files
+if os.getcwd() not in sys.path:
+    sys.path.insert(0, os.getcwd())
+
 import click
 from pathlib import Path
 
@@ -35,8 +47,17 @@ def cli() -> None:
 @click.option("--reload/--no-reload", default=True, help="Enable auto-reload.")
 @click.option("--no-browser-reload", is_flag=True, help="Disable browser auto-reload.")
 @click.option("--workers", default=1, type=int, help="Number of workers.")
-@click.option("--app", "--app-path", "app_path", default=None, help="App import path (module:variable).")
-def run(host: str, port: int, reload: bool, no_browser_reload: bool, workers: int, app_path: str | None = None) -> None:
+@click.option(
+    "--app", "--app-path", "app_path", default=None, help="App import path (module:variable)."
+)
+def run(
+    host: str,
+    port: int,
+    reload: bool,
+    no_browser_reload: bool,
+    workers: int,
+    app_path: str | None = None,
+) -> None:
     """Start the Eden development server."""
     import json
     import subprocess
@@ -70,10 +91,16 @@ def run(host: str, port: int, reload: bool, no_browser_reload: bool, workers: in
     click.echo("")
 
     cmd = [
-        sys.executable, "-m", "uvicorn", app_path,
-        "--host", host,
-        "--port", str(resolved_port),
-        "--log-level", "info",
+        sys.executable,
+        "-m",
+        "uvicorn",
+        app_path,
+        "--host",
+        host,
+        "--port",
+        str(resolved_port),
+        "--log-level",
+        "info",
     ]
     if reload:
         cmd.append("--reload")
@@ -117,7 +144,9 @@ def run(host: str, port: int, reload: bool, no_browser_reload: bool, workers: in
     except Exception as e:
         click.echo(f"  ❌ Error: {e}", err=True)
         if "Could not import module" in str(e) and ":" not in app_path:
-             click.echo("\n  💡 Tip: Try specifying the app instance manually: eden run --app your_file:your_app_instance")
+            click.echo(
+                "\n  💡 Tip: Try specifying the app instance manually: eden run --app your_file:your_app_instance"
+            )
 
 
 @cli.command()
@@ -148,50 +177,168 @@ def shell(app_path: str | None) -> None:
     """Start an interactive Python shell with Eden context."""
     import IPython
     from traitlets.config import Config
-    
+
     click.echo(f"  🌿 Eden Shell v{eden.__version__}")
     click.echo("  📜 Context: app, db, config, models, f, Q")
-    
+
     # Auto-detect app if not provided
     if app_path is None:
         app_path = discover_app()
 
     try:
-        module_name, obj_name = app_path.split(":")
         import importlib
+        from types import SimpleNamespace
+        from inspect import isclass, getmembers
+        from eden.db import Model, Database
+
+        module_name, obj_name = app_path.split(":")
         module = importlib.import_module(module_name)
         app = getattr(module, obj_name)
-        
-        from eden.responses import Response, JSONResponse
+
+        from eden.responses import Response, JsonResponse
+        from eden.db import AsyncSession as Session
         from eden import status
-        
+
+        # 1. Resolve Database (Standard locations)
+        db = getattr(app, "db", getattr(getattr(app, "state", None), "db", None))
+
+        # 2. Deep Discovery fallback (look for ANY Database instance in module or app)
+        if db is None:
+            # Check module members
+            for name, member in getmembers(module):
+                if isinstance(member, Database):
+                    db = member
+                    break
+
+            # If still nothing, check app members (in case it was attached but not to 'db')
+            if db is None:
+                for name, member in getmembers(app):
+                    if isinstance(member, Database):
+                        db = member
+                        break
+
+        # 3. Auto-create Database from database_url if available
+        if db is None:
+            database_url = getattr(app, "database_url", None) or getattr(
+                getattr(app, "state", None), "database_url", None
+            )
+            if database_url:
+                import asyncio
+                db = Database(database_url)
+                # Connect synchronously using a new event loop
+                try:
+                    loop = asyncio.get_event_loop()
+                    if loop.is_running():
+                        asyncio.ensure_future(db.connect())
+                    else:
+                        loop.run_until_complete(db.connect())
+                except RuntimeError:
+                    asyncio.run(db.connect())
+
+                click.echo(f"  ✓ Auto-connected to database")
+
         # Build context
         context = {
             "app": app,
-            "db": app.db,
-            "config": app.config,
+            "db": db,
+            "Session": Session,
+            "config": getattr(app, "config", None),
             "f": eden.db.f,
             "Q": eden.db.Q,
-            "models": app.models if hasattr(app, "models") else None,
             "Response": Response,
-            "JSONResponse": JSONResponse,
-            "status": status
+            "JsonResponse": JsonResponse,
+            "status": status,
         }
-        
-        c = Config()
-        c.InteractiveShellApp.extensions = ["eden.auth", "eden.db"]
-        
+
+        # Bind an active global session to the context for REPL await execution
+        if db:
+            from eden.db.session import set_session
+            _shell_session = db.session_factory()
+            set_session(_shell_session)
+            context["session"] = _shell_session
+
+        # 3. Resolve and Bind Models
+        discovered_models = {}
+
+        def _is_model_cls(obj):
+            try:
+                return isclass(obj) and issubclass(obj, Model) and obj != Model
+            except Exception:
+                return False
+
+        # A. Explicit models from app
+        app_models = getattr(app, "models", None)
+        if app_models:
+            if isinstance(app_models, dict):
+                discovered_models.update({k: v for k, v in app_models.items() if _is_model_cls(v)})
+            else:
+                for name, member in getmembers(app_models):
+                    if _is_model_cls(member):
+                        discovered_models[name] = member
+
+        # B. Implicit discovery via subclasses (Recursive) - only from user app module
+        def _get_all_subclasses(cls):
+            all_subs = []
+            for sub in cls.__subclasses__():
+                all_subs.append(sub)
+                all_subs.extend(_get_all_subclasses(sub))
+            return all_subs
+
+        app_module_name = module_name.split(".")[0] if module_name else None
+        for sub in _get_all_subclasses(Model):
+            if not getattr(sub, "__abstract__", False) and hasattr(sub, "__tablename__"):
+                sub_module = getattr(sub, "__module__", "")
+                if app_module_name and not sub_module.startswith(app_module_name):
+                    continue
+                if sub.__name__ not in discovered_models:
+                    discovered_models[sub.__name__] = sub
+
+        # C. Critical Binding
+        if db:
+            # Force set on base Model
+            Model._db = db
+
+            for name, model_cls in discovered_models.items():
+                # Direct bind to subclass to bypass inheritance quirks in REPL
+                model_cls._db = db
+                try:
+                    model_cls._bind_db(db)
+                except Exception as e:
+                    from eden.logging import get_logger
+                    get_logger(__name__).error("Silent exception caught: %s", e, exc_info=True)
+                context[name] = model_cls
+        else:
+            # Even if no db was found, populate context with model classes
+            for name, model_cls in discovered_models.items():
+                context[name] = model_cls
+
+        # Restore dot-notation access via SimpleNamespace (replaces the 'dict' version)
+        context["models"] = SimpleNamespace(**discovered_models)
+
+        # Banner and Diagnostics
+        from rich.console import Console
+
+        console = Console()
+
+        db_banner = (
+            f"[bold green]✓ Database bound:[/] [dim]{db.url}[/]"
+            if db
+            else "[bold yellow]⚠ No database bound. Queries may fail.[/]"
+        )
+
         banner = (
-            "\n[bold magenta]Welcome to the Eden Shell[/]\n"
-            "[dim]Pre-imported: Session, Response, JSONResponse, status[/]\n"
+            "\n[bold magenta]🌿 Welcome to the Eden Shell[/]\n"
+            f"{db_banner}\n"
+            "[dim]Pre-imported: Session, Response, JsonResponse, status[/]\n"
             "[green]Happy debugging! Type 'exit()' to leave.[/]\n"
         )
-        from rich.console import Console
-        Console().print(banner)
-        
+        console.print(banner)
+
+        c = Config()
+        c.InteractiveShellApp.extensions = ["eden.auth", "eden.db"]
         IPython.start_ipython(argv=[], user_ns=context, config=c)
     except Exception as e:
-        click.echo(f"  ❌ Error: {e}", err=True)
+        click.echo(f"  ❌ Shell Error: {e}", err=True)
 
 
 @cli.command()
@@ -200,11 +347,11 @@ def shell(app_path: str | None) -> None:
 def test(files: tuple[str, ...], fail_fast: bool) -> None:
     """Run the project test suite using pytest."""
     import pytest
-    
+
     args = list(files) if files else ["tests/"]
     if fail_fast:
         args.append("-x")
-    
+
     click.echo(f"  🧪 Running Eden tests: {' '.join(args)}")
     sys.exit(pytest.main(args))
 
@@ -214,18 +361,18 @@ def test(files: tuple[str, ...], fail_fast: bool) -> None:
 def sync(all_tenants: bool) -> None:
     """Synchronize database schema and core assets."""
     from eden.cli.db import db_migrate, db_check
-    
+
     click.echo("  🔄 Synchronizing Eden environment...")
-    
+
     # Pass context to db_check and db_migrate
     ctx = click.get_current_context()
-    
+
     click.echo("  🕵️  Checking for schema drift...")
     ctx.invoke(db_check)
-    
+
     click.echo(f"  ⬆️  Applying migrations{' (all tenants)' if all_tenants else ''}...")
     ctx.invoke(db_migrate, all_tenants=all_tenants)
-    
+
     click.echo("  ✅ Environment synchronized.")
 
 
