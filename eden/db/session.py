@@ -28,6 +28,26 @@ class DatabaseError(Exception):
 
 class SessionResolutionError(DatabaseError):
     """Raised when a database session cannot be resolved for a query."""
+
+
+class SecurityIsolationError(DatabaseError):
+    """
+    Raised when a database operation is attempted without a resolved tenant context.
+
+    This is a fail-closed guard: if tenant isolation is enforced and no tenant
+    has been set in the current execution context, operations are rejected rather
+    than silently proceeding against a default/public schema.
+
+    Common causes:
+        - Background task spawned without ``spawn_safe_task()``
+        - Request reached a handler before ``TenantMiddleware`` executed
+        - Missing tenant context in CLI/script environments
+
+    Resolution:
+        - Use ``spawn_safe_task(coro)`` for background tasks to propagate context
+        - Ensure ``TenantMiddleware`` is installed in the middleware stack
+        - Add the route to ``exempt_paths`` if it genuinely doesn't need tenancy
+    """
     pass
 
 class TransactionRequiredError(DatabaseError):

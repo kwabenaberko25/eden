@@ -4,6 +4,8 @@ from .lexer import Token, TokenType
 
 from jinja2.exceptions import TemplateSyntaxError as JinjaTemplateSyntaxError
 
+MAX_PARSE_DEPTH = 100  # Prevent stack overflows from maliciously nested templates
+
 
 class TemplateSyntaxError(JinjaTemplateSyntaxError):
     def __init__(
@@ -65,7 +67,7 @@ class TemplateParser:
     def parse(self) -> list[Node]:
         nodes = []
         while self.peek().type != TokenType.EOF:
-            node = self.parse_node()
+            node = self.parse_node(current_depth=1)
             if node:
                 nodes.append(node)
 
@@ -128,7 +130,17 @@ class TemplateParser:
                 i += 1
         return new_nodes
 
-    def parse_node(self) -> Node | None:
+    def parse_node(self, current_depth: int = 0) -> Node | None:
+        if current_depth > MAX_PARSE_DEPTH:
+            token = self.peek()
+            raise TemplateSyntaxError(
+                f"Maximum template nesting depth exceeded (max {MAX_PARSE_DEPTH}).",
+                line=token.line if hasattr(token, "line") else 0,
+                column=token.column if hasattr(token, "column") else 0,
+                name=self.name,
+                filename=self.filename,
+            )
+
         token = self.peek()
 
         if token.type == TokenType.DIRECTIVE:
@@ -215,7 +227,7 @@ class TemplateParser:
                             if depth == 0:
                                 break
 
-                        n = self.parse_node()
+                        n = self.parse_node(current_depth=current_depth + 1)
                         if n:
                             body.append(n)
 

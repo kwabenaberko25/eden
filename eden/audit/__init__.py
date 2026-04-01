@@ -154,7 +154,8 @@ def _trigger_audit(target: Any, action: str):
             try:
                 loop = asyncio.get_running_loop()
                 if loop.is_running():
-                    asyncio.create_task(_do_log())
+                    from eden.tenancy.context import spawn_safe_task
+                    spawn_safe_task(_do_log(), name="audit-fallback")
             except RuntimeError:
                 # If no loop is running, we can't do background logging.
                 # In most Eden cases, we are in an async web request.

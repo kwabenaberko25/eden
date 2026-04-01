@@ -188,7 +188,12 @@ class MetricsRegistry:
         self._distributed_backend = backend
         self._sync_interval = sync_interval
         if self._sync_task is None or self._sync_task.done():
-            self._sync_task = asyncio.create_task(self._sync_loop())
+            from eden.tenancy.context import spawn_safe_task
+            self._sync_task = spawn_safe_task(
+                self._sync_loop(),
+                isolate=True,
+                name="metrics-sync",
+            )
 
     async def _sync_loop(self) -> None:
         while True:

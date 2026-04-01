@@ -192,6 +192,14 @@ async def check_permission(
         return True
     
     permission_code = f"{resource}:{action}"
+    
+    # 1. Check local declarative policy first (fast path)
+    from eden.auth.rbac import default_registry
+    local_result = await default_registry.evaluate(permission_code, user)
+    if local_result is not None:
+        return local_result
+
+    # 2. Fall back to backend/database resolution
     return await user.has_permission(permission_code)
 
 

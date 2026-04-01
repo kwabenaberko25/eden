@@ -247,7 +247,11 @@ class TaskScheduler:
                     for cron, func, name in self.tasks:
                         if cron.matches(now):
                             # Run task concurrently
-                            asyncio.create_task(self._run_task(func, name))
+                            from eden.tenancy.context import spawn_safe_task
+                            spawn_safe_task(
+                                self._run_task(func, name),
+                                name=f"scheduled-task-{name}",
+                            )
                 
                 # Sleep until next minute
                 await asyncio.sleep(10)

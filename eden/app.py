@@ -686,7 +686,8 @@ class Eden:
         Returns:
             The created asyncio.Task instance
         """
-        task = asyncio.create_task(coro)
+        from eden.tenancy.context import spawn_safe_task
+        task = spawn_safe_task(coro, name="app-background-task")
         self._background_tasks.add(task)
         task.add_done_callback(self._background_tasks.discard)
         return task

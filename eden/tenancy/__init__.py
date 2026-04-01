@@ -11,6 +11,7 @@ from .context import (
     set_current_tenant,
     AcrossTenants,
     is_across_tenants,
+    spawn_safe_task,
 )
 from .middleware import TenantMiddleware
 from .models import AnonymousTenant, Tenant
@@ -29,4 +30,5 @@ __all__ = [
     "reset_current_tenant",
     "AcrossTenants",
     "is_across_tenants",
+    "spawn_safe_task",
 ]

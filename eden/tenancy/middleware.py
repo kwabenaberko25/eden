@@ -3,10 +3,15 @@ Eden — Tenant Middleware
 
 Resolves the current tenant from the request and sets it in context.
 Supports multiple resolution strategies: subdomain, header, session, or path prefix.
+
+Security:
+    Defaults to ``enforce=True`` (fail-closed). When enforcement is active,
+    requests that cannot be resolved to a tenant are rejected with 403 Forbidden
+    unless the path is listed in ``exempt_paths``.
 """
 
 import logging
-from typing import Any, Literal, Optional
+from typing import Any, Literal, Optional, Sequence
 
 from starlette.types import ASGIApp, Receive, Scope, Send, Message
 
@@ -37,6 +42,17 @@ class TenantMiddleware:
         app.add_middleware("tenant", strategy="header", header_name="X-Tenant-ID")
     """
 
+    # Paths that never require tenant resolution (auth, health, static, etc.)
+    DEFAULT_EXEMPT_PATHS: tuple[str, ...] = (
+        "/health",
+        "/ready",
+        "/metrics",
+        "/static",
+        "/favicon.ico",
+        "/api/eden/",
+        "/_eden/",
+    )
+
     def __init__(
         self,
         app: ASGIApp,
@@ -45,6 +61,8 @@ class TenantMiddleware:
         header_name: str = "X-Tenant-ID",
         session_key: str = "_tenant_id",
         base_domain: str = "",
+        enforce: bool = True,
+        exempt_paths: Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         self.app = app
@@ -52,6 +70,11 @@ class TenantMiddleware:
         self.header_name = header_name
         self.session_key = session_key
         self.base_domain = base_domain
+        self.enforce = enforce
+        # Merge user-supplied exempt paths with framework defaults
+        self.exempt_paths: tuple[str, ...] = tuple(
+            set(self.DEFAULT_EXEMPT_PATHS) | set(exempt_paths or ())
+        )
         self._fallback_cache = InMemoryCache(max_size=5000)
 
     async def dispatch(self, request: Request, call_next: Any) -> Any:
@@ -199,6 +222,29 @@ class TenantMiddleware:
 
         token = None
         tenant_id_str = None
+
+        # ── Fail-Closed Enforcement ──────────────────────────────────
+        # If enforcement is active and no tenant was resolved, reject the
+        # request immediately UNLESS the path is explicitly exempt.
+        if tenant is None and self.enforce:
+            path = scope.get("path", request.url.path)
+            if not self._is_path_exempt(path):
+                get_logger(__name__).warning(
+                    "Tenant enforcement: rejected request to %s — no tenant resolved",
+                    path,
+                )
+                # Return 403 Forbidden — fail-closed
+                await self._send_forbidden(send, path)
+                # Clean up DB session before returning
+                if db_cleanup:
+                    try:
+                        await db_cleanup()
+                    except Exception:
+                        pass
+                if db_token:
+                    from eden.db.session import reset_session
+                    reset_session(db_token)
+                return
         
         if tenant:
             # Set tenant context for this request
@@ -360,3 +406,21 @@ class TenantMiddleware:
             await cache.set(cache_key, tenant, ttl=300)
         
         return tenant
+
+    def _is_path_exempt(self, path: str) -> bool:
+        """
+        Check if a request path is exempt from tenant enforcement.
+
+        Uses startswith prefix matching against the configured ``exempt_paths``.
+        This allows exempting entire path trees (e.g., ``/api/eden/`` matches
+        ``/api/eden/tasks/123``).
+        """
+        return any(path.startswith(prefix) for prefix in self.exempt_paths)
+
+    @staticmethod
+    async def _send_forbidden(send, path: str) -> None:
+        """
+        Send a raw ASGI 403 Forbidden response or raise SecurityIsolationError.
+        """
+        from eden.tenancy.exceptions import SecurityIsolationError
+        raise SecurityIsolationError(f"Tenant enforcement: request to {path} rejected — no tenant resolved")

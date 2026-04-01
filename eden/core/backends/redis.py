@@ -154,7 +154,12 @@ class RedisBackend(DistributedBackend):
             await self._pubsub.subscribe(full_channel)
             
             if not self._listener_task:
-                self._listener_task = asyncio.create_task(self._listen_forever())
+                from eden.tenancy.context import spawn_safe_task
+                self._listener_task = spawn_safe_task(
+                    self._listen_forever(),
+                    isolate=True,
+                    name="redis-pubsub-listener",
+                )
         else:
             await self._pubsub.subscribe(full_channel)
 

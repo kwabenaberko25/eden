@@ -144,12 +144,19 @@ class RedisRateLimitStore(RateLimitStore):
         value = await self.redis.get(f"ratelimit:{key}")
         return int(value) if value else 0
     
+    INCREMENT_SCRIPT = """
+    local current = redis.call("INCR", KEYS[1])
+    if current == 1 then
+        redis.call("EXPIRE", KEYS[1], ARGV[1])
+    end
+    return current
+    """
+
     async def increment(self, key: str, ttl: int) -> int:
-        """Increment and set expiry in Redis."""
+        """Increment and set expiry in Redis atomically."""
         redis_key = f"ratelimit:{key}"
-        count = await self.redis.incr(redis_key)
-        await self.redis.expire(redis_key, ttl)
-        return count
+        count = await self.redis.eval(self.INCREMENT_SCRIPT, 1, redis_key, ttl)
+        return int(count)
     
     async def reset(self, key: str) -> None:
         """Reset in Redis."""

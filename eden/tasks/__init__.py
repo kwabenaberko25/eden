@@ -377,7 +377,10 @@ class PeriodicTask:
             )
             return
 
-        self._task_handle = asyncio.create_task(self._run_loop())
+        from eden.tenancy.context import spawn_safe_task
+        self._task_handle = spawn_safe_task(
+            self._run_loop(), name=f"periodic-{self.func.__name__}"
+        )
 
     def stop(self) -> None:
         """Cancel the running task loop."""

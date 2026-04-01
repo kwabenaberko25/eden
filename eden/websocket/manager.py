@@ -305,8 +305,11 @@ class ConnectionManager:
         self._distributed_backend = backend
         
         # Start subscription with retry logic
-        self._distributed_listener_task = asyncio.create_task(
-            self._distributed_listener_loop()
+        from eden.tenancy.context import spawn_safe_task
+        self._distributed_listener_task = spawn_safe_task(
+            self._distributed_listener_loop(),
+            isolate=True,
+            name="ws-distributed-listener",
         )
         
         w_id = str(self._worker_id)
@@ -377,8 +380,12 @@ class ConnectionManager:
         """
         if self._heartbeat_task and not self._heartbeat_task.done():
             return  # Already running
-        
-        self._heartbeat_task = asyncio.create_task(self._heartbeat_loop())
+        from eden.tenancy.context import spawn_safe_task
+        self._heartbeat_task = spawn_safe_task(
+            self._heartbeat_loop(),
+            isolate=True,
+            name="ws-heartbeat",
+        )
         logger.info(f"WebSocket heartbeat started (interval={self._heartbeat_interval}s)")
 
     async def stop_heartbeat(self) -> None:

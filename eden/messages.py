@@ -166,7 +166,11 @@ class MessageContainer:
             try:
                 loop = asyncio.get_running_loop()
                 # Schedule as background task to avoid blocking request
-                loop.create_task(manager.broadcast(payload, channel=channel))
+                from eden.tenancy.context import spawn_safe_task
+                spawn_safe_task(
+                    manager.broadcast(payload, channel=channel),
+                    name=f"ws-broadcast-{channel}",
+                )
             except RuntimeError:
                 # No running loop (e.g. in a sync script/shell), log but don't crash
                 import logging

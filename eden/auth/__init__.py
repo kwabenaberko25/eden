@@ -66,6 +66,11 @@ from eden.auth.oauth import OAuthManager, OAuthProvider, GoogleProvider, GitHubP
 
 # ── RBAC & Authorization ────────────────────────────────────────────────
 
+from eden.auth.rbac import (
+    PermissionRegistry,
+    default_registry,
+    PermissionPolicy,
+)
 from eden.auth.access import (
     default_rbac, 
     RoleHierarchy, 
@@ -173,6 +178,9 @@ __all__ = [
     "default_rbac",
     "RoleHierarchy",
     "EdenRBAC",
+    "PermissionRegistry",
+    "default_registry",
+    "PermissionPolicy",
     "login_required",
     "roles_required",
     "permissions_required",
