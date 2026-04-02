@@ -1,8 +1,12 @@
 from __future__ import annotations
+import logging
 from dataclasses import dataclass, field
 from .lexer import Token, TokenType
 
 from jinja2.exceptions import TemplateSyntaxError as JinjaTemplateSyntaxError
+from eden.exceptions import EdenTemplateRecursionError
+
+logger = logging.getLogger("eden.templating.parser")
 
 MAX_PARSE_DEPTH = 100  # Prevent stack overflows from maliciously nested templates
 
@@ -43,6 +47,27 @@ class DirectiveNode(Node):
 
 
 class TemplateParser:
+    """
+    Parses a token stream from TemplateLexer into an AST of Node objects.
+
+    Features:
+    - **Depth Guard**: Raises EdenTemplateRecursionError if nesting exceeds
+      MAX_PARSE_DEPTH (default 100), preventing stack overflows.
+    - **Multi-Error Recovery**: Accumulates parse errors in ``self.errors``
+      instead of aborting on the first failure. After parsing completes,
+      raises a combined TemplateSyntaxError listing all collected errors.
+      This gives developers a complete picture of all template issues in
+      a single compile pass.
+
+    Attributes:
+        tokens: The flat list of tokens from the lexer.
+        pos: Current read position in the token stream.
+        errors: List of error dicts accumulated during recovery mode.
+        name: Optional template name (for error messages).
+        filename: Optional filesystem path (for error messages).
+        source: Original template source (for contextual diagnostics).
+    """
+
     def __init__(
         self,
         tokens: list[Token],
@@ -55,6 +80,8 @@ class TemplateParser:
         self.name = name
         self.filename = filename
         self.source = source
+        # Multi-error recovery: collect errors instead of aborting immediately
+        self.errors: list[dict] = []
 
     def peek(self):
         return self.tokens[self.pos]
@@ -64,15 +91,90 @@ class TemplateParser:
         self.pos += 1
         return res
 
+    def skip_to_recovery_point(self) -> None:
+        """
+        Advance the token stream to the next safe synchronization point.
+
+        A recovery point is defined as:
+        - A BLOCK_CLOSE token (}) — end of a directive block
+        - A DIRECTIVE token — start of a new directive
+        - EOF — end of input
+
+        This method is called after catching a TemplateSyntaxError during
+        multi-error recovery. It skips past the malformed region so parsing
+        can resume from the next valid construct.
+        """
+        while self.peek().type != TokenType.EOF:
+            current = self.peek()
+            if current.type == TokenType.BLOCK_CLOSE:
+                self.advance()  # consume the }
+                return
+            if current.type == TokenType.DIRECTIVE:
+                return  # don't consume — let parse_node handle it
+            self.advance()
+
     def parse(self) -> list[Node]:
+        """
+        Parse all tokens into an AST node list with multi-error recovery.
+
+        Instead of aborting on the first syntax error, the parser catches
+        TemplateSyntaxError exceptions, records them in ``self.errors``,
+        advances past the broken region via ``skip_to_recovery_point()``,
+        and continues parsing. After the full pass, if any errors were
+        collected, a combined TemplateSyntaxError is raised listing all
+        issues found.
+
+        Returns:
+            list[Node]: The parsed AST (may be partial if errors occurred).
+
+        Raises:
+            TemplateSyntaxError: If one or more parse errors were accumulated.
+        """
         nodes = []
         while self.peek().type != TokenType.EOF:
-            node = self.parse_node(current_depth=1)
-            if node:
-                nodes.append(node)
+            try:
+                node = self.parse_node(current_depth=1)
+                if node:
+                    nodes.append(node)
+            except TemplateSyntaxError as err:
+                # Record the error with location info
+                self.errors.append({
+                    "line": getattr(err, "line", 0) or 0,
+                    "column": getattr(err, "column", 0) or 0,
+                    "message": str(err),
+                })
+                logger.warning(
+                    "Parse error recovered (line %d): %s",
+                    getattr(err, "line", 0) or 0,
+                    str(err),
+                )
+                # Skip to next safe point and continue
+                self.skip_to_recovery_point()
 
-        # Group if/elif/else chains
-        return self._group_conditionals(nodes)
+        # Group if/elif/else chains on whatever was successfully parsed
+        grouped = self._group_conditionals(nodes)
+
+        # If we accumulated errors, raise a combined report
+        if self.errors:
+            error_lines = []
+            for i, e in enumerate(self.errors, 1):
+                error_lines.append(
+                    f"  {i}. Line {e['line']}: {e['message']}"
+                )
+            combined_msg = (
+                f"{len(self.errors)} template syntax error(s) found:\n"
+                + "\n".join(error_lines)
+            )
+            raise TemplateSyntaxError(
+                combined_msg,
+                line=self.errors[0]["line"],
+                column=self.errors[0]["column"],
+                name=self.name,
+                filename=self.filename,
+                source=self.source,
+            )
+
+        return grouped
 
     def _group_conditionals(self, nodes: list[Node]) -> list[Node]:
         new_nodes = []
@@ -133,12 +235,13 @@ class TemplateParser:
     def parse_node(self, current_depth: int = 0) -> Node | None:
         if current_depth > MAX_PARSE_DEPTH:
             token = self.peek()
-            raise TemplateSyntaxError(
-                f"Maximum template nesting depth exceeded (max {MAX_PARSE_DEPTH}).",
+            raise EdenTemplateRecursionError(
+                detail=f"Maximum template nesting depth exceeded (max {MAX_PARSE_DEPTH}). "
+                       f"Check for deeply nested @if/@for blocks or mismatched braces.",
+                max_depth=MAX_PARSE_DEPTH,
+                template_name=self.name or "",
                 line=token.line if hasattr(token, "line") else 0,
                 column=token.column if hasattr(token, "column") else 0,
-                name=self.name,
-                filename=self.filename,
             )
 
         token = self.peek()

@@ -246,6 +246,98 @@ class EdenDatabaseError(EdenException):
         )
 
 
+class EdenTemplateRecursionError(EdenException):
+    """
+    Raised when template nesting depth exceeds the configured limit.
+
+    This prevents stack overflows from maliciously or accidentally self-including
+    templates, deeply nested directive blocks, or recursive macro expansions.
+
+    Attributes:
+        max_depth: The maximum allowed nesting depth
+        template_name: The template being processed when the limit was hit
+        line: The source line number where the recursion was detected
+
+    Example:
+        try:
+            parser.parse()
+        except EdenTemplateRecursionError as e:
+            print(e.max_depth)       # 100
+            print(e.template_name)   # "partials/sidebar.html"
+            print(e.detail)          # "Maximum template nesting depth exceeded (max 100)."
+    """
+
+    status_code = HTTP_500_INTERNAL_SERVER_ERROR
+
+    def __init__(
+        self,
+        detail: str = "Maximum template nesting depth exceeded.",
+        *,
+        max_depth: int = 0,
+        template_name: str = "",
+        line: int = 0,
+        column: int = 0,
+        **kwargs: Any,
+    ) -> None:
+        self.max_depth = max_depth
+        self.template_name = template_name
+        self.line = line
+        self.column = column
+        super().__init__(
+            detail=detail,
+            context={
+                "max_depth": max_depth,
+                "template_name": template_name,
+                "line": line,
+                "column": column,
+            },
+            **kwargs,
+        )
+
+
+class EdenTemplateResourceError(EdenException):
+    """
+    Raised when a template loop exceeds the configured iteration limit.
+
+    This prevents DoS attacks via infinite or excessively long loops in
+    user-controlled template content. The iteration limit is configurable
+    but defaults to 10,000.
+
+    Attributes:
+        max_iterations: The maximum allowed loop iterations
+        template_name: The template where the limit was hit
+        line: The source line number of the loop directive
+
+    Example:
+        # In a template: @for(i in range(100000)) { ... }
+        # At runtime, the loop breaks after MAX_LOOP_ITERATIONS
+    """
+
+    status_code = HTTP_500_INTERNAL_SERVER_ERROR
+
+    def __init__(
+        self,
+        detail: str = "Template loop iteration limit exceeded.",
+        *,
+        max_iterations: int = 0,
+        template_name: str = "",
+        line: int = 0,
+        **kwargs: Any,
+    ) -> None:
+        self.max_iterations = max_iterations
+        self.template_name = template_name
+        self.line = line
+        super().__init__(
+            detail=detail,
+            context={
+                "max_iterations": max_iterations,
+                "template_name": template_name,
+                "line": line,
+            },
+            **kwargs,
+        )
+
+
 # ────────────────────────────────────────────────────────────────────────────
 # Global Error Handler System (Layer 5-6)
 # ────────────────────────────────────────────────────────────────────────────

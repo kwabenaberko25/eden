@@ -1,6 +1,8 @@
 from __future__ import annotations
+import logging
 from typing import Any, Optional
-from jinja2 import Environment
+from jinja2 import Undefined
+from jinja2.sandbox import SandboxedEnvironment
 from markupsafe import Markup
 from starlette.templating import Jinja2Templates as StarletteJinja2Templates
 from .extensions import EdenDirectivesExtension
@@ -11,6 +13,112 @@ DEFAULT_DUMP_STYLE = (
     "eden-dump p-4 bg-gray-950 text-gray-300 rounded-lg overflow-auto "
     "text-xs font-mono border border-gray-800 my-4"
 )
+
+_safe_undefined_logger = logging.getLogger("eden.templating.undefined")
+
+# Module-level flag set by EdenTemplates.__init__ to propagate debug mode
+# into EdenSafeUndefined without requiring access to the Jinja env.
+_eden_debug_mode: bool = False
+
+
+class EdenSafeUndefined(Undefined):
+    """
+    Custom Jinja2 Undefined that degrades gracefully instead of crashing.
+
+    Behaviour is configurable based on the module-level ``_eden_debug_mode``:
+    - **Production** (False): Returns an empty string, making missing
+      variables invisible in rendered output while logging a warning.
+    - **Debug** (True): Returns a visible placeholder like
+      ``[UNDEFINED: variable_name]`` so developers can spot missing context
+      variables during development.
+
+    The flag is set by ``EdenTemplates.__init__`` at startup.
+
+    Examples:
+        >>> from jinja2.sandbox import SandboxedEnvironment
+        >>> env = SandboxedEnvironment(undefined=EdenSafeUndefined)
+        >>> env.from_string("Hello {{ user.name }}").render()
+        'Hello '  # production mode — empty string, warning logged
+    """
+
+    def __str__(self) -> str:
+        """Return empty string or debug placeholder instead of raising."""
+        # Determine variable name for logging
+        hint = self._undefined_hint
+        name = self._undefined_name or "unknown"
+        obj = self._undefined_obj
+
+        if obj is not None:
+            description = f"{type(obj).__name__}.{name}"
+        elif hint:
+            description = hint
+        else:
+            description = name
+
+        _safe_undefined_logger.warning(
+            "Template referenced undefined variable: '%s'",
+            description,
+        )
+
+        # In debug mode, return a visible placeholder for developers
+        if _eden_debug_mode:
+            return f"[UNDEFINED: {description}]"
+
+        return ""
+
+    def __iter__(self):
+        """Return empty iterator instead of raising."""
+        _safe_undefined_logger.warning(
+            "Template iterated over undefined variable: '%s'",
+            self._undefined_name or "unknown",
+        )
+        return iter([])
+
+    def __bool__(self) -> bool:
+        """Undefined is always falsy."""
+        return False
+
+    def __len__(self) -> int:
+        """Undefined has zero length."""
+        return 0
+
+    def __eq__(self, other: Any) -> bool:
+        """Undefined equals only other Undefined instances or None."""
+        return isinstance(other, Undefined) or other is None
+
+    def __ne__(self, other: Any) -> bool:
+        return not self.__eq__(other)
+
+    def __hash__(self) -> int:
+        return id(type(self))
+
+    def __getattr__(self, name: str) -> "EdenSafeUndefined":
+        """Chained attribute access returns another safe undefined."""
+        if name.startswith("_"):
+            raise AttributeError(name)
+        return EdenSafeUndefined(
+            hint=self._undefined_hint,
+            obj=self._undefined_obj,
+            name=name,
+            exc=self._undefined_exception,
+        )
+
+    def __getitem__(self, name: str) -> "EdenSafeUndefined":
+        """Item access returns another safe undefined."""
+        return self.__getattr__(str(name))
+
+    def __call__(self, *args: Any, **kwargs: Any) -> "EdenSafeUndefined":
+        """Calling an undefined returns another safe undefined."""
+        _safe_undefined_logger.warning(
+            "Template called undefined as function: '%s'",
+            self._undefined_name or "unknown",
+        )
+        return EdenSafeUndefined(
+            hint=self._undefined_hint,
+            obj=self._undefined_obj,
+            name=self._undefined_name,
+            exc=self._undefined_exception,
+        )
 
 
 def get_sync_channel(obj: Any) -> str:
@@ -134,6 +242,11 @@ class EdenTemplates(StarletteJinja2Templates):
     template_response = TemplateResponse
 
     def __init__(self, directory: str | list[str], **kwargs: Any):
+        # Propagate debug mode to the module-level flag so EdenSafeUndefined
+        # can return visible placeholders during development.
+        global _eden_debug_mode
+        _eden_debug_mode = kwargs.pop("debug", False)
+
         if "extensions" not in kwargs:
             kwargs["extensions"] = []
 
@@ -168,16 +281,20 @@ class EdenTemplates(StarletteJinja2Templates):
 
         loader = FileSystemLoader(directory)
 
+        # Inject EdenSafeUndefined for graceful missing-variable handling.
+        # The 'undefined' kwarg is only set if the caller hasn't overridden it.
+        kwargs.setdefault("undefined", EdenSafeUndefined)
+
         # Wrap Environment creation so a single broken extension doesn't prevent
         # the entire template engine from loading.
+        # SECURITY: SandboxedEnvironment blocks access to dangerous Python
+        # internals (__subclasses__, __globals__, os.system, etc.).
         try:
-            env = Environment(loader=loader, **kwargs)
+            env = SandboxedEnvironment(loader=loader, **kwargs)
         except Exception as ext_err:
-            import logging
-
             log = logging.getLogger("eden.templating")
             log.warning(
-                f"Jinja2 Environment creation failed with extensions: {ext_err}. "
+                f"Jinja2 SandboxedEnvironment creation failed with extensions: {ext_err}. "
                 f"Retrying with only core extensions."
             )
             # Retry with minimal extensions
@@ -186,7 +303,7 @@ class EdenTemplates(StarletteJinja2Templates):
                 "jinja2.ext.loopcontrols",
                 "jinja2.ext.do",
             ]
-            env = Environment(loader=loader, **kwargs)
+            env = SandboxedEnvironment(loader=loader, **kwargs)
 
         super().__init__(env=env)
 
@@ -329,6 +446,15 @@ class EdenTemplates(StarletteJinja2Templates):
         self.env.globals["eden_dependency"] = self._dependency_helper
         self.env.globals["set_response_status"] = self._status_helper
         self.env.globals["get_sync_channel"] = get_sync_channel
+
+        # Inject debug flag for EdenSafeUndefined to detect environment mode.
+        # When True, undefined variables render as [UNDEFINED: var_name],
+        # When False, undefined variables render as empty strings.
+        self.env.globals["__eden_debug__"] = getattr(self, "_debug", False)
+
+        # Maximum iterations for template loops (DoS prevention).
+        # Injected as a global so compiled loop guards can reference it.
+        self.env.globals["__eden_max_loop_iterations__"] = 10_000
 
     def _old_helper(self, name: str, default: Any = "") -> Any:
         """Helper for @old directive logic."""

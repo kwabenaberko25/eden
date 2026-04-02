@@ -21,11 +21,67 @@ class TemplateCompiler:
             return self.visit_directive(node)
         return ""
 
+    def _validate_directive_args(self, name: str, expr: str | None, node: DirectiveNode) -> str | None:
+        """
+        Validate directive arguments before handler dispatch.
+
+        Returns None if valid, or an HTML comment string with the error
+        message if validation fails. The caller should return this string
+        instead of invoking the handler.
+
+        Validation rules:
+        - @for/@foreach: expression must contain the 'in' keyword
+        - @if/@unless/@elif/@elseif/@else_if: expression must not be empty
+        - @switch/@fragment: expression must not be empty
+        """
+        # Directives that require a non-empty expression with 'in' keyword
+        if name in ("for", "foreach"):
+            if not expr or " in " not in expr:
+                msg = (
+                    f"@{name} directive requires 'variable in collection' syntax "
+                    f"(e.g., @{name}(item in items)). "
+                    f"Got: @{name}({expr or ''})"
+                )
+                logger.warning(
+                    f"Directive validation failed at line {node.line}: {msg}"
+                )
+                return f"<!-- EDEN TEMPLATE WARNING: {msg} -->"
+
+        # Directives that require a non-empty expression
+        if name in ("if", "unless", "elif", "elseif", "else_if"):
+            if not expr or not expr.strip():
+                msg = (
+                    f"@{name} directive requires a condition expression "
+                    f"(e.g., @{name}(user.is_admin)). Got empty expression."
+                )
+                logger.warning(
+                    f"Directive validation failed at line {node.line}: {msg}"
+                )
+                return f"<!-- EDEN TEMPLATE WARNING: {msg} -->"
+
+        if name in ("switch", "fragment"):
+            if not expr or not expr.strip():
+                msg = (
+                    f"@{name} directive requires an argument "
+                    f"(e.g., @{name}(value)). Got empty expression."
+                )
+                logger.warning(
+                    f"Directive validation failed at line {node.line}: {msg}"
+                )
+                return f"<!-- EDEN TEMPLATE WARNING: {msg} -->"
+
+        return None  # Validation passed
+
     def visit_directive(self, node: DirectiveNode) -> str:
         name = node.name
         expr = node.expression
         if expr and expr.startswith("(") and expr.endswith(")"):
             expr = expr[1:-1]
+
+        # Phase 3: Validate directive arguments before dispatch
+        validation_error = self._validate_directive_args(name, expr, node)
+        if validation_error is not None:
+            return validation_error
 
         from eden.template_directives import DIRECTIVE_REGISTRY
 
