@@ -414,7 +414,12 @@ def render_messages(compiler: "TemplateCompiler", node: "DirectiveNode", expr: s
 @directive(["even", "odd", "first", "last"])
 def render_loop_context(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -> str:
     body_compiled = get_body_compiled(compiler, node)
-    return f'{{% if loop.{node.name} %}}{body_compiled}{{% endif %}}'
+    if node.name == "even":
+        return f'{{% if loop.index % 2 == 0 %}}{body_compiled}{{% endif %}}'
+    elif node.name == "odd":
+        return f'{{% if loop.index % 2 == 1 %}}{body_compiled}{{% endif %}}'
+    else:
+        return f'{{% if loop.{node.name} %}}{body_compiled}{{% endif %}}'
 
 @directive("break")
 def render_break(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -> str:

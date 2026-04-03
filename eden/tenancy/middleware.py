@@ -420,7 +420,7 @@ class TenantMiddleware:
     @staticmethod
     async def _send_forbidden(send, path: str) -> None:
         """
-        Send a raw ASGI 403 Forbidden response or raise SecurityIsolationError.
+        Send a raw ASGI 403 Forbidden response or raise TenancyIsolationError.
         """
-        from eden.tenancy.exceptions import SecurityIsolationError
-        raise SecurityIsolationError(f"Tenant enforcement: request to {path} rejected — no tenant resolved")
+        from eden.tenancy.exceptions import TenancyIsolationError
+        raise TenancyIsolationError(f"Tenant enforcement: request to {path} rejected — no tenant resolved")

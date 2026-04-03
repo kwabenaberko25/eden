@@ -5,7 +5,7 @@ from starlette.testclient import TestClient
 from starlette.applications import Starlette
 
 from eden.tenancy.middleware import TenantMiddleware
-from eden.tenancy.exceptions import SecurityIsolationError
+from eden.tenancy.exceptions import TenancyIsolationError
 
 
 def test_tenant_middleware_enforcement_raises_security_isolation_error():
@@ -17,7 +17,7 @@ def test_tenant_middleware_enforcement_raises_security_isolation_error():
     middleware = TenantMiddleware(app, strategy="header", enforce=True)
 
     client = TestClient(middleware)
-    with pytest.raises(SecurityIsolationError) as exc_info:
+    with pytest.raises(TenancyIsolationError) as exc_info:
         # Request with no explicit tenant resolution mechanism
         client.get("/")
 
