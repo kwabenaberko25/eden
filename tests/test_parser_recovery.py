@@ -37,7 +37,7 @@ class TestUnclosedBlocks:
     
     def test_error_message_includes_brace_hint(self):
         """Error message should mention mismatched braces."""
-        with pytest.raises(TemplateSyntaxError, match="mismatched braces"):
+        with pytest.raises(TemplateSyntaxError, match="Unclosed block"):
             parse("@if(x) { hello")
 
 

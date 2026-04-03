@@ -276,7 +276,13 @@ def render_for(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -
         parts = inner.split(' as ')
         inner = f"{parts[1].strip()} in {parts[0].strip()}"
     body_compiled = get_body_compiled(compiler, node)
-    res = [f"{{% for {inner} %}}" + body_compiled]
+    res = [
+        f"{{% for {inner} %}}"
+        f"{{% if loop.index0 >= __eden_max_loop_iterations__ %}}"
+        f"<!-- EDEN: Loop iteration limit ({{{{ __eden_max_loop_iterations__ }}}}) exceeded -->{{% break %}}"
+        f"{{% endif %}}"
+        + body_compiled
+    ]
     for o in node.orelse:
         res.append(compiler.visit(o))
     res.append("{% endfor %}")
@@ -286,8 +292,14 @@ def render_for(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -
 def render_while(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -> str:
     """Implement a while loop using a for-break construct."""
     body_compiled = get_body_compiled(compiler, node)
-    # We use a large range as a practical infinite loop since Jinja2 doesn't have native while
-    return f"{{% for _ in range(2147483647) %}}{{% if not ({expr}) %}}{{% break %}}{{% endif %}}{body_compiled}{{% endfor %}}"
+    return (
+        f"{{% for _ in range(2147483647) %}}"
+        f"{{% if loop.index0 >= __eden_max_loop_iterations__ %}}"
+        f"<!-- EDEN: Loop iteration limit ({{{{ __eden_max_loop_iterations__ }}}}) exceeded -->{{% break %}}"
+        f"{{% endif %}}"
+        f"{{% if not ({expr}) %}}{{% break %}}{{% endif %}}"
+        f"{body_compiled}{{% endfor %}}"
+    )
 
 @directive("switch")
 def render_switch(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -> str:
@@ -490,7 +502,13 @@ def render_recursive(compiler: "TemplateCompiler", node: "DirectiveNode", expr: 
         inner = f"{parts[1].strip()} in {parts[0].strip()}"
     
     body_compiled = get_body_compiled(compiler, node)
-    res = [f"{{% for {inner} recursive %}}{body_compiled}"]
+    res = [
+        f"{{% for {inner} recursive %}}"
+        f"{{% if loop.index0 >= __eden_max_loop_iterations__ %}}"
+        f"<!-- EDEN: Loop iteration limit ({{{{ __eden_max_loop_iterations__ }}}}) exceeded -->{{% break %}}"
+        f"{{% endif %}}"
+        + body_compiled
+    ]
     for o in node.orelse:
         res.append(compiler.visit(o))
     res.append("{% endfor %}")
