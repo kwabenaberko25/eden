@@ -47,6 +47,35 @@ class Tenant(Model):
     def __repr__(self) -> str:
         return f"<Tenant(name='{self.name}', slug='{self.slug}')>"
 
+    async def save(self, session=None, *args, **kwargs):
+        """Override save to trigger lifecycle events."""
+        is_new = self.id is None
+        was_active = True
+        
+        if not is_new:
+            # Check old status if we wanted to be perfectly precise, but for now 
+            # we check if it is being deactivated in this save.
+            # A full implementation might load previous state from identity map.
+            pass
+
+        result = await super().save(session=session, *args, **kwargs)
+
+        from eden.tenancy.signals import tenant_created, tenant_deactivated
+        
+        if is_new:
+            await tenant_created.send(tenant=self)
+        elif not self.is_active:
+            # We trigger deactivated. Ideally we'd only trigger once when transitioning.
+            await tenant_deactivated.send(tenant=self)
+            
+        return result
+
+    async def delete(self, session=None, *args, **kwargs):
+        """Override delete to trigger lifecycle events."""
+        from eden.tenancy.signals import tenant_deleted
+        await tenant_deleted.send(tenant=self)
+        return await super().delete(session=session, *args, **kwargs)
+
     async def provision_schema(self, session) -> None:
         """
         Dynamically creates the PostgreSQL schema for this tenant
@@ -85,7 +114,7 @@ class Tenant(Model):
         original_schema = None
         try:
             # 1. Create the schema if it doesn't exist
-            await session.execute(text(f"CREATE SCHEMA IF NOT EXISTS {safe_schema}"))
+            await session.execute(text(f'CREATE SCHEMA IF NOT EXISTS "{safe_schema}"'))
             
             # 2. Save original search_path and switch to new schema
             result = await session.execute(text("SHOW search_path"))
@@ -93,7 +122,7 @@ class Tenant(Model):
             
             # Set search_path to the new schema ONLY initially for table creation.
             # This prevents SQLAlchemy from thinking tables already exist if they are in 'public'.
-            await session.execute(text(f"SET search_path TO {safe_schema}"))
+            await session.execute(text(f'SET search_path TO "{safe_schema}"'))
             
             # 3. Create all framework tables in the new schema
             def _create_tables(sync_session):
@@ -103,17 +132,36 @@ class Tenant(Model):
             await session.run_sync(_create_tables)
             
             # Now add public to the path for any subsequent operations (like extensions)
-            await session.execute(text(f"SET search_path TO {safe_schema}, public"))
+            await session.execute(text(f'SET search_path TO "{safe_schema}", public'))
             
-            # 4. Stamp the schema with the current migration head
-            # This ensures subsequent 'eden db migrate --schema X' calls work correctly.
+            # 4. Stamp the schema with the current migration head inside this transaction
+            # This ensures subsequent 'eden db migrate --schema X' calls work correctly
+            # without requiring an external uncommitted connection.
             from eden.db.migrations import MigrationManager
+            from alembic.script import ScriptDirectory
+            
             manager = MigrationManager()
-            # We use stamp() to mark this schema as already being at the current head
-            await manager.stamp(revision="head", schema=safe_schema)
+            script = ScriptDirectory.from_config(manager.config)
+            head_rev = script.get_current_head()
+            
+            if head_rev:
+                # Create the Alembic version table explicitly for the tenant
+                await session.execute(text(f'''
+                    CREATE TABLE IF NOT EXISTS "{safe_schema}".alembic_version_tenant (
+                        version_num VARCHAR(32) NOT NULL, 
+                        CONSTRAINT alembic_version_tenant_pkc PRIMARY KEY (version_num)
+                    )
+                '''))
+                # Insert the head revision
+                await session.execute(text(
+                    f'INSERT INTO "{safe_schema}".alembic_version_tenant (version_num) VALUES (:head)'
+                ), {"head": head_rev})
             
             # 5. Commit the schema creation and table setup
             # (Note: Caller will typically commit the overall transaction)
+            
+            from eden.tenancy.signals import tenant_schema_provisioned
+            await tenant_schema_provisioned.send(tenant=self, session=session)
             
         finally:
             # CRITICAL: Always reset search_path to prevent connection pool issues

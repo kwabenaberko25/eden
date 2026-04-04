@@ -20,26 +20,31 @@ async def tenancy_db():
     db = Database("sqlite+aiosqlite:///:memory:")
     await db.connect()
     
+    # Store globally so Models can find it
+    from eden.db.base import Model
+    Model.metadata.bind = db.engine
+    Model._get_db = lambda cls=None: db
+    
     async with db.engine.begin() as conn:
         await conn.run_sync(Model.metadata.create_all)
         
-    async with db.session() as session:
-        t1 = await Tenant.create(session, name="Tenant 1", slug="t1")
-        t2 = await Tenant.create(session, name="Tenant 2", slug="t2")
-        
-        # Manually set tenant context to seed data
-        token = set_current_tenant(t1)
-        await AuditProject.create(session, name="P1 (T1)")
-        from eden.tenancy.context import reset_current_tenant
-        reset_current_tenant(token)
-        
-        token = set_current_tenant(t2)
-        await AuditProject.create(session, name="P2 (T2)")
-        reset_current_tenant(token)
-        
-        await session.commit()
-        
+    # We do NOT use a long-lived session block here to avoid triggering nested savepoint
+    # bugs with StaticPool on SQLite. Each .create() will manage its own transaction cleanly.
+    t1 = await Tenant.create(name="Tenant 1", slug="t1")
+    t2 = await Tenant.create(name="Tenant 2", slug="t2")
+    
+    # Manually set tenant context to seed data
+    token = set_current_tenant(t1)
+    await AuditProject.create(name="P1 (T1)")
+    from eden.tenancy.context import reset_current_tenant
+    reset_current_tenant(token)
+    
+    token = set_current_tenant(t2)
+    await AuditProject.create(name="P2 (T2)")
+    reset_current_tenant(token)
+    
     yield db, t1, t2
+    
     await db.disconnect()
 
 @pytest.mark.asyncio

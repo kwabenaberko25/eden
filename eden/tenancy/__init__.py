@@ -13,9 +13,17 @@ from .context import (
     is_across_tenants,
     spawn_safe_task,
 )
+from .decorators import tenant_required
 from .middleware import TenantMiddleware
 from .models import AnonymousTenant, Tenant
 from .mixins import TenantMixin, OrganizationMixin
+from .testing import mock_tenant
+from .signals import (
+    tenant_created,
+    tenant_schema_provisioned,
+    tenant_deactivated,
+    tenant_deleted,
+)
 
 
 __all__ = [
@@ -31,4 +39,10 @@ __all__ = [
     "AcrossTenants",
     "is_across_tenants",
     "spawn_safe_task",
+    "tenant_required",
+    "mock_tenant",
+    "tenant_created",
+    "tenant_schema_provisioned",
+    "tenant_deactivated",
+    "tenant_deleted",
 ]

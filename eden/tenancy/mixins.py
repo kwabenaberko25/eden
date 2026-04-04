@@ -8,6 +8,7 @@ Automatically filters queries and sets tenant_id on create.
 from __future__ import annotations
 
 import uuid
+from typing import Any
 
 from sqlalchemy import ForeignKey, Uuid
 from sqlalchemy.orm import Mapped, mapped_column

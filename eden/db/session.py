@@ -12,10 +12,29 @@ from typing import (
 
 if TYPE_CHECKING:
     from starlette.requests import Request
+from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import NullPool, StaticPool
-
+from sqlalchemy.pool import NullPool, StaticPool, Pool
 logger = logging.getLogger("eden.db")
+
+@event.listens_for(Pool, "reset")
+def _reset_postgres_search_path(dbapi_connection, connection_record, reset_state):
+    """
+    Harden schema boundaries. Whenever a connection is returned to the pool (reset),
+    forcefully reset the PostgreSQL search_path to public to prevent connection leakage.
+    We safely catch exceptions and ignore non-PostgreSQL drivers.
+    """
+    try:
+        # DBAPI objects like asyncpg Connection or psycopg have `execute` or `cursor().execute()`
+        # Not all standard DBAPIs implement this exactly the same, but `search_path` is Postgres-only
+        if hasattr(dbapi_connection, "cursor"):  # psycopg2/sync or similar
+            cursor = dbapi_connection.cursor()
+            cursor.execute('SET search_path TO "public"')
+            cursor.close()
+        elif hasattr(dbapi_connection, "execute"):  # asyncpg sync fallback wrapper
+            dbapi_connection.execute('SET search_path TO "public"')
+    except Exception:
+        pass
 
 # Context variable for per-request session storage (async-safe)
 _session_context: contextvars.ContextVar[AsyncSession | None] = contextvars.ContextVar(

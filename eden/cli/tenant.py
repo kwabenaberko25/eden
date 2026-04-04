@@ -73,6 +73,64 @@ def tenant_list() -> None:
 
     asyncio.run(_list())
 
+@tenant.command("create")
+@click.option("--name", required=True, help="Display name for the organization.")
+@click.option("--slug", required=True, help="URL-friendly identifier for the tenant.")
+@click.option("--plan", default="standard", help="Subscription plan for the tenant.")
+@click.option("--schema", default=None, help="Dedicated PostgreSQL schema name.")
+@click.option("--provision", is_flag=True, help="Auto-provision schema tables after creation.")
+def tenant_create(name: str, slug: str, plan: str, schema: str | None, provision: bool) -> None:
+    """Create a new tenant organization."""
+    
+    async def _create():
+        config = get_config()
+        db = Database(config.get_database_url())
+        await db.connect()
+        
+        async with db.transaction() as session:
+            from sqlalchemy.future import select
+            
+            # Check for existing slug
+            stmt = select(Tenant).where(Tenant.slug == slug)
+            existing = (await session.execute(stmt)).scalar_one_or_none()
+            if existing:
+                console.print(f"  [red]❌ Error: Tenant with slug '{slug}' already exists.[/]", err=True)
+                return
+
+            t = Tenant(
+                name=name,
+                slug=slug,
+                plan=plan,
+                schema_name=schema,
+                is_active=True
+            )
+            session.add(t)
+            console.print(f"  [green]✅ Created tenant '{name}' (slug: {slug}, plan: {plan})[/]")
+            
+            # Flush to get fields inserted
+            await session.flush()
+            
+            if provision:
+                if not t.schema_name:
+                    t.schema_name = f"tenant_{slug.replace('-', '_')}"
+                    console.print(f"  [yellow]ℹ️  No schema provided. Using default: '{t.schema_name}'[/]")
+                
+                console.print(f"  [bold blue]🏗️  Provisioning schema '{t.schema_name}'...[/]")
+                try:
+                    await t.provision_schema(session)
+                    console.print("  [green]✅ Schema provisioned successfully.[/]")
+                except Exception as e:
+                    console.print(f"  [red]❌ Failed to provision schema: {e}[/]", err=True)
+                    # We continue to let the transaction either commit the tenant or rollback 
+                    # based on the calling context. For the CLI, if this fails, the whole block
+                    # will typically raise, or we can choose to explicitly raise depending on whether
+                    # we want to save the tenant anyway. Raising ensures no partial writes.
+                    raise
+                    
+            console.print("\n  [bold green]✨ Tenant setup complete.[/]\n")
+
+    asyncio.run(_create())
+
 @tenant.command("provision")
 @click.option("--slug", help="Provision schema for a specific tenant by slug.")
 def tenant_provision(slug: str | None) -> None:

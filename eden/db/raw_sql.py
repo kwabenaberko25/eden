@@ -42,17 +42,26 @@ class RawQuery:
     privileged operations, use _skip_tenant_check=True.
     """
     
+    # DML statement types that inherently don't need a WHERE tenant_id check.
+    # These are write operations where tenant_id is typically in the VALUES clause,
+    # or DDL operations that don't operate on row data.
+    _SAFE_DML_PREFIXES = ("insert", "create", "alter", "drop", "grant", "revoke", "set", "show")
+
     @staticmethod
     def _validate_tenant_isolation(sql: str, skip_check: bool = False) -> None:
         """
         Validate that raw SQL respects tenant isolation when active.
         
+        When a tenant context is active and strict tenancy mode is enabled,
+        SELECT/UPDATE/DELETE queries that don't reference ``tenant_id`` will
+        raise a ``TenantException``. In non-strict mode, a warning is logged.
+        
         Args:
-            sql: The SQL query to validate
-            skip_check: If True, skip validation for admin/privileged operations
+            sql: The SQL query to validate.
+            skip_check: If True, skip validation for admin/privileged operations.
         
         Raises:
-            TenantException: If tenant context is active but query doesn't reference tenant_id
+            TenantException: If strict mode is active and query doesn't reference tenant_id.
         """
         if skip_check:
             return
@@ -64,25 +73,34 @@ class RawQuery:
             # No tenant context, no restriction
             return
         
-        # Normalize SQL for analysis (lowercase, remove extra whitespace)
+        # Normalize SQL for analysis — all lowercase, collapsed whitespace
         sql_normalized = " ".join(sql.lower().split())
         
-        # Check if query references tenant_id column or uses explicit schema
+        # Safe DML types (INSERT, CREATE, ALTER, etc.) don't need tenant_id in WHERE
+        is_safe_dml = any(sql_normalized.startswith(prefix) for prefix in RawQuery._SAFE_DML_PREFIXES)
+        if is_safe_dml:
+            return
+        
+        # Check if query references tenant_id column or the tenants table directly
         has_tenant_check = (
             "tenant_id" in sql_normalized or 
-            "eden_tenants" in sql_normalized or
-            "WHERE" not in sql_normalized  # Allow writes without WHERE (implicit tenant filter)
+            "eden_tenants" in sql_normalized
         )
         
-        if not has_tenant_check and "SELECT" in sql.upper():
-            # SELECT query without tenant_id reference is dangerous
-            logger.warning(
+        if not has_tenant_check:
+            # This query reads/mutates data without a tenant_id filter — dangerous
+            from eden.tenancy.registry import tenancy_registry
+            
+            message = (
                 f"Raw SQL query executed with active tenant context but no tenant_id filter. "
                 f"Tenant: {tenant_id}, SQL: {sql[:100]}... "
                 f"This may leak cross-tenant data. Use _skip_tenant_check=True to explicitly allow."
             )
-            # Note: We warn but don't block for backward compatibility
-            # Future: Change to raise TenantException(...) to enforce strictly
+            
+            if tenancy_registry.strict_mode:
+                raise TenantException(message)
+            
+            logger.warning(message)
     
     @staticmethod
     async def execute(
@@ -261,9 +279,3 @@ async def raw_update(
         result = await session.execute(text(converted_sql), sql_params or all_params)
         await session.flush()
         return result.rowcount
-    
-    # Parse "UPDATE 5" -> 5
-    if isinstance(result, str) and " " in result:
-        try: return int(result.split()[-1])
-        except: pass
-    return 0
