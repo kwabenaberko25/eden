@@ -26,14 +26,29 @@ class EdenDirectivesExtension(Extension):
         compiled = compiler.compile(nodes)
 
         # 4. Security: Automate target="_blank" protection
-        def _enforce_noopener(m):
+        def _enforce_noopener(m: re.Match[str]) -> str:
             tag = m.group(0)
-            if "rel=" not in tag.lower():
+            tag_lower = tag.lower()
+            
+            # Check if rel attribute exists
+            if not re.search(r'rel\s*=\s*["\']', tag_lower):
+                # No rel attribute, add it before the closing >
                 return tag[:-1] + ' rel="noopener noreferrer">'
+            
+            # Check if rel contains noopener
+            rel_match = re.search(r'rel\s*=\s*["\']([^"\']*)["\']', tag_lower)
+            if rel_match:
+                rel_value = rel_match.group(1)
+                if 'noopener' not in rel_value:
+                    # Add noopener to existing rel attribute
+                    rel_end = rel_match.end()
+                    return tag[:rel_end-1] + ' noopener noreferrer"' + tag[rel_end:]
+            
             return tag
 
+        # Match <a> tags with target="_blank" (case-insensitive, flexible spacing)
         compiled = re.sub(
-            r'<a\s+[^>]*?target=[\'"]_blank[\'"][^>]*>',
+            r'<a\s+[^>]*?target\s*=\s*["\']_blank["\'][^>]*?>',
             _enforce_noopener,
             compiled,
             flags=re.IGNORECASE,

@@ -60,10 +60,14 @@ nav:
   - Database & ORM:
     - ORM Overview: guides/orm.md
     - QuerySet & Lookups: guides/orm-querying.md
+    - Query Syntax Guide: guides/orm-query-syntax.md
+    - Complex Query Patterns: guides/orm-complex-patterns.md
+    - Single Record Retrieval: guides/SINGLE_RECORD_RETRIEVAL.md
     - Relationship Patterns: guides/orm-relationships.md
     - Transactions & Atomicity: guides/orm-transactions.md
     - Migrations: guides/orm-migrations.md
     - JSON Functionality: guides/json.md
+    - ORM Documentation Index: guides/ORM_INDEX.md
 
   - Security & Identity:
     - 🔒 Master Manual: guides/security-and-identity.md
@@ -102,6 +106,7 @@ nav:
     - Deployment Guide: guides/deployment.md
     - API Specs (OpenAPI): guides/openapi.md
     - Payment Integration: guides/payments.md
+    - Documentation Build: guides/MKDOCS_BUILD_GUIDE.md
 
   - Elite Recipes:
     - Real-Time Kanban Board: recipes/kanban-board.md

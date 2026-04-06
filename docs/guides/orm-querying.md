@@ -38,16 +38,52 @@ These methods trigger the actual database communication.
 | :--- | :--- | :--- |
 | `.all()` | `list[Model]` | Returns all matching records as model instances. |
 | `.first()` | `Model \| None` | Returns the first result or `None` if empty. |
-| `.get(id)` | `Model` | High-performance primary key lookup (raises `LookupError` if missing). |
+| `.last()` | `Model \| None` | Returns the last result or `None` if empty. |
+| `.get(id)` | `Model \| None` | High-performance primary key lookup (auto-converts UUID strings). |
 | `.count()` | `int` | Executes a `SELECT COUNT(*)` on the current filters. |
 | `.exists()` | `bool` | Optimized check for the existence of any match. |
 | `.paginate()` | `Page` | Returns a paginated result set with metadata and links. |
+
+### Single Record Retrieval Examples
+
+```python
+from eden.db import q, Q
+
+# Get all records
+users = await User.filter(status="active").all()  # Returns list
+
+# Get first matching record
+user = await User.filter(status="active").first()  # Returns User | None
+if user:
+    print(f"Found: {user.name}")
+
+# Get last matching record
+latest_user = await User.order_by("-created_at").last()
+
+# Get by primary key (fastest)
+user = await User.get(123)  # Direct ID lookup, most efficient
+
+# Check existence without loading data
+exists = await User.filter(email="alice@example.com").exists()  # Returns bool
+
+# Get and handle not found
+user = await User.get(999)
+if user is None:
+    print("User not found")
+```
+
+> [!TIP]
+> Use `.get(id)` for lookups by primary key—it's the fastest method. Use `.first()` for other queries as it stops after finding one result.
 
 ---
 
 ## 🎯 Filtering with Lookups
 
-Eden uses the `field__lookup` syntax for expressive filtering.
+Eden supports **three syntaxes** for filtering, each offering different benefits. Choose the style that best fits your use case—all produce identical SQL.
+
+### Syntax 1: Django-Style Lookups (String Keys)
+
+The classic Django convention using `field__lookup` string syntax:
 
 ```python
 # Case-insensitive substring match
@@ -58,20 +94,78 @@ recent = await Order.filter(created_at__gte=datetime.now() - timedelta(days=7)).
 
 # Membership check
 status_filter = await User.filter(status__in=["active", "pending"]).all()
+
+# Complex conditions with Q objects
+from eden.db import Q
+users = await User.filter(
+    Q(status__in=["active", "trial"]) |
+    Q(points__gte=100)
+).all()
 ```
+
+**Best for**: Compatibility with Django projects, kwargs-based dynamic filtering.
+
+### Syntax 2: Modern Proxy (SQL-Like Operators)
+
+Use the modern `q` proxy for a more SQL-like, type-safe experience:
+
+```python
+from eden.db import q
+
+# Cleaner, more Pythonic syntax
+search = await Product.filter(q.title.icontains("Eden")).all()
+
+# Comparison operators
+recent = await Order.filter(q.created_at >= datetime.now() - timedelta(days=7)).all()
+
+# IN clause
+status_filter = await User.filter(q.status.in_(["active", "pending"])).all()
+
+# Complex boolean logic with operators
+users = await User.filter(
+    ((q.status.in_(["active", "trial"])) | (q.points >= 100))
+).all()
+```
+
+**Best for**: Modern Python projects, IDE autocompletion, explicit code clarity.
+
+### Syntax 3: Q Objects (Advanced Logic)
+
+Explicit `Q` objects with operators for maximum flexibility:
+
+```python
+from eden.db import Q
+
+# Build complex boolean expressions
+logic = (
+    Q(status__in=["active", "trial"]) |
+    Q(points__gte=100)
+)
+users = await User.filter(logic).all()
+
+# Combine syntaxes (all work together!)
+from eden.db import q
+combined = await User.filter(
+    q.verified == True,  # Modern q
+    Q(status="active") | Q(tier="premium"),  # Q objects
+    age__gte=18  # Django-style kwargs
+).all()
+```
+
+**Best for**: Dynamic filter building, complex nested logic.
 
 ### Supported Lookups
 
-| Lookup | SQL Equivalent | Description |
-| :--- | :--- | :--- |
-| `exact` | `=` | Exact match (case-sensitive). |
-| `iexact` | `ILIKE` | Case-insensitive exact match. |
-| `contains` | `LIKE %...%` | Substring match. |
-| `icontains` | `ILIKE %...%` | Case-insensitive substring match. |
-| `gt` / `gte` | `>` / `>=` | Greater than (or equal to). |
-| `lt` / `lte` | `<` / `<=` | Less than (or equal to). |
-| `in` | `IN (...)` | Value exists in the provided list/tuple. |
-| `isnull` | `IS NULL` | Check for null values (True/False). |
+| Lookup | SQL Equivalent | Django Style | Modern q Proxy |
+| :--- | :--- | :--- | :--- |
+| `exact` | `=` | `field__exact=val` | `q.field == val` |
+| `iexact` | `ILIKE` | `field__iexact=val` | `q.field.iexact(val)` |
+| `contains` | `LIKE %...%` | `field__contains=val` | `q.field.contains(val)` |
+| `icontains` | `ILIKE %...%` | `field__icontains=val` | `q.field.icontains(val)` |
+| `gt` / `gte` | `>` / `>=` | `field__gt=val` | `q.field > val` / `q.field >= val` |
+| `lt` / `lte` | `<` / `<=` | `field__lt=val` | `q.field < val` / `q.field <= val` |
+| `in` | `IN (...)` | `field__in=[...]` | `q.field.in_([...])` |
+| `isnull` | `IS NULL` | `field__isnull=True` | `q.field.isnull(True)` |
 
 ---
 
@@ -167,12 +261,29 @@ print(plan)
 
 ---
 
+## 🏗️ Complex Patterns
+
+For production-ready patterns covering multi-table filtering, aggregations, dynamic filters, and performance optimization, see:
+
+**[Complex Query Patterns Guide](orm-complex-patterns.md)** – Real-world examples including:
+- Multi-table deep filtering (author → profile → city)
+- Boolean logic combinations (OR, AND, NOT)
+- Date range and relative filtering
+- Aggregation with HAVING clauses
+- Dynamic filter building for search endpoints
+- Performance optimization (prefetch, select_related, exists)
+- Common mistakes and how to avoid them
+
+---
+
 ## 💡 Best Practices
 
 1.  **Prefer `icontains`**: For search inputs, `icontains` is almost always better than `contains`.
 2.  **Index Your Filter Fields**: Any field used frequently in `.filter()` should be marked as `index=True` in your model.
 3.  **Atomic Updates**: Always use `F()` expressions for increments (`points = F("points") + 1`) to prevent data corruption from concurrent requests.
+4.  **Choose Your Syntax Consistently**: Pick one syntax (Django-style, modern q, or Q objects) for your codebase. All three work, but mixing styles reduces readability.
+5.  **Use `.distinct()`**: When filtering through multi-join paths, always use `.distinct()` to avoid duplicate rows.
 
 ---
 
-**Next Steps**: [Relationship Patterns](orm-relationships.md)
+**Next Steps**: [Complex Query Patterns](orm-complex-patterns.md) | [Relationship Patterns](orm-relationships.md)

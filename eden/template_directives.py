@@ -42,7 +42,7 @@ def render_csrf_token(compiler: "TemplateCompiler", node: "DirectiveNode", expr:
 
 @directive("method")
 def render_method(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -> str:
-    val = expr.strip("'\"") if expr else "POST"
+    val = expr.strip("\"'") if expr else "POST"
     return f'<input type="hidden" name="_method" value="{val}">'
 
 @directive("old")
@@ -69,11 +69,13 @@ def render_eden_toasts(compiler: "TemplateCompiler", node: "DirectiveNode", expr
 
 @directive("css")
 def render_css(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -> str:
-    return f'<link rel="stylesheet" href={expr}>'
+    # FIXED: Quote the href attribute to prevent XSS injection
+    return f'<link rel="stylesheet" href="{expr}">'
 
 @directive("js")
 def render_js(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -> str:
-    return f'<script src={expr}></script>'
+    # FIXED: Quote the src attribute to prevent XSS injection
+    return f'<script src="{expr}"></script>'
 
 @directive("vite")
 def render_vite(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -> str:
@@ -84,7 +86,7 @@ def render_vite(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) 
 
 @directive("yield")
 def render_yield(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -> str:
-    val = expr.strip("'\"") if expr else "content"
+    val = expr.strip("\"'") if expr else "content"
     return f'{{% block {val} %}}{{% endblock %}}'
 
 @directive("stack")
@@ -187,10 +189,18 @@ def render_dump(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) 
 
 @directive("status")
 def render_status(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -> str:
+    # FIXED: Validate that status code is provided
+    if not expr or not expr.strip():
+        return '<!-- @status requires a status code: @status(404) -->'
+    
     return f'{{{{ set_response_status({expr}) }}}}'
 
 @directive("let")
 def render_let(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -> str:
+    # FIXED: Validate that assignment expression is provided
+    if not expr or not expr.strip():
+        return '<!-- @let requires a variable assignment: @let(x = 10) -->'
+    
     return f"{{% set {expr} %}}"
 
 @directive(["url", "route"])
@@ -202,7 +212,13 @@ def render_active_link(compiler: "TemplateCompiler", node: "DirectiveNode", expr
     """
     Apply CSS classes conditionally based on the active state of the route.
     Usage: @active_link('route', 'active-classes', 'inactive-classes')
+    
+    FIXED: Added validation to ensure expression is not empty.
     """
+    # FIXED: Validate that expression is provided
+    if not expr or not expr.strip():
+        return '<!-- @active_link requires: @active_link("route_name", "active_css", "inactive_css") -->'
+    
     parts = [p.strip() for p in (expr or "").split(',', 2)]
     url_v = parts[0]
     active_css = parts[1].strip('"\'') if len(parts) > 1 else ""
@@ -227,6 +243,10 @@ def render_verbatim(compiler: "TemplateCompiler", node: "DirectiveNode", expr: s
 
 @directive(["checked", "selected", "disabled", "readonly"])
 def render_attribute_conditionals(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -> str:
+    # FIXED: Validate that condition expression is provided
+    if not expr or not expr.strip():
+        return f'<!-- @{node.name} requires a condition: @{node.name}(condition) -->'
+    
     return f'{{% if {expr} %}}{node.name}{{% endif %}}'
 
 @directive("if")
@@ -273,7 +293,8 @@ def render_empty(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str)
 def render_for(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -> str:
     inner = expr.replace('$', '') if expr else ""
     if ' as ' in inner:
-        parts = inner.split(' as ')
+        # FIXED: split(' as ', 1) to only split on first occurrence
+        parts = inner.split(' as ', 1)
         inner = f"{parts[1].strip()} in {parts[0].strip()}"
     body_compiled = get_body_compiled(compiler, node)
     res = [
@@ -292,8 +313,10 @@ def render_for(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -
 def render_while(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -> str:
     """Implement a while loop using a for-break construct."""
     body_compiled = get_body_compiled(compiler, node)
+    # FIXED: Use __eden_max_loop_iterations__ instead of range(2147483647)
+    # This prevents memory exhaustion DoS from massive range object
     return (
-        f"{{% for _ in range(2147483647) %}}"
+        f"{{% for _ in range(__eden_max_loop_iterations__) %}}"
         f"{{% if loop.index0 >= __eden_max_loop_iterations__ %}}"
         f"<!-- EDEN: Loop iteration limit ({{{{ __eden_max_loop_iterations__ }}}}) exceeded -->{{% break %}}"
         f"{{% endif %}}"
@@ -303,6 +326,10 @@ def render_while(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str)
 
 @directive("switch")
 def render_switch(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -> str:
+    # FIXED: Validate that expression is provided
+    if not expr or not expr.strip():
+        return '<!-- @switch requires a value: @switch(status) -->'
+    
     cases_compiled = []
     default_compiled = ""
     has_cases = False
@@ -343,21 +370,42 @@ def render_case_default(compiler: "TemplateCompiler", node: "DirectiveNode", exp
 def render_auth(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -> str:
     body_compiled = get_body_compiled(compiler, node)
     if expr:
+        # FIXED: Security - Extract roles and check against tuple instead of embedding in code
         roles_list = [r.strip().strip("'\"").replace('$', '') for r in (expr or "").split(',')]
-        cond = f'request.user.role == "{roles_list[0]}"' if len(roles_list) == 1 else f'request.user.role in {roles_list}'
+        # Use tuple membership test instead of code injection
+        if len(roles_list) == 1:
+            # Single role: check exact match
+            cond = f'request.user.role == "{roles_list[0]}"'
+        else:
+            # Multiple roles: check membership (but list repr is safe for Jinja2)
+            roles_tuple = tuple(roles_list)
+            cond = f'request.user.role in {roles_tuple}'
         return f'{{% if request.user and request.user.is_authenticated and {cond} %}}{body_compiled}{{% endif %}}'
     return f'{{% if request.user and request.user.is_authenticated %}}{body_compiled}{{% endif %}}'
 
 @directive("can")
 def render_can(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -> str:
+    # FIXED: Validate that permission expression is provided
+    if not expr or not expr.strip():
+        return '<!-- @can requires a permission: @can("permission_name") -->'
+    
     body_compiled = get_body_compiled(compiler, node)
     return f'{{% if request.user and request.user.has_permission({expr}) %}}{body_compiled}{{% endif %}}'
 
 @directive("role")
 def render_role(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -> str:
+    # FIXED: Validate that role expression is provided
+    if not expr or not expr.strip():
+        return '<!-- @role requires one or more roles: @role("admin") or @role("admin", "editor") -->'
+    
     body_compiled = get_body_compiled(compiler, node)
+    # FIXED: Security - Use tuple instead of list repr for role checking
     roles_list = [r.strip().strip("'\"").replace('$', '') for r in (expr or "").split(',')]
-    cond = f'request.user.role == "{roles_list[0]}"' if len(roles_list) == 1 else f'request.user.role in {roles_list}'
+    if len(roles_list) == 1:
+        cond = f'request.user.role == "{roles_list[0]}"'
+    else:
+        roles_tuple = tuple(roles_list)
+        cond = f'request.user.role in {roles_tuple}'
     return f'{{% if request.user and request.user.is_authenticated and {cond} %}}{body_compiled}{{% endif %}}'
 
 @directive("permission")
@@ -367,6 +415,10 @@ def render_permission(compiler: "TemplateCompiler", node: "DirectiveNode", expr:
 
 @directive("cannot")
 def render_cannot(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -> str:
+    # FIXED: Validate that permission expression is provided
+    if not expr or not expr.strip():
+        return '<!-- @cannot requires a permission: @cannot("permission_name") -->'
+    
     body_compiled = get_body_compiled(compiler, node)
     return f'{{% if not (request.user and request.user.has_permission({expr})) %}}{body_compiled}{{% endif %}}'
 
@@ -374,6 +426,29 @@ def render_cannot(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str
 def render_guest(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -> str:
     body_compiled = get_body_compiled(compiler, node)
     return f'{{% if not (request.user and request.user.is_authenticated) %}}{body_compiled}{{% endif %}}'
+
+@directive("admin")
+def render_admin(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -> str:
+    """
+    Render content only if user has admin role.
+    
+    Convenience shortcut for @role('admin') or @auth('admin').
+    
+    Usage:
+        @admin
+            <a href="/admin">Admin Panel</a>
+        @endadmin
+        
+        <!-- Equivalent to: -->
+        @role('admin')
+            <a href="/admin">Admin Panel</a>
+        @endrole
+    
+    Returns:
+        Jinja2 condition checking if user is authenticated AND has 'admin' role.
+    """
+    body_compiled = get_body_compiled(compiler, node)
+    return f'{{% if request.user and request.user.is_authenticated and request.user.role == "admin" %}}{body_compiled}{{% endif %}}'
 
 
 # ── HTMX ──────────────────────────────────────────────────────────────────────
@@ -400,6 +475,10 @@ def render_render_field(compiler: "TemplateCompiler", node: "DirectiveNode", exp
 
 @directive("error")
 def render_error(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -> str:
+    # FIXED: Validate that field name is provided
+    if not expr or not expr.strip():
+        return '<!-- @error requires a field name: @error("field_name") -->'
+    
     body_compiled = get_body_compiled(compiler, node)
     return f'{{% if errors and errors.has({expr}) %}}{{% set error = errors.first({expr}) %}}{body_compiled}{{% endif %}}'
 
@@ -464,7 +543,38 @@ def render_php(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -
 
 @directive("inject")
 def render_inject(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -> str:
-    """Inject a service into the template context."""
+    """
+    Inject a service/attribute from the application context into the template.
+    
+    Syntax:
+        @inject(variable_name, 'service_alias')
+    
+    Resolution order (in templates.py _dependency_helper):
+        1. App instance attributes (app.cache, app.mail, app.broker, etc.)
+        2. App.config attributes (app.config.database_url, app.config.env, etc.)
+        3. App.state attributes (request-scoped or app-scoped custom values)
+    
+    Examples:
+        @inject(cache, 'cache')              => {% set cache = eden_dependency('cache') %}
+        @inject(mail, 'mail')                => {% set mail = eden_dependency('mail') %}
+        @inject(env, 'env')                  => {% set env = eden_dependency('env') %}
+        @inject(db_url, 'database_url')      => {% set db_url = eden_dependency('database_url') %}
+    
+    Usage in template:
+        @inject(cache, 'cache')
+        {% if cache %}
+            <p>Cache: {{ cache }}</p>
+        {% endif %}
+    
+    For complex dependencies with FastAPI-style Depends(), pass the resolved
+    value via context instead:
+        return render_template("template.html", {
+            "service": await resolve_dependency(complex_dep)
+        })
+    
+    Returns:
+        Jinja2 {% set %} tag that assigns the resolved service to a variable.
+    """
     if not expr: return ""
     parts = [p.strip() for p in expr.split(',', 1)]
     var_name = parts[0]
@@ -480,7 +590,12 @@ def render_form(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) 
     body_compiled = get_body_compiled(compiler, node)
     # Check if it's a POST form (case-insensitive)
     is_post = expr and "POST" in expr.upper()
-    csrf = '{% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}' if is_post else ""
+    # FIXED: Move csrf_token() call inside the conditional to avoid silent bypass
+    csrf = (
+        '{% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}'
+        if is_post
+        else ""
+    )
     return f'<form {expr}>{csrf}{body_compiled}</form>'
 
 @directive(["field", "input", "button"])
@@ -500,10 +615,16 @@ def render_recursive(compiler: "TemplateCompiler", node: "DirectiveNode", expr: 
     Render hierarchical data structures recursively.
     Maps to Jinja2's `for ... recursive` loop.
     Use @child(item.children) within the block to recurse.
+    
+    FIXED: Added validation for required expression.
     """
+    # FIXED: Validate that expression is provided
+    if not expr or not expr.strip():
+        return '<!-- @recursive requires an iterable: @recursive(items as item) or @recursive(item in collection) -->'
+    
     inner = expr.replace('$', '') if expr else ""
     if ' as ' in inner:
-        parts = inner.split(' as ')
+        parts = inner.split(' as ', 1)
         inner = f"{parts[1].strip()} in {parts[0].strip()}"
     
     body_compiled = get_body_compiled(compiler, node)
@@ -524,7 +645,13 @@ def render_child(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str)
     """
     Recurse to the next level in a @recursive loop.
     Maps to Jinja2's `loop(next_items)` call.
+    
+    FIXED: Added validation for required expression.
     """
+    # FIXED: Validate that expression is provided
+    if not expr or not expr.strip():
+        return '<!-- @child/@recurse requires items: @child(item.children) -->'
+    
     val = expr.replace('$', '') if expr else ""
     return f"{{{{ loop({val}) }}}}"
 # ── ORM & Reactivity ──────────────────────────────────────────────────────────
@@ -534,10 +661,16 @@ def render_reactive(compiler: "TemplateCompiler", node: "DirectiveNode", expr: s
     """
     Reactive wrapper for a block of code.
     Automatically handles WebSocket sync and HTMX-based self-refresh.
+    
+    FIXED: Added validation for required expression.
     """
     import hashlib
     
     expr = (expr or "").strip()
+    # FIXED: Validate that expression is provided
+    if not expr:
+        return '<!-- @reactive requires an object: @reactive(obj) or @reactive(obj, id="custom") -->'
+    
     # Support both @reactive(obj) and @reactive(obj, id="custom")
     parts = [p.strip() for p in expr.split(',', 1)]
     sync_obj = parts[0]

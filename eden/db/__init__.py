@@ -11,7 +11,7 @@ This is the recommended way to import database and ORM functionality:
     from eden.db import (
         Model,                    # Base class for your models
         Database,                 # Database connection manager
-        QuerySet, Q, F,          # Query interface
+        QuerySet, Q, F, q,       # Query interface (three syntaxes)
         StringField, IntField,   # Field definitions
         ForeignKeyField,         # Relationships
         Page,                    # Pagination
@@ -166,7 +166,7 @@ from sqlalchemy.orm import (
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from eden.db.aggregates import Sum, Avg, Count, Min, Max
-from eden.db.lookups import F, Q, parse_lookups
+from eden.db.lookups import F, Q, parse_lookups, q
 from eden.db.mixins import SoftDeleteMixin
 from eden.db.pagination import Page, PaginationLinks
 from eden.db.query import QuerySet
@@ -240,6 +240,7 @@ __all__ = [
     "Q",
     "F",
     "f",
+    "q",
     "parse_lookups",
     "Sum",
     "Avg",

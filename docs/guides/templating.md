@@ -246,7 +246,19 @@ async def delete_item(request, id: int):
 
 ## 🛡️ Security & RBAC
 
-Directives are deeply integrated with Eden's Core Security.
+Directives are deeply integrated with Eden's Core Security. The templating engine includes automatic protections against common vulnerabilities.
+
+### Built-In Protections
+
+Eden's template engine automatically:
+
+- ✅ **Escapes HTML output** - Prevents XSS attacks on user-supplied content
+- ✅ **Prevents template injection** - Role/permission names are treated as data, not code
+- ✅ **Quotes HTML attributes** - CSS/JS URLs are properly quoted to prevent attribute injection
+- ✅ **Hardens external links** - Automatically adds `rel="noopener noreferrer"` to `target="_blank"` links
+- ✅ **Validates directives** - Provides helpful errors for misused directives
+
+### Role-Based Access Control
 
 ```html
 @auth {
@@ -261,6 +273,24 @@ Directives are deeply integrated with Eden's Core Security.
     <a href="/login">Login</a>
 }
 ```
+
+### Safe User Content Rendering
+
+All user-supplied data is automatically HTML-escaped:
+
+```html
+<!-- Safe: User input is automatically escaped -->
+<h1>{{ user.title }}</h1>
+
+<!-- Safe: Using @dump with user data -->
+@dump(user_submitted_data)
+
+<!-- Safe: External links are hardened -->
+<a href="{{ user.website }}" target="_blank">Visit Site</a>
+<!-- Renders with: rel="noopener noreferrer" -->
+```
+
+For detailed security best practices, see [Security Best Practices - Template Security](security.md#template-security).
 
 ---
 

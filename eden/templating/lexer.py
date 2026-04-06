@@ -21,18 +21,35 @@ class LexerState(Enum):
     ATTR_S = auto()
     ATTR_D = auto()
 
-CORE_DIRECTIVES = {
-    "csrf", "csrf_token", "method", "old", "eden_head", "eden_scripts", "eden_toasts",
-    "css", "js", "vite", "yield", "stack", "super", "extends", "include", "includeWhen",
-    "includeUnless", "fragment", "push", "pushOnce", "prepend", "section", "block",
-    "slot", "component", "props", "span", "json", "dump", "status", "let", "url",
-    "route", "active_link", "class", "verbatim", "checked", "selected", "disabled",
-    "readonly", "if", "unless", "elif", "elseif", "else_if", "else", "empty", "for",
-    "foreach", "while", "switch", "case", "default", "auth", "can", "role",
-    "permission", "cannot", "guest", "htmx", "non_htmx", "render_field", "error",
-    "messages", "even", "odd", "first", "last", "break", "continue", "php", "inject",
-    "form", "field", "input", "button", "admin", "reactive"
-}
+def _get_directives():
+    """Get directives from registry. Imported lazily to avoid circular dependency."""
+    try:
+        from eden.template_directives import DIRECTIVE_REGISTRY
+        return set(DIRECTIVE_REGISTRY.keys())
+    except ImportError:
+        # Fallback if template_directives not yet imported
+        return {
+            "csrf", "csrf_token", "method", "old", "eden_head", "eden_scripts", "eden_toasts",
+            "css", "js", "vite", "yield", "stack", "super", "extends", "include", "includeWhen",
+            "includeUnless", "fragment", "push", "pushOnce", "prepend", "section", "block",
+            "slot", "component", "props", "span", "json", "dump", "status", "let", "url",
+            "route", "active_link", "class", "verbatim", "checked", "selected", "disabled",
+            "readonly", "if", "unless", "elif", "elseif", "else_if", "else", "empty", "for",
+            "foreach", "while", "switch", "case", "default", "auth", "can", "role",
+            "permission", "cannot", "guest", "htmx", "non_htmx", "render_field", "error",
+            "messages", "even", "odd", "first", "last", "break", "continue", "php", "inject",
+            "form", "field", "input", "button", "admin", "reactive", "recursive", "child", "recurse"
+        }
+
+# Lazy-loaded directives set (single source of truth)
+_CORE_DIRECTIVES_CACHE: set[str] | None = None
+
+def get_core_directives() -> set[str]:
+    """Get the canonical set of directives (registry-driven)."""
+    global _CORE_DIRECTIVES_CACHE
+    if _CORE_DIRECTIVES_CACHE is None:
+        _CORE_DIRECTIVES_CACHE = _get_directives()
+    return _CORE_DIRECTIVES_CACHE
 
 @dataclass
 class Token:
@@ -54,10 +71,10 @@ class TemplateLexer:
         self.tokens = []
         self.brace_stack: list[bool] = []
 
-    def peek(self, n=1):
+    def peek(self, n: int = 1) -> str:
         return self.source[self.pos : self.pos + n]
 
-    def advance(self, n=1):
+    def advance(self, n: int = 1) -> str:
         res = self.source[self.pos : self.pos + n]
         for char in res:
             if char == '\n':
@@ -68,7 +85,7 @@ class TemplateLexer:
         self.pos += n
         return res
 
-    def read_until(self, end_cond, consume_enclosure=False) -> str:
+    def read_until(self, end_cond: str | callable, consume_enclosure: bool = False) -> str:
         """Reads until a terminator or lambda condition is met."""
         start_pos = self.pos
         
@@ -93,8 +110,10 @@ class TemplateLexer:
         return self.source[start_pos:self.pos]
 
     def read_until_tag(self, tag_name: str) -> str:
-        """Reads until </tag_name>."""
-        closer = f"</{tag_name}>"
+        """Reads until </tag_name>. Case-insensitive tag matching."""
+        # FIXED: Convert tag_name to lowercase for case-insensitive matching
+        tag_name_lower = tag_name.lower()
+        closer = f"</{tag_name_lower}>"
         found_pos = self.source.lower().find(closer, self.pos)
         if found_pos == -1:
             return self.advance(len(self.source) - self.pos)
@@ -187,10 +206,10 @@ class TemplateLexer:
                             full_match += m_elif.group(0)
 
                     # --- HARDENING: Safety Whitelist Check ---
-                    # A directive is only valid if it's in our core list OR
+                    # A directive is only valid if it's in our registry OR
                     # it is followed by a parenthesis (indicating a call).
                     # This prevents @symbol in emails or content from being eaten.
-                    is_valid = (name in CORE_DIRECTIVES)
+                    is_valid = (name in get_core_directives())
                     if not is_valid:
                         after_pos = self.pos + len(full_match)
                         while after_pos < len(self.source) and self.source[after_pos] in (' ', '\t'):

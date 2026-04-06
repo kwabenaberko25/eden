@@ -175,12 +175,46 @@ brands = await Brand.query().prefetch("products").all()
 
 ---
 
+---
+
+## 📚 Comprehensive Query Documentation
+
+Eden's ORM query language is incredibly flexible. Explore the full documentation:
+
+### **Quick Links to Query Guides**
+- **[Query Syntax Guide](orm-query-syntax.md)** — Learn all three query syntaxes (Django-style, modern q, Q objects)
+- **[Complex Patterns](orm-complex-patterns.md)** — Real-world production patterns with optimization tips
+- **[Querying & Lookups](orm-querying.md)** — QuerySet API and lookup reference
+- **[ORM Index](ORM_INDEX.md)** — Complete navigation guide with decision trees
+
+### **Choose Your Query Style**
+```python
+# Django-style (familiar to Django developers)
+users = await User.filter(age__gte=30, status__in=["active", "trial"]).all()
+
+# Modern q proxy (SQL-like, IDE autocomplete)
+from eden.db import q
+users = await User.filter(q.age >= 30, q.status.in_(["active", "trial"])).all()
+
+# Q objects (complex boolean logic)
+from eden.db import Q
+users = await User.filter(
+    Q(age__gte=30) & Q(status__in=["active", "trial"])
+).all()
+```
+
+**All three syntaxes produce identical SQL and performance. Choose the one that feels most natural.**
+
+---
+
 ## 💡 Best Practices
 
 1. **Explicit Schemas**: Always use `Mapped[T]` type hints for strict type safety in your IDE.
 2. **Atomic Context**: Use `async with app.db.transaction():` for multi-model writes to ensure "All-or-Nothing" success.
 3. **Audit Readiness**: Inherit from `AuditableMixin` to track every change (Creation, Update, Deletion) automatically.
+4. **Choose One Query Syntax**: Pick one query syntax (Django-style, modern q, or Q objects) and use it consistently throughout your codebase.
+5. **Index Filter Fields**: Any field used frequently in `.filter()` should have `index=True` in your model definition.
 
 ---
 
-**Next Steps**: [Relationship Patterns](orm-relationships.md) | [Multi-Tenancy Guide](tenancy.md)
+**Next Steps**: [Query Syntax Guide](orm-query-syntax.md) | [Relationship Patterns](orm-relationships.md) | [Multi-Tenancy Guide](tenancy.md) | [ORM Index](ORM_INDEX.md)

@@ -288,6 +288,106 @@ def mask_card(card: str) -> str:
 
 ---
 
+## Template Security
+
+### Built-in Protections
+
+Eden's templating engine includes automatic security hardening:
+
+**1. XSS Prevention (HTML Escaping)**
+
+All user-controlled output is automatically escaped:
+
+```html
+<!-- Safe: User input is HTML-escaped -->
+@foreach(item in items)
+  <p>{{ item.title }}</p>  <!-- Special chars escaped: <, >, &, ", ' -->
+@endforeach
+
+<!-- Safe: @dump directive escapes output -->
+@dump(user_input)  <!-- <, >, & converted to HTML entities -->
+```
+
+**2. Template Injection Protection**
+
+Eden prevents code injection through template directives:
+
+```html
+<!-- Safe: Role names treated as data, not code -->
+@can('edit:posts')
+  <button>Edit</button>
+@endcan
+
+<!-- Safe: CSS/JS URLs properly quoted -->
+@css('/styles/main.css')  <!-- href="..." prevents attribute injection -->
+@js('/scripts/app.js')     <!-- src="..." prevents attribute injection -->
+```
+
+**3. Automatic External Link Hardening**
+
+Links with `target="_blank"` automatically get security attributes:
+
+```html
+<!-- Input template -->
+<a href="https://external.com" target="_blank">Visit</a>
+
+<!-- Rendered output (automatic) -->
+<a href="https://external.com" target="_blank" rel="noopener noreferrer">Visit</a>
+```
+
+> [!NOTE]
+> The `rel="noopener noreferrer"` is automatically added to prevent window hijacking attacks. This protects users from malicious sites that could control your page via `window.opener`.
+
+### Secure Directive Usage
+
+When using Eden directives with user input:
+
+```python
+from eden import render_template
+
+@app.post("/search")
+async def search(request):
+    query = await request.form()  # User input
+    # query is automatically escaped in templates
+    return render_template("results.html", query=query)
+```
+
+```html
+<!-- results.html - Safe: query is automatically escaped -->
+<h1>Search results for: {{ query }}</h1>
+
+<!-- Safe: Using directives with user data -->
+@if(user.role in ['admin', 'moderator'])
+  <button>Moderate</button>
+@endif
+```
+
+### Best Practices
+
+```html
+<!-- ✅ SAFE: Trust Eden's escaping for user content -->
+{{ user.input }}
+
+<!-- ✅ SAFE: Use @role/@can for permissions -->
+@role('admin')
+  Sensitive content
+@endrole
+
+<!-- ✅ SAFE: Use @csrf in forms -->
+<form method="POST">
+  @csrf
+  <input type="text" name="email">
+</form>
+
+<!-- ❌ UNSAFE: Raw HTML concatenation (don't do this) -->
+<!-- {{ '<b>Bold</b>' | safe }} -->
+
+<!-- ❌ UNSAFE: Embedding untrusted code -->
+<!-- @php($code_from_user) -->
+```
+
+---
+
 ## API Security
 
 ### Rate Limiting

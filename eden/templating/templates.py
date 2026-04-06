@@ -501,17 +501,20 @@ class EdenTemplates(StarletteJinja2Templates):
     def _dump_helper(self, value: Any, label: str = "") -> Markup:
         """Premium @dump directive implementation."""
         import pprint
+        from markupsafe import escape
 
         formatted = pprint.pformat(value, indent=2)
+        # FIXED: Escape formatted output to prevent HTML injection
+        formatted_safe = escape(formatted)
         header = (
-            f'<div class="text-xs font-bold text-blue-400 mb-1">@dump: {label}</div>'
+            f'<div class="text-xs font-bold text-blue-400 mb-1">@dump: {escape(label)}</div>'
             if label
             else ""
         )
         html = (
             f'<div class="{DEFAULT_DUMP_STYLE}">'
             f"{header}"
-            f'<pre class="whitespace-pre-wrap"><code>{formatted}</code></pre>'
+            f'<pre class="whitespace-pre-wrap"><code>{formatted_safe}</code></pre>'
             f"</div>"
         )
         return Markup(html)
@@ -555,16 +558,47 @@ class EdenTemplates(StarletteJinja2Templates):
         return Markup("")
 
     def _dependency_helper(self, alias: str) -> Any:
-        """Helper for @inject directive."""
+        """
+        Helper for @inject directive — resolve services from the application.
+        
+        Resolution order:
+        1. App instance attributes (e.g., app.cache, app.mail)
+        2. App.config attributes (e.g., app.config.database_url)
+        3. App.state attributes (e.g., app.state.redis_client)
+        
+        Examples:
+            @inject(db, 'session')       => inject app.state.session
+            @inject(cache, 'cache')      => inject app.cache
+            @inject(config, 'env')       => inject app.config.env
+        
+        Note: For complex service resolution with FastAPI-style Depends(),
+              pass the resolved dependency via template context instead:
+              
+              return render_template("mytemplate.html", {
+                  "service": await resolve_dependency(some_dependency)
+              })
+        
+        Returns:
+            The resolved service or attribute, or None if not found.
+        """
         from eden.context import get_app
 
         app = get_app()
-        # In the future, this should use a proper DI container
-        # For now, we check app and app.config
+        
+        # Priority 1: Direct app attributes (cache, mail, broker, storage, etc.)
         if hasattr(app, alias):
-            return getattr(app, alias)
+            attr = getattr(app, alias)
+            if attr is not None:
+                return attr
+        
+        # Priority 2: App.config attributes (database_url, redis_url, env, etc.)
         if hasattr(app, "config") and hasattr(app.config, alias):
             return getattr(app.config, alias)
+        
+        # Priority 3: App.state attributes (request-scoped or app-scoped values)
+        if hasattr(app, "state") and hasattr(app.state, alias):
+            return getattr(app.state, alias)
+        
         return None
 
     def _status_helper(self, code: int) -> str:
