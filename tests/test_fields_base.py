@@ -11,156 +11,10 @@ Testing:
 """
 
 import pytest
-from typing import Any, Optional
-from dataclasses import dataclass
-from uuid import UUID
+from typing import Any
 
-# Import from eden.fields once we implement it
-# from eden.fields import (
-#     FieldMetadata, ValidationResult, ValidationContext,
-#     Validator, Field, FieldRegistry
-# )
-
-
-# These will be moved to eden/fields/base.py after implementation
-@dataclass
-class ValidationResult:
-    """Result of a validation operation"""
-    ok: bool
-    value: Any = None
-    error: str | None = None
-    
-    def __bool__(self):
-        """Allow truthiness check: if result:"""
-        return self.ok
-
-
-@dataclass
-class ValidationContext:
-    """Context passed to validators during validation"""
-    field_name: str
-    value: Any
-    instance: Any = None  # The model instance being validated
-    form_data: dict | None = None  # All form data for cross-field validation
-    request: Any = None  # Optional request object for context
-
-
-@dataclass
-class FieldMetadata:
-    """Complete field metadata for ORM, form, and validation"""
-    # Field identity
-    name: str | None = None
-    db_type: type = str
-    
-    # ORM Layer
-    unique: bool = False
-    index: bool = False
-    nullable: bool = False
-    default: Any = None
-    primary_key: bool = False
-    
-    # Form Layer
-    widget: str = "input"  # input, textarea, email, password, checkbox, etc.
-    label: str | None = None
-    placeholder: str | None = None
-    help_text: str | None = None
-    css_classes: list[str] = None
-    
-    # Validation Layer
-    validators: list['Validator'] = None
-    error_messages: dict[str, str] = None
-    
-    # Type-Specific Constraints
-    max_length: int | None = None
-    min_length: int | None = None
-    pattern: str | None = None
-    min_value: Any = None
-    max_value: Any = None
-    choices: list[tuple] | None = None
-    
-    def __post_init__(self):
-        if self.css_classes is None:
-            self.css_classes = []
-        if self.validators is None:
-            self.validators = []
-        if self.error_messages is None:
-            self.error_messages = {}
-
-
-class Validator:
-    """Base validator interface"""
-    
-    def __init__(self, name: str, async_mode: bool = False):
-        self.name = name
-        self.async_mode = async_mode
-        self.error_message: str | None = None
-    
-    async def validate(self, value: Any, context: ValidationContext) -> ValidationResult:
-        """
-        Validate a value. Override in subclasses.
-        
-        Args:
-            value: The value to validate
-            context: ValidationContext with field name, instance, form data, etc.
-        
-        Returns:
-            ValidationResult with ok bool and optional error message
-        """
-        raise NotImplementedError(f"{self.__class__.__name__} must implement validate()")
-    
-    def with_message(self, message: str) -> 'Validator':
-        """Override error message"""
-        self.error_message = message
-        return self
-    
-    def __or__(self, other: 'Validator') -> 'CompositeValidator':
-        """Support validator chaining with | operator"""
-        if isinstance(self, CompositeValidator):
-            return CompositeValidator(self.validators + [other])
-        elif isinstance(other, CompositeValidator):
-            return CompositeValidator([self] + other.validators)
-        else:
-            return CompositeValidator([self, other])
-
-
-class CompositeValidator(Validator):
-    """Chains multiple validators with AND logic"""
-    
-    def __init__(self, validators: list[Validator]):
-        super().__init__("composite", async_mode=True)
-        self.validators = validators
-    
-    async def validate(self, value: Any, context: ValidationContext) -> ValidationResult:
-        """Run all validators in sequence"""
-        for validator in self.validators:
-            result = await validator.validate(value, context)
-            if not result.ok:
-                # Use custom message if set, otherwise use validator's error
-                error_msg = self.error_message or result.error or f"Validation failed: {validator.name}"
-                return ValidationResult(ok=False, error=error_msg)
-        
-        return ValidationResult(ok=True, value=value)
-
-
-class FieldRegistry:
-    """Registry for field types"""
-    
-    _registry: dict[str, type] = {}
-    
-    @classmethod
-    def register(cls, name: str, field_class: type):
-        """Register a field type"""
-        cls._registry[name] = field_class
-    
-    @classmethod
-    def get(cls, name: str) -> type | None:
-        """Get a field type by name"""
-        return cls._registry.get(name)
-    
-    @classmethod
-    def all(cls) -> dict[str, type]:
-        """Get all registered field types"""
-        return cls._registry.copy()
+from eden.fields import Field, FieldMetadata, FieldRegistry, ValidationContext, ValidationResult, Validator
+from eden.fields.validator import CompositeValidator
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -399,28 +253,36 @@ class TestFieldRegistry:
     
     def test_field_registry_register_and_get(self):
         """Test registering and retrieving field types"""
+        original_registry = FieldRegistry._registry.copy()
         class StringField:
             pass
         
-        FieldRegistry.register("string", StringField)
-        assert FieldRegistry.get("string") == StringField
+        try:
+            FieldRegistry.register("string", StringField)
+            assert FieldRegistry.get("string") == StringField
+        finally:
+            FieldRegistry._registry = original_registry
     
     def test_field_registry_all(self):
         """Test getting all registered fields"""
+        original_registry = FieldRegistry._registry.copy()
         class StringField:
             pass
         
         class IntField:
             pass
         
-        FieldRegistry._registry = {}  # Clear for test
-        FieldRegistry.register("string", StringField)
-        FieldRegistry.register("int", IntField)
-        
-        all_fields = FieldRegistry.all()
-        assert all_fields["string"] == StringField
-        assert all_fields["int"] == IntField
-        assert len(all_fields) == 2
+        try:
+            FieldRegistry._registry = {}  # Clear for test
+            FieldRegistry.register("string", StringField)
+            FieldRegistry.register("int", IntField)
+            
+            all_fields = FieldRegistry.all()
+            assert all_fields["string"] == StringField
+            assert all_fields["int"] == IntField
+            assert len(all_fields) == 2
+        finally:
+            FieldRegistry._registry = original_registry
     
     def test_field_registry_get_nonexistent(self):
         """Test getting nonexistent field type"""

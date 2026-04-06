@@ -1,6 +1,7 @@
 
 from enum import Enum, auto
 from dataclasses import dataclass
+from typing import Callable
 import re
 
 class TokenType(Enum):
@@ -85,7 +86,7 @@ class TemplateLexer:
         self.pos += n
         return res
 
-    def read_until(self, end_cond: str | callable, consume_enclosure: bool = False) -> str:
+    def read_until(self, end_cond: str | Callable[[str], bool], consume_enclosure: bool = False) -> str:
         """Reads until a terminator or lambda condition is met."""
         start_pos = self.pos
         

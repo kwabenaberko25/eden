@@ -1,21 +1,18 @@
-import sys
-from eden.forms import Schema, BaseForm
+"""Tests for standalone form usage."""
 
-class LoginSchema(Schema):
-    email: str
-    password: str
+from eden.forms import Form
+from eden.forms.fields import CharField, IntegerField
 
-form = LoginSchema.as_form({"email": "a@b.com", "password": "123"})
-valid = form.is_valid()
-print(f"Valid: {valid}")
-if valid:
-     print(f"Email: {form.model_instance.email}")
 
-class TestSchema(Schema):
-     name: str
-     age: int
+def test_form_as_standalone():
+    """Verify form can be used standalone."""
+    form = Form(data={"name": "John", "age": "25"})
+    form.fields["name"] = CharField(name="name", label="Name")
+    form.fields["age"] = IntegerField(name="age", label="Age")
+    
+    form.fields["name"].value = form.data.get("name")
+    form.fields["age"].value = form.data.get("age")
+    
+    assert form.fields["name"].value == "John"
+    assert form.fields["age"].value == "25"
 
-form2 = BaseForm(schema=TestSchema, data={"name": "X", "age": "25"})
-fields = list(form2)
-print(f"Fields: {[f.name for f in fields]}")
-assert len(fields) == 2

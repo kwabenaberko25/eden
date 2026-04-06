@@ -12,6 +12,7 @@ from typing import Any, Dict, List, Optional, Type, Union
 from pathlib import Path
 
 from ..db import Model
+from eden.models.decorator import define
 
 @dataclass
 class ModelConfig:
