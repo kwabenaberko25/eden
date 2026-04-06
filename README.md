@@ -16,6 +16,7 @@ Eden is a high-performance, async-first web framework designed for developers wh
 - **📈 Production Observability:** Unified Prometheus-compatible metrics and request-scoped performance telemetry.
 - **🔌 Real-Time Synergy:** Native WebSocket support with secure channel authorization and reactive ORM broadcasts.
 - **🚥 Premium Debug UI:** A stunning, glassmorphic error interface for effortless debugging.
+- **🎯 Django-Inspired Features:** ControlPanel admin interface, ModelSchema forms, QuerySet managers, ChoiceField enums, and ModelConfig metadata.
 
 ---
 
@@ -135,6 +136,113 @@ user = await User.get(id=user_id)
 # 📝 Creation & Updates
 new_user = await User.create(name="Eden", email="hello@eden.dev")
 await new_user.update(name="Eden Framework")
+```
+
+---
+
+## 🎯 Django-Inspired Features
+
+Eden now includes powerful Django-inspired features that enhance productivity while maintaining Eden's async-first architecture and type safety.
+
+### ControlPanel - Admin Interface
+
+Build admin interfaces with minimal code using Eden's ControlPanel system.
+
+```python
+from eden.panel import ControlPanel, BasePanel
+
+class ArticlePanel(BasePanel):
+    display_fields = ["title", "status", "author", "published_at"]
+    search_fields = ["title", "content"]
+    filter_fields = ["status", "published_at"]
+    ordering = ["-published_at"]
+
+# Register with admin
+panel = ControlPanel()
+panel.register(Article)(ArticlePanel)
+
+# Mount admin routes
+app.route("/admin/{path:path}")(panel.handle_request)
+```
+
+### ModelSchema - Form Validation
+
+Type-safe form validation with automatic model binding.
+
+```python
+from eden.schemas import ModelSchema
+
+class ArticleSchema(ModelSchema):
+    async def clean_title(self, value: str) -> str:
+        if len(value) < 5:
+            raise ValidationError("Title too short")
+        return value.strip()
+
+    class Meta:
+        model = Article
+        required_fields = ["title", "content"]
+        read_only_fields = ["id"]
+```
+
+### QuerySet Managers - Enhanced Queries
+
+Custom managers with business logic and chainable methods.
+
+```python
+from eden.querysets import Manager
+
+class ArticleManager(Manager):
+    def published(self):
+        return self.filter(status="published")
+
+    def recent(self, days=7):
+        cutoff = datetime.now() - timedelta(days=days)
+        return self.filter(published_at__gte=cutoff)
+
+# Usage
+articles = await Article.objects.published().recent(30).all()
+```
+
+### ChoiceField - Enum Validation
+
+Type-safe enums with display names and validation.
+
+```python
+from eden.enums import ChoiceField, ChoiceEnum
+
+class Priority(ChoiceEnum):
+    LOW = "low"
+    HIGH = "high"
+
+    @property
+    def display_name(self):
+        return self.value.title()
+
+class Task(Model):
+    priority = ChoiceField(choices=Priority, default=Priority.LOW)
+```
+
+### ModelConfig - Model Metadata
+
+Comprehensive model configuration in a single Meta class.
+
+```python
+class Article(Model):
+    title = StringField(max_length=200)
+    content = TextField()
+
+    class Meta:
+        # API configuration
+        api_resource = True
+        api_required_fields = ["title", "content"]
+
+        # Admin configuration
+        admin_list_display = ["title", "status", "published_at"]
+        admin_search_fields = ["title", "content"]
+
+        # Database configuration
+        db_table = "articles"
+        indexes = [{"fields": ["status"]}]
 ```
 
 ---

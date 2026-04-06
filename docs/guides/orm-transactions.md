@@ -99,6 +99,18 @@ async def update_settings():
     await setting.save() # Discovers and uses the atomic session
 ```
 
+### Strict Session Boundary Mode
+By default, if you query an Eden model *outside* of a known transaction context (e.g., inside a background job or python shell), Eden will silently generate a temporary session, execute the query, and immediately close it. While convenient, this magic fallback often causes `DetachedInstanceError` bugs if you attempt to use or modify that result later.
+
+To disable this magic and force developers to define explicit session boundaries at all times, set `db_strict_session_mode = True` in your configuration. 
+When enabled, any background operation that misses a manual `async with db.transaction()` wrapper will immediately raise a `SessionResolutionError`.
+
+```python
+# In eden/config.py
+class EdenSettings(BaseSettings):
+    db_strict_session_mode: bool = True
+```
+
 ---
 
 ## ⚡ Isolation Levels

@@ -529,17 +529,32 @@ class SchemaInferenceEngine:
 
     @classmethod
     def _setup_m2m(cls, model_cls: Type[Model], name: str, target_name: str) -> None:
-        """Configures many-to-many relationship and creates through table."""
-        # Check if we already did this for this model
+        """
+        Configures many-to-many relationship and creates through table.
+        
+        This method is called during model initialization and is safe to call
+        multiple times (idempotent). The through table is created exactly once
+        using alphabetical sorting to ensure stable table names regardless of
+        the order models are defined.
+        
+        Args:
+            model_cls: The model class containing the M2M relationship
+            name: The attribute name of the relationship
+            target_name: The name or class of the target model
+        
+        Raises:
+            RuntimeError: If M2M table creation fails
+        """
+        # Initialize M2M registry if not present (safe for inheritance)
         if not hasattr(model_cls, "__m2m_registry__"):
             model_cls.__m2m_registry__ = {}
 
         target_table_name = _resolve_table_name(target_name, model_cls)
-        # Alphabetical sort to ensure stable join table names
+        # Alphabetical sort ensures stable join table names regardless of definition order
         table_parts = sorted([model_cls.__tablename__, target_table_name])
         table_name = f"{table_parts[0]}_{table_parts[1]}"
         
-        # Check if table already created in this process
+        # Check if table already created in this process (via metadata or registry)
         metadata = model_cls.metadata
         if table_name not in metadata.tables:
             if table_name not in model_cls.__m2m_registry__:

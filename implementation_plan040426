@@ -1,0 +1,57 @@
+# 🌿 Eden 1.0.0 - Quality & Consistency Pass
+
+This plan addresses all remaining structural issues, test failures, and documentation gaps identified in the current release candidate.
+
+## User Review Required
+
+> [!IMPORTANT]
+> - **Metrics Implementation**: I will be integrating the production example with the `eden.metrics` engine. This assumes `app.metrics` is already available on the `Eden` instance (which the roadmap suggests it is).
+> - **Test Environment**: Some failures (like `test_orm_hooks`) suggest potential race conditions or resource locking in the test suite's use of `aiosqlite`. I will ensure proper cleanup and table isolation.
+
+## Proposed Changes
+
+### 🛡️ Core Fixes & Resilience
+
+#### [MODIFY] [models.py](file:///c:/PROJECTS/eden-framework/eden/db/models.py)
+- Refine `created_at` and `updated_at` to use UTC strictly to prevent timezone-related assertion failures in tests.
+- Ensure `update()` method correctly triggers timestamp updates with sub-second precision compatibility.
+
+#### [MODIFY] [task_wrapper.py](file:///c:/PROJECTS/eden-framework/eden/tasks/task_wrapper.py)
+- Investigate and fix the `TypeError: object can't be awaited` in `test_spawn_safe_task_isolation`.
+- Ensure `PeriodicTask` coroutines are properly awaited/managed to resolve `RuntimeWarning`.
+
+#### [MODIFY] [routing.py](file:///c:/PROJECTS/eden-framework/eden/routing.py)
+- Ensure 404/405 handlers respect the `Accept` header. If the client expects JSON (as in the tests), return JSON instead of the premium HTML error page.
+
+### 🛠️ CLI & Scaffolding
+
+#### [MODIFY] [new.py](file:///c:/PROJECTS/eden-framework/eden/cli/new.py)
+- Replace the mail `TODO` with boilerplate configuration for `aiosmtplib`.
+- Add placeholders for `MAIL_SERVER`, `MAIL_PORT`, and `MAIL_USE_TLS` in generated `.env` files when mail support is selected.
+
+### 📈 Examples & Monitoring
+
+#### [MODIFY] [07_production.py](file:///c:/PROJECTS/eden-framework/examples/07_production.py)
+- Implement `uptime` calculation based on `app.state.startup_time`.
+- Connect `requests` count to the `eden.metrics` collector.
+
+### 📚 Documentation
+
+#### [MODIFY] [storage.md](file:///c:/PROJECTS/eden-framework/docs/guides/storage.md)
+#### [MODIFY] [tenant-configuration.md](file:///c:/PROJECTS/eden-framework/docs/guides/tenant-configuration.md)
+- Fix broken links pointing to `tenancy.md` by redirecting them to the correct `multi-tenancy.md` file.
+
+## Open Questions
+
+- Does the framework have a centralized `app.metrics` registry, or should I implement a lean counters-based approach in the example for simplicity?
+- For the `test_orm_hooks` failure, are there any known issues with `aiosqlite` and parallel test execution in this repo?
+
+## Verification Plan
+
+### Automated Tests
+- `python -m pytest tests/` - Goal: **1354 passed, 0 failed**.
+- `eden new test-app` - Verify the generated code and `.env` file for mail support.
+
+### Manual Verification
+- Run `examples/07_production.py` and hit `/metrics` to verify real-time data.
+- Check generated documentation links locally.

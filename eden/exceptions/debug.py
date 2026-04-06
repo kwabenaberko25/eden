@@ -702,7 +702,11 @@ def render_enhanced_template_error(
     badge = "Template Error"
     if isinstance(exc, TemplateSyntaxError):
         badge = "Syntax Error"
-        message = re.sub(r"(at )?line \d+", "", message).strip().strip(":").strip()
+        if lineno and not re.search(r"\bline\s+\d+\b", message, flags=re.IGNORECASE):
+            message = f"{message} (Line {lineno})"
+        else:
+            message = re.sub(r"(?:at\s+)?line\s+(\d+)", r"Line \1", message, flags=re.IGNORECASE)
+        message = message.strip().strip(":").strip()
     elif isinstance(exc, UndefinedError):
         badge = "Undefined Variable"
 
@@ -807,25 +811,39 @@ def render_enhanced_template_error(
             if hasattr(app, "_templates") and app._templates:
                 loader = app._templates.env.loader
                 if loader:
-                    src, filename, _ = loader.get_source(app._templates.env, name)
-                    template_source = src
-                    if filename and os.path.exists(filename):
-                        template_path = filename
+                    template_name = name
+                    if os.path.isabs(template_name):
+                        if os.path.exists(template_name):
+                            template_path = template_name
+                            with open(template_path, encoding="utf-8") as f:
+                                template_source = f.read()
+                        else:
+                            template_name = os.path.basename(template_name)
+
+                    if not template_path:
+                        src, filename, _ = loader.get_source(app._templates.env, template_name)
+                        template_source = src
+                        if filename and os.path.exists(filename):
+                            template_path = filename
         except Exception as e:
             from eden.logging import get_logger
             get_logger(__name__).error("Silent exception caught: %s", e, exc_info=True)
 
     # 2. Fallback to physical file search
     if not template_path:
-        for d in search_dirs:
-            if not d:
-                continue
-            p = os.path.join(d, name)
-            if os.path.exists(p):
-                template_path = p
-                break
+        if os.path.isabs(name) and os.path.exists(name):
+            template_path = name
+        else:
+            for d in search_dirs:
+                if not d:
+                    continue
+                p = os.path.join(d, name)
+                if os.path.exists(p):
+                    template_path = p
+                    break
 
     code_frame = ""
+    safe_lineno = int(lineno or 0)
     if template_path or template_source:
         try:
             source_lines = []
@@ -967,13 +985,18 @@ def render_enhanced_template_error(
     metadata = collect_debug_metadata(request)
 
     # Final coordinate cleanup
-    # Determine badge based on status code
-    badge = "Template Error"
-    if status_code == 404: badge = "Not Found 🔍"
-    elif status_code == 403: badge = "Forbidden 🚫"
-    elif status_code == 401: badge = "Unauthorized 🔑"
-    elif status_code >= 500: badge = "Error 💥"
+    # Preserve template-specific badges like Syntax Error and Undefined Variable.
+    if badge == "Template Error":
+        if status_code == 404:
+            badge = "Not Found 🔍"
+        elif status_code == 403:
+            badge = "Forbidden 🚫"
+        elif status_code == 401:
+            badge = "Unauthorized 🔑"
+        elif status_code >= 500:
+            badge = "Error 💥"
 
+    safe_column = int(column or -1)
     return render_premium_debug_page(
         title=title,
         message=message,

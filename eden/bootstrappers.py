@@ -20,7 +20,7 @@ class ServiceBootstrapper:
                 Model._bind_db(db)
 
                 @app.on_startup
-                async def _connect_db():
+                async def _connect_db() -> None:
                     await db.connect(create_tables="sqlite" in db_url)
 
     @staticmethod

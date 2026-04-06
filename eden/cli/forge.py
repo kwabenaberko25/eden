@@ -90,7 +90,7 @@ class {class_name}(Model):
     click.echo(f"  ✨ {'Created' if layout=='package' else 'Updated'} model: {display_path}")
 
 
-@generate.command()
+@generate.command("route")
 @click.argument("name")
 @click.option("--path", type=str, default=None, help="The versioned path prefix for the router (e.g., /api/v1/billing).")
 def router(name: str, path: str | None) -> None:
@@ -118,13 +118,13 @@ def router(name: str, path: str | None) -> None:
 
     # 1. Create the route file
     prefix_str = f', prefix="{path}"' if path else ""
-    content = f'''from typing import Dict, Any, List
-from eden import Router, Response, status
+    content = f'''from typing import Any, Dict
+from eden import Router, status
 
 {router_name} = Router(name="{snake_name}"{prefix_str})
 
 @{router_name}.get("/")
-async def list_{snake_name}() -> Dict[str, Any]:
+async def index() -> Dict[str, Any]:
     """Retrieve a list of {snake_name} resources."""
     return {{"data": [], "status": "ok"}}
 

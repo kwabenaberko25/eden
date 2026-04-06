@@ -304,7 +304,7 @@ class AdminSite:
         
         def admin_required(func: Callable) -> Callable:
             @functools.wraps(func)
-            async def wrapper(request, *args, **kwargs):
+            async def wrapper(request, *args, **kwargs) -> Any:
                 user = getattr(request.state, "user", None)
                 if not user:
                     from eden.auth.base import get_current_user
@@ -329,12 +329,12 @@ class AdminSite:
 
         site_instance = self
         @router.route("/login", methods=["GET", "POST"], name="admin_login")
-        async def login_view(request):
+        async def login_view(request) -> Any:
             return await admin_login(request, site_instance)
 
         @router.get("/", name="admin_dashboard")
         @admin_required
-        async def dashboard(request):
+        async def dashboard(request) -> Any:
             return await admin_dashboard(request, site_instance)
 
         for model, model_admin in self._registry.items():

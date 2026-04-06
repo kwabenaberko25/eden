@@ -144,21 +144,20 @@ def spawn_safe_task(
     """
     import asyncio
 
-    if isolate:
-        # Infrastructure task: deliberately no context propagation.
-        # Standard create_task still copies the current Context snapshot,
-        # but we document the intent explicitly.
-        return asyncio.create_task(coro, name=name)
-
     # ── Eagerly capture context at spawn time ────────────────────────
     # These values are read NOW, before the parent's finally block runs.
-    tenant_snapshot = _tenant_ctx.get()
-    across_snapshot = _across_tenants_ctx.get()
+    if isolate:
+        tenant_snapshot = None
+        across_snapshot = False
+        session_snapshot = None
+    else:
+        tenant_snapshot = _tenant_ctx.get()
+        across_snapshot = _across_tenants_ctx.get()
 
-    # Session context lives in eden.db.session — import lazily to avoid
-    # circular imports at module load time.
-    from eden.db.session import _session_context
-    session_snapshot = _session_context.get()
+        # Session context lives in eden.db.session — import lazily to avoid
+        # circular imports at module load time.
+        from eden.db.session import _session_context
+        session_snapshot = _session_context.get()
 
     async def _context_wrapper():
         """
@@ -169,12 +168,22 @@ def spawn_safe_task(
         """
         t_token = _tenant_ctx.set(tenant_snapshot)
         a_token = _across_tenants_ctx.set(across_snapshot)
-        s_token = _session_context.set(session_snapshot)
+        
+        # Session context might not exist in all apps
+        s_token = None
+        try:
+            from eden.db.session import _session_context
+            s_token = _session_context.set(session_snapshot)
+        except (ImportError, AttributeError):
+            pass
+
         try:
             return await coro
         finally:
             _tenant_ctx.reset(t_token)
             _across_tenants_ctx.reset(a_token)
-            _session_context.reset(s_token)
+            if s_token:
+                from eden.db.session import _session_context
+                _session_context.reset(s_token)
 
     return asyncio.create_task(_context_wrapper(), name=name)

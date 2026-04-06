@@ -1103,7 +1103,6 @@ class Eden:
         async def lifespan(app: Starlette) -> AsyncGenerator[None, None]:
             if self.distributed_backend:
                 await self.distributed_backend.connect()
-                # Set distributed backend on connection manager
                 from eden.websocket.manager import connection_manager
                 await connection_manager.set_distributed_backend(self.distributed_backend)
                 # Set config based on app settings
@@ -1180,8 +1179,8 @@ class Eden:
             routes.append(Mount(self.static_url, app=StaticFiles(directory=self.static_dir), name="static"))
 
     async def _handle_exception(self, request: Request, exc: Exception) -> StarletteResponse:
-        from eden.exceptions import error_handler_registry
-        return await error_handler_registry.handle_exception(exc, request, self)
+        """Central hub for all exception handling, routed via ExceptionDispatcher."""
+        return await self._exception_dispatcher.handle_unhandled_exception(request, exc)
 
     def _render_enhanced_template_error(self, request: Request, exc: Exception) -> StarletteResponse:
         from eden.exceptions.debug import render_enhanced_template_error

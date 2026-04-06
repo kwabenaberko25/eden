@@ -16,12 +16,12 @@ async def test_spawn_safe_task_isolation():
     token = set_current_tenant(tenant)
     try:
         # spawn_safe_task without isolate=True replicates context
-        t1 = spawn_safe_task(_inner_task)
+        t1 = spawn_safe_task(_inner_task())
         res1 = await t1
         assert res1 == tenant
         
         # spawn_safe_task with isolate=True starts fresh context
-        t2 = spawn_safe_task(_inner_task, isolate=True)
+        t2 = spawn_safe_task(_inner_task(), isolate=True)
         res2 = await t2
         assert res2 is None
     finally:

@@ -28,7 +28,7 @@ In most frameworks, you have to create separate "partial" templates for HTMX req
 <!-- page.html -->
 @extends("layouts/app")
 
-@section("content")
+@section("content") {
     <h1>Dashboard</h1>
 
     <div id="stats-panel">
@@ -43,7 +43,7 @@ In most frameworks, you have to create separate "partial" templates for HTMX req
     <button hx-get="@url('dashboard:refresh_stats')" hx-target="#stats-panel">
         Refresh Stats
     </button>
-@endsection
+}
 ```
 
 ### 2. Return the full template in your route
@@ -256,6 +256,7 @@ async def list_users(request):
 Infinite scroll is trivial with Eden's `hx-swap="afterend"`.
 
 **The Template (`feed.html`):**
+
 ```html
 <div id="feed">
     @fragment("posts") {
@@ -276,6 +277,7 @@ Infinite scroll is trivial with Eden's `hx-swap="afterend"`.
 ```
 
 **The Backend:**
+
 ```python
 @app.get("/feed/more", name="feed:load_more")
 async def load_more(request, page: int):

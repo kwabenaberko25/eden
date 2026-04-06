@@ -150,20 +150,20 @@ Eden uses a **Stacking** system to manage assets. This allows a sub-template to 
 ```html
 @extends('base.html')
 
-@section('content')
+@section('content') {
     <h1>User Profile</h1>
-@endsection
+}
 
-@push('scripts')
+@push('scripts') {
     <script src="/js/charts.js"></script>
     <script>
         initCharts();
     </script>
-@endpush
+}
 
-@pushOnce('head')
+@pushOnce('head') {
     <link rel="stylesheet" href="/css/profile-dark.css">
-@endpushOnce
+}
 ```
 
 - **`@push(name)`**: Appends content to the named stack.
@@ -182,9 +182,9 @@ For complex UI, use the `@component` directive. It supports slots and declarativ
 @props(['title', 'status' => 'active'])
 
 <div class="card card-{{ status }}">
-    @if(title)
+    @if(title) {
         <div class="card-header">{{ title }}</div>
-    @endif
+    }
     
     <div class="card-body">
         {{ slot }}
@@ -195,9 +195,9 @@ For complex UI, use the `@component` directive. It supports slots and declarativ
 ### 2. Use the Component
 
 ```html
-@component('card', title="Project Alpha", status="urgent")
+@component('card', title="Project Alpha", status="urgent") {
     <p>This project requires immediate attention.</p>
-@endcomponent
+}
 ```
 
 ---
@@ -210,14 +210,14 @@ Instead of creating hundreds of partial files, use the `@fragment` directive to 
 
 ```html
 <ul>
-    @foreach(items as item)
-        @fragment('item-row')
+    @for(item in items) {
+        @fragment('item-row') {
             <li id="item-{{ item.id }}">
                 {{ item.name }}
                 <button hx-delete="/items/{{ item.id }}" hx-target="closest li">Delete</button>
             </li>
-        @endfragment
-    @endforeach
+        }
+    }
 </ul>
 ```
 
@@ -249,17 +249,17 @@ async def delete_item(request, id: int):
 Directives are deeply integrated with Eden's Core Security.
 
 ```html
-@auth
-    @can('projects.edit')
+@auth {
+    @can('projects.edit') {
         <button class="btn">Edit Project</button>
-    @endcan
+    }
     
-    @role('admin')
+    @role('admin') {
         <a href="/admin">Admin Panel</a>
-    @endrole
-@else
+    }
+} @else {
     <a href="/login">Login</a>
-@endauth
+}
 ```
 
 ---

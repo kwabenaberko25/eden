@@ -123,15 +123,15 @@ class ModelAdmin:
         """Override to return a list of stat cards for the list view header."""
         return []
 
-    async def save_model(self, request, obj, form_data, change):
+    async def save_model(self, request, obj, form_data, change) -> None:
         """Handle saving of the model instance."""
         await obj.save()
 
-    async def delete_model(self, request, obj):
+    async def delete_model(self, request, obj) -> None:
         """Handle deletion of the model instance."""
         await obj.delete()
 
-    async def get_queryset(self, request):
+    async def get_queryset(self, request) -> Any:
         """Return the base queryset for this admin."""
         # By default returns all, but can be filtered for multi-tenancy
         from eden.db import _MISSING

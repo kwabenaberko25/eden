@@ -29,8 +29,9 @@ def createsuperuser(email, full_name, password):
 
     async def _create():
         from eden.config import get_config
+        from eden.db.session import init_db
         config = get_config()
-        db = Database(config.get_database_url())
+        db = init_db(config.get_database_url())
         await db.connect()
 
         async with db.transaction() as session:
@@ -96,9 +97,10 @@ def changepassword(email, username, tenant, password):
     async def _change():
         from sqlalchemy import select, or_, text
         from eden.config import get_config
+        from eden.db.session import init_db
 
         config = get_config()
-        db = Database(config.get_database_url())
+        db = init_db(config.get_database_url())
         await db.connect()
 
         async with db.transaction() as session:

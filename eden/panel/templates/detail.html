@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en" class="@if(config.theme == 'dark') {dark}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ model_name|title }} - {{ data.object.id }} - @yield('title', config.title)</title>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    @if(config.custom_css) {
+    <link rel="stylesheet" href="{{ config.custom_css }}">
+    }
+    <style>
+        [x-cloak] { display: none !important; }
+        .htmx-indicator {
+            opacity: 0;
+            transition: opacity 0.3s ease-in;
+        }
+        .htmx-request .htmx-indicator {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 min-h-screen">
+    <!-- Navigation -->
+    <nav class="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <a href="/panel/{{ model_name }}/" class="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mr-4">
+                        ← {{ model_name|title }}
+                    </a>
+                    <h1 class="text-xl font-semibold text-gray-900 dark:text-white">
+                        {{ model_name|title }} #{{ data.object.id }}
+                    </h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button hx-post="/panel/{{ model_name }}/{{ data.object.id }}/edit/"
+                            hx-target="#edit-form"
+                            class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium">
+                        Edit
+                    </button>
+                    <button hx-delete="/panel/{{ model_name }}/{{ data.object.id }}/"
+                            hx-confirm="Are you sure you want to delete this {{ model_name }}?"
+                            class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium">
+                        Delete
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="max-w-4xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div class="px-4 py-6 sm:px-0">
+            <div class="bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-lg">
+                <div class="px-4 py-5 sm:p-6">
+                    <div id="view-content">
+                        <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white mb-4">
+                            {{ model_name|title }} Details
+                        </h3>
+
+                        <dl class="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
+                            @for(field_name, field in data.fields.items()) {
+                            <div>
+                                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">
+                                    {{ field.display_name }}
+                                </dt>
+                                <dd class="mt-1 text-sm text-gray-900 dark:text-white">
+                                    @if(field.is_relationship) {
+                                        @if(data.object[field_name]) {
+                                        <a href="/panel/{{ field_name }}/{{ data.object[field_name].id }}/"
+                                           class="text-indigo-600 dark:text-indigo-400 hover:text-indigo-900">
+                                            {{ data.object[field_name] }}
+                                        </a>
+                                        } @else {
+                                        <span class="text-gray-500 dark:text-gray-400">None</span>
+                                        }
+                                    } @elif(field.widget == 'checkbox') {
+                                        @if(data.object[field_name]) {
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                            Yes
+                                        </span>
+                                        } @else {
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                            No
+                                        </span>
+                                        }
+                                    } @elif(field.widget == 'datetime') {
+                                        {{ data.object[field_name]|date:"M j, Y g:i A" if data.object[field_name] else "Never" }}
+                                    } @else {
+                                        {{ data.object[field_name] or "—" }}
+                                    }
+                                </dd>
+                            </div>
+                            }
+                        </dl>
+                    </div>
+
+                    <!-- Edit Form (hidden initially) -->
+                    <div id="edit-form" class="hidden">
+                        <form hx-put="/panel/{{ model_name }}/{{ data.object.id }}/"
+                              hx-target="#view-content"
+                              hx-swap="outerHTML"
+                              enctype="multipart/form-data">
+
+                            <div class="mb-4">
+                                <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white">
+                                    Edit {{ model_name|title }}
+                                </h3>
+                                <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                                    Make changes to the {{ model_name|title }} below.
+                                </p>
+                            </div>
+
+                            <div class="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-2">
+                                @for(field_name, field in data.fields.items()) {
+                                @if(!field.readonly) {
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        {{ field.display_name }}
+                                        @if(field.required) {<span class="text-red-500">*</span>}
+                                    </label>
+
+                                    @if(field.widget == 'textarea') {
+                                    <textarea name="{{ field_name }}"
+                                              rows="3"
+                                              class="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
+                                              @if(field.required) {required}>{{ data.object[field_name] or '' }}</textarea>
+
+                                    } @elif(field.widget == 'checkbox') {
+                                    <input type="checkbox"
+                                           name="{{ field_name }}"
+                                           value="true"
+                                           @if(data.object[field_name]) {checked}
+                                           class="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 dark:border-gray-600 rounded">
+
+                                    } @elif(field.widget == 'select') {
+                                    <select name="{{ field_name }}"
+                                            class="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
+                                            @if(field.required) {required}>
+                                        <option value="">Choose {{ field.display_name|lower }}</option>
+                                        <!-- Options would be populated dynamically -->
+                                        @if(data.object[field_name]) {
+                                        <option value="{{ data.object[field_name] }}" selected>{{ data.object[field_name] }}</option>
+                                        }
+                                    </select>
+
+                                    } @elif(field.widget == 'datetime') {
+                                    <input type="datetime-local"
+                                           name="{{ field_name }}"
+                                           value="{{ data.object[field_name]|date:'Y-m-d H:i' if data.object[field_name] else '' }}"
+                                           class="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
+                                           @if(field.required) {required}>
+
+                                    } @elif(field.widget == 'date') {
+                                    <input type="date"
+                                           name="{{ field_name }}"
+                                           value="{{ data.object[field_name]|date:'Y-m-d' if data.object[field_name] else '' }}"
+                                           class="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
+                                           @if(field.required) {required}>
+
+                                    } @elif(field.widget == 'number') {
+                                    <input type="number"
+                                           name="{{ field_name }}"
+                                           value="{{ data.object[field_name] or '' }}"
+                                           class="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
+                                           @if(field.required) {required}>
+
+                                    } @else {
+                                    <input type="text"
+                                           name="{{ field_name }}"
+                                           value="{{ data.object[field_name] or '' }}"
+                                           class="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
+                                           @if(field.required) {required}>
+                                    }
+
+                                    @if(field.help_text) {
+                                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ field.help_text }}</p>
+                                    }
+                                </div>
+                                }
+                                }
+                            </div>
+
+                            <div class="mt-6 flex justify-end space-x-3">
+                                <button type="button"
+                                        hx-get="/panel/{{ model_name }}/{{ data.object.id }}/"
+                                        hx-target="#edit-form"
+                                        hx-swap="outerHTML"
+                                        class="bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-600">
+                                    Cancel
+                                </button>
+                                <button type="submit"
+                                        class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium">
+                                    Save Changes
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    @if(config.custom_js) {
+    <script src="{{ config.custom_js }}"></script>
+    }
+
+    <script>
+        // Handle form submission feedback
+        document.addEventListener('htmx:afterRequest', function(evt) {
+            if (evt.detail.xhr.status >= 200 && evt.detail.xhr.status < 300) {
+                // Success - could show toast notification
+                console.log('Update successful');
+            } else if (evt.detail.xhr.status >= 400) {
+                // Error - could show error message
+                console.error('Update failed');
+            }
+        });
+    </script>
+</body>
+</html>

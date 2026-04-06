@@ -250,7 +250,7 @@ class AdminPanelMiddleware:
     def __init__(self, app):
         self.app = app
     
-    async def __call__(self, scope, async_receive, async_send):
+    async def __call__(self, scope, async_receive, async_send) -> None:
         if scope["type"] == "http":
             # Install admin handler once
             if not hasattr(self.app, '_admin_handler_registered'):

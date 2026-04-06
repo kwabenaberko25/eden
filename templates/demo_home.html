@@ -1,0 +1,164 @@
+@extends("eden/base.html")
+
+@block("title") { Eden Django Features Demo }
+
+@block("content") {
+    <div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div class="container mx-auto px-4 py-16">
+            <!-- Header -->
+            <div class="text-center mb-16">
+                <h1 class="text-5xl font-bold text-gray-900 mb-4">
+                    🌿 Eden Framework
+                </h1>
+                <p class="text-xl text-gray-600 mb-8">
+                    Django-inspired features in a modern async Python framework
+                </p>
+                <div class="flex justify-center space-x-4">
+                    <a href="/articles" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium">
+                        📝 View Articles
+                    </a>
+                    <a href="/admin" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-medium">
+                        🔧 Admin Panel
+                    </a>
+                    <a href="/api/articles" class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-medium">
+                        📊 JSON API
+                    </a>
+                </div>
+            </div>
+
+            <!-- Features Grid -->
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
+                <div class="bg-white rounded-xl shadow-lg p-6">
+                    <div class="text-3xl mb-4">📋</div>
+                    <h3 class="text-xl font-semibold mb-2">ModelConfig</h3>
+                    <p class="text-gray-600">
+                        Django-style model metadata with API, admin, and database configuration.
+                    </p>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-lg p-6">
+                    <div class="text-3xl mb-4">🎯</div>
+                    <h3 class="text-xl font-semibold mb-2">ChoiceField</h3>
+                    <p class="text-gray-600">
+                        Type-safe enum-based field choices with automatic validation.
+                    </p>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-lg p-6">
+                    <div class="text-3xl mb-4">🔍</div>
+                    <h3 class="text-xl font-semibold mb-2">Custom Managers</h3>
+                    <p class="text-gray-600">
+                        Enhanced QuerySet operations with custom filtering methods.
+                    </p>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-lg p-6">
+                    <div class="text-3xl mb-4">📝</div>
+                    <h3 class="text-xl font-semibold mb-2">ModelSchema</h3>
+                    <p class="text-gray-600">
+                        Powerful form validation and processing with Pydantic integration.
+                    </p>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-lg p-6">
+                    <div class="text-3xl mb-4">🎛️</div>
+                    <h3 class="text-xl font-semibold mb-2">ControlPanel</h3>
+                    <p class="text-gray-600">
+                        Auto-generated admin interface with CRUD operations.
+                    </p>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-lg p-6">
+                    <div class="text-3xl mb-4">⚡</div>
+                    <h3 class="text-xl font-semibold mb-2">Async First</h3>
+                    <p class="text-gray-600">
+                        Built for modern Python with full async/await support.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Stats -->
+            <div class="bg-white rounded-xl shadow-lg p-8 mb-16">
+                <h2 class="text-2xl font-bold text-center mb-8">📊 Current Stats</h2>
+                <div class="grid md:grid-cols-3 gap-8 text-center">
+                    <div>
+                        <div class="text-4xl font-bold text-blue-600">{{ total_count }}</div>
+                        <div class="text-gray-600">Total Articles</div>
+                    </div>
+                    <div>
+                        <div class="text-4xl font-bold text-green-600">{{ published_count }}</div>
+                        <div class="text-gray-600">Published</div>
+                    </div>
+                    <div>
+                        <div class="text-4xl font-bold text-purple-600">{{ total_count - published_count }}</div>
+                        <div class="text-gray-600">Drafts</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Articles -->
+            @if(recent_articles) {
+                <div class="bg-white rounded-xl shadow-lg p-8">
+                    <h2 class="text-2xl font-bold mb-6">📰 Recent Articles</h2>
+                    <div class="space-y-4">
+                        @for(article in recent_articles) {
+                            <div class="border-b border-gray-200 pb-4 last:border-b-0">
+                                <div class="flex justify-between items-start">
+                                    <div class="flex-1">
+                                        <h3 class="text-lg font-semibold text-gray-900">
+                                            <a href="/articles/{{ article.id }}" class="hover:text-blue-600">
+                                                {{ article.title }}
+                                            </a>
+                                        </h3>
+                                        <p class="text-gray-600 mt-1">
+                                            By {{ article.author_name }} •
+                                            <span class="px-2 py-1 text-xs rounded-full
+                                                @if(article.status == 'published') { bg-green-100 text-green-800 }
+                                                @elif(article.status == 'review') { bg-yellow-100 text-yellow-800 }
+                                                @else { bg-gray-100 text-gray-800 }">
+                                                {{ article.status|title }}
+                                            </span>
+                                        </p>
+                                    </div>
+                                    <div class="text-sm text-gray-500">
+                                        {{ article.created_at|date:"M j, Y" if article.created_at else "No date" }}
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                    <div class="mt-6 text-center">
+                        <a href="/articles" class="text-blue-600 hover:text-blue-800 font-medium">
+                            View all articles →
+                        </a>
+                    </div>
+                </div>
+            } @else {
+                <div class="bg-white rounded-xl shadow-lg p-8 text-center">
+                    <div class="text-6xl mb-4">📝</div>
+                    <h2 class="text-2xl font-bold mb-4">No Articles Yet</h2>
+                    <p class="text-gray-600 mb-6">
+                        Create your first article to get started with the demo.
+                    </p>
+                    <div class="space-x-4">
+                        <a href="/articles/new" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium">
+                            ✍️ Write Article
+                        </a>
+                        <button onclick="createDemoData()" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-medium">
+                            🎯 Load Demo Data
+                        </button>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+
+    <script>
+        async function createDemoData() {
+            const response = await fetch('/demo-data', { method: 'POST' });
+            const result = await response.json();
+            alert(result.message);
+            window.location.reload();
+        }
+    </script>
+}

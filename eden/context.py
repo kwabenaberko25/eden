@@ -195,6 +195,16 @@ class ContextManager:
                         # Token already used or from different context — safe to ignore
                         pass
 
+            # Explicitly clear context vars to ensure cleanup
+            _request_id_ctx.set("")
+            _app_ctx.set(None)
+            _request_ctx.set(None)
+            _user_ctx.set(None)
+            _tenant_id_ctx.set(None)
+            _organization_id_ctx.set(None)
+            if _tenant_ctx:
+                _tenant_ctx.set(None)
+
             # Clear the per-request token dict itself
             _context_tokens.set(None)
 

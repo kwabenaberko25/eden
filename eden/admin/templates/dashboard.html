@@ -1,7 +1,7 @@
 @extends("base.html")
-@section('header')Dashboard@endsection
+@section('header') { Dashboard }
 
-@section('content')
+@section('content') {
 {% from "components.html" import card, stat_card, table %}
 
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -61,4 +61,4 @@
         {% endcall %}
     </div>
 </div>
-@endsection
+}

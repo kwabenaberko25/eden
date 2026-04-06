@@ -154,6 +154,17 @@ posts = await Post.all().selectinload("author", "comments").all()
 profiles = await User.all().joinedload("profile").all()
 ```
 
+### 3. Query Diagnostics (`explain`)
+If a query feels slow, you can output exactly how the database is planning to execute it. This is invaluable for catching missing indexes or hidden `Seq Scans` caused by joining misconfigured relationships.
+
+```python
+# Returns the Postgres EXPLAIN (ANALYZE) text string
+plan = await User.query().filter(company__name="Acme").explain(analyze=True)
+print(plan)
+```
+> [!TIP]
+> `explain()` resolves all prefetch and joins before generating the diagnostic log, making it a perfectly accurate representation of how deeply optimized your ORM chaining is.
+
 ---
 
 ## 💡 Best Practices

@@ -226,9 +226,17 @@ A dedicated toolkit to control multi-tenant provisioning (schema creation) direc
 
 | Command | Elite Capability |
 | :--- | :--- |
+| **`eden tenant create`** | Instantly scaffolds a new tenant, registers them, and rigorously executes database lifecycle signals. |
 | **`eden tenant list`** | Shows all registered tenants (customer organizations) globally. |
 | **`eden tenant info`** | Deep dive into a specific tenant's resource allocation and status. |
 | **`eden tenant provision`** | Forces the schema creation & migration lifecycle for isolated tenants. |
+
+### The Creation Lifecycle
+
+When using `eden tenant create [name]`, Eden performs a high-fidelity instantiation process:
+1. Validates the tenant name ensuring isolation criteria are met.
+2. Creates the centralized Tenant entity record.
+3. Automatically fires internal lifecycle signals (e.g. `on_tenant_created`) allowing the rest of the framework to intercept, allocate schema resources, and establish isolated metadata seamlessly.
 
 ---
 

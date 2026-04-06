@@ -1,10 +1,10 @@
-@layout('base.html')
+@extends('base.html')
 
-@section('header')
+@section('header') {
     @span(model_name) Details: #@span(record_id)
-@endsection
+}
 
-@section('content')
+@section('content') {
 <div class="flex flex-col gap-6">
     <!-- Action Bar -->
     <div class="flex items-center justify-between bg-white/50 backdrop-blur-md p-4 rounded-xl shadow-sm">
@@ -97,4 +97,4 @@
     </div>
     }
 </div>
-@endsection
+}

@@ -33,7 +33,8 @@ def tenant_list() -> None:
     
     async def _list():
         config = get_config()
-        db = Database(config.get_database_url())
+        from eden.db.session import init_db
+        db = init_db(config.get_database_url())
         await db.connect()
         
         async with db.transaction() as session:
@@ -84,7 +85,8 @@ def tenant_create(name: str, slug: str, plan: str, schema: str | None, provision
     
     async def _create():
         config = get_config()
-        db = Database(config.get_database_url())
+        from eden.db.session import init_db
+        db = init_db(config.get_database_url())
         await db.connect()
         
         async with db.transaction() as session:
@@ -107,8 +109,12 @@ def tenant_create(name: str, slug: str, plan: str, schema: str | None, provision
             session.add(t)
             console.print(f"  [green]✅ Created tenant '{name}' (slug: {slug}, plan: {plan})[/]")
             
-            # Flush to get fields inserted
+            # Flush to get fields inserted and IDs generated
             await session.flush()
+            
+            # Trigger creation signal
+            from eden.tenancy.signals import tenant_created, tenant_schema_provisioned
+            await tenant_created.send(tenant=t)
             
             if provision:
                 if not t.schema_name:
@@ -119,6 +125,7 @@ def tenant_create(name: str, slug: str, plan: str, schema: str | None, provision
                 try:
                     await t.provision_schema(session)
                     console.print("  [green]✅ Schema provisioned successfully.[/]")
+                    await tenant_schema_provisioned.send(tenant=t)
                 except Exception as e:
                     console.print(f"  [red]❌ Failed to provision schema: {e}[/]", err=True)
                     # We continue to let the transaction either commit the tenant or rollback 
@@ -138,7 +145,8 @@ def tenant_provision(slug: str | None) -> None:
     
     async def _provision():
         config = get_config()
-        db = Database(config.get_database_url())
+        from eden.db.session import init_db
+        db = init_db(config.get_database_url())
         await db.connect()
         
         async with db.transaction() as session:
@@ -183,7 +191,8 @@ def tenant_info(slug: str) -> None:
     
     async def _info():
         config = get_config()
-        db = Database(config.get_database_url())
+        from eden.db.session import init_db
+        db = init_db(config.get_database_url())
         await db.connect()
         
         async with db.transaction() as session:

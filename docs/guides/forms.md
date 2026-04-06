@@ -178,9 +178,9 @@ For complete control over the markup, access the field properties directly.
     
     {{ form['email'].render(class="form-control", placeholder="Override...") }}
     
-    @if(form['email'].error)
+    @if(form['email'].error) {
         <p class="text-red-500">{{ form['email'].error }}</p>
-    @endif
+    }
 </div>
 ```
 

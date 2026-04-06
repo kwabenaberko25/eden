@@ -214,9 +214,12 @@ class RequestLoggingMiddleware:
             await self.app(scope, receive, send)
             return
 
-        # Generate or extract correlation ID
-        request_id = request.headers.get("X-Request-ID", uuid.uuid4().hex[:16])
-        scope["eden_request_id"] = request_id
+        # Preserve an existing correlation ID if upstream middleware already set one.
+        # Otherwise extract from request headers or generate a new UUID.
+        request_id = scope.get("eden_request_id")
+        if not request_id:
+            request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
+            scope["eden_request_id"] = request_id
 
         # Also store in Eden's async context so it can be picked up by structured logging
         # (e.g., EdenFormatter) when ContextMiddleware is not used.

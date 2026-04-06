@@ -140,6 +140,19 @@ When generating migrations for isolated models, use the `--tenant` flag. To appl
 eden migrate upgrade --all-tenants
 ```
 
+### Lifecycle Signals
+When using the CLI or API to create a new tenant (e.g. `eden tenant create`), Eden triggers strict lifecycle signals. 
+
+```python
+from eden.tenancy.signals import tenant_created
+
+@tenant_created.connect
+async def provision_tenant_resources(tenant: "Tenant", session):
+    # This automatically runs when 'eden tenant create' is invoked!
+    await tenant.provision_schema(session)
+```
+Using signals guarantees your fleet management stays decoupled and extensible.
+
 ### Tenant Seeding
 
 Always seed essential data (roles, default settings) immediately after tenant creation using a context manager:

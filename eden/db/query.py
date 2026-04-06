@@ -41,6 +41,24 @@ class QuerySet(Generic[T]):
 
     Lazy evaluation: The query is only executed when a terminating method
     (like .all(), .first(), .count()) is called.
+    
+    Session Resolution Strategy (in priority order):
+    1. If session passed to QuerySet: use it directly
+    2. If session passed is a Database: bind it globally and use
+    3. If no session: check async context (request-scoped session)
+    4. If no context session: raise SessionResolutionError or create temp session
+       (depending on config.db_strict_session_mode)
+    
+    Recommended usage:
+        # In request context (session auto-acquired from middleware)
+        users = await User.query().filter(active=True).all()
+        
+        # With explicit session
+        async with db.transaction() as session:
+            users = await User.query(session).filter(active=True).all()
+        
+        # In tests (explicit session)
+        qs = User.query(session=test_session)
     """
 
     def __init__(self, model_cls: type[T], session: Any | None = _MISSING):
@@ -370,6 +388,15 @@ class QuerySet(Generic[T]):
             yield session
             return
 
+        # Check strict mode before fallback
+        from eden.config import get_config
+        config = get_config()
+        if config.db_strict_session_mode:
+             raise SessionResolutionError(
+                f"QuerySet for '{self._model_cls.__name__}' failed to resolve a database session for execution.\n"
+                "STRICT SESSION MODE is enabled. You must explicitly pass a session or run this query inside an 'async with db.transaction():' context."
+            )
+
         # 2. Fallback to model-bound database
         if self._model_cls._db is not None:
             # Note: We create a new temporary session here. This is only safe for 
@@ -403,8 +430,7 @@ class QuerySet(Generic[T]):
         # filters can be a SQLAlchemy expression or a boolean
         if filters is False:
             # Absolute deny: inject a filter that always fails
-            from sqlalchemy import false
-            return self.filter(false())
+            return self.filter(text("1 = 0"))
         
         if filters is True:
             # Absolute allow: no extra filters
@@ -436,6 +462,8 @@ class QuerySet(Generic[T]):
         
         if filters is False:
              # Access Denied: return a clone that will always be empty
+             # Use false() which compiles correctly per database backend
+             from sqlalchemy import false
              clone = self._clone()
              clone._stmt = clone._stmt.where(false())
              clone._rbac_applied = True
@@ -823,6 +851,35 @@ class QuerySet(Generic[T]):
             stmt = qs._stmt.limit(1)
             result = await qs._execute(stmt, session)
             return result.first() is not None
+
+    async def explain(self, analyze: bool = True) -> str:
+        """
+        Return the query execution plan (EXPLAIN).
+        If using PostgreSQL, captures EXPLAIN (ANALYZE) metrics.
+        """
+        qs = self._apply_rbac("read")
+        async with qs._provide_session() as session:
+            stmt = qs._apply_prefetch(qs._stmt)
+            stmt = qs._apply_select_related(stmt)
+            
+            engine = session.bind or session.get_bind()
+            if engine.dialect.name == "postgresql":
+                # Produce text format for readability
+                prefix = "EXPLAIN (ANALYZE, FORMAT TEXT)" if analyze else "EXPLAIN (FORMAT TEXT)"
+                explain_stmt = text(f"{prefix} {stmt.compile(engine, compile_kwargs={'literal_binds': True})}")
+                result = await qs._execute(explain_stmt, session)
+                output = "\n".join(row[0] for row in result)
+                return output
+            else:
+                # SQLite or other generic SQLAlchemy support
+                try:
+                    # SQLAlchemy 2.0 has .explain() but text EXPLAIN QUERY PLAN is safer for SQLite
+                    explain_stmt = text(f"EXPLAIN QUERY PLAN {stmt.compile(engine, compile_kwargs={'literal_binds': True})}")
+                    result = await qs._execute(explain_stmt, session)
+                    output = "\n".join(str(row) for row in result)
+                    return output
+                except Exception as e:
+                    return f"SQL: {stmt.compile(engine, compile_kwargs={'literal_binds': True})}\nExplain not natively available: {e}"
 
     async def paginate(self, page: int = 1, per_page: int = 20) -> Page[T]:
         """Return a Page object for the current query slice."""

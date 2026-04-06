@@ -1,0 +1,1311 @@
+============================= test session starts =============================
+platform win32 -- Python 3.14.3, pytest-9.0.2, pluggy-1.6.0 -- C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\python.exe
+cachedir: .pytest_cache
+rootdir: C:\PROJECTS\eden-framework
+configfile: pyproject.toml
+plugins: anyio-4.12.1, asyncio-1.3.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=session, asyncio_default_test_loop_scope=session
+collecting ... collected 147 items / 125 deselected / 22 selected
+run-last-failure: rerun previous 22 failures (skipped 131 files)
+
+tests/test_app_security.py::test_app_fails_without_secret_key_in_dev PASSED [  4%]
+tests/test_auth_audit.py::test_query_rbac FAILED                         [  9%]
+tests/test_cli_refined.py::test_forge_route_refined FAILED               [ 13%]
+tests/test_component_security.py::test_component_signature_verification FAILED [ 18%]
+tests/test_config_and_testing.py::TestConfigValidation::test_secret_key_auto_generated_in_dev FAILED [ 22%]
+tests/test_config_and_testing.py::TestConfigSecrets::test_redis_config_default FAILED [ 27%]
+tests/test_context_lifecycle.py::TestContextManagerBasic::test_on_request_end_clears_context FAILED [ 31%]
+tests/test_context_lifecycle.py::TestContextAPIConsistency::test_all_getters_return_none_for_unset_context FAILED [ 36%]
+tests/test_db_bulk_lifecycle.py::test_bulk_create_triggers_lifecycle PASSED [ 40%]
+tests/test_db_commit_logic.py::test_soft_delete_commit_false_rollback PASSED [ 45%]
+tests/test_model_maturity.py::test_signal_registration PASSED            [ 50%]
+tests/test_model_maturity.py::test_update_or_create PASSED               [ 54%]
+tests/test_model_maturity.py::test_delete_signals PASSED                 [ 59%]
+tests/test_model_maturity.py::test_bulk_signals PASSED                   [ 63%]
+tests/test_orm.py::test_orm_timestamps FAILED                            [ 68%]
+tests/test_orm_hooks_and_m2m.py::test_orm_hooks FAILED                   [ 72%]
+tests/test_orm_hooks_and_m2m.py::test_orm_m2m FAILED                     [ 77%]
+tests/test_routing.py::TestErrorHandling::test_404_not_found FAILED      [ 81%]
+tests/test_routing.py::TestErrorHandling::test_405_method_not_allowed FAILED [ 86%]
+tests/test_template_errors.py::test_syntax_error_rendering FAILED        [ 90%]
+tests/test_tenancy_leak.py::test_tenancy_context_leak_fixed PASSED       [ 95%]
+tests/test_tenant_task_wrapper.py::test_spawn_safe_task_isolation FAILED [100%]
+
+================================== FAILURES ===================================
+_______________________________ test_query_rbac _______________________________
+
+    async def test_query_rbac():
+        print("\nTesting Query-Level RBAC Enforcement...")
+        from eden.db.query import QuerySet
+        from eden.context import set_user, reset_user
+    
+        class ProtectedModel(Model, AccessControl):
+            __tablename__ = "protected"
+            __rbac__ = {"read": AllowOwner()}
+    
+        # 1. No user in context -> should deny
+        qs = QuerySet(ProtectedModel)
+        applied_qs = qs._apply_rbac("read")
+        assert applied_qs._rbac_applied is True
+>       assert "1 = 0" in str(applied_qs._stmt) or "1=0" in str(applied_qs._stmt)
+E       AssertionError: assert ('1 = 0' in 'SELECT protected.id, protected.created_at, protected.updated_at \nFROM protected \nWHERE false' or '1=0' in 'SELECT protected.id, protected.created_at, protected.updated_at \nFROM protected \nWHERE false')
+E        +  where 'SELECT protected.id, protected.created_at, protected.updated_at \nFROM protected \nWHERE false' = str(<sqlalchemy.sql.selectable.Select object at 0x0000024BE0BB3110>)
+E        +    where <sqlalchemy.sql.selectable.Select object at 0x0000024BE0BB3110> = <eden.db.query.QuerySet object at 0x0000024BE0BB2FD0>._stmt
+E        +  and   'SELECT protected.id, protected.created_at, protected.updated_at \nFROM protected \nWHERE false' = str(<sqlalchemy.sql.selectable.Select object at 0x0000024BE0BB3110>)
+E        +    where <sqlalchemy.sql.selectable.Select object at 0x0000024BE0BB3110> = <eden.db.query.QuerySet object at 0x0000024BE0BB2FD0>._stmt
+
+tests\test_auth_audit.py:127: AssertionError
+---------------------------- Captured stdout call -----------------------------
+
+Testing Query-Level RBAC Enforcement...
+__________________________ test_forge_route_refined ___________________________
+
+    def test_forge_route_refined():
+        runner = CliRunner()
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            project_path = Path(tmp_dir)
+            (project_path / "routes").mkdir()
+            (project_path / "routes" / "__init__.py").write_text("from eden import Router\nmain_router = Router()\n", encoding="utf-8")
+    
+            import os
+            old_cwd = os.getcwd()
+            os.chdir(tmp_dir)
+            try:
+                result = runner.invoke(forge_generate, ["route", "Billing"])
+>               assert result.exit_code == 0
+E               assert 2 == 0
+E                +  where 2 = <Result SystemExit(2)>.exit_code
+
+tests\test_cli_refined.py:65: AssertionError
+____________________ test_component_signature_verification ____________________
+
+    def test_component_signature_verification():
+        app = Eden(debug=True, secret_key="super-secret")
+    
+        @app.get("/")
+        async def index(request):
+            comp = SecureComponent(count=10)
+            return await comp.render()
+    
+        client = TestClient(app)
+    
+        # 1. Get the legitimate state and signature
+        # (In a real app, this is rendered into the HTML)
+        comp = SecureComponent(count=10)
+        state = comp.get_state()
+    
+        # Eden's canonicalization: stringify all non-None values
+        canonical = {str(k): str(v) for k, v in state.items() if v is not None}
+        state_json = json.dumps(canonical, sort_keys=True)
+    
+        signature = hmac.new(
+            b"super-secret",
+            state_json.encode(),
+            hashlib.sha256
+        ).hexdigest()
+    
+        # 2. Valid request - Should pass
+        response = client.post(
+            "/_eden/component/secure_test/increment",
+            data=state,
+            headers={"X-Eden-State-Signature": signature}
+        )
+>       assert response.status_code == 200
+E       assert 403 == 200
+E        +  where 403 = <Response [403 Forbidden]>.status_code
+
+tests\test_component_security.py:53: AssertionError
+------------------------------ Captured log call ------------------------------
+WARNING  eden.diagnostics:diagnostics.py:124   \u26a0\ufe0f  Task Broker: DEGRADED \u2014 Using InMemoryBroker \u2014 tasks will not survive restarts. Set REDIS_URL for production.\nWARNING  eden.diagnostics:diagnostics.py:124   \u26a0\ufe0f  Distributed Backend: DEGRADED \u2014 No REDIS_URL configured \u2014 distributed locking, pub/sub, and idempotency disabled.\nWARNING  eden.diagnostics:diagnostics.py:134 \u2500\u2500\u2500 2 degraded, 0 failed subsystem(s). Review configuration. \u2500\u2500\u2500
+_________ TestConfigValidation.test_secret_key_auto_generated_in_dev __________
+
+self = <tests.test_config_and_testing.TestConfigValidation object at 0x0000024BE0A64050>
+
+    def test_secret_key_auto_generated_in_dev(self):
+        """Secret key auto-generated in dev if not provided."""
+        config = create_config(env="dev")
+>       assert config.secret_key
+E       AssertionError: assert ''
+E        +  where '' = Config(env=<Environment.DEV: 'dev'>, debug=True, secret_key='', database_url='', db_strict_session_mode=False, db_pool_size=10, db_max_overflow=20, db_pool_recycle=3600, db_pool_timeout=30, db_pool_pre_ping=True, db_echo=False, jwt_secret='', oauth_providers={}, stripe_api_key='', stripe_webhook_secret='', aws_access_key_id='', aws_secret_access_key='', aws_s3_bucket='', aws_s3_region='us-east-1', redis_url='', cache_ttl=3600, title='Eden', version='1.0.0', log_level='INFO', allowed_hosts=['localhost', '127.0.0.1', '*'], cors_origins=[], csrf_cookie_secure=True, csrf_cookie_httponly=True, page_size=20, messages_session_key='_eden_messages', metrics_enabled=True, metrics_url='/metrics', browser_reload=True).secret_key
+
+tests\test_config_and_testing.py:81: AssertionError
+_________________ TestConfigSecrets.test_redis_config_default _________________
+
+self = <tests.test_config_and_testing.TestConfigSecrets object at 0x0000024BE09D2D70>
+
+    def test_redis_config_default(self):
+        """Redis has default."""
+        config = create_config(env="dev")
+>       assert config.redis_url == "redis://localhost:6379"
+E       AssertionError: assert '' == 'redis://localhost:6379'
+E         
+E         - redis://localhost:6379
+
+tests\test_config_and_testing.py:217: AssertionError
+_________ TestContextManagerBasic.test_on_request_end_clears_context __________
+
+self = <tests.test_context_lifecycle.TestContextManagerBasic object at 0x0000024BE0A65D10>
+
+    @pytest.mark.asyncio
+    async def test_on_request_end_clears_context(self):
+        """Test that on_request_end clears all context vars."""
+        mock_request = MagicMock(spec=Request)
+        mock_request.url.path = "/test"
+        mock_app = MagicMock()
+    
+        # Initialize
+        await context_manager.on_request_start(mock_request, mock_app)
+        assert get_request() is not None
+    
+        # Cleanup
+        await context_manager.on_request_end()
+    
+        # Verify cleaned up
+        assert get_request() is None
+>       assert get_app() is None
+E       assert <eden.app.Eden object at 0x0000024BE0C7D550> is None
+E        +  where <eden.app.Eden object at 0x0000024BE0C7D550> = get_app()
+
+tests\test_context_lifecycle.py:74: AssertionError
+__ TestContextAPIConsistency.test_all_getters_return_none_for_unset_context ___
+
+self = <tests.test_context_lifecycle.TestContextAPIConsistency object at 0x0000024BE0A66850>
+
+    @pytest.mark.asyncio
+    async def test_all_getters_return_none_for_unset_context(self):
+        """Test that all getters return None/empty for unset context."""
+        # Clean slate
+        await context_manager.on_request_end()
+    
+        # All getters should return sensible defaults
+        assert get_user() is None
+        assert get_tenant_id() is None
+        assert get_request() is None
+>       assert get_app() is None
+E       assert <eden.app.Eden object at 0x0000024BE0C7D550> is None
+E        +  where <eden.app.Eden object at 0x0000024BE0C7D550> = get_app()
+
+tests\test_context_lifecycle.py:382: AssertionError
+_____________________________ test_orm_timestamps _____________________________
+
+db = <eden.db.session.Database object at 0x0000024BE2AE6A50>
+db_transaction = None
+
+    @pytest.mark.asyncio
+    async def test_orm_timestamps(db, db_transaction):
+        task = await Task.create(title="Timestamp Test")
+        created_at = task.created_at
+        updated_at = task.updated_at
+    
+        import asyncio
+        await asyncio.sleep(1.1)
+    
+        await task.update(title="Updated")
+>       assert task.updated_at > updated_at
+E       assert datetime.datetime(2026, 4, 4, 2, 14, 48, 161908) > datetime.datetime(2026, 4, 4, 3, 14, 47, 36676)
+E        +  where datetime.datetime(2026, 4, 4, 2, 14, 48, 161908) = <tests.test_orm.Task object at 0x0000024BE2E63230>.updated_at
+
+tests\test_orm.py:66: AssertionError
+---------------------------- Captured stdout setup ----------------------------
+2026-04-04 02:14:47,014 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-04-04 02:14:47,014 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-04 02:14:47,015 INFO sqlalchemy.engine.Engine [cached since 0.2504s ago] ('file_references', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-04 02:14:47,015 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-04 02:14:47,015 INFO sqlalchemy.engine.Engine [cached since 0.2511s ago] ('eden_audit_logs', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-04 02:14:47,016 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-04 02:14:47,016 INFO sqlalchemy.engine.Engine [cached since 0.2517s ago] ('eden_tenants', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-04 02:14:47,016 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-04 02:14:47,016 INFO sqlalchemy.engine.Engine [cached since 0.2522s ago] ('eden_plans', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-04 02:14:47,017 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-04 02:14:47,017 INFO sqlalchemy.engine.Engine [cached since 0.2527s ago] ('eden_prices', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-04 02:14:47,017 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-04 02:14:47,017 INFO sqlalchemy.engine.Engine [cached since 0.2533s ago] ('eden_support_tickets', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-04 02:14:47,018 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-04 02:14:47,018 INFO sqlalchemy.engine.Engine [cached since 0.2538s ago] ('eden_ticket_messages', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-04 02:14:47,018 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-04 02:14:47,019 INFO sqlalchemy.engine.Engine [cached since 0.2543s ago] ('eden_admin_configs', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-04 02:14:47,019 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-04 02:14:47,019 INFO sqlalchemy.engine.Engine [cached since 0.2549s ago] ('eden_user_roles', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-04 02:14:47,020 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-04 02:14:47,020 INFO sqlalchemy.engine.Engine [cached since 0.2554s ago] ('eden_role_permissions', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-04 02:14:47,020 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-04 02:14:47,020 INFO sqlalchemy.engine.Engine [cached since 0.2559s ago] ('eden_role_hierarchy', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-04 02:14:47,021 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-04 02:14:47,021 INFO sqlalchemy.engine.Engine [cached since 0.2564s ago] ('eden_permissions', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-04 02:14:47,021 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-04 02:14:47,021 INFO sqlalchemy.engine.Engine [cached since 0.2569s ago] ('eden_roles', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-04 02:14:47,022 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-04 02:14:47,022 INFO sqlalchemy.engine.Engine [cached since 0.2575s ago] ('eden_customers', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-04 02:14:47,022 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-04 02:14:47,022 INFO sqlalchemy.engine.Engine [cached since 0.258s ago] ('eden_subscriptions', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-04 02:14:47,023 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-04 02:14:47,023 INFO sqlalchemy.engine.Engine [cached since 0.2585s ago] ('eden_payment_events', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-04 02:14:47,023 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-04 02:14:47,023 INFO sqlalchemy.engine.Engine [cached since 0.259s ago] ('eden_users', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-04 02:14:47,024 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-04 02:14:47,024 INFO sqlalchemy.engine.Engine [cached since 0.2596s ago] ('eden_social_accounts', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-04 02:14:47,024 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-04 02:14:47,024 INFO sqlalchemy.engine.Engine [cached since 0.2601s ago] ('password_reset_tokens', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-04 02:14:47,025 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-04 02:14:47,025 INFO sqlalchemy.engine.Engine [cached since 0.2608s ago] ('eden_api_keys', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-04 02:14:47,025 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-04 02:14:47,026 INFO sqlalchemy.engine.Engine [cached since 0.2613s ago] ('bulk_test_model', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-04 02:14:47,026 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-04 02:14:47,026 INFO sqlalchemy.engine.Engine [cached since 0.2618s ago] ('soft_delete_models', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-04 02:14:47,026 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-04 02:14:47,027 INFO sqlalchemy.engine.Engine [cached since 0.2624s ago] ('save_models', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-04 02:14:47,027 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-04 02:14:47,027 INFO sqlalchemy.engine.Engine [cached since 0.2629s ago] ('maturity_products', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-04 02:14:47,028 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-04 02:14:47,028 INFO sqlalchemy.engine.Engine [cached since 0.2634s ago] ('maturity_advanced_models', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-04 02:14:47,028 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-04 02:14:47,028 INFO sqlalchemy.engine.Engine [cached since 0.264s ago] ('tasks', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-04 02:14:47,029 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-04 02:14:47,029 INFO sqlalchemy.engine.Engine [cached since 0.2645s ago] ('lifecycle_models', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-04 02:14:47,029 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-04 02:14:47,029 INFO sqlalchemy.engine.Engine [cached since 0.265s ago] ('m2_m_articles_m2_m_tags', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-04 02:14:47,030 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-04 02:14:47,030 INFO sqlalchemy.engine.Engine [cached since 0.2655s ago] ('m2_m_tags', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-04 02:14:47,030 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-04 02:14:47,030 INFO sqlalchemy.engine.Engine [cached since 0.266s ago] ('m2_m_articles', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-04 02:14:47,031 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-04-04 02:14:47,031 INFO sqlalchemy.engine.Engine [cached since 0.2665s ago] ('protected', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-04-04 02:14:47,031 INFO sqlalchemy.engine.Engine SELECT pg_catalog.pg_type.typname 
+FROM pg_catalog.pg_type JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_type.typnamespace 
+WHERE pg_catalog.pg_type.typname = $1::VARCHAR AND pg_catalog.pg_type_is_visible(pg_catalog.pg_type.oid) AND pg_catalog.pg_namespace.nspname != $2::VARCHAR
+2026-04-04 02:14:47,032 INFO sqlalchemy.engine.Engine [cached since 0.2437s ago] ('status', 'pg_catalog')
+2026-04-04 02:14:47,032 INFO sqlalchemy.engine.Engine COMMIT
+2026-04-04 02:14:47,035 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+----------------------------- Captured log setup ------------------------------
+INFO     sqlalchemy.engine.Engine:base.py:2710 BEGIN (implicit)
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.2504s ago] ('file_references', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.2511s ago] ('eden_audit_logs', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.2517s ago] ('eden_tenants', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.2522s ago] ('eden_plans', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.2527s ago] ('eden_prices', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.2533s ago] ('eden_support_tickets', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.2538s ago] ('eden_ticket_messages', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.2543s ago] ('eden_admin_configs', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.2549s ago] ('eden_user_roles', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.2554s ago] ('eden_role_permissions', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.2559s ago] ('eden_role_hierarchy', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.2564s ago] ('eden_permissions', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.2569s ago] ('eden_roles', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.2575s ago] ('eden_customers', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.258s ago] ('eden_subscriptions', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.2585s ago] ('eden_payment_events', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.259s ago] ('eden_users', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.2596s ago] ('eden_social_accounts', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.2601s ago] ('password_reset_tokens', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.2608s ago] ('eden_api_keys', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.2613s ago] ('bulk_test_model', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.2618s ago] ('soft_delete_models', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.2624s ago] ('save_models', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.2629s ago] ('maturity_products', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.2634s ago] ('maturity_advanced_models', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.264s ago] ('tasks', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.2645s ago] ('lifecycle_models', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.265s ago] ('m2_m_articles_m2_m_tags', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.2655s ago] ('m2_m_tags', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.266s ago] ('m2_m_articles', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.2665s ago] ('protected', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT pg_catalog.pg_type.typname 
+FROM pg_catalog.pg_type JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_type.typnamespace 
+WHERE pg_catalog.pg_type.typname = $1::VARCHAR AND pg_catalog.pg_type_is_visible(pg_catalog.pg_type.oid) AND pg_catalog.pg_namespace.nspname != $2::VARCHAR
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.2437s ago] ('status', 'pg_catalog')
+INFO     sqlalchemy.engine.Engine:base.py:2716 COMMIT
+INFO     sqlalchemy.engine.Engine:base.py:2710 BEGIN (implicit)
+---------------------------- Captured stdout call -----------------------------
+2026-04-04 02:14:47,036 INFO sqlalchemy.engine.Engine SAVEPOINT sa_savepoint_1
+2026-04-04 02:14:47,036 INFO sqlalchemy.engine.Engine [no key 0.00017s] ()
+2026-04-04 02:14:47,037 INFO sqlalchemy.engine.Engine SAVEPOINT sa_savepoint_2
+2026-04-04 02:14:47,037 INFO sqlalchemy.engine.Engine [no key 0.00011s] ()
+2026-04-04 02:14:47,038 INFO sqlalchemy.engine.Engine INSERT INTO tasks (title, is_done, id) VALUES ($1::VARCHAR, $2::BOOLEAN, $3::UUID) RETURNING tasks.created_at, tasks.updated_at
+2026-04-04 02:14:47,038 INFO sqlalchemy.engine.Engine [generated in 0.00018s] ('Timestamp Test', False, UUID('4b9c137a-2b2e-42e9-97f3-dbb2fa62b8a7'))
+2026-04-04 02:14:47,040 INFO sqlalchemy.engine.Engine SELECT tasks.title, tasks.is_done, tasks.id, tasks.created_at, tasks.updated_at 
+FROM tasks 
+WHERE tasks.id = $1::UUID
+2026-04-04 02:14:47,040 INFO sqlalchemy.engine.Engine [generated in 0.00016s] (UUID('4b9c137a-2b2e-42e9-97f3-dbb2fa62b8a7'),)
+2026-04-04 02:14:47,042 INFO sqlalchemy.engine.Engine SAVEPOINT sa_savepoint_3
+2026-04-04 02:14:47,042 INFO sqlalchemy.engine.Engine [no key 0.00013s] ()
+2026-04-04 02:14:47,043 INFO sqlalchemy.engine.Engine INSERT INTO eden_audit_logs (id, tenant_id, user_id, correlation_id, action, model_name, record_id, changes, timestamp) VALUES ($1::UUID, $2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR, $7::VARCHAR, $8::JSON, $9::TIMESTAMP WITHOUT TIME ZONE) RETURNING eden_audit_logs.created_at, eden_audit_logs.updated_at
+2026-04-04 02:14:47,043 INFO sqlalchemy.engine.Engine [cached since 0.2183s ago] (UUID('e01dc74e-c10f-4ea0-a0f4-10c5d640daa6'), None, None, '', 'create', 'Task', '4b9c137a-2b2e-42e9-97f3-dbb2fa62b8a7', '{"title": {"old": null, "new": "Timestamp Test"}, "is_done": {"old": null, "new": false}, "id": {"old": null, "new": "4b9c137a-2b2e-42e9-97f3-dbb2fa62b8a7"}, "created_at": {"old": null, "new": "2026-04-04T03:14:47.036676"}, "updated_at": {"old": null, "new": "2026-04-04T03:14:47.036676"}}', datetime.datetime(2026, 4, 4, 2, 14, 47, 42979))
+2026-04-04 02:14:47,043 INFO sqlalchemy.engine.Engine ROLLBACK TO SAVEPOINT sa_savepoint_3
+2026-04-04 02:14:47,044 INFO sqlalchemy.engine.Engine [no key 0.00012s] ()
+2026-04-04 02:14:47,045 INFO sqlalchemy.engine.Engine RELEASE SAVEPOINT sa_savepoint_2
+2026-04-04 02:14:47,045 INFO sqlalchemy.engine.Engine [no key 0.00018s] ()
+2026-04-04 02:14:48,163 INFO sqlalchemy.engine.Engine UPDATE tasks SET title=$1::VARCHAR, updated_at=$2::TIMESTAMP WITHOUT TIME ZONE WHERE tasks.id = $3::UUID
+2026-04-04 02:14:48,164 INFO sqlalchemy.engine.Engine [generated in 0.00091s] ('Updated', datetime.datetime(2026, 4, 4, 2, 14, 48, 161908), UUID('4b9c137a-2b2e-42e9-97f3-dbb2fa62b8a7'))
+2026-04-04 02:14:48,169 INFO sqlalchemy.engine.Engine SAVEPOINT sa_savepoint_4
+2026-04-04 02:14:48,170 INFO sqlalchemy.engine.Engine [no key 0.00059s] ()
+2026-04-04 02:14:48,172 INFO sqlalchemy.engine.Engine SELECT tasks.title, tasks.is_done, tasks.id, tasks.created_at, tasks.updated_at 
+FROM tasks 
+WHERE tasks.id = $1::UUID
+2026-04-04 02:14:48,172 INFO sqlalchemy.engine.Engine [cached since 1.132s ago] (UUID('4b9c137a-2b2e-42e9-97f3-dbb2fa62b8a7'),)
+2026-04-04 02:14:48,175 INFO sqlalchemy.engine.Engine SAVEPOINT sa_savepoint_5
+2026-04-04 02:14:48,175 INFO sqlalchemy.engine.Engine [no key 0.00038s] ()
+2026-04-04 02:14:48,176 INFO sqlalchemy.engine.Engine INSERT INTO eden_audit_logs (id, tenant_id, user_id, correlation_id, action, model_name, record_id, changes, timestamp) VALUES ($1::UUID, $2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR, $7::VARCHAR, $8::JSON, $9::TIMESTAMP WITHOUT TIME ZONE) RETURNING eden_audit_logs.created_at, eden_audit_logs.updated_at
+2026-04-04 02:14:48,177 INFO sqlalchemy.engine.Engine [cached since 1.352s ago] (UUID('e805c9a6-d9c7-4b9d-af30-4b256ccb17c1'), None, None, '', 'update', 'Task', '4b9c137a-2b2e-42e9-97f3-dbb2fa62b8a7', '{"title": {"old": "Timestamp Test", "new": "Updated"}}', datetime.datetime(2026, 4, 4, 2, 14, 48, 176676))
+2026-04-04 02:14:48,178 INFO sqlalchemy.engine.Engine ROLLBACK TO SAVEPOINT sa_savepoint_5
+2026-04-04 02:14:48,178 INFO sqlalchemy.engine.Engine [no key 0.00029s] ()
+2026-04-04 02:14:48,181 INFO sqlalchemy.engine.Engine RELEASE SAVEPOINT sa_savepoint_4
+2026-04-04 02:14:48,181 INFO sqlalchemy.engine.Engine [no key 0.00030s] ()
+------------------------------ Captured log call ------------------------------
+INFO     sqlalchemy.engine.Engine:base.py:1846 SAVEPOINT sa_savepoint_1
+INFO     sqlalchemy.engine.Engine:base.py:1846 [no key 0.00017s] ()
+INFO     sqlalchemy.engine.Engine:base.py:1846 SAVEPOINT sa_savepoint_2
+INFO     sqlalchemy.engine.Engine:base.py:1846 [no key 0.00011s] ()
+INFO     sqlalchemy.engine.Engine:base.py:1846 INSERT INTO tasks (title, is_done, id) VALUES ($1::VARCHAR, $2::BOOLEAN, $3::UUID) RETURNING tasks.created_at, tasks.updated_at
+INFO     sqlalchemy.engine.Engine:base.py:1846 [generated in 0.00018s] ('Timestamp Test', False, UUID('4b9c137a-2b2e-42e9-97f3-dbb2fa62b8a7'))
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT tasks.title, tasks.is_done, tasks.id, tasks.created_at, tasks.updated_at 
+FROM tasks 
+WHERE tasks.id = $1::UUID
+INFO     sqlalchemy.engine.Engine:base.py:1846 [generated in 0.00016s] (UUID('4b9c137a-2b2e-42e9-97f3-dbb2fa62b8a7'),)
+INFO     sqlalchemy.engine.Engine:base.py:1846 SAVEPOINT sa_savepoint_3
+INFO     sqlalchemy.engine.Engine:base.py:1846 [no key 0.00013s] ()
+INFO     sqlalchemy.engine.Engine:base.py:1846 INSERT INTO eden_audit_logs (id, tenant_id, user_id, correlation_id, action, model_name, record_id, changes, timestamp) VALUES ($1::UUID, $2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR, $7::VARCHAR, $8::JSON, $9::TIMESTAMP WITHOUT TIME ZONE) RETURNING eden_audit_logs.created_at, eden_audit_logs.updated_at
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 0.2183s ago] (UUID('e01dc74e-c10f-4ea0-a0f4-10c5d640daa6'), None, None, '', 'create', 'Task', '4b9c137a-2b2e-42e9-97f3-dbb2fa62b8a7', '{"title": {"old": null, "new": "Timestamp Test"}, "is_done": {"old": null, "new": false}, "id": {"old": null, "new": "4b9c137a-2b2e-42e9-97f3-dbb2fa62b8a7"}, "created_at": {"old": null, "new": "2026-04-04T03:14:47.036676"}, "updated_at": {"old": null, "new": "2026-04-04T03:14:47.036676"}}', datetime.datetime(2026, 4, 4, 2, 14, 47, 42979))
+INFO     sqlalchemy.engine.Engine:base.py:1846 ROLLBACK TO SAVEPOINT sa_savepoint_3
+INFO     sqlalchemy.engine.Engine:base.py:1846 [no key 0.00012s] ()
+WARNING  eden.db.lifecycle:lifecycle.py:212 Audit logging failed for Task: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedColumnError'>: column "tenant_id" of relation "eden_audit_logs" does not exist
+[SQL: INSERT INTO eden_audit_logs (id, tenant_id, user_id, correlation_id, action, model_name, record_id, changes, timestamp) VALUES ($1::UUID, $2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR, $7::VARCHAR, $8::JSON, $9::TIMESTAMP WITHOUT TIME ZONE) RETURNING eden_audit_logs.created_at, eden_audit_logs.updated_at]
+[parameters: (UUID('e01dc74e-c10f-4ea0-a0f4-10c5d640daa6'), None, None, '', 'create', 'Task', '4b9c137a-2b2e-42e9-97f3-dbb2fa62b8a7', '{"title": {"old": null, "new": "Timestamp Test"}, "is_done": {"old": null, "new": false}, "id": {"old": null, "new": "4b9c137a-2b2e-42e9-97f3-dbb2fa62b8a7"}, "created_at": {"old": null, "new": "2026-04-04T03:14:47.036676"}, "updated_at": {"old": null, "new": "2026-04-04T03:14:47.036676"}}', datetime.datetime(2026, 4, 4, 2, 14, 47, 42979))]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+INFO     sqlalchemy.engine.Engine:base.py:1846 RELEASE SAVEPOINT sa_savepoint_2
+INFO     sqlalchemy.engine.Engine:base.py:1846 [no key 0.00018s] ()
+INFO     sqlalchemy.engine.Engine:base.py:1846 UPDATE tasks SET title=$1::VARCHAR, updated_at=$2::TIMESTAMP WITHOUT TIME ZONE WHERE tasks.id = $3::UUID
+INFO     sqlalchemy.engine.Engine:base.py:1846 [generated in 0.00091s] ('Updated', datetime.datetime(2026, 4, 4, 2, 14, 48, 161908), UUID('4b9c137a-2b2e-42e9-97f3-dbb2fa62b8a7'))
+INFO     sqlalchemy.engine.Engine:base.py:1846 SAVEPOINT sa_savepoint_4
+INFO     sqlalchemy.engine.Engine:base.py:1846 [no key 0.00059s] ()
+INFO     sqlalchemy.engine.Engine:base.py:1846 SELECT tasks.title, tasks.is_done, tasks.id, tasks.created_at, tasks.updated_at 
+FROM tasks 
+WHERE tasks.id = $1::UUID
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 1.132s ago] (UUID('4b9c137a-2b2e-42e9-97f3-dbb2fa62b8a7'),)
+INFO     sqlalchemy.engine.Engine:base.py:1846 SAVEPOINT sa_savepoint_5
+INFO     sqlalchemy.engine.Engine:base.py:1846 [no key 0.00038s] ()
+INFO     sqlalchemy.engine.Engine:base.py:1846 INSERT INTO eden_audit_logs (id, tenant_id, user_id, correlation_id, action, model_name, record_id, changes, timestamp) VALUES ($1::UUID, $2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR, $7::VARCHAR, $8::JSON, $9::TIMESTAMP WITHOUT TIME ZONE) RETURNING eden_audit_logs.created_at, eden_audit_logs.updated_at
+INFO     sqlalchemy.engine.Engine:base.py:1846 [cached since 1.352s ago] (UUID('e805c9a6-d9c7-4b9d-af30-4b256ccb17c1'), None, None, '', 'update', 'Task', '4b9c137a-2b2e-42e9-97f3-dbb2fa62b8a7', '{"title": {"old": "Timestamp Test", "new": "Updated"}}', datetime.datetime(2026, 4, 4, 2, 14, 48, 176676))
+INFO     sqlalchemy.engine.Engine:base.py:1846 ROLLBACK TO SAVEPOINT sa_savepoint_5
+INFO     sqlalchemy.engine.Engine:base.py:1846 [no key 0.00029s] ()
+WARNING  eden.db.lifecycle:lifecycle.py:212 Audit logging failed for Task: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedColumnError'>: column "tenant_id" of relation "eden_audit_logs" does not exist
+[SQL: INSERT INTO eden_audit_logs (id, tenant_id, user_id, correlation_id, action, model_name, record_id, changes, timestamp) VALUES ($1::UUID, $2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR, $7::VARCHAR, $8::JSON, $9::TIMESTAMP WITHOUT TIME ZONE) RETURNING eden_audit_logs.created_at, eden_audit_logs.updated_at]
+[parameters: (UUID('e805c9a6-d9c7-4b9d-af30-4b256ccb17c1'), None, None, '', 'update', 'Task', '4b9c137a-2b2e-42e9-97f3-dbb2fa62b8a7', '{"title": {"old": "Timestamp Test", "new": "Updated"}}', datetime.datetime(2026, 4, 4, 2, 14, 48, 176676))]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+INFO     sqlalchemy.engine.Engine:base.py:1846 RELEASE SAVEPOINT sa_savepoint_4
+INFO     sqlalchemy.engine.Engine:base.py:1846 [no key 0.00030s] ()
+-------------------------- Captured stdout teardown ---------------------------
+2026-04-04 02:14:48,190 INFO sqlalchemy.engine.Engine ROLLBACK
+---------------------------- Captured log teardown ----------------------------
+INFO     sqlalchemy.engine.Engine:base.py:2713 ROLLBACK
+_______________________________ test_orm_hooks ________________________________
+
+self = <sqlalchemy.engine.base.Connection object at 0x0000024BE2F2D9A0>
+dialect = <sqlalchemy.dialects.sqlite.aiosqlite.SQLiteDialect_aiosqlite object at 0x0000024BE2E606E0>
+context = <sqlalchemy.dialects.sqlite.aiosqlite.SQLiteExecutionContext_aiosqlite object at 0x0000024BE2ED5910>
+statement = <sqlalchemy.dialects.sqlite.base.SQLiteCompiler object at 0x0000024BE2F16A50>
+parameters = [('Test Hooks', 1, 'eb8a2564cb1441f69f2068faf73e10a6')]
+
+    def _exec_single_context(
+        self,
+        dialect: Dialect,
+        context: ExecutionContext,
+        statement: Union[str, Compiled],
+        parameters: Optional[_AnyMultiExecuteParams],
+    ) -> CursorResult[Any]:
+        """continue the _execute_context() method for a single DBAPI
+        cursor.execute() or cursor.executemany() call.
+    
+        """
+        if dialect.bind_typing is BindTyping.SETINPUTSIZES:
+            generic_setinputsizes = context._prepare_set_input_sizes()
+    
+            if generic_setinputsizes:
+                try:
+                    dialect.do_set_input_sizes(
+                        context.cursor, generic_setinputsizes, context
+                    )
+                except BaseException as e:
+                    self._handle_dbapi_exception(
+                        e, str(statement), parameters, None, context
+                    )
+    
+        cursor, str_statement, parameters = (
+            context.cursor,
+            context.statement,
+            context.parameters,
+        )
+    
+        effective_parameters: Optional[_AnyExecuteParams]
+    
+        if not context.executemany:
+            effective_parameters = parameters[0]
+        else:
+            effective_parameters = parameters
+    
+        if self._has_events or self.engine._has_events:
+            for fn in self.dispatch.before_cursor_execute:
+                str_statement, effective_parameters = fn(
+                    self,
+                    cursor,
+                    str_statement,
+                    effective_parameters,
+                    context,
+                    context.executemany,
+                )
+    
+        if self._echo:
+            self._log_info(str_statement)
+    
+            stats = context._get_cache_stats()
+    
+            if not self.engine.hide_parameters:
+                self._log_info(
+                    "[%s] %r",
+                    stats,
+                    sql_util._repr_params(
+                        effective_parameters,
+                        batches=10,
+                        ismulti=context.executemany,
+                    ),
+                )
+            else:
+                self._log_info(
+                    "[%s] [SQL parameters hidden due to hide_parameters=True]",
+                    stats,
+                )
+    
+        evt_handled: bool = False
+        try:
+            if context.execute_style is ExecuteStyle.EXECUTEMANY:
+                effective_parameters = cast(
+                    "_CoreMultiExecuteParams", effective_parameters
+                )
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_executemany:
+                        if fn(
+                            cursor,
+                            str_statement,
+                            effective_parameters,
+                            context,
+                        ):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+                    self.dialect.do_executemany(
+                        cursor,
+                        str_statement,
+                        effective_parameters,
+                        context,
+                    )
+            elif not effective_parameters and context.no_parameters:
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_execute_no_params:
+                        if fn(cursor, str_statement, context):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+                    self.dialect.do_execute_no_params(
+                        cursor, str_statement, context
+                    )
+            else:
+                effective_parameters = cast(
+                    "_CoreSingleExecuteParams", effective_parameters
+                )
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_execute:
+                        if fn(
+                            cursor,
+                            str_statement,
+                            effective_parameters,
+                            context,
+                        ):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+>                   self.dialect.do_execute(
+                        cursor, str_statement, effective_parameters, context
+                    )
+
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:1967: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:182: in execute
+    self._adapt_connection._handle_exception(error)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:342: in _handle_exception
+    raise error
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:164: in execute
+    self.await_(_cursor.execute(operation, parameters))
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:132: in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:196: in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\cursor.py:40: in execute
+    await self._execute(self._cursor.execute, sql, parameters)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\cursor.py:32: in _execute
+    return await self._conn._execute(fn, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py:160: in _execute
+    return await future
+           ^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+tx = <_queue.SimpleQueue object at 0x0000024BE2E269E0>
+
+    def _connection_worker_thread(tx: _TxQueue):
+        """
+        Execute function calls on a separate thread.
+    
+        :meta private:
+        """
+        while True:
+            # Continues running until all queue items are processed,
+            # even after connection is closed (so we can finalize all
+            # futures)
+    
+            future, function = tx.get()
+    
+            try:
+                LOG.debug("executing %s", function)
+>               result = function()
+                         ^^^^^^^^^^
+E               sqlite3.OperationalError: no such table: lifecycle_models
+
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py:63: OperationalError
+
+The above exception was the direct cause of the following exception:
+
+db = <eden.db.session.Database object at 0x0000024BE2AE6A50>
+
+    @pytest.mark.asyncio
+    async def test_orm_hooks(db):
+>       obj = await LifecycleModel.create(name="Test Hooks")
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_orm_hooks_and_m2m.py:22: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+eden\db\mixins\crud.py:213: in create
+    await instance.save(session=session, commit=commit, validate=validate)
+eden\db\mixins\lifecycle.py:93: in save
+    await sess.flush()
+eden\db\session.py:103: in flush
+    return await super().flush(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\ext\asyncio\session.py:787: in flush
+    await greenlet_spawn(self.sync_session.flush, objects=objects)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:203: in greenlet_spawn
+    result = context.switch(value)
+             ^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\session.py:4331: in flush
+    self._flush(objects)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\session.py:4466: in _flush
+    with util.safe_reraise():
+         ^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\langhelpers.py:121: in __exit__
+    raise exc_value.with_traceback(exc_tb)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\session.py:4427: in _flush
+    flush_context.execute()
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\unitofwork.py:466: in execute
+    rec.execute(self)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\unitofwork.py:642: in execute
+    util.preloaded.orm_persistence.save_obj(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\persistence.py:93: in save_obj
+    _emit_insert_statements(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\persistence.py:1233: in _emit_insert_statements
+    result = connection.execute(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:1419: in execute
+    return meth(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\sql\elements.py:527: in _execute_on_connection
+    return connection._execute_clauseelement(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:1641: in _execute_clauseelement
+    ret = self._execute_context(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:1846: in _execute_context
+    return self._exec_single_context(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:1986: in _exec_single_context
+    self._handle_dbapi_exception(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:2363: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:1967: in _exec_single_context
+    self.dialect.do_execute(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:182: in execute
+    self._adapt_connection._handle_exception(error)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:342: in _handle_exception
+    raise error
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:164: in execute
+    self.await_(_cursor.execute(operation, parameters))
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:132: in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:196: in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\cursor.py:40: in execute
+    await self._execute(self._cursor.execute, sql, parameters)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\cursor.py:32: in _execute
+    return await self._conn._execute(fn, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py:160: in _execute
+    return await future
+           ^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+tx = <_queue.SimpleQueue object at 0x0000024BE2E269E0>
+
+    def _connection_worker_thread(tx: _TxQueue):
+        """
+        Execute function calls on a separate thread.
+    
+        :meta private:
+        """
+        while True:
+            # Continues running until all queue items are processed,
+            # even after connection is closed (so we can finalize all
+            # futures)
+    
+            future, function = tx.get()
+    
+            try:
+                LOG.debug("executing %s", function)
+>               result = function()
+                         ^^^^^^^^^^
+E               sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: lifecycle_models
+E               [SQL: INSERT INTO lifecycle_models (name, hook_triggered, id) VALUES (?, ?, ?) RETURNING created_at, updated_at]
+E               [parameters: ('Test Hooks', 1, 'eb8a2564cb1441f69f2068faf73e10a6')]
+E               (Background on this error at: https://sqlalche.me/e/20/e3q8)
+
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py:63: OperationalError
+________________________________ test_orm_m2m _________________________________
+
+self = <sqlalchemy.engine.base.Connection object at 0x0000024BE2EEFC50>
+dialect = <sqlalchemy.dialects.sqlite.aiosqlite.SQLiteDialect_aiosqlite object at 0x0000024BE2E606E0>
+context = <sqlalchemy.dialects.sqlite.aiosqlite.SQLiteExecutionContext_aiosqlite object at 0x0000024BE028A990>
+statement = <sqlalchemy.dialects.sqlite.base.SQLiteCompiler object at 0x0000024BE2ECA950>
+parameters = [('Python', 'f5891ca4fbb8400db948daa13fb2139d')]
+
+    def _exec_single_context(
+        self,
+        dialect: Dialect,
+        context: ExecutionContext,
+        statement: Union[str, Compiled],
+        parameters: Optional[_AnyMultiExecuteParams],
+    ) -> CursorResult[Any]:
+        """continue the _execute_context() method for a single DBAPI
+        cursor.execute() or cursor.executemany() call.
+    
+        """
+        if dialect.bind_typing is BindTyping.SETINPUTSIZES:
+            generic_setinputsizes = context._prepare_set_input_sizes()
+    
+            if generic_setinputsizes:
+                try:
+                    dialect.do_set_input_sizes(
+                        context.cursor, generic_setinputsizes, context
+                    )
+                except BaseException as e:
+                    self._handle_dbapi_exception(
+                        e, str(statement), parameters, None, context
+                    )
+    
+        cursor, str_statement, parameters = (
+            context.cursor,
+            context.statement,
+            context.parameters,
+        )
+    
+        effective_parameters: Optional[_AnyExecuteParams]
+    
+        if not context.executemany:
+            effective_parameters = parameters[0]
+        else:
+            effective_parameters = parameters
+    
+        if self._has_events or self.engine._has_events:
+            for fn in self.dispatch.before_cursor_execute:
+                str_statement, effective_parameters = fn(
+                    self,
+                    cursor,
+                    str_statement,
+                    effective_parameters,
+                    context,
+                    context.executemany,
+                )
+    
+        if self._echo:
+            self._log_info(str_statement)
+    
+            stats = context._get_cache_stats()
+    
+            if not self.engine.hide_parameters:
+                self._log_info(
+                    "[%s] %r",
+                    stats,
+                    sql_util._repr_params(
+                        effective_parameters,
+                        batches=10,
+                        ismulti=context.executemany,
+                    ),
+                )
+            else:
+                self._log_info(
+                    "[%s] [SQL parameters hidden due to hide_parameters=True]",
+                    stats,
+                )
+    
+        evt_handled: bool = False
+        try:
+            if context.execute_style is ExecuteStyle.EXECUTEMANY:
+                effective_parameters = cast(
+                    "_CoreMultiExecuteParams", effective_parameters
+                )
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_executemany:
+                        if fn(
+                            cursor,
+                            str_statement,
+                            effective_parameters,
+                            context,
+                        ):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+                    self.dialect.do_executemany(
+                        cursor,
+                        str_statement,
+                        effective_parameters,
+                        context,
+                    )
+            elif not effective_parameters and context.no_parameters:
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_execute_no_params:
+                        if fn(cursor, str_statement, context):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+                    self.dialect.do_execute_no_params(
+                        cursor, str_statement, context
+                    )
+            else:
+                effective_parameters = cast(
+                    "_CoreSingleExecuteParams", effective_parameters
+                )
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_execute:
+                        if fn(
+                            cursor,
+                            str_statement,
+                            effective_parameters,
+                            context,
+                        ):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+>                   self.dialect.do_execute(
+                        cursor, str_statement, effective_parameters, context
+                    )
+
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:1967: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:182: in execute
+    self._adapt_connection._handle_exception(error)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:342: in _handle_exception
+    raise error
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:164: in execute
+    self.await_(_cursor.execute(operation, parameters))
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:132: in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:196: in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\cursor.py:40: in execute
+    await self._execute(self._cursor.execute, sql, parameters)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\cursor.py:32: in _execute
+    return await self._conn._execute(fn, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py:160: in _execute
+    return await future
+           ^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+tx = <_queue.SimpleQueue object at 0x0000024BE2E269E0>
+
+    def _connection_worker_thread(tx: _TxQueue):
+        """
+        Execute function calls on a separate thread.
+    
+        :meta private:
+        """
+        while True:
+            # Continues running until all queue items are processed,
+            # even after connection is closed (so we can finalize all
+            # futures)
+    
+            future, function = tx.get()
+    
+            try:
+                LOG.debug("executing %s", function)
+>               result = function()
+                         ^^^^^^^^^^
+E               sqlite3.OperationalError: no such table: m2_m_tags
+
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py:63: OperationalError
+
+The above exception was the direct cause of the following exception:
+
+db = <eden.db.session.Database object at 0x0000024BE2AE6A50>
+
+    @pytest.mark.asyncio
+    async def test_orm_m2m(db):
+        # 1. Create entities
+>       tag1 = await M2MTag.create(name="Python")
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_orm_hooks_and_m2m.py:32: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+eden\db\mixins\crud.py:213: in create
+    await instance.save(session=session, commit=commit, validate=validate)
+eden\db\mixins\lifecycle.py:93: in save
+    await sess.flush()
+eden\db\session.py:103: in flush
+    return await super().flush(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\ext\asyncio\session.py:787: in flush
+    await greenlet_spawn(self.sync_session.flush, objects=objects)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:203: in greenlet_spawn
+    result = context.switch(value)
+             ^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\session.py:4331: in flush
+    self._flush(objects)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\session.py:4466: in _flush
+    with util.safe_reraise():
+         ^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\langhelpers.py:121: in __exit__
+    raise exc_value.with_traceback(exc_tb)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\session.py:4427: in _flush
+    flush_context.execute()
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\unitofwork.py:466: in execute
+    rec.execute(self)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\unitofwork.py:642: in execute
+    util.preloaded.orm_persistence.save_obj(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\persistence.py:93: in save_obj
+    _emit_insert_statements(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\persistence.py:1233: in _emit_insert_statements
+    result = connection.execute(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:1419: in execute
+    return meth(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\sql\elements.py:527: in _execute_on_connection
+    return connection._execute_clauseelement(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:1641: in _execute_clauseelement
+    ret = self._execute_context(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:1846: in _execute_context
+    return self._exec_single_context(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:1986: in _exec_single_context
+    self._handle_dbapi_exception(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:2363: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:1967: in _exec_single_context
+    self.dialect.do_execute(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:182: in execute
+    self._adapt_connection._handle_exception(error)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:342: in _handle_exception
+    raise error
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:164: in execute
+    self.await_(_cursor.execute(operation, parameters))
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:132: in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:196: in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\cursor.py:40: in execute
+    await self._execute(self._cursor.execute, sql, parameters)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\cursor.py:32: in _execute
+    return await self._conn._execute(fn, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py:160: in _execute
+    return await future
+           ^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+tx = <_queue.SimpleQueue object at 0x0000024BE2E269E0>
+
+    def _connection_worker_thread(tx: _TxQueue):
+        """
+        Execute function calls on a separate thread.
+    
+        :meta private:
+        """
+        while True:
+            # Continues running until all queue items are processed,
+            # even after connection is closed (so we can finalize all
+            # futures)
+    
+            future, function = tx.get()
+    
+            try:
+                LOG.debug("executing %s", function)
+>               result = function()
+                         ^^^^^^^^^^
+E               sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: m2_m_tags
+E               [SQL: INSERT INTO m2_m_tags (name, id) VALUES (?, ?) RETURNING created_at, updated_at]
+E               [parameters: ('Python', 'f5891ca4fbb8400db948daa13fb2139d')]
+E               (Background on this error at: https://sqlalche.me/e/20/e3q8)
+
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py:63: OperationalError
+____________________ TestErrorHandling.test_404_not_found _____________________
+
+self = <tests.test_routing.TestErrorHandling object at 0x0000024BE0BB2490>
+client = <httpx.AsyncClient object at 0x0000024BE2E63230>
+
+    async def test_404_not_found(self, client: AsyncClient):
+        resp = await client.get("/nonexistent")
+        assert resp.status_code == 404
+>       data = resp.json()
+               ^^^^^^^^^^^
+
+tests\test_routing.py:117: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\httpx\_models.py:832: in json
+    return jsonlib.loads(self.content, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\json\__init__.py:352: in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\json\decoder.py:345: in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <json.decoder.JSONDecoder object at 0x0000024BD94DE900>
+s = '\n    <!DOCTYPE html>\n    <html lang="en" class="dark">\n    <head>\n        <meta charset="UTF-8">\n        <meta n...             }, 500);\n            };\n        }\n        connect();\n    })();\n</script>\n</body>\n    </html>\n    '
+idx = 5
+
+    def raw_decode(self, s, idx=0):
+        """Decode a JSON document from ``s`` (a ``str`` beginning with
+        a JSON document) and return a 2-tuple of the Python
+        representation and the index in ``s`` where the document ended.
+    
+        This can be used to decode a JSON document from a string that may
+        have extraneous data at the end.
+    
+        """
+        try:
+            obj, end = self.scan_once(s, idx)
+        except StopIteration as err:
+>           raise JSONDecodeError("Expecting value", s, err.value) from None
+E           json.decoder.JSONDecodeError: Expecting value: line 2 column 5 (char 5)
+
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\json\decoder.py:363: JSONDecodeError
+----------------------------- Captured log setup ------------------------------
+WARNING  eden.diagnostics:diagnostics.py:124   \u26a0\ufe0f  Task Broker: DEGRADED \u2014 Using InMemoryBroker \u2014 tasks will not survive restarts. Set REDIS_URL for production.\nWARNING  eden.diagnostics:diagnostics.py:124   \u26a0\ufe0f  Distributed Backend: DEGRADED \u2014 No REDIS_URL configured \u2014 distributed locking, pub/sub, and idempotency disabled.\nWARNING  eden.diagnostics:diagnostics.py:134 \u2500\u2500\u2500 2 degraded, 0 failed subsystem(s). Review configuration. \u2500\u2500\u2500
+________________ TestErrorHandling.test_405_method_not_allowed ________________
+
+self = <tests.test_routing.TestErrorHandling object at 0x0000024BE0BB25D0>
+client = <httpx.AsyncClient object at 0x0000024BE086B890>
+
+    async def test_405_method_not_allowed(self, client: AsyncClient):
+        resp = await client.delete("/")  # Only GET is registered
+        assert resp.status_code == 405
+>       data = resp.json()
+               ^^^^^^^^^^^
+
+tests\test_routing.py:123: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\httpx\_models.py:832: in json
+    return jsonlib.loads(self.content, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\json\__init__.py:352: in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\json\decoder.py:345: in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <json.decoder.JSONDecoder object at 0x0000024BD94DE900>
+s = '\n    <!DOCTYPE html>\n    <html lang="en" class="dark">\n    <head>\n        <meta charset="UTF-8">\n        <meta n...             }, 500);\n            };\n        }\n        connect();\n    })();\n</script>\n</body>\n    </html>\n    '
+idx = 5
+
+    def raw_decode(self, s, idx=0):
+        """Decode a JSON document from ``s`` (a ``str`` beginning with
+        a JSON document) and return a 2-tuple of the Python
+        representation and the index in ``s`` where the document ended.
+    
+        This can be used to decode a JSON document from a string that may
+        have extraneous data at the end.
+    
+        """
+        try:
+            obj, end = self.scan_once(s, idx)
+        except StopIteration as err:
+>           raise JSONDecodeError("Expecting value", s, err.value) from None
+E           json.decoder.JSONDecodeError: Expecting value: line 2 column 5 (char 5)
+
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\json\decoder.py:363: JSONDecodeError
+----------------------------- Captured log setup ------------------------------
+WARNING  eden.diagnostics:diagnostics.py:124   \u26a0\ufe0f  Task Broker: DEGRADED \u2014 Using InMemoryBroker \u2014 tasks will not survive restarts. Set REDIS_URL for production.\nWARNING  eden.diagnostics:diagnostics.py:124   \u26a0\ufe0f  Distributed Backend: DEGRADED \u2014 No REDIS_URL configured \u2014 distributed locking, pub/sub, and idempotency disabled.\nWARNING  eden.diagnostics:diagnostics.py:134 \u2500\u2500\u2500 2 degraded, 0 failed subsystem(s). Review configuration. \u2500\u2500\u2500
+_________________________ test_syntax_error_rendering _________________________
+
+tmp_path = WindowsPath('C:/Users/COBBY/AppData/Local/Temp/pytest-of-COBBY/pytest-337/test_syntax_error_rendering0')
+
+    def test_syntax_error_rendering(tmp_path):
+        """Integration test for premium error page on SyntaxError."""
+        template_dir = tmp_path / "templates"
+        template_dir.mkdir()
+    
+        # Line 1: Ok
+        # Line 2: Ok
+        # Line 3: Broken
+        template_content = "<h1>Line 1</h1>\n<p>Line 2</p>\n{% broken %}"
+        (template_dir / "error.html").write_text(template_content)
+    
+        app = Eden(debug=True)
+        app.template_dir = str(template_dir)
+    
+        @app.route("/")
+        async def index(request):
+            return app.render("error.html")
+    
+        client = TestClient(app, raise_server_exceptions=False)
+        response = client.get("/")
+    
+        assert response.status_code == 500
+        assert "Template Error" in response.text
+>       assert "Syntax Error" in response.text
+E       assert 'Syntax Error' in '\n    <!DOCTYPE html>\n    <html lang="en" class="dark">\n    <head>\n        <meta charset="UTF-8">\n        <meta name="viewport" content="width=device-width, initial-scale=1.0">\n        <title>NameError — debug.py:982:16</title>\n        <script src="https://cdn.tailwindcss.com"></script>\n        <link rel="preconnect" href="https://fonts.googleapis.com">\n        <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">\n        <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">\n        <style>\n            body { font-family: \'Plus Jakarta Sans\', sans-serif; background: #020617; color: #cbd5e1; overflow-x: hidden; }\n            h1, h2, h3, .font-heading { font-family: \'Outfit\', sans-serif; }\n            .glass { background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.05); }\n            .error-line { background: rgba(239, 68, 68, 0.08); border-left: 3px solid #f43f5e; margin-left: -3px; position: relative; width: 100%; }\n            .line-no { \n                color: #475569; \n                ...               }\n                \n                const activePane = document.getElementById(`tab-content-${tabId}`);\n                if (activePane) {\n                    activePane.classList.remove(\'hidden\');\n                }\n            }\n\n            function copyToClipboard(event, text) {\n                navigator.clipboard.writeText(text).then(() => {\n                    const btn = event.currentTarget;\n                    const originalText = btn.innerHTML;\n                    btn.innerHTML = `<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Copied!`;\n                    btn.classList.replace(\'text-rose-400\', \'text-emerald-400\');\n                    setTimeout(() => {\n                        btn.innerHTML = originalText;\n                        btn.classList.replace(\'text-emerald-400\', \'text-rose-400\');\n                    }, 2000);\n                }).catch(err => {\n                    console.error(\'Failed to copy text: \', err);\n                });\n            }\n        </script>\n    </body>\n    </html>\n    '
+E        +  where '\n    <!DOCTYPE html>\n    <html lang="en" class="dark">\n    <head>\n        <meta charset="UTF-8">\n        <meta name="viewport" content="width=device-width, initial-scale=1.0">\n        <title>NameError — debug.py:982:16</title>\n        <script src="https://cdn.tailwindcss.com"></script>\n        <link rel="preconnect" href="https://fonts.googleapis.com">\n        <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">\n        <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">\n        <style>\n            body { font-family: \'Plus Jakarta Sans\', sans-serif; background: #020617; color: #cbd5e1; overflow-x: hidden; }\n            h1, h2, h3, .font-heading { font-family: \'Outfit\', sans-serif; }\n            .glass { background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.05); }\n            .error-line { background: rgba(239, 68, 68, 0.08); border-left: 3px solid #f43f5e; margin-left: -3px; position: relative; width: 100%; }\n            .line-no { \n                color: #475569; \n                ...               }\n                \n                const activePane = document.getElementById(`tab-content-${tabId}`);\n                if (activePane) {\n                    activePane.classList.remove(\'hidden\');\n                }\n            }\n\n            function copyToClipboard(event, text) {\n                navigator.clipboard.writeText(text).then(() => {\n                    const btn = event.currentTarget;\n                    const originalText = btn.innerHTML;\n                    btn.innerHTML = `<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Copied!`;\n                    btn.classList.replace(\'text-rose-400\', \'text-emerald-400\');\n                    setTimeout(() => {\n                        btn.innerHTML = originalText;\n                        btn.classList.replace(\'text-emerald-400\', \'text-rose-400\');\n                    }, 2000);\n                }).catch(err => {\n                    console.error(\'Failed to copy text: \', err);\n                });\n            }\n        </script>\n    </body>\n    </html>\n    ' = <Response [500 Internal Server Error]>.text
+
+tests\test_template_errors.py:45: AssertionError
+------------------------------ Captured log call ------------------------------
+WARNING  eden.diagnostics:diagnostics.py:124   \u26a0\ufe0f  Task Broker: DEGRADED \u2014 Using InMemoryBroker \u2014 tasks will not survive restarts. Set REDIS_URL for production.\nWARNING  eden.diagnostics:diagnostics.py:124   \u26a0\ufe0f  Distributed Backend: DEGRADED \u2014 No REDIS_URL configured \u2014 distributed locking, pub/sub, and idempotency disabled.\nWARNING  eden.diagnostics:diagnostics.py:134 \u2500\u2500\u2500 2 degraded, 0 failed subsystem(s). Review configuration. \u2500\u2500\u2500\nERROR    eden.exceptions.debug:debug.py:816 Silent exception caught: C:\\Users\\COBBY\\AppData\\Local\\Temp\\pytest-of-COBBY\\pytest-337\\test_syntax_error_rendering0\\templates\\error.html\nTraceback (most recent call last):\n  File "C:\\PROJECTS\\eden-framework\\eden\\exceptions\\debug.py", line 810, in render_enhanced_template_error\n    src, filename, _ = loader.get_source(app._templates.env, name)\n                       ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File "C:\\Users\\COBBY\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\jinja2\\loaders.py", line 593, in get_source\n    raise TemplateNotFound(template)\njinja2.exceptions.TemplateNotFound: C:\\Users\\COBBY\\AppData\\Local\\Temp\\pytest-of-COBBY\\pytest-337\\test_syntax_error_rendering0\\templates\\error.html\nERROR    eden.error_middleware:error_middleware.py:80 NameError in GET /: name 'safe_column' is not defined\nTraceback (most recent call last):\n  File "C:\\Users\\COBBY\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\starlette\\_exception_handler.py", line 42, in wrapped_app\n    await app(scope, receive, sender)\n  File "C:\\Users\\COBBY\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\starlette\\routing.py", line 75, in app\n    response = await f(request)\n               ^^^^^^^^^^^^^^^^\n  File "C:\\PROJECTS\\eden-framework\\eden\\routing.py", line 685, in endpoint\n    return await _eden_route.handle(eden_request, **path_params)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File "C:\\PROJECTS\\eden-framework\\eden\\routing.py", line 65, in handle\n    result = await result\n             ^^^^^^^^^^^^\n  File "C:\\PROJECTS\\eden-framework\\tests\\test_template_errors.py", line 38, in index\n    return app.render("error.html")\n           ~~~~~~~~~~^^^^^^^^^^^^^^\n  File "C:\\PROJECTS\\eden-framework\\eden\\app.py", line 557, in render\n    return self.templates.TemplateResponse(request, template_name, ctx)\n           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File "C:\\PROJECTS\\eden-framework\\eden\\templating\\templates.py", line 239, in TemplateResponse\n    return super().TemplateResponse(request, name, context, *args, **kwargs)\n           ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File "C:\\Users\\COBBY\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\starlette\\templating.py", line 209, in TemplateResponse\n    template = self.get_template(name)\n  File "C:\\Users\\COBBY\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\starlette\\templating.py", line 132, in get_template\n    return self.env.get_template(name)\n           ~~~~~~~~~~~~~~~~~~~~~^^^^^^\n  File "C:\\Users\\COBBY\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\jinja2\\environment.py", line 1016, in get_template\n    return self._load_template(name, globals)\n           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^\n  File "C:\\Users\\COBBY\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\jinja2\\environment.py", line 975, in _load_template\n    template = self.loader.load(self, name, self.make_globals(globals))\n  File "C:\\Users\\COBBY\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\jinja2\\loaders.py", line 604, in load\n    return loader.load(environment, name, globals)\n           ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File "C:\\Users\\COBBY\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\jinja2\\loaders.py", line 138, in load\n    code = environment.compile(source, name, filename)\n  File "C:\\Users\\COBBY\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\jinja2\\environment.py", line 771, in compile\n    self.handle_exception(source=source_hint)\n    ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^\n  File "C:\\Users\\COBBY\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\jinja2\\environment.py", line 942, in handle_exception\n    raise rewrite_traceback_stack(source=source)\n  File "C:\\Users\\COBBY\\AppData\\Local\\Temp\\pytest-of-COBBY\\pytest-337\\test_syntax_error_rendering0\\templates\\error.html", line 3, in template\n    {% broken %}\njinja2.exceptions.TemplateSyntaxError: Encountered unknown tag 'broken'.\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File "C:\\PROJECTS\\eden-framework\\eden\\error_middleware.py", line 72, in dispatch\n    response = await call_next(request)\n               ^^^^^^^^^^^^^^^^^^^^^^^^\n  File "C:\\Users\\COBBY\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\starlette\\middleware\\base.py", line 168, in call_next\n    raise app_exc from app_exc.__cause__ or app_exc.__context__\n  File "C:\\Users\\COBBY\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\starlette\\middleware\\base.py", line 144, in coro\n    await self.app(scope, receive_or_disconnect, send_no_error)\n  File "C:\\PROJECTS\\eden-framework\\eden\\middleware\\__init__.py", line 335, in __call__\n    await self.app(scope, receive, send_with_headers)\n  File "C:\\PROJECTS\\eden-framework\\eden\\auth\\middleware.py", line 121, in __call__\n    await self.app(scope, receive, send)\n  File "C:\\PROJECTS\\eden-framework\\eden\\auth\\middleware.py", line 196, in __call__\n    await self.app(scope, receive, send)\n  File "C:\\Users\\COBBY\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\starlette\\middleware\\cors.py", line 87, in __call__\n    await self.app(scope, receive, send)\n  File "C:\\Users\\COBBY\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\starlette\\middleware\\gzip.py", line 29, in __call__\n    await responder(scope, receive, send)\n  File "C:\\Users\\COBBY\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\starlette\\middleware\\gzip.py", line 130, in __call__\n    await super().__call__(scope, receive, send)\n  File "C:\\Users\\COBBY\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\starlette\\middleware\\gzip.py", line 46, in __call__\n    await self.app(scope, receive, self.send_with_compression)\n  File "C:\\PROJECTS\\eden-framework\\eden\\middleware\\__init__.py", line 452, in __call__\n    await self.app(scope, receive, send_wrapper)\n  File "C:\\Users\\COBBY\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\starlette\\middleware\\exceptions.py", line 63, in __call__\n    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)\n  File "C:\\Users\\COBBY\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\starlette\\_exception_handler.py", line 53, in wrapped_app\n    raise exc\n  File "C:\\Users\\COBBY\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\starlette\\_exception_handler.py", line 42, in wrapped_app\n    await app(scope, receive, sender)\n  File "C:\\Users\\COBBY\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\starlette\\routing.py", line 716, in __call__\n    await self.middleware_stack(scope, receive, send)\n  File "C:\\Users\\COBBY\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\starlette\\routing.py", line 736, in app\n    await route.handle(scope, receive, send)\n  File "C:\\Users\\COBBY\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\starlette\\routing.py", line 290, in handle\n    await self.app(scope, receive, send)\n  File "C:\\Users\\COBBY\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\starlette\\routing.py", line 78, in app\n    await wrap_app_handling_exceptions(app, request)(scope, receive, send)\n  File "C:\\Users\\COBBY\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\starlette\\_exception_handler.py", line 61, in wrapped_app\n    response = await run_in_threadpool(handler, conn, exc)\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File "C:\\Users\\COBBY\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\starlette\\concurrency.py", line 32, in run_in_threadpool\n    return await anyio.to_thread.run_sync(func)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File "C:\\Users\\COBBY\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\anyio\\to_thread.py", line 63, in run_sync\n    return await get_async_backend().run_sync_in_worker_thread(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n        func, args, abandon_on_cancel=abandon_on_cancel, limiter=limiter\n        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    )\n    ^\n  File "C:\\Users\\COBBY\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\anyio\\_backends\\_asyncio.py", line 2502, in run_sync_in_worker_thread\n    return await future\n           ^^^^^^^^^^^^\n  File "C:\\Users\\COBBY\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\anyio\\_backends\\_asyncio.py", line 986, in run\n    result = context.run(func, *args)\n  File "C:\\PROJECTS\\eden-framework\\eden\\app.py", line 1188, in _render_enhanced_template_error\n    return render_enhanced_template_error(self, request, exc)\n  File "C:\\PROJECTS\\eden-framework\\eden\\exceptions\\debug.py", line 982, in render_enhanced_template_error\n    column=safe_column,\n           ^^^^^^^^^^^\nNameError: name 'safe_column' is not defined
+_______________________ test_spawn_safe_task_isolation ________________________
+
+    async def test_spawn_safe_task_isolation():
+        tenant = DummyTenant()
+    
+        async def _inner_task():
+            # Inner task shouldn't inherit context implicitly, but wait, copy_context DOES copy context variables!
+            # ContextVars are preserved. So `get_current_tenant()` will return it if not isolated,
+            # but wait, wait... spawn_safe_task replicates context by default unless specified differently.
+            return get_current_tenant()
+    
+        token = set_current_tenant(tenant)
+        try:
+            # spawn_safe_task without isolate=True replicates context
+            t1 = spawn_safe_task(_inner_task)
+>           res1 = await t1
+                   ^^^^^^^^
+
+tests\test_tenant_task_wrapper.py:20: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    async def _context_wrapper():
+        """
+        Re-inject captured context into the child task's execution frame.
+    
+        Uses ContextVar.set() to install the snapshot, and .reset() in finally
+        to avoid leaking state if the task is cancelled or errors out.
+        """
+        t_token = _tenant_ctx.set(tenant_snapshot)
+        a_token = _across_tenants_ctx.set(across_snapshot)
+        s_token = _session_context.set(session_snapshot)
+        try:
+>           return await coro
+                   ^^^^^^^^^^
+E           TypeError: 'function' object can't be awaited
+
+eden\tenancy\context.py:174: TypeError
+============================== warnings summary ===============================
+eden\testing.py:64
+  C:\PROJECTS\eden-framework\eden\testing.py:64: PytestCollectionWarning: cannot collect test class 'EdenTestClient' because it has a __init__ constructor (from: tests/test_config_and_testing.py)
+    class EdenTestClient(httpx.AsyncClient):
+
+tests/test_db_bulk_lifecycle.py: 6 warnings
+tests/test_model_maturity.py: 7 warnings
+  C:\PROJECTS\eden-framework\eden\db\signals.py:126: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    if asyncio.iscoroutinefunction(receiver):
+
+tests/test_db_commit_logic.py::test_soft_delete_commit_false_rollback
+  C:\PROJECTS\eden-framework\eden\db\mixins\lifecycle.py:143: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    self.deleted_at = datetime.utcnow()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_auth_audit.py::test_query_rbac - AssertionError: assert ('1...
+FAILED tests/test_cli_refined.py::test_forge_route_refined - assert 2 == 0
+FAILED tests/test_component_security.py::test_component_signature_verification
+FAILED tests/test_config_and_testing.py::TestConfigValidation::test_secret_key_auto_generated_in_dev
+FAILED tests/test_config_and_testing.py::TestConfigSecrets::test_redis_config_default
+FAILED tests/test_context_lifecycle.py::TestContextManagerBasic::test_on_request_end_clears_context
+FAILED tests/test_context_lifecycle.py::TestContextAPIConsistency::test_all_getters_return_none_for_unset_context
+FAILED tests/test_orm.py::test_orm_timestamps - assert datetime.datetime(2026...
+FAILED tests/test_orm_hooks_and_m2m.py::test_orm_hooks - sqlalchemy.exc.Opera...
+FAILED tests/test_orm_hooks_and_m2m.py::test_orm_m2m - sqlalchemy.exc.Operati...
+FAILED tests/test_routing.py::TestErrorHandling::test_404_not_found - json.de...
+FAILED tests/test_routing.py::TestErrorHandling::test_405_method_not_allowed
+FAILED tests/test_template_errors.py::test_syntax_error_rendering - assert 'S...
+FAILED tests/test_tenant_task_wrapper.py::test_spawn_safe_task_isolation - Ty...
+========== 14 failed, 8 passed, 125 deselected, 15 warnings in 3.86s ==========

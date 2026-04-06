@@ -28,17 +28,18 @@ sequenceDiagram
 The easiest way to implement real-time updates is the `@reactive` directive. It wraps a section of your template and automatically configures it to listen for updates to a specific object.
 
 ```html
-@reactive(project)
+@reactive(project) {
 <div class="p-6 border rounded-xl">
     <h2 class="text-xl font-bold">{{ project.name }}</h2>
     <p>Status: <span class="badge">{{ project.status }}</span></p>
     
     <!-- This section will refresh via HTMX whenever 'project' changes in the DB -->
 </div>
-@endreactive
+}
 ```
 
-### How it works:
+### How it works
+
 1. Eden detects the `@reactive` tag during template compilation.
 2. It generates a unique `id` and `hx-get` attribute for the container.
 3. It adds a `hx-ext="ws"` and `ws-connect` logic to listen for the object's sync channel.
@@ -58,6 +59,7 @@ Eden automatically calculates "Sync Channels" based on the object's identity and
 | **Collection** | `model:table_name` (Refreshes on any create/delete) |
 
 ### Custom Channel Resolution
+
 You can override the `get_sync_channels()` method on your model to define custom broadcast groups.
 
 ```python

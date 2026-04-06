@@ -414,6 +414,9 @@ class DefaultErrorHandler(ErrorHandler):
 
     def _should_render_html(self, request, app) -> bool:
         """Check if we should render the high-fidelity HTML debug page."""
+        # Never render HTML error pages in tests
+        if getattr(app, "is_test", lambda: False)():
+            return False
         return app.debug and not self._is_json_request(request)
 
     async def handle(self, exc: Exception, request, app):
@@ -467,6 +470,8 @@ class StarletteHTTPErrorHandler(ErrorHandler):
 
     def _should_render_html(self, request, app) -> bool:
         """Check if we should render the high-fidelity HTML debug page."""
+        if getattr(app, "is_test", lambda: False)():
+            return False
         return app.debug and not self._is_json_request(request)
 
     async def handle(self, exc: Exception, request, app):

@@ -243,8 +243,23 @@ class Component:
     def _get_state_signature(self, state: dict[str, Any]) -> str:
         """Generate an HMAC signature for the component state."""
         from eden.app import Eden
+
+        secret = None
         app = Eden.get_current()
-        secret = app.secret_key if app else "dev-secret-key"
+        if app and getattr(app, "secret_key", None):
+            secret = app.secret_key
+        else:
+            request = self.request
+            if request is not None:
+                request_app = getattr(request, "app", None)
+                if request_app is not None:
+                    if hasattr(request_app, "eden") and getattr(request_app, "eden", None) is not None:
+                        secret = getattr(request_app.eden, "secret_key", None)
+                    elif getattr(request_app, "secret_key", None):
+                        secret = request_app.secret_key
+
+        if not secret:
+            secret = "dev-secret-key"
         
         # Canonicalize state for signature consistency:
         # Convert all values to strings to handle variations between original 

@@ -279,6 +279,19 @@ class TestRequestLoggingMiddleware:
 
         assert resp.headers["x-request-id"] == "custom-id-123"
 
+    def test_generates_full_uuid_request_id(self):
+        import uuid
+        from eden.logging import RequestLoggingMiddleware
+
+        app = _make_app(RequestLoggingMiddleware)
+        client = TestClient(app)
+        resp = client.get("/")
+
+        assert resp.status_code == 200
+        assert "x-request-id" in resp.headers
+        # Generated IDs should be a full UUID string, not a truncated hex fragment.
+        uuid.UUID(resp.headers["x-request-id"])
+
     def test_sets_request_id_in_context(self):
         from eden.context import get_request_id
         from eden.logging import RequestLoggingMiddleware

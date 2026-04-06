@@ -94,6 +94,7 @@ async def create_task(request: Request):
 Eden's templating engine is built for "Visual Excellence." It allows you to build interactive UIs using only Python and HTML, powered by built-in **HTMX** integration.
 
 ### Create `templates/base.html`
+
 We use a global layout with modern typography and a subtle glassmorphism header.
 
 ```html
@@ -121,6 +122,7 @@ We use a global layout with modern typography and a subtle glassmorphism header.
 ```
 
 ### Create `templates/tasks.html`
+
 Use the `@fragment` directive to allow HTMX to update only parts of the page.
 
 ```html
@@ -152,8 +154,8 @@ Use the `@fragment` directive to allow HTMX to update only parts of the page.
             @fragment("task-item") {
                 <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between group">
                     <div class="flex items-center gap-4">
-                        <div class="w-2 h-2 rounded-full @if(task.completed) bg-slate-300 @else bg-blue-500 @endif"></div>
-                        <span class="text-lg font-medium @if(task.completed) line-through text-slate-400 @endif">
+                        <div class="w-2 h-2 rounded-full @if(task.completed) { bg-slate-300 } @else { bg-blue-500 }"></div>
+                        <span class="text-lg font-medium @if(task.completed) { line-through text-slate-400 }">
                             @span(task.title)
                         </span>
                     </div>

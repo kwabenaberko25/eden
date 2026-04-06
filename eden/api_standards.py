@@ -417,7 +417,7 @@ COMPLETE EXAMPLE: Following all standards
     from eden.responses import json, JsonResponse
     from eden.dependencies import Depends
     
-    async def get_current_user(request):
+    async def get_current_user(request) -> Any:
         token = request.headers.get("Authorization", "").replace("Bearer ", "")
         if not token:
             return None
@@ -425,13 +425,13 @@ COMPLETE EXAMPLE: Following all standards
     
     # HTML Response (uses render_template)
     @app.get("/posts")
-    async def list_posts(request):
+    async def list_posts(request) -> Any:
         posts = await Post.filter(published=True).order_by("-created_at").all()
         return render_template("posts/list.html", posts=posts)
     
     # JSON Response - Success
     @app.get("/api/posts/{post_id}")
-    async def get_post_api(post_id: int):
+    async def get_post_api(post_id: int) -> Any:
         post = await Post.get(post_id)
         if not post:
             return json(

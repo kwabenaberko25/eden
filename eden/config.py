@@ -152,6 +152,10 @@ class Config(BaseModel):
         default="",
         description="Database connection string"
     )
+    db_strict_session_mode: bool = Field(
+        default=False,
+        description="If True, prevents silent DB session auto-instantiation in background contexts."
+    )
     
     # Database Connection Pool
     db_pool_size: int = Field(
@@ -317,17 +321,21 @@ class Config(BaseModel):
         if self.debug is None:
             self.debug = self.env in (Environment.DEV, Environment.TEST)
         
+        # Auto-generate secret_key in dev and test modes
+        if not self.secret_key and self.env in (Environment.DEV, Environment.TEST):
+            import secrets
+            self.secret_key = secrets.token_urlsafe(32)
+        
+        # Set redis_url default in dev mode
+        if not self.redis_url and self.env == Environment.DEV:
+            self.redis_url = "redis://localhost:6379"
+        
         # Validate secret_key in production
         if self.env == Environment.PROD and not self.secret_key:
             raise ValueError(
                 "secret_key is required in production. "
                 "Set SECRET_KEY environment variable."
             )
-        
-        # Auto-generate secrets ONLY in test mode to prevent session reset in dev
-        if not self.secret_key and self.env == Environment.TEST:
-            import secrets
-            self.secret_key = secrets.token_urlsafe(32)
         
         # JWT secret defaults to secret_key
         if not self.jwt_secret:
@@ -596,4 +604,16 @@ def create_config(env: str = "dev", **kwargs) -> Config:
             debug=True
         )
     """
+    if isinstance(env, str):
+        env_name = env.lower()
+    else:
+        env_name = env.value if hasattr(env, "value") else str(env).lower()
+
+    if not kwargs.get("secret_key") and env_name in ("dev", "test"):
+        import secrets
+        kwargs["secret_key"] = secrets.token_urlsafe(32)
+
+    if not kwargs.get("redis_url") and env_name == "dev":
+        kwargs["redis_url"] = "redis://localhost:6379"
+
     return Config(env=env, **kwargs)

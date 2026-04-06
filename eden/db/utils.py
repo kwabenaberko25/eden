@@ -1,8 +1,24 @@
 import re
 from typing import Dict, Any
+from datetime import datetime, timezone
 
 # Internal sentinel for missing values
 _MISSING = object()
+
+
+def get_utc_now() -> datetime:
+    """
+    Get current time in UTC as a naive datetime (no tzinfo).
+    
+    This ensures consistency across all timestamp operations:
+    - Database stores naive UTC times
+    - Comparisons don't have timezone confusion  
+    - Tests get predictable results
+    
+    Returns:
+        datetime: Current UTC time without tzinfo
+    """
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 def renumber_sql_params(sql: str, offset: int = 0) -> str:

@@ -15,7 +15,7 @@ from typing import (
     Union,
     Annotated,
 )
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import event
 from .access import AccessControl
 from .validation import ValidatorMixin
@@ -131,9 +131,16 @@ class Model(Base, AccessControl, ValidatorMixin, LifecycleMixin, SerializationMi
     )
 
     # Timestamps
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, 
+        default=lambda: __import__('eden.db.utils', fromlist=['get_utc_now']).get_utc_now(),
+        index=True
+    )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, server_default=func.now(), onupdate=func.now()
+        DateTime, 
+        default=lambda: __import__('eden.db.utils', fromlist=['get_utc_now']).get_utc_now(),
+        onupdate=lambda: __import__('eden.db.utils', fromlist=['get_utc_now']).get_utc_now(),
+        index=True
     )
 
     __tenant_isolated__: bool = True
@@ -183,7 +190,8 @@ class Model(Base, AccessControl, ValidatorMixin, LifecycleMixin, SerializationMi
             @event.listens_for(cls, "before_update", propagate=True)
             def set_updated_at(mapper, connection, target):
                 if hasattr(target, 'updated_at'):
-                    target.updated_at = datetime.now()
+                    from eden.db.utils import get_utc_now
+                    target.updated_at = get_utc_now()
 
     @classmethod
     def _bind_db(cls, db: Any) -> None:

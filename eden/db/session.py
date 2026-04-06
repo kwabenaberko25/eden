@@ -421,6 +421,16 @@ def get_db(request: Any) -> Database:
 
 def init_db(url: str, app: Any = None, **kwargs: Any) -> Database:
     """Helper to initialize database and optionally attach to app state."""
+    try:
+        from eden.config import get_config
+        config = get_config()
+        # Merge config engine arguments with explicit kwargs (explicit wins)
+        engine_kwargs = config.get_database_engine_kwargs()
+        engine_kwargs.update(kwargs)
+        kwargs = engine_kwargs
+    except Exception:
+        pass
+
     db = Database(url, **kwargs)
     if app:
         app.state.db = db

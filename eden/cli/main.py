@@ -224,7 +224,8 @@ def shell(app_path: str | None) -> None:
             )
             if database_url:
                 import asyncio
-                db = Database(database_url)
+                from eden.db.session import init_db
+                db = init_db(database_url)
                 # Connect synchronously using a new event loop
                 try:
                     loop = asyncio.get_event_loop()

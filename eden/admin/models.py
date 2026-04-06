@@ -27,7 +27,7 @@ class AuditLog(Model):
     timestamp: datetime = DateTimeField(auto_now_add=True)
 
     @classmethod
-    async def log(cls, user_id: str | None, action: str, model: Any, record_id: str, changes: dict | None = None, correlation_id: str | None = None):
+    async def log(cls, user_id: str | None, action: str, model: Any, record_id: str, changes: dict | None = None, correlation_id: str | None = None) -> None:
         from eden.context import get_tenant_id, get_request_id
         await cls.create(
             tenant_id=get_tenant_id(),

@@ -64,6 +64,7 @@ def validate_snippet(snippet: str, line_offset: int, filename: str) -> bool:
         
         env = os.environ.copy()
         env["PYTHONPATH"] = os.pathsep.join([os.getcwd(), env.get("PYTHONPATH", "")])
+        env["EDEN_ENV"] = "test"
 
         result = subprocess.run(
             [sys.executable, tmp_path],

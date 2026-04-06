@@ -118,7 +118,7 @@ def _trigger_audit(target: Any, action: str):
         from eden.context import get_app
         app = get_app()
         
-        async def _do_log():
+        async def _do_log() -> None:
             from eden.db.session import reset_session
             from eden.context import set_tenant, set_request_id
             

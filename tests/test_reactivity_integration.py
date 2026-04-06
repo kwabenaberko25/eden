@@ -56,9 +56,9 @@ async def test_reactive_directive_html_generation():
     dept = ReactiveDepartment(id=uuid.uuid4(), organization_id=org_id, name="Design")
     
     template_str = """
-    @reactive(dept)
+    @reactive(dept) {
     <div id="dept-{{ dept.id }}">{{ dept.name }}</div>
-    @endreactive
+    }
     """
     
     # We need to manually preprocess for from_string calls to trigger Eden's @directives

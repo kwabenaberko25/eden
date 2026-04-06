@@ -87,18 +87,27 @@ class ErrorHandlerMiddleware(BaseHTTPMiddleware):
             try:
                 from jinja2.exceptions import TemplateError as JinjaTemplateError
                 eden_app = getattr(app, "eden", app)
-                if getattr(eden_app, "debug", False):
-                    if isinstance(exc, JinjaTemplateError):
-                        return eden_app._render_enhanced_template_error(request, exc)
-                    
-                    # Handle all other exceptions in debug mode with the premium debug page
-                    if hasattr(eden_app, "_render_enhanced_exception"):
-                        return eden_app._render_enhanced_exception(request, exc)
+                is_test = getattr(eden_app, "is_test", lambda: False)()
+                if getattr(eden_app, "debug", False) and not is_test:
+                    # Check if client prefers JSON - if so, skip premium debug page 
+                    # and fall through to error registry (JSON)
+                    accept = request.headers.get("accept", "").lower()
+                    if "application/json" not in accept:
+                        if isinstance(exc, JinjaTemplateError):
+                            return eden_app._render_enhanced_template_error(request, exc)
+                        
+                        # Handle all other exceptions in debug mode with the premium debug page
+                        if hasattr(eden_app, "_render_enhanced_exception"):
+                            return eden_app._render_enhanced_exception(request, exc)
             except (ImportError, AttributeError):
                 pass
             
-            # Dispatch to error handler registry
+            # Dispatch to exception dispatcher (Unified logic)
             try:
+                if hasattr(eden_app, "_exception_dispatcher"):
+                    return await eden_app._exception_dispatcher.handle_unhandled_exception(request, exc)
+                
+                # Fallback to legacy registry if dispatcher not found (Safety)
                 response = await error_handler_registry.handle_exception(
                     exc,
                     request,
