@@ -17,6 +17,7 @@ from starlette.responses import JSONResponse as StarletteJSONResponse
 from starlette.responses import RedirectResponse as StarletteRedirectResponse
 from starlette.responses import Response as StarletteResponse
 from starlette.responses import StreamingResponse as StarletteStreamingResponse
+from starlette.templating import _TemplateResponse as StarletteTemplateResponse
 
 
 import datetime
@@ -75,6 +76,9 @@ class JsonResponse(StarletteJSONResponse):
         serialized = _serialize(content)
         super().__init__(content=serialized, status_code=status_code, headers=headers, **kwargs)
 
+
+JSONResponse = JsonResponse
+TemplateResponse = StarletteTemplateResponse
 
 class HtmlResponse(StarletteHTMLResponse):
     """HTML response for rendered templates or raw HTML."""

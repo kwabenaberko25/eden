@@ -1,0 +1,220 @@
+@extends('admin/base.html')
+
+@section('title', 'Stripe Integration Demo')
+
+@section('content')
+<div class="container mx-auto px-4 py-8">
+    <div class="mb-8">
+        <h1 class="text-4xl font-bold mb-2">Stripe Integration</h1>
+        <p class="text-lg text-gray-600">Payment processing, checkout, and subscriptions</p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Payment Plans -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-2xl font-bold mb-4">Choose a Plan</h2>
+            
+            <div class="space-y-4">
+                <!-- Basic Plan -->
+                <div class="p-4 border-2 border-gray-200 rounded hover:border-blue-400 transition-colors cursor-pointer" onclick="selectPlan('basic')">
+                    <h3 class="text-lg font-bold mb-2">Basic Plan</h3>
+                    <p class="text-2xl font-bold text-blue-600 mb-2">$9/month</p>
+                    <ul class="text-sm text-gray-600 space-y-1 mb-4">
+                        <li>✓ 10GB Storage</li>
+                        <li>✓ 5 Users</li>
+                        <li>✓ Email Support</li>
+                    </ul>
+                    <button onclick="selectPlan('basic')" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 w-full">
+                        Select Plan
+                    </button>
+                </div>
+
+                <!-- Pro Plan -->
+                <div class="p-4 border-2 border-gray-200 rounded hover:border-purple-400 transition-colors cursor-pointer" onclick="selectPlan('pro')">
+                    <h3 class="text-lg font-bold mb-2">Pro Plan</h3>
+                    <p class="text-2xl font-bold text-purple-600 mb-2">$29/month</p>
+                    <ul class="text-sm text-gray-600 space-y-1 mb-4">
+                        <li>✓ 100GB Storage</li>
+                        <li>✓ 50 Users</li>
+                        <li>✓ Priority Support</li>
+                    </ul>
+                    <button onclick="selectPlan('pro')" class="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 w-full">
+                        Select Plan
+                    </button>
+                </div>
+
+                <!-- Enterprise Plan -->
+                <div class="p-4 border-2 border-gray-200 rounded hover:border-green-400 transition-colors cursor-pointer" onclick="selectPlan('enterprise')">
+                    <h3 class="text-lg font-bold mb-2">Enterprise Plan</h3>
+                    <p class="text-2xl font-bold text-green-600 mb-2">Custom</p>
+                    <ul class="text-sm text-gray-600 space-y-1 mb-4">
+                        <li>✓ Unlimited Storage</li>
+                        <li>✓ Unlimited Users</li>
+                        <li>✓ 24/7 Dedicated Support</li>
+                    </ul>
+                    <button onclick="selectPlan('enterprise')" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 w-full">
+                        Contact Sales
+                    </button>
+                </div>
+            </div>
+
+            <div id="checkout-result" class="mt-4 p-4 bg-blue-50 border border-blue-200 rounded hidden">
+                <p class="font-semibold mb-2">Checkout Session Created</p>
+                <p id="checkout-link" class="text-sm text-gray-600 mb-2"></p>
+                <a id="checkout-url" href="#" target="_blank" class="text-blue-600 hover:underline">Open Checkout →</a>
+            </div>
+        </div>
+
+        <!-- Info Card -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-2xl font-bold mb-4">Features</h2>
+            <ul class="space-y-3">
+                <li class="flex items-start">
+                    <span class="text-green-500 mr-3">✅</span>
+                    <div>
+                        <p class="font-semibold">StripeProvider</p>
+                        <p class="text-sm text-gray-600">Async API wrapper with multi-tenant safety</p>
+                    </div>
+                </li>
+                <li class="flex items-start">
+                    <span class="text-green-500 mr-3">✅</span>
+                    <div>
+                        <p class="font-semibold">Checkout Sessions</p>
+                        <p class="text-sm text-gray-600">One-time payments and subscription setup</p>
+                    </div>
+                </li>
+                <li class="flex items-start">
+                    <span class="text-green-500 mr-3">✅</span>
+                    <div>
+                        <p class="font-semibold">Billing Portal</p>
+                        <p class="text-sm text-gray-600">Customer self-service subscription management</p>
+                    </div>
+                </li>
+                <li class="flex items-start">
+                    <span class="text-green-500 mr-3">✅</span>
+                    <div>
+                        <p class="font-semibold">BillableMixin</p>
+                        <p class="text-sm text-gray-600">Added to User model for easy subscription access</p>
+                    </div>
+                </li>
+                <li class="flex items-start">
+                    <span class="text-green-500 mr-3">✅</span>
+                    <div>
+                        <p class="font-semibold">Webhook Handling</p>
+                        <p class="text-sm text-gray-600">Secure signature verification for webhook events</p>
+                    </div>
+                </li>
+            </ul>
+
+            <div class="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded">
+                <p class="text-sm font-semibold mb-1">Demo Mode</p>
+                <p class="text-xs text-gray-600">
+                    This demo uses mock Stripe responses. In production, set STRIPE_API_KEY and STRIPE_WEBHOOK_SECRET environment variables.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-8 bg-gray-50 rounded-lg p-6">
+        <h2 class="text-2xl font-bold mb-4">Code Example</h2>
+        <pre class="bg-gray-900 text-gray-100 p-4 rounded overflow-x-auto text-sm"><code>from eden.payments import StripeProvider
+
+# Configure Stripe
+app.configure_payments(StripeProvider(
+    api_key=os.getenv("STRIPE_API_KEY"),
+    webhook_secret=os.getenv("STRIPE_WEBHOOK_SECRET"),
+))
+
+# In routes - create checkout
+@app.post("/checkout")
+async def checkout(request: Request, plan_id: str):
+    checkout_url = await request.user.billing.create_checkout_session(
+        plan_id=plan_id,
+        success_url=request.url_for("success"),
+        cancel_url=request.url_for("pricing"),
+    )
+    return {"url": checkout_url}
+
+# Webhook handling
+@app.post("/webhooks/stripe")
+async def stripe_webhook(request):
+    event = app.payments.verify_webhook_signature(
+        await request.body(),
+        request.headers["stripe-signature"]
+    )
+    # Handle subscription updates...</code></pre>
+    </div>
+
+    <div class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="p-4 bg-blue-50 border border-blue-200 rounded">
+            <h3 class="font-semibold mb-2">Billing Portal</h3>
+            <p class="text-sm text-gray-600 mb-3">Customer self-service portal for managing subscriptions</p>
+            <button onclick="openBillingPortal()" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                Open Portal
+            </button>
+        </div>
+
+        <div class="p-4 bg-green-50 border border-green-200 rounded">
+            <h3 class="font-semibold mb-2">Subscription Status</h3>
+            <p class="text-sm text-gray-600 mb-3">Check your active subscription</p>
+            <button onclick="checkSubscription()" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
+                Check Status
+            </button>
+            <div id="subscription-status" class="mt-2 text-sm hidden"></div>
+        </div>
+    </div>
+
+    <div class="mt-6 text-center">
+        <a href="/demo" class="text-blue-600 hover:underline">← Back to Features</a>
+    </div>
+</div>
+
+<script>
+async function selectPlan(plan) {
+    try {
+        const response = await fetch('/api/checkout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ plan: plan })
+        });
+        
+        const data = await response.json();
+        
+        document.getElementById('checkout-link').textContent = `Plan: ${data.plan}`;
+        document.getElementById('checkout-url').href = data.checkout_url;
+        document.getElementById('checkout-url').textContent = 'Open Checkout →';
+        document.getElementById('checkout-result').classList.remove('hidden');
+    } catch (error) {
+        alert('Error: ' + error);
+    }
+}
+
+async function openBillingPortal() {
+    try {
+        const response = await fetch('/api/billing-portal', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        const data = await response.json();
+        window.open(data.portal_url, '_blank');
+    } catch (error) {
+        alert('Error: ' + error);
+    }
+}
+
+async function checkSubscription() {
+    try {
+        const response = await fetch('/api/subscription-status');
+        const data = await response.json();
+        
+        const status = document.getElementById('subscription-status');
+        status.textContent = data.is_subscribed ? '✅ Active Subscription' : '⏹ No Active Subscription';
+        status.className = data.is_subscribed ? 'mt-2 text-sm text-green-600' : 'mt-2 text-sm text-gray-600';
+        status.classList.remove('hidden');
+    } catch (error) {
+        alert('Error: ' + error);
+    }
+}
+</script>
+@endsection

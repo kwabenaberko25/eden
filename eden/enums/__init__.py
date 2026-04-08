@@ -7,36 +7,44 @@ enum validation, and display name support.
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import Enum, EnumMeta
 from typing import Any, Dict, List, Optional, Type, Union, get_type_hints
 import sqlalchemy as sa
 from sqlalchemy import Column, String, Integer, Enum as SAEnum
 
 from ..db import Model, mapped_column
 
-class ChoiceMeta(type):
+
+class classproperty:
+    """Descriptor for class-level read-only computed attributes."""
+
+    def __init__(self, func):
+        self.func = func
+
+    def __get__(self, obj, objtype=None):
+        return self.func(objtype)
+
+
+class ChoiceMeta(EnumMeta):
     """Metaclass for choice enums to provide additional functionality."""
 
     def __new__(cls, name, bases, attrs):
         # Create the enum class
         enum_class = super().__new__(cls, name, bases, attrs)
 
-        # Add choice methods
+        # Add choice helpers for class-level access
         if hasattr(enum_class, '__members__'):
-            # Add choices property
-            enum_class.choices = property(lambda self: [
+            enum_class.choices = classproperty(lambda cls: [
                 (member.value, member.display_name)
-                for member in self.__members__.values()
+                for member in cls.__members__.values()
             ])
 
-            # Add values property
-            enum_class.values = property(lambda self: [
-                member.value for member in self.__members__.values()
+            enum_class.values = classproperty(lambda cls: [
+                member.value for member in cls.__members__.values()
             ])
 
-            # Add display_names property
-            enum_class.display_names = property(lambda self: [
-                member.display_name for member in self.__members__.values()
+            enum_class.display_names = classproperty(lambda cls: [
+                member.display_name for member in cls.__members__.values()
             ])
 
         return enum_class
@@ -70,7 +78,7 @@ class ChoiceEnum(str, Enum, metaclass=ChoiceMeta):
     @classmethod
     def validate_choice(cls, value: str) -> bool:
         """Validate that a value is a valid choice."""
-        return value in cls.values
+        return value in [member.value for member in cls]
 
 class ChoiceField:
     """
@@ -154,11 +162,16 @@ class ChoiceField:
             column_type = SAEnum(self._enum_class, native_enum=False)
 
         # Create column
-        column = Column(name, column_type, nullable=self.default is None)
-
-        # Add default
+        default_value = None
         if self.default is not None:
-            column.default = self.default
+            default_value = self.default.value if isinstance(self.default, Enum) else self.default
+
+        column = Column(
+            name,
+            column_type,
+            nullable=default_value is None,
+            default=default_value,
+        )
 
         # Add index if requested
         if self.db_index:

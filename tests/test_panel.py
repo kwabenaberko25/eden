@@ -85,6 +85,16 @@ async def test_panel_list_data():
     mock_queryset = AsyncMock()
     mock_queryset.all.return_value = []
     mock_queryset.count.return_value = 0
+    mock_queryset.order_by.return_value = mock_queryset
+    mock_queryset.paginate.return_value = MagicMock(
+        items=[],
+        total=0,
+        page=1,
+        per_page=25,
+        has_next=False,
+        has_prev=False,
+        total_pages=1,
+    )
 
     panel.get_queryset = AsyncMock(return_value=mock_queryset)
 
@@ -109,11 +119,12 @@ async def test_panel_detail_data():
     mock_user = TestUser(id=uuid.uuid4(), name="Test User", email="test@example.com")
 
     mock_queryset = AsyncMock()
-    mock_queryset.filter.return_value.first.return_value = mock_user
+    mock_queryset.filter = MagicMock(return_value=mock_queryset)
+    mock_queryset.first.return_value = mock_user
 
     # Temporarily replace the model's query method
     original_query = TestUser.query
-    TestUser.query = mock_queryset
+    TestUser.query = MagicMock(return_value=mock_queryset)
 
     try:
         data = await panel.get_detail_data(request, str(mock_user.id))

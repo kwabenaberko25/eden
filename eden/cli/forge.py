@@ -172,6 +172,9 @@ async def delete_{snake_name}(id: int) -> Dict[str, Any]:
         click.echo(f"  📝 Updated {prefix_path}/__init__.py (auto-registered)")
 
 
+# Support both `generate route` and the older/tested `generate router` command names.
+generate.add_command(router, "router")
+
 @generate.command()
 @click.argument("name")
 def component(name: str) -> None:

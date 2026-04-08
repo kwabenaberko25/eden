@@ -1,0 +1,104 @@
+@extends('admin/base.html')
+
+@section('title', 'HTMX Integration Demo')
+
+@section('content')
+<div class="container mx-auto px-4 py-8">
+    <div class="mb-8">
+        <h1 class="text-4xl font-bold mb-2">HTMX Integration</h1>
+        <p class="text-lg text-gray-600">Smart fragment rendering with HX-* headers</p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Demo Card -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-2xl font-bold mb-4">Live Demo</h2>
+            
+            <div id="items-list" 
+                 hx-get="/api/items"
+                 hx-trigger="load"
+                 hx-swap="innerHTML"
+                 class="mb-4 p-4 bg-gray-50 rounded border border-gray-200 min-h-32 flex items-center justify-center">
+                <div class="text-gray-500">Loading items...</div>
+            </div>
+
+            <button 
+                hx-get="/api/items"
+                hx-target="#items-list"
+                hx-swap="innerHTML"
+                class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 mb-3">
+                Refresh Items
+            </button>
+
+            <div class="space-y-2">
+                <input type="text" id="item-name" placeholder="Item name" class="w-full px-3 py-2 border border-gray-300 rounded">
+                <button 
+                    hx-post="/api/items/add"
+                    hx-include="#item-name"
+                    hx-target="#items-list"
+                    hx-swap="afterbegin"
+                    hx-vals='{"name": "document.getElementById(\'item-name\').value"}'
+                    class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 w-full">
+                    Add Item
+                </button>
+            </div>
+        </div>
+
+        <!-- Info Card -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-2xl font-bold mb-4">Features</h2>
+            <ul class="space-y-3">
+                <li class="flex items-start">
+                    <span class="text-green-500 mr-3">✅</span>
+                    <div>
+                        <p class="font-semibold">Smart Fragment Rendering</p>
+                        <p class="text-sm text-gray-600">Auto-detects HX-Target header and renders only needed fragments</p>
+                    </div>
+                </li>
+                <li class="flex items-start">
+                    <span class="text-green-500 mr-3">✅</span>
+                    <div>
+                        <p class="font-semibold">HtmxResponse Class</p>
+                        <p class="text-sm text-gray-600">Fluent API for setting HTMX headers (trigger, swap, redirect, etc.)</p>
+                    </div>
+                </li>
+                <li class="flex items-start">
+                    <span class="text-green-500 mr-3">✅</span>
+                    <div>
+                        <p class="font-semibold">Request Helpers</p>
+                        <p class="text-sm text-gray-600">Detect HTMX requests and extract headers easily</p>
+                    </div>
+                </li>
+                <li class="flex items-start">
+                    <span class="text-green-500 mr-3">✅</span>
+                    <div>
+                        <p class="font-semibold">Full HTMX Support</p>
+                        <p class="text-sm text-gray-600">trigger, trigger-after-swap, trigger-after-settle, redirect, refresh, swap, retarget, reselect, push-url</p>
+                    </div>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="mt-8 bg-gray-50 rounded-lg p-6">
+        <h2 class="text-2xl font-bold mb-4">Code Example</h2>
+        <pre class="bg-gray-900 text-gray-100 p-4 rounded overflow-x-auto text-sm"><code>from eden.htmx import HtmxResponse, is_htmx
+
+@app.get("/api/items")
+async def list_items(request):
+    items = await Item.all()
+    
+    if is_htmx(request):
+        html = render_fragment("items.html", {"items": items})
+        return HtmxResponse(html).trigger("itemsLoaded")
+    
+    return templates.TemplateResponse("items.html", {"items": items})</code></pre>
+    </div>
+
+    <div class="mt-6 text-center">
+        <a href="/demo" class="text-blue-600 hover:underline">← Back to Features</a>
+    </div>
+</div>
+
+<script src="https://unpkg.com/htmx.org"></script>
+@endsection

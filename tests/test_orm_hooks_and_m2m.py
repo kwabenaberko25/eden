@@ -17,8 +17,15 @@ class M2MArticle(Model):
     title: str = f(max_length=100)
     tags: Mapped[List["M2MTag"]] = ManyToManyField("M2MTag", back_populates="articles")
 
+@pytest.fixture(scope="function", autouse=True)
+async def setup_orm_tables(db):
+    """Ensure tables are created for models in this file."""
+    async with db.engine.begin() as conn:
+        await conn.run_sync(Model.metadata.create_all)
+    yield
+
 @pytest.mark.asyncio
-async def test_orm_hooks(db):
+async def test_orm_hooks(db, db_transaction):
     obj = await LifecycleModel.create(name="Test Hooks")
     assert obj.hook_triggered is True
     
@@ -27,7 +34,7 @@ async def test_orm_hooks(db):
     assert fetched.hook_triggered is True
 
 @pytest.mark.asyncio
-async def test_orm_m2m(db):
+async def test_orm_m2m(db, db_transaction):
     # 1. Create entities
     tag1 = await M2MTag.create(name="Python")
     tag2 = await M2MTag.create(name="Eden")

@@ -120,6 +120,22 @@ class ModelConfig:
                 readonly.append('updated_at')
             self.api_readonly_fields = readonly
 
+        # Default API required fields based on non-null model columns
+        if not self.api_required_fields:
+            required = []
+            for attr_name in dir(model_cls):
+                if attr_name.startswith('_'):
+                    continue
+                if attr_name in self.api_readonly_fields:
+                    continue
+                try:
+                    attr = getattr(model_cls, attr_name)
+                except Exception:
+                    continue
+                if hasattr(attr, 'nullable') and getattr(attr, 'nullable') is False:
+                    required.append(attr_name)
+            self.api_required_fields = required
+
         # Default admin display fields
         if not self.admin_list_display:
             display_fields = []

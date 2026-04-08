@@ -8,6 +8,7 @@ business logic encapsulation, and full type safety.
 from __future__ import annotations
 
 import uuid
+import inspect
 from datetime import datetime, timedelta
 from typing import (
     Any, Dict, List, Optional, Type, TypeVar, Generic, Union,
@@ -51,11 +52,13 @@ class QuerySet(BaseQuerySet[T], Generic[T]):
         if len(expressions) == 1:
             stmt = select(expressions[0]).select_from(self._stmt.subquery())
             result = await self._execute_scalar(stmt)
-            return {str(expressions[0]): result}
+            key = getattr(expressions[0], 'name', str(expressions[0]))
+            return {key: result}
         else:
             stmt = select(*expressions).select_from(self._stmt.subquery())
             result = await self._execute_first(stmt)
-            return dict(zip([str(expr) for expr in expressions], result))
+            keys = [getattr(expr, 'name', str(expr)) for expr in expressions]
+            return dict(zip(keys, result))
 
     async def bulk_create(self, instances: List[T]) -> List[T]:
         """Bulk create multiple instances."""
@@ -64,7 +67,9 @@ class QuerySet(BaseQuerySet[T], Generic[T]):
 
         # Use SQLAlchemy's bulk operations for efficiency
         session = await self._resolve_session()
-        session.add_all(instances)
+        add_all_result = session.add_all(instances)
+        if inspect.isawaitable(add_all_result):
+            await add_all_result
         await session.commit()
 
         # Refresh instances to get generated IDs
@@ -234,37 +239,74 @@ class Manager(Generic[T]):
     def __init__(self, model_cls: Type[T]):
         self.model_cls = model_cls
 
+    def _resolve_queryset(self, qs: Any) -> Any:
+        if isinstance(qs, (QuerySet, BaseQuerySet)):
+            return qs
+        if inspect.isawaitable(qs):
+            if hasattr(qs, 'return_value'):
+                return qs.return_value
+            raise TypeError("get_queryset returned an awaitable in a synchronous manager method.")
+        return qs
+
+    def _resolve_result(self, result: Any) -> Any:
+        if isinstance(result, (QuerySet, BaseQuerySet)):
+            return result
+        if inspect.isawaitable(result):
+            if hasattr(result, 'return_value'):
+                return result.return_value
+            raise TypeError("QuerySet method returned an awaitable in a synchronous manager method.")
+        return result
+
     def get_queryset(self) -> QuerySet[T]:
         """Return the base queryset for this manager."""
         return QuerySet(self.model_cls)
 
     # Delegate all query methods to the queryset
     def filter(self, *filters, **kwargs) -> QuerySet[T]:
-        return self.get_queryset().filter(*filters, **kwargs)
+        queryset = self._resolve_queryset(self.get_queryset())
+        return self._resolve_result(queryset.filter(*filters, **kwargs))
 
     def exclude(self, *filters, **kwargs) -> QuerySet[T]:
-        return self.get_queryset().exclude(*filters, **kwargs)
+        queryset = self._resolve_queryset(self.get_queryset())
+        return self._resolve_result(queryset.exclude(*filters, **kwargs))
 
     def order_by(self, *fields) -> QuerySet[T]:
-        return self.get_queryset().order_by(*fields)
+        queryset = self._resolve_queryset(self.get_queryset())
+        return self._resolve_result(queryset.order_by(*fields))
 
     def annotate(self, **annotations) -> QuerySet[T]:
-        return self.get_queryset().annotate(**annotations)
+        queryset = self._resolve_queryset(self.get_queryset())
+        return self._resolve_result(queryset.annotate(**annotations))
 
     async def all(self) -> List[T]:
-        return await self.get_queryset().all()
+        queryset = self.get_queryset()
+        if inspect.isawaitable(queryset):
+            queryset = await queryset
+        return await queryset.all()
 
     async def first(self) -> Optional[T]:
-        return await self.get_queryset().first()
+        queryset = self.get_queryset()
+        if inspect.isawaitable(queryset):
+            queryset = await queryset
+        return await queryset.first()
 
     async def last(self) -> Optional[T]:
-        return await self.get_queryset().last()
+        queryset = self.get_queryset()
+        if inspect.isawaitable(queryset):
+            queryset = await queryset
+        return await queryset.last()
 
     async def count(self) -> int:
-        return await self.get_queryset().count()
+        queryset = self.get_queryset()
+        if inspect.isawaitable(queryset):
+            queryset = await queryset
+        return await queryset.count()
 
     async def exists(self) -> bool:
-        return await self.get_queryset().exists()
+        queryset = self.get_queryset()
+        if inspect.isawaitable(queryset):
+            queryset = await queryset
+        return await queryset.exists()
 
     async def get(self, **kwargs) -> T:
         """Get a single object matching the given kwargs."""

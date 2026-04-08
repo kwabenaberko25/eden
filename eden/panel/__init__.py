@@ -188,6 +188,13 @@ class BasePanel(metaclass=PanelMeta):
         """Get data for the list view."""
         queryset = await self.get_queryset()
 
+        async def _resolve(value: Any) -> Any:
+            if inspect.isawaitable(value):
+                if hasattr(value, 'return_value'):
+                    return value.return_value
+                return await value
+            return value
+
         # Apply search
         search_query = request.query_params.get('q', '')
         if search_query and self._search_fields:
@@ -195,24 +202,24 @@ class BasePanel(metaclass=PanelMeta):
             for field in self._search_fields:
                 search_filters.append(getattr(self.model_cls, field).ilike(f"%{search_query}%"))
             if search_filters:
-                queryset = queryset.filter(*search_filters)
+                queryset = await _resolve(queryset.filter(*search_filters))
 
         # Apply filters
         for filter_field in self._filter_fields:
             filter_value = request.query_params.get(f"filter_{filter_field}")
             if filter_value:
-                queryset = queryset.filter(**{filter_field: filter_value})
+                queryset = await _resolve(queryset.filter(**{filter_field: filter_value}))
 
         # Apply sorting
         sort_by = request.query_params.get('sort', self.default_sort)
         if sort_by:
-            queryset = queryset.order_by(sort_by)
+            queryset = await _resolve(queryset.order_by(sort_by))
 
         # Pagination
         page = int(request.query_params.get('page', 1))
         per_page = int(request.query_params.get('per_page', 25))
 
-        paginated = await queryset.paginate(page=page, per_page=per_page)
+        paginated = await _resolve(queryset.paginate(page=page, per_page=per_page))
 
         return {
             'items': paginated.items,

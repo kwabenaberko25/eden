@@ -34,6 +34,7 @@ class LifecycleMixin:
         from sqlalchemy.orm import attributes
         from sqlalchemy import JSON
         from ..signals import pre_save, post_save
+        from ..utils import get_utc_now
 
         db = self.__class__._get_db()
         
@@ -69,6 +70,10 @@ class LifecycleMixin:
 
         # Handle Auto-Slugging
         await self._auto_slugify()
+
+        # Ensure updated_at is set for updates (helps SQLAlchemy detect the change)
+        if not is_new and hasattr(self, 'updated_at'):
+            self.updated_at = get_utc_now()
 
         # Phase 2: Execution within Transaction Boundary
         # If commit=False, we use savepoint even if no session is provided, 

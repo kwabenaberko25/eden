@@ -1,0 +1,195 @@
+@extends('admin/base.html')
+
+@section('title', 'Multi-Tenant (Tenancy) Demo')
+
+@section('content')
+<div class="container mx-auto px-4 py-8">
+    <div class="mb-8">
+        <h1 class="text-4xl font-bold mb-2">Multi-Tenant Support</h1>
+        <p class="text-lg text-gray-600">Tenant isolation, multi-schema support, fail-secure</p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Tenant Info -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-2xl font-bold mb-4">Current Tenant</h2>
+            
+            <div class="p-4 bg-blue-50 rounded border border-blue-200 mb-4">
+                <p class="text-sm text-gray-600 mb-2">Current Tenant ID:</p>
+                <p id="tenant-id" class="text-2xl font-bold text-blue-600 mb-4">{{ current_tenant['id'] }}</p>
+                
+                <p class="text-sm text-gray-600 mb-2">Tenant Name:</p>
+                <p id="tenant-name" class="text-lg font-semibold mb-4">{{ current_tenant['name'] }}</p>
+
+                <p class="text-sm text-gray-600 mb-2">How to set tenant:</p>
+                <code class="text-xs bg-gray-200 px-2 py-1 rounded block">
+                    Header: X-Tenant-ID: demo
+                </code>
+            </div>
+
+            <div class="space-y-2">
+                <input type="text" id="new-tenant-id" placeholder="Enter tenant ID (e.g., acme, demo, company-x)" class="w-full px-3 py-2 border border-gray-300 rounded">
+                <button onclick="switchTenant()" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 w-full">
+                    Switch Tenant (try in app with X-Tenant-ID header)
+                </button>
+            </div>
+
+            <div class="mt-4 text-sm text-gray-600">
+                <p>💡 In production, tenants are resolved from:</p>
+                <ul class="list-disc list-inside mt-2 space-y-1">
+                    <li>Subdomain: acme.example.com</li>
+                    <li>Header: X-Tenant-ID</li>
+                    <li>Session: _tenant_id</li>
+                    <li>Path: /t/acme/...</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Info Card -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-2xl font-bold mb-4">Features</h2>
+            <ul class="space-y-3">
+                <li class="flex items-start">
+                    <span class="text-green-500 mr-3">✅</span>
+                    <div>
+                        <p class="font-semibold">TenantMiddleware</p>
+                        <p class="text-sm text-gray-600">4 resolution strategies: subdomain, header, session, path</p>
+                    </div>
+                </li>
+                <li class="flex items-start">
+                    <span class="text-green-500 mr-3">✅</span>
+                    <div>
+                        <p class="font-semibold">TenantMixin</p>
+                        <p class="text-sm text-gray-600">Automatic query filtering by tenant_id</p>
+                    </div>
+                </li>
+                <li class="flex items-start">
+                    <span class="text-green-500 mr-3">✅</span>
+                    <div>
+                        <p class="font-semibold">Multi-Schema Support</p>
+                        <p class="text-sm text-gray-600">Each tenant gets dedicated PostgreSQL schema</p>
+                    </div>
+                </li>
+                <li class="flex items-start">
+                    <span class="text-green-500 mr-3">✅</span>
+                    <div>
+                        <p class="font-semibold">Fail-Secure Enforcement</p>
+                        <p class="text-sm text-gray-600">Reject requests without valid tenant (default)</p>
+                    </div>
+                </li>
+                <li class="flex items-start">
+                    <span class="text-green-500 mr-3">✅</span>
+                    <div>
+                        <p class="font-semibold">ContextVar Isolation</p>
+                        <p class="text-sm text-gray-600">Async-safe tenant context per request</p>
+                    </div>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="mt-8 bg-gray-50 rounded-lg p-6">
+        <h2 class="text-2xl font-bold mb-4">Code Example</h2>
+        <pre class="bg-gray-900 text-gray-100 p-4 rounded overflow-x-auto text-sm"><code>from eden import Eden
+from eden.tenancy import TenantMixin
+from eden.db import Model
+
+# Enable tenancy
+app.add_middleware("tenant", strategy="header", header_name="X-Tenant-ID")
+
+# Models with automatic isolation
+class Project(Model, TenantMixin):
+    name: str
+    owner_id: str
+    # tenant_id automatically added and filtered
+
+@app.get("/projects")
+async def list_projects(request: Request):
+    # Queries auto-filtered by current tenant
+    projects = await Project.all()
+    return {"projects": projects}
+
+@app.post("/projects")
+async def create_project(request: Request, data: dict):
+    tenant = request.tenant  # Auto-resolved
+    project = await Project.create(
+        name=data["name"],
+        tenant_id=tenant.id
+    )
+    return {"id": project.id}</code></pre>
+    </div>
+
+    <div class="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="p-4 bg-green-50 border border-green-200 rounded">
+            <h3 class="font-semibold mb-2">🔐 Isolation</h3>
+            <p class="text-sm text-gray-600">
+                Data is automatically filtered by tenant. Queries never leak across tenants.
+            </p>
+        </div>
+
+        <div class="p-4 bg-blue-50 border border-blue-200 rounded">
+            <h3 class="font-semibold mb-2">📊 Schemas</h3>
+            <p class="text-sm text-gray-600">
+                Each tenant can have dedicated database schema (PostgreSQL)
+            </p>
+        </div>
+
+        <div class="p-4 bg-purple-50 border border-purple-200 rounded">
+            <h3 class="font-semibold mb-2">⚡ Performance</h3>
+            <p class="text-sm text-gray-600">
+                Indexed tenant_id columns + connection pooling per schema
+            </p>
+        </div>
+    </div>
+
+    <div class="mt-8 bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+        <h2 class="text-2xl font-bold mb-4">Testing Multi-Tenant</h2>
+        <p class="text-gray-700 mb-4">
+            This demo is configured to use the "header" strategy. To test:
+        </p>
+        <ol class="list-decimal list-inside space-y-2 text-gray-700 mb-4">
+            <li>Try without header: Should see "Public/No Tenant"</li>
+            <li>Try with different X-Tenant-ID values: Different tenant contexts</li>
+            <li>Test with curl:
+                <code class="bg-gray-200 px-2 py-1 rounded block mt-2 text-xs">
+                    curl -H "X-Tenant-ID: acme" http://localhost:8001/api/tenant-info
+                </code>
+            </li>
+        </ol>
+
+        <div id="test-result" class="mt-4 p-3 bg-white rounded border border-gray-300 hidden">
+            <p class="font-semibold mb-2">Test Result:</p>
+            <pre id="test-output" class="text-xs overflow-x-auto"></pre>
+        </div>
+
+        <button onclick="testTenant()" class="mt-4 px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700">
+            Test Current Tenant
+        </button>
+    </div>
+
+    <div class="mt-6 text-center">
+        <a href="/demo" class="text-blue-600 hover:underline">← Back to Features</a>
+    </div>
+</div>
+
+<script>
+async function testTenant() {
+    try {
+        const response = await fetch('/api/tenant-info');
+        const data = await response.json();
+        
+        document.getElementById('test-output').textContent = JSON.stringify(data, null, 2);
+        document.getElementById('test-result').classList.remove('hidden');
+    } catch (error) {
+        alert('Error: ' + error);
+    }
+}
+
+function switchTenant() {
+    const tenantId = document.getElementById('new-tenant-id').value.trim();
+    if (tenantId) {
+        alert(`To use tenant "${tenantId}", set header:\nX-Tenant-ID: ${tenantId}\n\nExample with curl:\ncurl -H "X-Tenant-ID: ${tenantId}" http://localhost:8001/demo/tenancy`);
+    }
+}
+</script>
+@endsection

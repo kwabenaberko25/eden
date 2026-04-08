@@ -40,6 +40,8 @@ from eden.core.metrics import metrics
 
 from enum import Enum
 
+_UNSET = object()
+
 
 class AppStatus(str, Enum):
     """Application lifecycle states."""
@@ -81,7 +83,7 @@ class Eden:
         version: str = "1.0.0",
         debug: bool = False,
         description: str | None = None,
-        secret_key: str | None = None,
+        secret_key: str | None | object = _UNSET,
         contact: dict[str, str] | None = None,
         license_info: dict[str, str] | None = None,
         openapi_url: str | None = "/openapi.json",
@@ -115,7 +117,12 @@ class Eden:
         self.openapi_url = openapi_url
         self.docs_url = docs_url
         self.redoc_url = redoc_url
-        self.secret_key = secret_key or self.config.secret_key or ""
+        
+        if secret_key is _UNSET:
+            resolved_secret_key = self.config.secret_key
+        else:
+            resolved_secret_key = secret_key
+        self.secret_key = resolved_secret_key or ""
         
         # SECURITY: Fail hard in all non-test environments if no secret_key is configured.
         # This prevents accidental deployment of insecure applications.

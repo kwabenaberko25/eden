@@ -3,12 +3,12 @@ import os
 from eden.app import Eden, AppStatus
 from eden.config import create_config
 
-def test_app_fails_without_secret_key_in_dev():
+def test_app_fails_without_secret_key_in_dev(monkeypatch):
     """Verify that Eden() raises RuntimeError if secret_key is missing in dev."""
     from eden.config import ConfigManager
     # Reset singleton to ensure it re-reads environment
     ConfigManager.instance().reset()
-    os.environ["EDEN_ENV"] = "dev"
+    monkeypatch.setenv("EDEN_ENV", "dev")
     
     with pytest.raises(RuntimeError) as excinfo:
         Eden(secret_key=None)

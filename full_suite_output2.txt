@@ -1,0 +1,3135 @@
+...........................F.................................F.......... [  4%]
+........................................................................ [  8%]
+.........................F.............................................. [ 13%]
+....F.F...............................F................................. [ 17%]
+........................................................................ [ 22%]
+................................FF...................................... [ 26%]
+........................................................................ [ 31%]
+........................................................................ [ 35%]
+........................................................................ [ 40%]
+........................................................................ [ 44%]
+........................................................................ [ 48%]
+........................................................................ [ 53%]
+..................F..FF..F.............................................. [ 57%]
+..........................................FF............................ [ 62%]
+........................................................................ [ 66%]
+........................................................................ [ 71%]
+........................................................................ [ 75%]
+................................sss................s.................... [ 80%]
+.........................F......F...........FF...........F.......FF..FF. [ 84%]
+...FF.....F.........F................................................... [ 88%]
+........................................................................ [ 93%]
+........................................................................ [ 97%]
+....................................                                     [100%]
+================================== FAILURES ===================================
+____________________ test_generate_route_auto_registration ____________________
+
+    def test_generate_route_auto_registration():
+        """Test that generating a route updates the routes/__init__.py for auto-registration."""
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            os.makedirs("app/routes")
+            init_file = Path("app/routes/__init__.py")
+            init_file.write_text("from eden import Router\nmain_router = Router()\n")
+    
+            result = runner.invoke(generate, ["router", "Billing"])
+    
+>           assert result.exit_code == 0
+E           assert 2 == 0
+E            +  where 2 = <Result SystemExit(2)>.exit_code
+
+tests\cli\test_entity_gen.py:89: AssertionError
+__________________ test_app_fails_without_secret_key_in_dev ___________________
+
+    def test_app_fails_without_secret_key_in_dev():
+        """Verify that Eden() raises RuntimeError if secret_key is missing in dev."""
+        from eden.config import ConfigManager
+        # Reset singleton to ensure it re-reads environment
+        ConfigManager.instance().reset()
+        os.environ["EDEN_ENV"] = "dev"
+    
+>       with pytest.raises(RuntimeError) as excinfo:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'RuntimeError'>
+
+tests\test_app_security.py:13: Failed
+------------------------------ Captured log call ------------------------------
+WARNING  eden:app.py:210 Failed to initialize distributed backend: no running event loop\nWARNING  eden.diagnostics:diagnostics.py:124   \u26a0\ufe0f  Distributed Backend: DEGRADED \u2014 Redis connection failed: no running event loop. Distributed locking, pub/sub, and idempotency disabled.\nWARNING  eden.diagnostics:diagnostics.py:134 \u2500\u2500\u2500 1 degraded, 0 failed subsystem(s). Review configuration. \u2500\u2500\u2500
+_______________________________ test_query_rbac _______________________________
+
+    async def test_query_rbac():
+        print("\nTesting Query-Level RBAC Enforcement...")
+        from eden.db.query import QuerySet
+        from eden.context import set_user, reset_user
+    
+        class ProtectedModel(Model, AccessControl):
+            __tablename__ = "protected"
+            __rbac__ = {"read": AllowOwner()}
+    
+        # 1. No user in context -> should deny
+        qs = QuerySet(ProtectedModel)
+        applied_qs = qs._apply_rbac("read")
+        assert applied_qs._rbac_applied is True
+>       assert "1 = 0" in str(applied_qs._stmt) or "1=0" in str(applied_qs._stmt)
+E       AssertionError: assert ('1 = 0' in 'SELECT protected.id, protected.created_at, protected.updated_at \nFROM protected \nWHERE false' or '1=0' in 'SELECT protected.id, protected.created_at, protected.updated_at \nFROM protected \nWHERE false')
+E        +  where 'SELECT protected.id, protected.created_at, protected.updated_at \nFROM protected \nWHERE false' = str(<sqlalchemy.sql.selectable.Select object at 0x0000022D18B967B0>)
+E        +    where <sqlalchemy.sql.selectable.Select object at 0x0000022D18B967B0> = <eden.db.query.QuerySet object at 0x0000022D18BD50D0>._stmt
+E        +  and   'SELECT protected.id, protected.created_at, protected.updated_at \nFROM protected \nWHERE false' = str(<sqlalchemy.sql.selectable.Select object at 0x0000022D18B967B0>)
+E        +    where <sqlalchemy.sql.selectable.Select object at 0x0000022D18B967B0> = <eden.db.query.QuerySet object at 0x0000022D18BD50D0>._stmt
+
+tests\test_auth_audit.py:127: AssertionError
+---------------------------- Captured stdout call -----------------------------
+
+Testing Query-Level RBAC Enforcement...
+____________________________ test_rbac_allow_roles ____________________________
+
+    @pytest.mark.asyncio
+    async def test_rbac_allow_roles():
+        """Verify that AllowRoles allows/denies based on user roles."""
+        db = Database("sqlite+aiosqlite:///:memory:")
+        await db.connect(create_tables=True)
+        SecretNote._bind_db(db)
+    
+        user_regular = UserMock(id=1, roles=["user"])
+        user_admin = UserMock(id=1, roles=["admin"])
+    
+        # Test 'delete' action which requires 'admin' role
+        qs_reg = SecretNote.query().for_user(user_regular, action="delete")
+        qs_admin = SecretNote.query().for_user(user_admin, action="delete")
+    
+        # For regular user, it should inject a false() filter (or equivalent)
+        # We can check the statement
+>       assert "0 = 1" in str(qs_reg._stmt) or "false" in str(qs_reg._stmt).lower()
+E       AssertionError: assert ('0 = 1' in 'SELECT secret_notes.content, secret_notes.owner_id, secret_notes.id, secret_notes.created_at, secret_notes.updated_at \nFROM secret_notes \nWHERE 1 = 0' or 'false' in 'select secret_notes.content, secret_notes.owner_id, secret_notes.id, secret_notes.created_at, secret_notes.updated_at \nfrom secret_notes \nwhere 1 = 0')
+E        +  where 'SELECT secret_notes.content, secret_notes.owner_id, secret_notes.id, secret_notes.created_at, secret_notes.updated_at \nFROM secret_notes \nWHERE 1 = 0' = str(<sqlalchemy.sql.selectable.Select object at 0x0000022D18C4EF90>)
+E        +    where <sqlalchemy.sql.selectable.Select object at 0x0000022D18C4EF90> = <eden.db.query.QuerySet object at 0x0000022D18CC5230>._stmt
+E        +  and   'select secret_notes.content, secret_notes.owner_id, secret_notes.id, secret_notes.created_at, secret_notes.updated_at \nfrom secret_notes \nwhere 1 = 0' = <built-in method lower of str object at 0x0000022D18B368B0>()
+E        +    where <built-in method lower of str object at 0x0000022D18B368B0> = 'SELECT secret_notes.content, secret_notes.owner_id, secret_notes.id, secret_notes.created_at, secret_notes.updated_at \nFROM secret_notes \nWHERE 1 = 0'.lower
+E        +      where 'SELECT secret_notes.content, secret_notes.owner_id, secret_notes.id, secret_notes.created_at, secret_notes.updated_at \nFROM secret_notes \nWHERE 1 = 0' = str(<sqlalchemy.sql.selectable.Select object at 0x0000022D18C4EF90>)
+E        +        where <sqlalchemy.sql.selectable.Select object at 0x0000022D18C4EF90> = <eden.db.query.QuerySet object at 0x0000022D18CC5230>._stmt
+
+tests\test_auth_rbac_ownership.py:67: AssertionError
+________________________ test_task_decorator_and_defer ________________________
+
+app = <eden.app.Eden object at 0x0000022D19CE81A0>
+
+    @pytest.mark.asyncio
+    async def test_task_decorator_and_defer(app):
+        await app.broker.startup()
+        try:
+            task_ran = False
+    
+            @app.task
+            async def my_task(value: str):
+                nonlocal task_ran
+                task_ran = True
+                return f"Hello {value}"
+    
+            # Verify registration
+            assert "my_task" in my_task.task_name
+    
+            # Run task through broker
+            await app.task.defer(my_task, "Eden")
+    
+            # Give InMemoryBroker a moment to process
+            await asyncio.sleep(0.1)
+    
+            # Since it's InMemoryBroker, it should have executed
+>           assert task_ran is True
+E           assert False is True
+
+tests\test_background_tasks.py:32: AssertionError
+____________________ test_component_signature_verification ____________________
+
+    def test_component_signature_verification():
+        app = Eden(debug=True, secret_key="super-secret")
+    
+        @app.get("/")
+        async def index(request):
+            comp = SecureComponent(count=10)
+            return await comp.render()
+    
+        client = TestClient(app)
+    
+        # 1. Get the legitimate state and signature
+        # (In a real app, this is rendered into the HTML)
+        comp = SecureComponent(count=10)
+        state = comp.get_state()
+    
+        # Eden's canonicalization: stringify all non-None values
+        canonical = {str(k): str(v) for k, v in state.items() if v is not None}
+        state_json = json.dumps(canonical, sort_keys=True)
+    
+        signature = hmac.new(
+            b"super-secret",
+            state_json.encode(),
+            hashlib.sha256
+        ).hexdigest()
+    
+        # 2. Valid request - Should pass
+        response = client.post(
+            "/_eden/component/secure_test/increment",
+            data=state,
+            headers={"X-Eden-State-Signature": signature}
+        )
+>       assert response.status_code == 200
+E       assert 403 == 200
+E        +  where 403 = <Response [403 Forbidden]>.status_code
+
+tests\test_component_security.py:53: AssertionError
+_____________________ test_bulk_create_triggers_lifecycle _____________________
+
+self = <sqlalchemy.engine.base.Connection object at 0x0000022D19E225D0>
+dialect = <sqlalchemy.dialects.sqlite.aiosqlite.SQLiteDialect_aiosqlite object at 0x0000022D187A39D0>
+context = <sqlalchemy.dialects.sqlite.aiosqlite.SQLiteExecutionContext_aiosqlite object at 0x0000022D19EF8B90>
+statement = <sqlalchemy.dialects.sqlite.base.SQLiteCompiler object at 0x0000022D19DDEF50>
+parameters = [('One', '2026-04-08 00:20:53.192004', '2026-04-08 00:20:53.192011')]
+
+    def _exec_single_context(
+        self,
+        dialect: Dialect,
+        context: ExecutionContext,
+        statement: Union[str, Compiled],
+        parameters: Optional[_AnyMultiExecuteParams],
+    ) -> CursorResult[Any]:
+        """continue the _execute_context() method for a single DBAPI
+        cursor.execute() or cursor.executemany() call.
+    
+        """
+        if dialect.bind_typing is BindTyping.SETINPUTSIZES:
+            generic_setinputsizes = context._prepare_set_input_sizes()
+    
+            if generic_setinputsizes:
+                try:
+                    dialect.do_set_input_sizes(
+                        context.cursor, generic_setinputsizes, context
+                    )
+                except BaseException as e:
+                    self._handle_dbapi_exception(
+                        e, str(statement), parameters, None, context
+                    )
+    
+        cursor, str_statement, parameters = (
+            context.cursor,
+            context.statement,
+            context.parameters,
+        )
+    
+        effective_parameters: Optional[_AnyExecuteParams]
+    
+        if not context.executemany:
+            effective_parameters = parameters[0]
+        else:
+            effective_parameters = parameters
+    
+        if self._has_events or self.engine._has_events:
+            for fn in self.dispatch.before_cursor_execute:
+                str_statement, effective_parameters = fn(
+                    self,
+                    cursor,
+                    str_statement,
+                    effective_parameters,
+                    context,
+                    context.executemany,
+                )
+    
+        if self._echo:
+            self._log_info(str_statement)
+    
+            stats = context._get_cache_stats()
+    
+            if not self.engine.hide_parameters:
+                self._log_info(
+                    "[%s] %r",
+                    stats,
+                    sql_util._repr_params(
+                        effective_parameters,
+                        batches=10,
+                        ismulti=context.executemany,
+                    ),
+                )
+            else:
+                self._log_info(
+                    "[%s] [SQL parameters hidden due to hide_parameters=True]",
+                    stats,
+                )
+    
+        evt_handled: bool = False
+        try:
+            if context.execute_style is ExecuteStyle.EXECUTEMANY:
+                effective_parameters = cast(
+                    "_CoreMultiExecuteParams", effective_parameters
+                )
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_executemany:
+                        if fn(
+                            cursor,
+                            str_statement,
+                            effective_parameters,
+                            context,
+                        ):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+                    self.dialect.do_executemany(
+                        cursor,
+                        str_statement,
+                        effective_parameters,
+                        context,
+                    )
+            elif not effective_parameters and context.no_parameters:
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_execute_no_params:
+                        if fn(cursor, str_statement, context):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+                    self.dialect.do_execute_no_params(
+                        cursor, str_statement, context
+                    )
+            else:
+                effective_parameters = cast(
+                    "_CoreSingleExecuteParams", effective_parameters
+                )
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_execute:
+                        if fn(
+                            cursor,
+                            str_statement,
+                            effective_parameters,
+                            context,
+                        ):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+>                   self.dialect.do_execute(
+                        cursor, str_statement, effective_parameters, context
+                    )
+
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:1967: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:182: in execute
+    self._adapt_connection._handle_exception(error)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:342: in _handle_exception
+    raise error
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:164: in execute
+    self.await_(_cursor.execute(operation, parameters))
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:132: in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:196: in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\cursor.py:40: in execute
+    await self._execute(self._cursor.execute, sql, parameters)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\cursor.py:32: in _execute
+    return await self._conn._execute(fn, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py:160: in _execute
+    return await future
+           ^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+tx = <_queue.SimpleQueue object at 0x0000022D19F2B220>
+
+    def _connection_worker_thread(tx: _TxQueue):
+        """
+        Execute function calls on a separate thread.
+    
+        :meta private:
+        """
+        while True:
+            # Continues running until all queue items are processed,
+            # even after connection is closed (so we can finalize all
+            # futures)
+    
+            future, function = tx.get()
+    
+            try:
+                LOG.debug("executing %s", function)
+>               result = function()
+                         ^^^^^^^^^^
+E               sqlite3.OperationalError: no such table: bulk_test_model
+
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py:63: OperationalError
+
+The above exception was the direct cause of the following exception:
+
+db = <eden.db.session.Database object at 0x0000022D186D5A50>
+
+    @pytest.mark.asyncio
+    async def test_bulk_create_triggers_lifecycle(db: Database):
+        # Setup
+        await db.connect(create_tables=True)
+    
+        # Register signals
+        pre_save.connect(on_pre_save, sender=BulkTestModel)
+        post_save.connect(on_post_save, sender=BulkTestModel)
+    
+        try:
+            pre_save_calls.clear()
+            post_save_calls.clear()
+    
+            objects = [
+                BulkTestModel(name="One"),
+                BulkTestModel(name="Two"),
+                BulkTestModel(name="Three"),
+            ]
+    
+            # Act
+>           count = await BulkTestModel.query().bulk_create(objects)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_db_bulk_lifecycle.py:51: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+eden\db\query.py:1052: in bulk_create
+    await obj.save(session=session, commit=False)
+eden\db\mixins\lifecycle.py:93: in save
+    await sess.flush()
+eden\db\session.py:103: in flush
+    return await super().flush(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\ext\asyncio\session.py:787: in flush
+    await greenlet_spawn(self.sync_session.flush, objects=objects)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:203: in greenlet_spawn
+    result = context.switch(value)
+             ^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\session.py:4331: in flush
+    self._flush(objects)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\session.py:4466: in _flush
+    with util.safe_reraise():
+         ^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\langhelpers.py:121: in __exit__
+    raise exc_value.with_traceback(exc_tb)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\session.py:4427: in _flush
+    flush_context.execute()
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\unitofwork.py:466: in execute
+    rec.execute(self)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\unitofwork.py:642: in execute
+    util.preloaded.orm_persistence.save_obj(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\persistence.py:93: in save_obj
+    _emit_insert_statements(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\persistence.py:1233: in _emit_insert_statements
+    result = connection.execute(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:1419: in execute
+    return meth(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\sql\elements.py:527: in _execute_on_connection
+    return connection._execute_clauseelement(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:1641: in _execute_clauseelement
+    ret = self._execute_context(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:1846: in _execute_context
+    return self._exec_single_context(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:1986: in _exec_single_context
+    self._handle_dbapi_exception(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:2363: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:1967: in _exec_single_context
+    self.dialect.do_execute(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:182: in execute
+    self._adapt_connection._handle_exception(error)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:342: in _handle_exception
+    raise error
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:164: in execute
+    self.await_(_cursor.execute(operation, parameters))
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:132: in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:196: in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\cursor.py:40: in execute
+    await self._execute(self._cursor.execute, sql, parameters)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\cursor.py:32: in _execute
+    return await self._conn._execute(fn, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py:160: in _execute
+    return await future
+           ^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+tx = <_queue.SimpleQueue object at 0x0000022D19F2B220>
+
+    def _connection_worker_thread(tx: _TxQueue):
+        """
+        Execute function calls on a separate thread.
+    
+        :meta private:
+        """
+        while True:
+            # Continues running until all queue items are processed,
+            # even after connection is closed (so we can finalize all
+            # futures)
+    
+            future, function = tx.get()
+    
+            try:
+                LOG.debug("executing %s", function)
+>               result = function()
+                         ^^^^^^^^^^
+E               sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: bulk_test_model
+E               [SQL: INSERT INTO bulk_test_model (name, created_at, updated_at) VALUES (?, ?, ?)]
+E               [parameters: ('One', '2026-04-08 00:20:53.192004', '2026-04-08 00:20:53.192011')]
+E               (Background on this error at: https://sqlalche.me/e/20/e3q8)
+
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py:63: OperationalError
+___________________ test_soft_delete_commit_false_rollback ____________________
+
+self = <sqlalchemy.engine.base.Connection object at 0x0000022D19E234D0>
+dialect = <sqlalchemy.dialects.sqlite.aiosqlite.SQLiteDialect_aiosqlite object at 0x0000022D187A39D0>
+context = <sqlalchemy.dialects.sqlite.aiosqlite.SQLiteExecutionContext_aiosqlite object at 0x0000022D18B37F50>
+statement = <sqlalchemy.dialects.sqlite.base.SQLiteCompiler object at 0x0000022D19D17A50>
+parameters = [('RollbackMe', '990f21fccd03413ea45f797c741e2e3d', '2026-04-08 00:20:54.109147', '2026-04-08 00:20:54.109155', None)]
+
+    def _exec_single_context(
+        self,
+        dialect: Dialect,
+        context: ExecutionContext,
+        statement: Union[str, Compiled],
+        parameters: Optional[_AnyMultiExecuteParams],
+    ) -> CursorResult[Any]:
+        """continue the _execute_context() method for a single DBAPI
+        cursor.execute() or cursor.executemany() call.
+    
+        """
+        if dialect.bind_typing is BindTyping.SETINPUTSIZES:
+            generic_setinputsizes = context._prepare_set_input_sizes()
+    
+            if generic_setinputsizes:
+                try:
+                    dialect.do_set_input_sizes(
+                        context.cursor, generic_setinputsizes, context
+                    )
+                except BaseException as e:
+                    self._handle_dbapi_exception(
+                        e, str(statement), parameters, None, context
+                    )
+    
+        cursor, str_statement, parameters = (
+            context.cursor,
+            context.statement,
+            context.parameters,
+        )
+    
+        effective_parameters: Optional[_AnyExecuteParams]
+    
+        if not context.executemany:
+            effective_parameters = parameters[0]
+        else:
+            effective_parameters = parameters
+    
+        if self._has_events or self.engine._has_events:
+            for fn in self.dispatch.before_cursor_execute:
+                str_statement, effective_parameters = fn(
+                    self,
+                    cursor,
+                    str_statement,
+                    effective_parameters,
+                    context,
+                    context.executemany,
+                )
+    
+        if self._echo:
+            self._log_info(str_statement)
+    
+            stats = context._get_cache_stats()
+    
+            if not self.engine.hide_parameters:
+                self._log_info(
+                    "[%s] %r",
+                    stats,
+                    sql_util._repr_params(
+                        effective_parameters,
+                        batches=10,
+                        ismulti=context.executemany,
+                    ),
+                )
+            else:
+                self._log_info(
+                    "[%s] [SQL parameters hidden due to hide_parameters=True]",
+                    stats,
+                )
+    
+        evt_handled: bool = False
+        try:
+            if context.execute_style is ExecuteStyle.EXECUTEMANY:
+                effective_parameters = cast(
+                    "_CoreMultiExecuteParams", effective_parameters
+                )
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_executemany:
+                        if fn(
+                            cursor,
+                            str_statement,
+                            effective_parameters,
+                            context,
+                        ):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+                    self.dialect.do_executemany(
+                        cursor,
+                        str_statement,
+                        effective_parameters,
+                        context,
+                    )
+            elif not effective_parameters and context.no_parameters:
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_execute_no_params:
+                        if fn(cursor, str_statement, context):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+                    self.dialect.do_execute_no_params(
+                        cursor, str_statement, context
+                    )
+            else:
+                effective_parameters = cast(
+                    "_CoreSingleExecuteParams", effective_parameters
+                )
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_execute:
+                        if fn(
+                            cursor,
+                            str_statement,
+                            effective_parameters,
+                            context,
+                        ):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+>                   self.dialect.do_execute(
+                        cursor, str_statement, effective_parameters, context
+                    )
+
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:1967: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:182: in execute
+    self._adapt_connection._handle_exception(error)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:342: in _handle_exception
+    raise error
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:164: in execute
+    self.await_(_cursor.execute(operation, parameters))
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:132: in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:196: in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\cursor.py:40: in execute
+    await self._execute(self._cursor.execute, sql, parameters)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\cursor.py:32: in _execute
+    return await self._conn._execute(fn, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py:160: in _execute
+    return await future
+           ^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+tx = <_queue.SimpleQueue object at 0x0000022D19F2B220>
+
+    def _connection_worker_thread(tx: _TxQueue):
+        """
+        Execute function calls on a separate thread.
+    
+        :meta private:
+        """
+        while True:
+            # Continues running until all queue items are processed,
+            # even after connection is closed (so we can finalize all
+            # futures)
+    
+            future, function = tx.get()
+    
+            try:
+                LOG.debug("executing %s", function)
+>               result = function()
+                         ^^^^^^^^^^
+E               sqlite3.OperationalError: no such table: soft_delete_models
+
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py:63: OperationalError
+
+The above exception was the direct cause of the following exception:
+
+db = <eden.db.session.Database object at 0x0000022D186D5A50>
+
+    @pytest.mark.asyncio
+    async def test_soft_delete_commit_false_rollback(db: Database):
+        """
+        Verifies that SoftDeleteMixin.delete(commit=False) is rolled back
+        if the transaction is not committed.
+        """
+        # 1. Setup
+        instance = SoftDeleteModel(name="RollbackMe")
+>       await instance.save()
+
+tests\test_db_commit_logic.py:24: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+eden\db\mixins\lifecycle.py:93: in save
+    await sess.flush()
+eden\db\session.py:103: in flush
+    return await super().flush(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\ext\asyncio\session.py:787: in flush
+    await greenlet_spawn(self.sync_session.flush, objects=objects)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:203: in greenlet_spawn
+    result = context.switch(value)
+             ^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\session.py:4331: in flush
+    self._flush(objects)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\session.py:4466: in _flush
+    with util.safe_reraise():
+         ^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\langhelpers.py:121: in __exit__
+    raise exc_value.with_traceback(exc_tb)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\session.py:4427: in _flush
+    flush_context.execute()
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\unitofwork.py:466: in execute
+    rec.execute(self)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\unitofwork.py:642: in execute
+    util.preloaded.orm_persistence.save_obj(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\persistence.py:93: in save_obj
+    _emit_insert_statements(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\persistence.py:1233: in _emit_insert_statements
+    result = connection.execute(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:1419: in execute
+    return meth(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\sql\elements.py:527: in _execute_on_connection
+    return connection._execute_clauseelement(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:1641: in _execute_clauseelement
+    ret = self._execute_context(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:1846: in _execute_context
+    return self._exec_single_context(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:1986: in _exec_single_context
+    self._handle_dbapi_exception(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:2363: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:1967: in _exec_single_context
+    self.dialect.do_execute(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:182: in execute
+    self._adapt_connection._handle_exception(error)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:342: in _handle_exception
+    raise error
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:164: in execute
+    self.await_(_cursor.execute(operation, parameters))
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:132: in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:196: in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\cursor.py:40: in execute
+    await self._execute(self._cursor.execute, sql, parameters)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\cursor.py:32: in _execute
+    return await self._conn._execute(fn, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py:160: in _execute
+    return await future
+           ^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+tx = <_queue.SimpleQueue object at 0x0000022D19F2B220>
+
+    def _connection_worker_thread(tx: _TxQueue):
+        """
+        Execute function calls on a separate thread.
+    
+        :meta private:
+        """
+        while True:
+            # Continues running until all queue items are processed,
+            # even after connection is closed (so we can finalize all
+            # futures)
+    
+            future, function = tx.get()
+    
+            try:
+                LOG.debug("executing %s", function)
+>               result = function()
+                         ^^^^^^^^^^
+E               sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: soft_delete_models
+E               [SQL: INSERT INTO soft_delete_models (name, id, created_at, updated_at, deleted_at) VALUES (?, ?, ?, ?, ?)]
+E               [parameters: ('RollbackMe', '990f21fccd03413ea45f797c741e2e3d', '2026-04-08 00:20:54.109147', '2026-04-08 00:20:54.109155', None)]
+E               (Background on this error at: https://sqlalche.me/e/20/e3q8)
+
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py:63: OperationalError
+__________________________ test_signal_registration ___________________________
+
+self = <sqlalchemy.engine.base.Connection object at 0x0000022D18BC1C70>
+dialect = <sqlalchemy.dialects.sqlite.aiosqlite.SQLiteDialect_aiosqlite object at 0x0000022D187A39D0>
+context = <sqlalchemy.dialects.sqlite.aiosqlite.SQLiteExecutionContext_aiosqlite object at 0x0000022D1895D9D0>
+statement = <sqlalchemy.dialects.sqlite.base.SQLiteCompiler object at 0x0000022D18B1F250>
+parameters = [('Test Product', 100, 0, '2431ad6f7f9d4c07a85545fc405604a3', '2026-04-08 00:21:01.225930', '2026-04-08 00:21:01.225940')]
+
+    def _exec_single_context(
+        self,
+        dialect: Dialect,
+        context: ExecutionContext,
+        statement: Union[str, Compiled],
+        parameters: Optional[_AnyMultiExecuteParams],
+    ) -> CursorResult[Any]:
+        """continue the _execute_context() method for a single DBAPI
+        cursor.execute() or cursor.executemany() call.
+    
+        """
+        if dialect.bind_typing is BindTyping.SETINPUTSIZES:
+            generic_setinputsizes = context._prepare_set_input_sizes()
+    
+            if generic_setinputsizes:
+                try:
+                    dialect.do_set_input_sizes(
+                        context.cursor, generic_setinputsizes, context
+                    )
+                except BaseException as e:
+                    self._handle_dbapi_exception(
+                        e, str(statement), parameters, None, context
+                    )
+    
+        cursor, str_statement, parameters = (
+            context.cursor,
+            context.statement,
+            context.parameters,
+        )
+    
+        effective_parameters: Optional[_AnyExecuteParams]
+    
+        if not context.executemany:
+            effective_parameters = parameters[0]
+        else:
+            effective_parameters = parameters
+    
+        if self._has_events or self.engine._has_events:
+            for fn in self.dispatch.before_cursor_execute:
+                str_statement, effective_parameters = fn(
+                    self,
+                    cursor,
+                    str_statement,
+                    effective_parameters,
+                    context,
+                    context.executemany,
+                )
+    
+        if self._echo:
+            self._log_info(str_statement)
+    
+            stats = context._get_cache_stats()
+    
+            if not self.engine.hide_parameters:
+                self._log_info(
+                    "[%s] %r",
+                    stats,
+                    sql_util._repr_params(
+                        effective_parameters,
+                        batches=10,
+                        ismulti=context.executemany,
+                    ),
+                )
+            else:
+                self._log_info(
+                    "[%s] [SQL parameters hidden due to hide_parameters=True]",
+                    stats,
+                )
+    
+        evt_handled: bool = False
+        try:
+            if context.execute_style is ExecuteStyle.EXECUTEMANY:
+                effective_parameters = cast(
+                    "_CoreMultiExecuteParams", effective_parameters
+                )
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_executemany:
+                        if fn(
+                            cursor,
+                            str_statement,
+                            effective_parameters,
+                            context,
+                        ):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+                    self.dialect.do_executemany(
+                        cursor,
+                        str_statement,
+                        effective_parameters,
+                        context,
+                    )
+            elif not effective_parameters and context.no_parameters:
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_execute_no_params:
+                        if fn(cursor, str_statement, context):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+                    self.dialect.do_execute_no_params(
+                        cursor, str_statement, context
+                    )
+            else:
+                effective_parameters = cast(
+                    "_CoreSingleExecuteParams", effective_parameters
+                )
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_execute:
+                        if fn(
+                            cursor,
+                            str_statement,
+                            effective_parameters,
+                            context,
+                        ):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+>                   self.dialect.do_execute(
+                        cursor, str_statement, effective_parameters, context
+                    )
+
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:1967: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:182: in execute
+    self._adapt_connection._handle_exception(error)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:342: in _handle_exception
+    raise error
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:164: in execute
+    self.await_(_cursor.execute(operation, parameters))
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:132: in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:196: in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\cursor.py:40: in execute
+    await self._execute(self._cursor.execute, sql, parameters)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\cursor.py:32: in _execute
+    return await self._conn._execute(fn, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py:160: in _execute
+    return await future
+           ^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+tx = <_queue.SimpleQueue object at 0x0000022D19F2B220>
+
+    def _connection_worker_thread(tx: _TxQueue):
+        """
+        Execute function calls on a separate thread.
+    
+        :meta private:
+        """
+        while True:
+            # Continues running until all queue items are processed,
+            # even after connection is closed (so we can finalize all
+            # futures)
+    
+            future, function = tx.get()
+    
+            try:
+                LOG.debug("executing %s", function)
+>               result = function()
+                         ^^^^^^^^^^
+E               sqlite3.OperationalError: no such table: maturity_products
+
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py:63: OperationalError
+
+The above exception was the direct cause of the following exception:
+
+db = <eden.db.session.Database object at 0x0000022D1AD6EB70>
+
+    @pytest.mark.asyncio
+    async def test_signal_registration(db):
+        saved_instances = []
+    
+        @receiver(post_save, sender=MaturityProduct)
+        async def on_product_save(sender, instance, **kwargs):
+            saved_instances.append(instance)
+    
+        product = MaturityProduct(name="Test Product", price=100)
+>       await product.save()
+
+tests\test_model_maturity.py:40: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+eden\db\mixins\lifecycle.py:93: in save
+    await sess.flush()
+eden\db\session.py:103: in flush
+    return await super().flush(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\ext\asyncio\session.py:787: in flush
+    await greenlet_spawn(self.sync_session.flush, objects=objects)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:203: in greenlet_spawn
+    result = context.switch(value)
+             ^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\session.py:4331: in flush
+    self._flush(objects)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\session.py:4466: in _flush
+    with util.safe_reraise():
+         ^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\langhelpers.py:121: in __exit__
+    raise exc_value.with_traceback(exc_tb)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\session.py:4427: in _flush
+    flush_context.execute()
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\unitofwork.py:466: in execute
+    rec.execute(self)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\unitofwork.py:642: in execute
+    util.preloaded.orm_persistence.save_obj(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\persistence.py:93: in save_obj
+    _emit_insert_statements(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\persistence.py:1233: in _emit_insert_statements
+    result = connection.execute(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:1419: in execute
+    return meth(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\sql\elements.py:527: in _execute_on_connection
+    return connection._execute_clauseelement(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:1641: in _execute_clauseelement
+    ret = self._execute_context(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:1846: in _execute_context
+    return self._exec_single_context(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:1986: in _exec_single_context
+    self._handle_dbapi_exception(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:2363: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:1967: in _exec_single_context
+    self.dialect.do_execute(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:182: in execute
+    self._adapt_connection._handle_exception(error)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:342: in _handle_exception
+    raise error
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:164: in execute
+    self.await_(_cursor.execute(operation, parameters))
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:132: in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:196: in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\cursor.py:40: in execute
+    await self._execute(self._cursor.execute, sql, parameters)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\cursor.py:32: in _execute
+    return await self._conn._execute(fn, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py:160: in _execute
+    return await future
+           ^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+tx = <_queue.SimpleQueue object at 0x0000022D19F2B220>
+
+    def _connection_worker_thread(tx: _TxQueue):
+        """
+        Execute function calls on a separate thread.
+    
+        :meta private:
+        """
+        while True:
+            # Continues running until all queue items are processed,
+            # even after connection is closed (so we can finalize all
+            # futures)
+    
+            future, function = tx.get()
+    
+            try:
+                LOG.debug("executing %s", function)
+>               result = function()
+                         ^^^^^^^^^^
+E               sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: maturity_products
+E               [SQL: INSERT INTO maturity_products (name, price, stock, id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)]
+E               [parameters: ('Test Product', 100, 0, '2431ad6f7f9d4c07a85545fc405604a3', '2026-04-08 00:21:01.225930', '2026-04-08 00:21:01.225940')]
+E               (Background on this error at: https://sqlalche.me/e/20/e3q8)
+
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py:63: OperationalError
+---------------------------- Captured stdout setup ----------------------------
+[32m00:21:00 INFO    [0m eden.db — Database connected to sqlite+aiosqlite:///:memory:
+____________________________ test_update_or_create ____________________________
+
+self = <sqlalchemy.engine.base.Connection object at 0x0000022D18AE72F0>
+dialect = <sqlalchemy.dialects.sqlite.aiosqlite.SQLiteDialect_aiosqlite object at 0x0000022D187A39D0>
+context = <sqlalchemy.dialects.sqlite.aiosqlite.SQLiteExecutionContext_aiosqlite object at 0x0000022D18627DD0>
+statement = <sqlalchemy.dialects.sqlite.base.SQLiteCompiler object at 0x0000022D18B1F250>
+parameters = [('Unique Product', 50, 0, '70e25b27831a4b43b2cfebfb3c083e27', '2026-04-08 00:21:02.014780', '2026-04-08 00:21:02.014790')]
+
+    def _exec_single_context(
+        self,
+        dialect: Dialect,
+        context: ExecutionContext,
+        statement: Union[str, Compiled],
+        parameters: Optional[_AnyMultiExecuteParams],
+    ) -> CursorResult[Any]:
+        """continue the _execute_context() method for a single DBAPI
+        cursor.execute() or cursor.executemany() call.
+    
+        """
+        if dialect.bind_typing is BindTyping.SETINPUTSIZES:
+            generic_setinputsizes = context._prepare_set_input_sizes()
+    
+            if generic_setinputsizes:
+                try:
+                    dialect.do_set_input_sizes(
+                        context.cursor, generic_setinputsizes, context
+                    )
+                except BaseException as e:
+                    self._handle_dbapi_exception(
+                        e, str(statement), parameters, None, context
+                    )
+    
+        cursor, str_statement, parameters = (
+            context.cursor,
+            context.statement,
+            context.parameters,
+        )
+    
+        effective_parameters: Optional[_AnyExecuteParams]
+    
+        if not context.executemany:
+            effective_parameters = parameters[0]
+        else:
+            effective_parameters = parameters
+    
+        if self._has_events or self.engine._has_events:
+            for fn in self.dispatch.before_cursor_execute:
+                str_statement, effective_parameters = fn(
+                    self,
+                    cursor,
+                    str_statement,
+                    effective_parameters,
+                    context,
+                    context.executemany,
+                )
+    
+        if self._echo:
+            self._log_info(str_statement)
+    
+            stats = context._get_cache_stats()
+    
+            if not self.engine.hide_parameters:
+                self._log_info(
+                    "[%s] %r",
+                    stats,
+                    sql_util._repr_params(
+                        effective_parameters,
+                        batches=10,
+                        ismulti=context.executemany,
+                    ),
+                )
+            else:
+                self._log_info(
+                    "[%s] [SQL parameters hidden due to hide_parameters=True]",
+                    stats,
+                )
+    
+        evt_handled: bool = False
+        try:
+            if context.execute_style is ExecuteStyle.EXECUTEMANY:
+                effective_parameters = cast(
+                    "_CoreMultiExecuteParams", effective_parameters
+                )
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_executemany:
+                        if fn(
+                            cursor,
+                            str_statement,
+                            effective_parameters,
+                            context,
+                        ):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+                    self.dialect.do_executemany(
+                        cursor,
+                        str_statement,
+                        effective_parameters,
+                        context,
+                    )
+            elif not effective_parameters and context.no_parameters:
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_execute_no_params:
+                        if fn(cursor, str_statement, context):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+                    self.dialect.do_execute_no_params(
+                        cursor, str_statement, context
+                    )
+            else:
+                effective_parameters = cast(
+                    "_CoreSingleExecuteParams", effective_parameters
+                )
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_execute:
+                        if fn(
+                            cursor,
+                            str_statement,
+                            effective_parameters,
+                            context,
+                        ):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+>                   self.dialect.do_execute(
+                        cursor, str_statement, effective_parameters, context
+                    )
+
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:1967: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:182: in execute
+    self._adapt_connection._handle_exception(error)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:342: in _handle_exception
+    raise error
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:164: in execute
+    self.await_(_cursor.execute(operation, parameters))
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:132: in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:196: in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\cursor.py:40: in execute
+    await self._execute(self._cursor.execute, sql, parameters)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\cursor.py:32: in _execute
+    return await self._conn._execute(fn, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py:160: in _execute
+    return await future
+           ^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+tx = <_queue.SimpleQueue object at 0x0000022D19F2B220>
+
+    def _connection_worker_thread(tx: _TxQueue):
+        """
+        Execute function calls on a separate thread.
+    
+        :meta private:
+        """
+        while True:
+            # Continues running until all queue items are processed,
+            # even after connection is closed (so we can finalize all
+            # futures)
+    
+            future, function = tx.get()
+    
+            try:
+                LOG.debug("executing %s", function)
+>               result = function()
+                         ^^^^^^^^^^
+E               sqlite3.OperationalError: no such table: maturity_products
+
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py:63: OperationalError
+
+The above exception was the direct cause of the following exception:
+
+db = <eden.db.session.Database object at 0x0000022D1AD6EB70>
+
+    @pytest.mark.asyncio
+    async def test_update_or_create(db):
+        # Create
+>       product, created = await MaturityProduct.update_or_create(
+            name="Unique Product",
+            defaults={"price": 50}
+        )
+
+tests\test_model_maturity.py:83: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+eden\db\mixins\crud.py:287: in update_or_create
+    return await cls.create(session=session, **params), True
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+eden\db\mixins\crud.py:213: in create
+    await instance.save(session=session, commit=commit, validate=validate)
+eden\db\mixins\lifecycle.py:93: in save
+    await sess.flush()
+eden\db\session.py:103: in flush
+    return await super().flush(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\ext\asyncio\session.py:787: in flush
+    await greenlet_spawn(self.sync_session.flush, objects=objects)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:203: in greenlet_spawn
+    result = context.switch(value)
+             ^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\session.py:4331: in flush
+    self._flush(objects)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\session.py:4466: in _flush
+    with util.safe_reraise():
+         ^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\langhelpers.py:121: in __exit__
+    raise exc_value.with_traceback(exc_tb)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\session.py:4427: in _flush
+    flush_context.execute()
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\unitofwork.py:466: in execute
+    rec.execute(self)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\unitofwork.py:642: in execute
+    util.preloaded.orm_persistence.save_obj(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\persistence.py:93: in save_obj
+    _emit_insert_statements(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\persistence.py:1233: in _emit_insert_statements
+    result = connection.execute(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:1419: in execute
+    return meth(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\sql\elements.py:527: in _execute_on_connection
+    return connection._execute_clauseelement(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:1641: in _execute_clauseelement
+    ret = self._execute_context(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:1846: in _execute_context
+    return self._exec_single_context(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:1986: in _exec_single_context
+    self._handle_dbapi_exception(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:2363: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:1967: in _exec_single_context
+    self.dialect.do_execute(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:182: in execute
+    self._adapt_connection._handle_exception(error)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:342: in _handle_exception
+    raise error
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:164: in execute
+    self.await_(_cursor.execute(operation, parameters))
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:132: in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:196: in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\cursor.py:40: in execute
+    await self._execute(self._cursor.execute, sql, parameters)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\cursor.py:32: in _execute
+    return await self._conn._execute(fn, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py:160: in _execute
+    return await future
+           ^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+tx = <_queue.SimpleQueue object at 0x0000022D19F2B220>
+
+    def _connection_worker_thread(tx: _TxQueue):
+        """
+        Execute function calls on a separate thread.
+    
+        :meta private:
+        """
+        while True:
+            # Continues running until all queue items are processed,
+            # even after connection is closed (so we can finalize all
+            # futures)
+    
+            future, function = tx.get()
+    
+            try:
+                LOG.debug("executing %s", function)
+>               result = function()
+                         ^^^^^^^^^^
+E               sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: maturity_products
+E               [SQL: INSERT INTO maturity_products (name, price, stock, id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)]
+E               [parameters: ('Unique Product', 50, 0, '70e25b27831a4b43b2cfebfb3c083e27', '2026-04-08 00:21:02.014780', '2026-04-08 00:21:02.014790')]
+E               (Background on this error at: https://sqlalche.me/e/20/e3q8)
+
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py:63: OperationalError
+_____________________________ test_delete_signals _____________________________
+
+self = <sqlalchemy.engine.base.Connection object at 0x0000022D18AE56D0>
+dialect = <sqlalchemy.dialects.sqlite.aiosqlite.SQLiteDialect_aiosqlite object at 0x0000022D187A39D0>
+context = <sqlalchemy.dialects.sqlite.aiosqlite.SQLiteExecutionContext_aiosqlite object at 0x0000022D1889B590>
+statement = <sqlalchemy.dialects.sqlite.base.SQLiteCompiler object at 0x0000022D18B1F250>
+parameters = [('To Delete', 10, 0, '0ee7dc25d3b544a4aacb8e6bc2c1540c', '2026-04-08 00:21:02.769915', '2026-04-08 00:21:02.769922')]
+
+    def _exec_single_context(
+        self,
+        dialect: Dialect,
+        context: ExecutionContext,
+        statement: Union[str, Compiled],
+        parameters: Optional[_AnyMultiExecuteParams],
+    ) -> CursorResult[Any]:
+        """continue the _execute_context() method for a single DBAPI
+        cursor.execute() or cursor.executemany() call.
+    
+        """
+        if dialect.bind_typing is BindTyping.SETINPUTSIZES:
+            generic_setinputsizes = context._prepare_set_input_sizes()
+    
+            if generic_setinputsizes:
+                try:
+                    dialect.do_set_input_sizes(
+                        context.cursor, generic_setinputsizes, context
+                    )
+                except BaseException as e:
+                    self._handle_dbapi_exception(
+                        e, str(statement), parameters, None, context
+                    )
+    
+        cursor, str_statement, parameters = (
+            context.cursor,
+            context.statement,
+            context.parameters,
+        )
+    
+        effective_parameters: Optional[_AnyExecuteParams]
+    
+        if not context.executemany:
+            effective_parameters = parameters[0]
+        else:
+            effective_parameters = parameters
+    
+        if self._has_events or self.engine._has_events:
+            for fn in self.dispatch.before_cursor_execute:
+                str_statement, effective_parameters = fn(
+                    self,
+                    cursor,
+                    str_statement,
+                    effective_parameters,
+                    context,
+                    context.executemany,
+                )
+    
+        if self._echo:
+            self._log_info(str_statement)
+    
+            stats = context._get_cache_stats()
+    
+            if not self.engine.hide_parameters:
+                self._log_info(
+                    "[%s] %r",
+                    stats,
+                    sql_util._repr_params(
+                        effective_parameters,
+                        batches=10,
+                        ismulti=context.executemany,
+                    ),
+                )
+            else:
+                self._log_info(
+                    "[%s] [SQL parameters hidden due to hide_parameters=True]",
+                    stats,
+                )
+    
+        evt_handled: bool = False
+        try:
+            if context.execute_style is ExecuteStyle.EXECUTEMANY:
+                effective_parameters = cast(
+                    "_CoreMultiExecuteParams", effective_parameters
+                )
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_executemany:
+                        if fn(
+                            cursor,
+                            str_statement,
+                            effective_parameters,
+                            context,
+                        ):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+                    self.dialect.do_executemany(
+                        cursor,
+                        str_statement,
+                        effective_parameters,
+                        context,
+                    )
+            elif not effective_parameters and context.no_parameters:
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_execute_no_params:
+                        if fn(cursor, str_statement, context):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+                    self.dialect.do_execute_no_params(
+                        cursor, str_statement, context
+                    )
+            else:
+                effective_parameters = cast(
+                    "_CoreSingleExecuteParams", effective_parameters
+                )
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_execute:
+                        if fn(
+                            cursor,
+                            str_statement,
+                            effective_parameters,
+                            context,
+                        ):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+>                   self.dialect.do_execute(
+                        cursor, str_statement, effective_parameters, context
+                    )
+
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:1967: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:182: in execute
+    self._adapt_connection._handle_exception(error)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:342: in _handle_exception
+    raise error
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:164: in execute
+    self.await_(_cursor.execute(operation, parameters))
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:132: in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:196: in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\cursor.py:40: in execute
+    await self._execute(self._cursor.execute, sql, parameters)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\cursor.py:32: in _execute
+    return await self._conn._execute(fn, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py:160: in _execute
+    return await future
+           ^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+tx = <_queue.SimpleQueue object at 0x0000022D19F2B220>
+
+    def _connection_worker_thread(tx: _TxQueue):
+        """
+        Execute function calls on a separate thread.
+    
+        :meta private:
+        """
+        while True:
+            # Continues running until all queue items are processed,
+            # even after connection is closed (so we can finalize all
+            # futures)
+    
+            future, function = tx.get()
+    
+            try:
+                LOG.debug("executing %s", function)
+>               result = function()
+                         ^^^^^^^^^^
+E               sqlite3.OperationalError: no such table: maturity_products
+
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py:63: OperationalError
+
+The above exception was the direct cause of the following exception:
+
+db = <eden.db.session.Database object at 0x0000022D1AD6EB70>
+
+    @pytest.mark.asyncio
+    async def test_delete_signals(db):
+        deleted_calls = []
+    
+        @receiver(pre_delete, sender=MaturityProduct)
+        async def on_product_pre_delete(sender, instance, **kwargs):
+            deleted_calls.append("pre_" + str(instance.id))
+    
+        @receiver(post_delete, sender=MaturityProduct)
+        async def on_product_post_delete(sender, instance, **kwargs):
+            deleted_calls.append("post_" + str(instance.id))
+    
+>       product = await MaturityProduct.create(name="To Delete", price=10)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_model_maturity.py:111: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+eden\db\mixins\crud.py:213: in create
+    await instance.save(session=session, commit=commit, validate=validate)
+eden\db\mixins\lifecycle.py:93: in save
+    await sess.flush()
+eden\db\session.py:103: in flush
+    return await super().flush(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\ext\asyncio\session.py:787: in flush
+    await greenlet_spawn(self.sync_session.flush, objects=objects)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:203: in greenlet_spawn
+    result = context.switch(value)
+             ^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\session.py:4331: in flush
+    self._flush(objects)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\session.py:4466: in _flush
+    with util.safe_reraise():
+         ^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\langhelpers.py:121: in __exit__
+    raise exc_value.with_traceback(exc_tb)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\session.py:4427: in _flush
+    flush_context.execute()
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\unitofwork.py:466: in execute
+    rec.execute(self)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\unitofwork.py:642: in execute
+    util.preloaded.orm_persistence.save_obj(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\persistence.py:93: in save_obj
+    _emit_insert_statements(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\persistence.py:1233: in _emit_insert_statements
+    result = connection.execute(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:1419: in execute
+    return meth(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\sql\elements.py:527: in _execute_on_connection
+    return connection._execute_clauseelement(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:1641: in _execute_clauseelement
+    ret = self._execute_context(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:1846: in _execute_context
+    return self._exec_single_context(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:1986: in _exec_single_context
+    self._handle_dbapi_exception(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:2363: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:1967: in _exec_single_context
+    self.dialect.do_execute(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:182: in execute
+    self._adapt_connection._handle_exception(error)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:342: in _handle_exception
+    raise error
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:164: in execute
+    self.await_(_cursor.execute(operation, parameters))
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:132: in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:196: in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\cursor.py:40: in execute
+    await self._execute(self._cursor.execute, sql, parameters)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\cursor.py:32: in _execute
+    return await self._conn._execute(fn, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py:160: in _execute
+    return await future
+           ^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+tx = <_queue.SimpleQueue object at 0x0000022D19F2B220>
+
+    def _connection_worker_thread(tx: _TxQueue):
+        """
+        Execute function calls on a separate thread.
+    
+        :meta private:
+        """
+        while True:
+            # Continues running until all queue items are processed,
+            # even after connection is closed (so we can finalize all
+            # futures)
+    
+            future, function = tx.get()
+    
+            try:
+                LOG.debug("executing %s", function)
+>               result = function()
+                         ^^^^^^^^^^
+E               sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: maturity_products
+E               [SQL: INSERT INTO maturity_products (name, price, stock, id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)]
+E               [parameters: ('To Delete', 10, 0, '0ee7dc25d3b544a4aacb8e6bc2c1540c', '2026-04-08 00:21:02.769915', '2026-04-08 00:21:02.769922')]
+E               (Background on this error at: https://sqlalche.me/e/20/e3q8)
+
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py:63: OperationalError
+______________________________ test_bulk_signals ______________________________
+
+self = <sqlalchemy.engine.base.Connection object at 0x0000022D18AE5F40>
+dialect = <sqlalchemy.dialects.sqlite.aiosqlite.SQLiteDialect_aiosqlite object at 0x0000022D187A39D0>
+context = <sqlalchemy.dialects.sqlite.aiosqlite.SQLiteExecutionContext_aiosqlite object at 0x0000022D18626990>
+
+    def _exec_insertmany_context(
+        self,
+        dialect: Dialect,
+        context: ExecutionContext,
+    ) -> CursorResult[Any]:
+        """continue the _execute_context() method for an "insertmanyvalues"
+        operation, which will invoke DBAPI
+        cursor.execute() one or more times with individual log and
+        event hook calls.
+    
+        """
+    
+        if dialect.bind_typing is BindTyping.SETINPUTSIZES:
+            generic_setinputsizes = context._prepare_set_input_sizes()
+        else:
+            generic_setinputsizes = None
+    
+        cursor, str_statement, parameters = (
+            context.cursor,
+            context.statement,
+            context.parameters,
+        )
+    
+        effective_parameters = parameters
+    
+        engine_events = self._has_events or self.engine._has_events
+        if self.dialect._has_events:
+            do_execute_dispatch: Iterable[Any] = (
+                self.dialect.dispatch.do_execute
+            )
+        else:
+            do_execute_dispatch = ()
+    
+        if engine_events:
+            _WORKAROUND_ISSUE_13018 = getattr(
+                self, "_WORKAROUND_ISSUE_13018", False
+            )
+        else:
+            _WORKAROUND_ISSUE_13018 = False
+    
+        if self._echo:
+            stats = context._get_cache_stats() + " (insertmanyvalues)"
+    
+        preserve_rowcount = context.execution_options.get(
+            "preserve_rowcount", False
+        )
+        rowcount = 0
+    
+        for imv_batch in dialect._deliver_insertmanyvalues_batches(
+            self,
+            cursor,
+            str_statement,
+            effective_parameters,
+            generic_setinputsizes,
+            context,
+        ):
+            if imv_batch.processed_setinputsizes:
+                try:
+                    dialect.do_set_input_sizes(
+                        context.cursor,
+                        imv_batch.processed_setinputsizes,
+                        context,
+                    )
+                except BaseException as e:
+                    self._handle_dbapi_exception(
+                        e,
+                        sql_util._long_statement(imv_batch.replaced_statement),
+                        imv_batch.replaced_parameters,
+                        None,
+                        context,
+                        is_sub_exec=True,
+                    )
+    
+            sub_stmt = imv_batch.replaced_statement
+            sub_params = imv_batch.replaced_parameters
+    
+            if engine_events:
+                for fn in self.dispatch.before_cursor_execute:
+                    sub_stmt, sub_params = fn(
+                        self,
+                        cursor,
+                        sub_stmt,
+                        sub_params,
+                        context,
+                        True,
+                    )
+    
+            if self._echo:
+                self._log_info(sql_util._long_statement(sub_stmt))
+    
+                imv_stats = f""" {imv_batch.batchnum}/{
+                            imv_batch.total_batches
+                } ({
+                    'ordered'
+                    if imv_batch.rows_sorted else 'unordered'
+                }{
+                    '; batch not supported'
+                    if imv_batch.is_downgraded
+                    else ''
+                })"""
+    
+                if imv_batch.batchnum == 1:
+                    stats += imv_stats
+                else:
+                    stats = f"insertmanyvalues{imv_stats}"
+    
+                if not self.engine.hide_parameters:
+                    self._log_info(
+                        "[%s] %r",
+                        stats,
+                        sql_util._repr_params(
+                            sub_params,
+                            batches=10,
+                            ismulti=False,
+                        ),
+                    )
+                else:
+                    self._log_info(
+                        "[%s] [SQL parameters hidden due to "
+                        "hide_parameters=True]",
+                        stats,
+                    )
+    
+            try:
+                for fn in do_execute_dispatch:
+                    if fn(
+                        cursor,
+                        sub_stmt,
+                        sub_params,
+                        context,
+                    ):
+                        break
+                else:
+>                   dialect.do_execute(
+                        cursor,
+                        sub_stmt,
+                        sub_params,
+                        context,
+                    )
+
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:2125: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:182: in execute
+    self._adapt_connection._handle_exception(error)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:342: in _handle_exception
+    raise error
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:164: in execute
+    self.await_(_cursor.execute(operation, parameters))
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:132: in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:196: in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\cursor.py:40: in execute
+    await self._execute(self._cursor.execute, sql, parameters)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\cursor.py:32: in _execute
+    return await self._conn._execute(fn, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py:160: in _execute
+    return await future
+           ^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+tx = <_queue.SimpleQueue object at 0x0000022D19F2B220>
+
+    def _connection_worker_thread(tx: _TxQueue):
+        """
+        Execute function calls on a separate thread.
+    
+        :meta private:
+        """
+        while True:
+            # Continues running until all queue items are processed,
+            # even after connection is closed (so we can finalize all
+            # futures)
+    
+            future, function = tx.get()
+    
+            try:
+                LOG.debug("executing %s", function)
+>               result = function()
+                         ^^^^^^^^^^
+E               sqlite3.OperationalError: no such table: maturity_products
+
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py:63: OperationalError
+
+The above exception was the direct cause of the following exception:
+
+cls = <class 'tests.test_model_maturity.MaturityProduct'>
+session_or_instances = [<tests.test_model_maturity.MaturityProduct object at 0x0000022D186583B0>, <tests.test_model_maturity.MaturityProduct object at 0x0000022D188785A0>]
+instances_or_session = None, validate = True, batch_size = None
+
+    @classmethod
+    async def bulk_create(
+        cls,
+        session_or_instances: Any = None,
+        instances_or_session: Any = None,
+        validate: bool = True,
+        batch_size: Optional[int] = None,
+    ) -> List[T_Model]:
+        """
+        Create multiple records efficiently.
+        Triggers signals and hooks for each instance.
+        """
+        session = None
+        instances = None
+    
+        if isinstance(session_or_instances, list):
+            instances = session_or_instances
+            session = instances_or_session
+        elif isinstance(instances_or_session, list):
+            session = session_or_instances
+            instances = instances_or_session
+        elif session_or_instances is not None and not hasattr(session_or_instances, "execute"):
+            instances = session_or_instances
+            session = None
+        else:
+            session = session_or_instances
+            instances = instances_or_session
+    
+        if not instances:
+            return []
+    
+        from .signals import pre_save, post_save
+        actual_instances = [cls(**inst) if isinstance(inst, dict) else inst for inst in instances]
+    
+        async def _internal_save(inst, sess):
+            is_new = inst.id is None
+            await pre_save.send(sender=cls, instance=inst, is_new=is_new, session=sess)
+            if is_new:
+                await inst._call_hook("before_create", sess)
+            await inst._call_hook("before_save", sess)
+            if validate:
+                await inst.full_clean()
+            sess.add(inst)
+    
+        async def _internal_after(inst, sess):
+            is_new = True # Bulk create is always new conceptually, but let's be safe
+            if inst.id is not None:
+                await inst._call_hook("after_create", sess)
+            await inst._call_hook("after_save", sess)
+            await post_save.send(sender=cls, instance=inst, is_new=True, session=sess)
+    
+        db = cls._get_db()
+        try:
+            async with db.transaction(session=session) as sess:
+                for i, inst in enumerate(actual_instances):
+                    await _internal_save(inst, sess)
+                    if batch_size and (batch_size > 0) and (i + 1) % batch_size == 0:
+                        await sess.flush()
+    
+>               await sess.flush()
+
+eden\db\base.py:415: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+eden\db\session.py:103: in flush
+    return await super().flush(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\ext\asyncio\session.py:787: in flush
+    await greenlet_spawn(self.sync_session.flush, objects=objects)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:203: in greenlet_spawn
+    result = context.switch(value)
+             ^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\session.py:4331: in flush
+    self._flush(objects)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\session.py:4466: in _flush
+    with util.safe_reraise():
+         ^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\langhelpers.py:121: in __exit__
+    raise exc_value.with_traceback(exc_tb)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\session.py:4427: in _flush
+    flush_context.execute()
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\unitofwork.py:466: in execute
+    rec.execute(self)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\unitofwork.py:642: in execute
+    util.preloaded.orm_persistence.save_obj(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\persistence.py:93: in save_obj
+    _emit_insert_statements(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\persistence.py:1143: in _emit_insert_statements
+    result = connection.execute(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:1419: in execute
+    return meth(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\sql\elements.py:527: in _execute_on_connection
+    return connection._execute_clauseelement(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:1641: in _execute_clauseelement
+    ret = self._execute_context(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:1844: in _execute_context
+    return self._exec_insertmany_context(dialect, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:2133: in _exec_insertmany_context
+    self._handle_dbapi_exception(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:2363: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:2125: in _exec_insertmany_context
+    dialect.do_execute(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:182: in execute
+    self._adapt_connection._handle_exception(error)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:342: in _handle_exception
+    raise error
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:164: in execute
+    self.await_(_cursor.execute(operation, parameters))
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:132: in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:196: in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\cursor.py:40: in execute
+    await self._execute(self._cursor.execute, sql, parameters)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\cursor.py:32: in _execute
+    return await self._conn._execute(fn, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py:160: in _execute
+    return await future
+           ^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+tx = <_queue.SimpleQueue object at 0x0000022D19F2B220>
+
+    def _connection_worker_thread(tx: _TxQueue):
+        """
+        Execute function calls on a separate thread.
+    
+        :meta private:
+        """
+        while True:
+            # Continues running until all queue items are processed,
+            # even after connection is closed (so we can finalize all
+            # futures)
+    
+            future, function = tx.get()
+    
+            try:
+                LOG.debug("executing %s", function)
+>               result = function()
+                         ^^^^^^^^^^
+E               sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: maturity_products
+E               [SQL: INSERT INTO maturity_products (name, price, stock, id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?)]
+E               [parameters: ('P1', 10, 0, 'cbbad11a5dca40e68b3f0222f7ea98eb', '2026-04-08 00:21:03.639715', '2026-04-08 00:21:03.639721', 'P2', 20, 0, '5d854380b8f343b1868470d49c4717e2', '2026-04-08 00:21:03.639728', '2026-04-08 00:21:03.639729')]
+E               (Background on this error at: https://sqlalche.me/e/20/e3q8)
+
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py:63: OperationalError
+
+The above exception was the direct cause of the following exception:
+
+db = <eden.db.session.Database object at 0x0000022D1AD6EB70>
+
+    @pytest.mark.asyncio
+    async def test_bulk_signals(db):
+        from eden.db.signals import pre_bulk_update, post_bulk_update, pre_bulk_delete, post_bulk_delete
+    
+        events = []
+    
+        @receiver(pre_bulk_update, sender=MaturityProduct)
+        async def on_pre_bulk_update(sender, instance, **kwargs):
+            events.append(("pre_update", kwargs.get("values")))
+    
+        @receiver(post_bulk_update, sender=MaturityProduct)
+        async def on_post_bulk_update(sender, instance, **kwargs):
+            events.append(("post_update", kwargs.get("count")))
+    
+        @receiver(pre_bulk_delete, sender=MaturityProduct)
+        async def on_pre_bulk_delete(sender, instance, **kwargs):
+            events.append(("pre_delete", None))
+    
+        @receiver(post_bulk_delete, sender=MaturityProduct)
+        async def on_post_bulk_delete(sender, instance, **kwargs):
+            events.append(("post_delete", kwargs.get("count")))
+    
+        # Prepare data
+>       await MaturityProduct.bulk_create([
+            MaturityProduct(name="P1", price=10),
+            MaturityProduct(name="P2", price=20)
+        ])
+
+tests\test_model_maturity.py:194: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+cls = <class 'tests.test_model_maturity.MaturityProduct'>
+session_or_instances = [<tests.test_model_maturity.MaturityProduct object at 0x0000022D186583B0>, <tests.test_model_maturity.MaturityProduct object at 0x0000022D188785A0>]
+instances_or_session = None, validate = True, batch_size = None
+
+    @classmethod
+    async def bulk_create(
+        cls,
+        session_or_instances: Any = None,
+        instances_or_session: Any = None,
+        validate: bool = True,
+        batch_size: Optional[int] = None,
+    ) -> List[T_Model]:
+        """
+        Create multiple records efficiently.
+        Triggers signals and hooks for each instance.
+        """
+        session = None
+        instances = None
+    
+        if isinstance(session_or_instances, list):
+            instances = session_or_instances
+            session = instances_or_session
+        elif isinstance(instances_or_session, list):
+            session = session_or_instances
+            instances = instances_or_session
+        elif session_or_instances is not None and not hasattr(session_or_instances, "execute"):
+            instances = session_or_instances
+            session = None
+        else:
+            session = session_or_instances
+            instances = instances_or_session
+    
+        if not instances:
+            return []
+    
+        from .signals import pre_save, post_save
+        actual_instances = [cls(**inst) if isinstance(inst, dict) else inst for inst in instances]
+    
+        async def _internal_save(inst, sess):
+            is_new = inst.id is None
+            await pre_save.send(sender=cls, instance=inst, is_new=is_new, session=sess)
+            if is_new:
+                await inst._call_hook("before_create", sess)
+            await inst._call_hook("before_save", sess)
+            if validate:
+                await inst.full_clean()
+            sess.add(inst)
+    
+        async def _internal_after(inst, sess):
+            is_new = True # Bulk create is always new conceptually, but let's be safe
+            if inst.id is not None:
+                await inst._call_hook("after_create", sess)
+            await inst._call_hook("after_save", sess)
+            await post_save.send(sender=cls, instance=inst, is_new=True, session=sess)
+    
+        db = cls._get_db()
+        try:
+            async with db.transaction(session=session) as sess:
+                for i, inst in enumerate(actual_instances):
+                    await _internal_save(inst, sess)
+                    if batch_size and (batch_size > 0) and (i + 1) % batch_size == 0:
+                        await sess.flush()
+    
+                await sess.flush()
+                for inst in actual_instances:
+                    await _internal_after(inst, sess)
+                return actual_instances
+        except Exception as e:
+            from eden.exceptions import EdenDatabaseError
+>           raise EdenDatabaseError(
+                detail=f"bulk_create failed for {cls.__name__}: {e}",
+                operation="bulk_create",
+                model_name=cls.__name__,
+                original=e,
+            ) from e
+E           eden.exceptions.EdenDatabaseError: bulk_create failed for MaturityProduct: (sqlite3.OperationalError) no such table: maturity_products
+E           [SQL: INSERT INTO maturity_products (name, price, stock, id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?)]
+E           [parameters: ('P1', 10, 0, 'cbbad11a5dca40e68b3f0222f7ea98eb', '2026-04-08 00:21:03.639715', '2026-04-08 00:21:03.639721', 'P2', 20, 0, '5d854380b8f343b1868470d49c4717e2', '2026-04-08 00:21:03.639728', '2026-04-08 00:21:03.639729')]
+E           (Background on this error at: https://sqlalche.me/e/20/e3q8)
+
+eden\db\base.py:421: EdenDatabaseError
+-------------------------- Captured stdout teardown ---------------------------
+[32m00:21:04 INFO    [0m eden.db — Database disconnected
+_______________________________ test_orm_hooks ________________________________
+
+self = <sqlalchemy.engine.base.Connection object at 0x0000022D19D48230>
+dialect = <sqlalchemy.dialects.sqlite.aiosqlite.SQLiteDialect_aiosqlite object at 0x0000022D187A39D0>
+context = <sqlalchemy.dialects.sqlite.aiosqlite.SQLiteExecutionContext_aiosqlite object at 0x0000022D171BD6D0>
+statement = <sqlalchemy.dialects.sqlite.base.SQLiteCompiler object at 0x0000022D188B7050>
+parameters = [('Test Hooks', 1, '949f471d141140028fb683a03eef9540', '2026-04-08 00:21:08.149671', '2026-04-08 00:21:08.149681')]
+
+    def _exec_single_context(
+        self,
+        dialect: Dialect,
+        context: ExecutionContext,
+        statement: Union[str, Compiled],
+        parameters: Optional[_AnyMultiExecuteParams],
+    ) -> CursorResult[Any]:
+        """continue the _execute_context() method for a single DBAPI
+        cursor.execute() or cursor.executemany() call.
+    
+        """
+        if dialect.bind_typing is BindTyping.SETINPUTSIZES:
+            generic_setinputsizes = context._prepare_set_input_sizes()
+    
+            if generic_setinputsizes:
+                try:
+                    dialect.do_set_input_sizes(
+                        context.cursor, generic_setinputsizes, context
+                    )
+                except BaseException as e:
+                    self._handle_dbapi_exception(
+                        e, str(statement), parameters, None, context
+                    )
+    
+        cursor, str_statement, parameters = (
+            context.cursor,
+            context.statement,
+            context.parameters,
+        )
+    
+        effective_parameters: Optional[_AnyExecuteParams]
+    
+        if not context.executemany:
+            effective_parameters = parameters[0]
+        else:
+            effective_parameters = parameters
+    
+        if self._has_events or self.engine._has_events:
+            for fn in self.dispatch.before_cursor_execute:
+                str_statement, effective_parameters = fn(
+                    self,
+                    cursor,
+                    str_statement,
+                    effective_parameters,
+                    context,
+                    context.executemany,
+                )
+    
+        if self._echo:
+            self._log_info(str_statement)
+    
+            stats = context._get_cache_stats()
+    
+            if not self.engine.hide_parameters:
+                self._log_info(
+                    "[%s] %r",
+                    stats,
+                    sql_util._repr_params(
+                        effective_parameters,
+                        batches=10,
+                        ismulti=context.executemany,
+                    ),
+                )
+            else:
+                self._log_info(
+                    "[%s] [SQL parameters hidden due to hide_parameters=True]",
+                    stats,
+                )
+    
+        evt_handled: bool = False
+        try:
+            if context.execute_style is ExecuteStyle.EXECUTEMANY:
+                effective_parameters = cast(
+                    "_CoreMultiExecuteParams", effective_parameters
+                )
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_executemany:
+                        if fn(
+                            cursor,
+                            str_statement,
+                            effective_parameters,
+                            context,
+                        ):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+                    self.dialect.do_executemany(
+                        cursor,
+                        str_statement,
+                        effective_parameters,
+                        context,
+                    )
+            elif not effective_parameters and context.no_parameters:
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_execute_no_params:
+                        if fn(cursor, str_statement, context):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+                    self.dialect.do_execute_no_params(
+                        cursor, str_statement, context
+                    )
+            else:
+                effective_parameters = cast(
+                    "_CoreSingleExecuteParams", effective_parameters
+                )
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_execute:
+                        if fn(
+                            cursor,
+                            str_statement,
+                            effective_parameters,
+                            context,
+                        ):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+>                   self.dialect.do_execute(
+                        cursor, str_statement, effective_parameters, context
+                    )
+
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:1967: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:182: in execute
+    self._adapt_connection._handle_exception(error)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:342: in _handle_exception
+    raise error
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:164: in execute
+    self.await_(_cursor.execute(operation, parameters))
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:132: in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:196: in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\cursor.py:40: in execute
+    await self._execute(self._cursor.execute, sql, parameters)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\cursor.py:32: in _execute
+    return await self._conn._execute(fn, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py:160: in _execute
+    return await future
+           ^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+tx = <_queue.SimpleQueue object at 0x0000022D19F2B220>
+
+    def _connection_worker_thread(tx: _TxQueue):
+        """
+        Execute function calls on a separate thread.
+    
+        :meta private:
+        """
+        while True:
+            # Continues running until all queue items are processed,
+            # even after connection is closed (so we can finalize all
+            # futures)
+    
+            future, function = tx.get()
+    
+            try:
+                LOG.debug("executing %s", function)
+>               result = function()
+                         ^^^^^^^^^^
+E               sqlite3.OperationalError: no such table: lifecycle_models
+
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py:63: OperationalError
+
+The above exception was the direct cause of the following exception:
+
+db = <eden.db.session.Database object at 0x0000022D186D5A50>
+
+    @pytest.mark.asyncio
+    async def test_orm_hooks(db):
+>       obj = await LifecycleModel.create(name="Test Hooks")
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_orm_hooks_and_m2m.py:22: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+eden\db\mixins\crud.py:213: in create
+    await instance.save(session=session, commit=commit, validate=validate)
+eden\db\mixins\lifecycle.py:93: in save
+    await sess.flush()
+eden\db\session.py:103: in flush
+    return await super().flush(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\ext\asyncio\session.py:787: in flush
+    await greenlet_spawn(self.sync_session.flush, objects=objects)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:203: in greenlet_spawn
+    result = context.switch(value)
+             ^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\session.py:4331: in flush
+    self._flush(objects)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\session.py:4466: in _flush
+    with util.safe_reraise():
+         ^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\langhelpers.py:121: in __exit__
+    raise exc_value.with_traceback(exc_tb)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\session.py:4427: in _flush
+    flush_context.execute()
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\unitofwork.py:466: in execute
+    rec.execute(self)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\unitofwork.py:642: in execute
+    util.preloaded.orm_persistence.save_obj(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\persistence.py:93: in save_obj
+    _emit_insert_statements(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\persistence.py:1233: in _emit_insert_statements
+    result = connection.execute(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:1419: in execute
+    return meth(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\sql\elements.py:527: in _execute_on_connection
+    return connection._execute_clauseelement(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:1641: in _execute_clauseelement
+    ret = self._execute_context(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:1846: in _execute_context
+    return self._exec_single_context(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:1986: in _exec_single_context
+    self._handle_dbapi_exception(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:2363: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:1967: in _exec_single_context
+    self.dialect.do_execute(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:182: in execute
+    self._adapt_connection._handle_exception(error)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:342: in _handle_exception
+    raise error
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:164: in execute
+    self.await_(_cursor.execute(operation, parameters))
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:132: in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:196: in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\cursor.py:40: in execute
+    await self._execute(self._cursor.execute, sql, parameters)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\cursor.py:32: in _execute
+    return await self._conn._execute(fn, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py:160: in _execute
+    return await future
+           ^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+tx = <_queue.SimpleQueue object at 0x0000022D19F2B220>
+
+    def _connection_worker_thread(tx: _TxQueue):
+        """
+        Execute function calls on a separate thread.
+    
+        :meta private:
+        """
+        while True:
+            # Continues running until all queue items are processed,
+            # even after connection is closed (so we can finalize all
+            # futures)
+    
+            future, function = tx.get()
+    
+            try:
+                LOG.debug("executing %s", function)
+>               result = function()
+                         ^^^^^^^^^^
+E               sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: lifecycle_models
+E               [SQL: INSERT INTO lifecycle_models (name, hook_triggered, id, created_at, updated_at) VALUES (?, ?, ?, ?, ?)]
+E               [parameters: ('Test Hooks', 1, '949f471d141140028fb683a03eef9540', '2026-04-08 00:21:08.149671', '2026-04-08 00:21:08.149681')]
+E               (Background on this error at: https://sqlalche.me/e/20/e3q8)
+
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py:63: OperationalError
+________________________________ test_orm_m2m _________________________________
+
+self = <sqlalchemy.engine.base.Connection object at 0x0000022D19CF3E30>
+dialect = <sqlalchemy.dialects.sqlite.aiosqlite.SQLiteDialect_aiosqlite object at 0x0000022D187A39D0>
+context = <sqlalchemy.dialects.sqlite.aiosqlite.SQLiteExecutionContext_aiosqlite object at 0x0000022D18472990>
+statement = <sqlalchemy.dialects.sqlite.base.SQLiteCompiler object at 0x0000022D188B6550>
+parameters = [('Python', 'ef9bde2cec27489a9544e7c28344ffe2', '2026-04-08 00:21:09.082712', '2026-04-08 00:21:09.082727')]
+
+    def _exec_single_context(
+        self,
+        dialect: Dialect,
+        context: ExecutionContext,
+        statement: Union[str, Compiled],
+        parameters: Optional[_AnyMultiExecuteParams],
+    ) -> CursorResult[Any]:
+        """continue the _execute_context() method for a single DBAPI
+        cursor.execute() or cursor.executemany() call.
+    
+        """
+        if dialect.bind_typing is BindTyping.SETINPUTSIZES:
+            generic_setinputsizes = context._prepare_set_input_sizes()
+    
+            if generic_setinputsizes:
+                try:
+                    dialect.do_set_input_sizes(
+                        context.cursor, generic_setinputsizes, context
+                    )
+                except BaseException as e:
+                    self._handle_dbapi_exception(
+                        e, str(statement), parameters, None, context
+                    )
+    
+        cursor, str_statement, parameters = (
+            context.cursor,
+            context.statement,
+            context.parameters,
+        )
+    
+        effective_parameters: Optional[_AnyExecuteParams]
+    
+        if not context.executemany:
+            effective_parameters = parameters[0]
+        else:
+            effective_parameters = parameters
+    
+        if self._has_events or self.engine._has_events:
+            for fn in self.dispatch.before_cursor_execute:
+                str_statement, effective_parameters = fn(
+                    self,
+                    cursor,
+                    str_statement,
+                    effective_parameters,
+                    context,
+                    context.executemany,
+                )
+    
+        if self._echo:
+            self._log_info(str_statement)
+    
+            stats = context._get_cache_stats()
+    
+            if not self.engine.hide_parameters:
+                self._log_info(
+                    "[%s] %r",
+                    stats,
+                    sql_util._repr_params(
+                        effective_parameters,
+                        batches=10,
+                        ismulti=context.executemany,
+                    ),
+                )
+            else:
+                self._log_info(
+                    "[%s] [SQL parameters hidden due to hide_parameters=True]",
+                    stats,
+                )
+    
+        evt_handled: bool = False
+        try:
+            if context.execute_style is ExecuteStyle.EXECUTEMANY:
+                effective_parameters = cast(
+                    "_CoreMultiExecuteParams", effective_parameters
+                )
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_executemany:
+                        if fn(
+                            cursor,
+                            str_statement,
+                            effective_parameters,
+                            context,
+                        ):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+                    self.dialect.do_executemany(
+                        cursor,
+                        str_statement,
+                        effective_parameters,C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\_pytest\unraisableexception.py:33: RuntimeWarning: coroutine 'PeriodicTask._run_loop' was never awaited
+  gc.collect()
+RuntimeWarning: Enable tracemalloc to get the object allocation traceback
+
+                        context,
+                    )
+            elif not effective_parameters and context.no_parameters:
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_execute_no_params:
+                        if fn(cursor, str_statement, context):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+                    self.dialect.do_execute_no_params(
+                        cursor, str_statement, context
+                    )
+            else:
+                effective_parameters = cast(
+                    "_CoreSingleExecuteParams", effective_parameters
+                )
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_execute:
+                        if fn(
+                            cursor,
+                            str_statement,
+                            effective_parameters,
+                            context,
+                        ):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+>                   self.dialect.do_execute(
+                        cursor, str_statement, effective_parameters, context
+                    )
+
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:1967: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:182: in execute
+    self._adapt_connection._handle_exception(error)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:342: in _handle_exception
+    raise error
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:164: in execute
+    self.await_(_cursor.execute(operation, parameters))
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:132: in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:196: in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\cursor.py:40: in execute
+    await self._execute(self._cursor.execute, sql, parameters)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\cursor.py:32: in _execute
+    return await self._conn._execute(fn, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py:160: in _execute
+    return await future
+           ^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+tx = <_queue.SimpleQueue object at 0x0000022D19F2B220>
+
+    def _connection_worker_thread(tx: _TxQueue):
+        """
+        Execute function calls on a separate thread.
+    
+        :meta private:
+        """
+        while True:
+            # Continues running until all queue items are processed,
+            # even after connection is closed (so we can finalize all
+            # futures)
+    
+            future, function = tx.get()
+    
+            try:
+                LOG.debug("executing %s", function)
+>               result = function()
+                         ^^^^^^^^^^
+E               sqlite3.OperationalError: no such table: m2_m_tags
+
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py:63: OperationalError
+
+The above exception was the direct cause of the following exception:
+
+db = <eden.db.session.Database object at 0x0000022D186D5A50>
+
+    @pytest.mark.asyncio
+    async def test_orm_m2m(db):
+        # 1. Create entities
+>       tag1 = await M2MTag.create(name="Python")
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_orm_hooks_and_m2m.py:32: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+eden\db\mixins\crud.py:213: in create
+    await instance.save(session=session, commit=commit, validate=validate)
+eden\db\mixins\lifecycle.py:93: in save
+    await sess.flush()
+eden\db\session.py:103: in flush
+    return await super().flush(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\ext\asyncio\session.py:787: in flush
+    await greenlet_spawn(self.sync_session.flush, objects=objects)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:203: in greenlet_spawn
+    result = context.switch(value)
+             ^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\session.py:4331: in flush
+    self._flush(objects)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\session.py:4466: in _flush
+    with util.safe_reraise():
+         ^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\langhelpers.py:121: in __exit__
+    raise exc_value.with_traceback(exc_tb)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\session.py:4427: in _flush
+    flush_context.execute()
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\unitofwork.py:466: in execute
+    rec.execute(self)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\unitofwork.py:642: in execute
+    util.preloaded.orm_persistence.save_obj(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\persistence.py:93: in save_obj
+    _emit_insert_statements(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\orm\persistence.py:1233: in _emit_insert_statements
+    result = connection.execute(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:1419: in execute
+    return meth(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\sql\elements.py:527: in _execute_on_connection
+    return connection._execute_clauseelement(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:1641: in _execute_clauseelement
+    ret = self._execute_context(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:1846: in _execute_context
+    return self._exec_single_context(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:1986: in _exec_single_context
+    self._handle_dbapi_exception(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:2363: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\base.py:1967: in _exec_single_context
+    self.dialect.do_execute(
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:182: in execute
+    self._adapt_connection._handle_exception(error)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:342: in _handle_exception
+    raise error
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py:164: in execute
+    self.await_(_cursor.execute(operation, parameters))
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:132: in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py:196: in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\cursor.py:40: in execute
+    await self._execute(self._cursor.execute, sql, parameters)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\cursor.py:32: in _execute
+    return await self._conn._execute(fn, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py:160: in _execute
+    return await future
+           ^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+tx = <_queue.SimpleQueue object at 0x0000022D19F2B220>
+
+    def _connection_worker_thread(tx: _TxQueue):
+        """
+        Execute function calls on a separate thread.
+    
+        :meta private:
+        """
+        while True:
+            # Continues running until all queue items are processed,
+            # even after connection is closed (so we can finalize all
+            # futures)
+    
+            future, function = tx.get()
+    
+            try:
+                LOG.debug("executing %s", function)
+>               result = function()
+                         ^^^^^^^^^^
+E               sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: m2_m_tags
+E               [SQL: INSERT INTO m2_m_tags (name, id, created_at, updated_at) VALUES (?, ?, ?, ?)]
+E               [parameters: ('Python', 'ef9bde2cec27489a9544e7c28344ffe2', '2026-04-08 00:21:09.082712', '2026-04-08 00:21:09.082727')]
+E               (Background on this error at: https://sqlalche.me/e/20/e3q8)
+
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\aiosqlite\core.py:63: OperationalError
+________________________ test_directives_preprocessing ________________________
+
+    def test_directives_preprocessing():
+        ext = EdenDirectivesExtension(Environment())
+    
+        source = """
+        @if (user.is_admin) {
+            <h1>Admin</h1>
+        } @else if (user.is_editor) {
+            <h2>Editor</h2>
+        } @else {
+            <p>User</p>
+        }
+    
+        @for (item in items) {
+            <li>{{ item }}</li>
+        }
+    
+        @auth("admin", "editor") {
+            <button>Logout</button>
+        }
+    
+        @guest {
+            <button>Login</button>
+        }
+    
+        @csrf
+        @method("PUT")
+        @old("email", "default@site.com")
+        <input type="checkbox" @checked(active)>
+        <option @selected(item.id == 1)>One</option>
+        <input @disabled(true) @readonly(false)>
+    
+        @css("app.css")
+        @js("app.js")
+        @vite("main.ts")
+    
+        @json(my_dict)
+        @dump(user)
+    
+        @let x = 10
+        @fragment("inbox") {
+            <ul id="inbox"></ul>
+        }
+        """
+    
+        processed = ext.preprocess(source, "test.html")
+    
+        # Assertions
+        assert "{% if user.is_admin %}" in processed
+        assert "{% elif user.is_editor %}" in processed
+        assert "{% else %}" in processed
+        assert "{% endif %}" in processed
+        assert "{% for item in items %}" in processed
+        assert "{% endfor %}" in processed
+    
+        # Premium Meta
+        assert '<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">' in processed
+        assert '<input type="hidden" name="_method" value="PUT">' in processed
+        assert '{{ old("email", "default@site.com") }}' in processed
+    
+        # Premium Attributes
+        assert "{% if active %}checked{% endif %}" in processed
+        assert "{% if item.id == 1 %}selected{% endif %}" in processed
+        assert "{% if true %}disabled{% endif %}" in processed
+        assert "{% if false %}readonly{% endif %}" in processed
+    
+        # Premium Assets
+>       assert '<link rel="stylesheet" href="app.css">' in processed
+E       assert '<link rel="stylesheet" href="app.css">' in '\n    {% if user.is_admin %}\n        <h1>Admin</h1>\n     {% elif user.is_editor %}\n        <h2>Editor</h2>\n     {...#}\n    \n    {% set x = 10 %}\n    {% block fragment_inbox %}\n        <ul id="inbox"></ul>\n    {% endblock %}\n    '
+
+tests\test_templating.py:74: AssertionError
+_______________________________ test_while_loop _______________________________
+
+    def test_while_loop():
+        source = "@while(count > 0) { {{ count }} @let count = count - 1 }"
+        compiled = compile_template(source)
+>       assert "{% for _ in range(2147483647) %}" in compiled
+E       AssertionError: assert '{% for _ in range(2147483647) %}' in '{% for _ in range(__eden_max_loop_iterations__) %}{% if loop.index0 >= __eden_max_loop_iterations__ %}<!-- EDEN: Loop... break %}{% endif %}{% if not (count > 0) %}{% break %}{% endif %} {{ count }} {% set count = count - 1 %}{% endfor %}'
+
+tests\test_templating.py:256: AssertionError
+_______________________ test_role_permission_directives _______________________
+
+    def test_role_permission_directives():
+        """Test role and permission directive generation."""
+        from eden.template_directives import render_role, render_permission
+        compiler = MagicMock(spec=TemplateCompiler)
+        node = MagicMock()
+        node.body = []
+    
+        # @role("admin")
+        res = render_role(compiler, node, '"admin"')
+        assert 'request.user.role == "admin"' in res
+    
+        # @role("admin, editor")
+        res = render_role(compiler, node, '"admin", "editor"')
+>       assert "request.user.role in ['admin', 'editor']" in res
+E       assert "request.user.role in ['admin', 'editor']" in "{% if request.user and request.user.is_authenticated and request.user.role in ('admin', 'editor') %}<MagicMock name='mock.compile()' id='2392708936912'>{% endif %}"
+
+tests\test_templating_advanced.py:137: AssertionError
+_________________ TestTemplatingFilters.test_format_time_ago __________________
+
+self = <tests.test_templating_comprehensive.TestTemplatingFilters object at 0x0000022D17EB4B90>
+
+    def test_format_time_ago(self):
+        """Test time_ago filter."""
+        now = datetime.datetime.now()
+        one_hour_ago = now - datetime.timedelta(hours=1)
+        result = format_time_ago(one_hour_ago)
+>       assert "hour" in result
+E       AssertionError: assert 'hour' in '60 minutes ago'
+
+tests\test_templating_comprehensive.py:45: AssertionError
+___________________ TestTemplatingFilters.test_mask_filter ____________________
+
+self = <tests.test_templating_comprehensive.TestTemplatingFilters object at 0x0000022D17F15550>
+
+    def test_mask_filter(self):
+        """Test mask filter."""
+>       result = mask_filter("1234567890", visible=4)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       TypeError: mask_filter() got an unexpected keyword argument 'visible'
+
+tests\test_templating_comprehensive.py:123: TypeError
+_________________ TestTemplatingDirectives.test_for_directive _________________
+
+self = <tests.test_templating_comprehensive.TestTemplatingDirectives object at 0x0000022D17EB4F50>
+
+    def test_for_directive(self):
+        """Test @for directive."""
+        template_str = "@for (item in items)\n{{ item }}\n@endfor"
+        env = Environment(extensions=[EdenDirectivesExtension])
+>       template = env.from_string(template_str)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_templating_comprehensive.py:182: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\jinja2\environment.py:1111: in from_string
+    return cls.from_code(self, self.compile(source), gs, None)
+                               ^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\jinja2\environment.py:771: in compile
+    self.handle_exception(source=source_hint)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\jinja2\environment.py:942: in handle_exception
+    raise rewrite_traceback_stack(source=source)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+>   ???
+E   jinja2.exceptions.TemplateSyntaxError: Encountered unknown tag 'break'. Jinja was looking for the following tags: 'elif' or 'else' or 'endif'. The innermost block that needs to be closed is 'if'.
+
+<unknown>:1: TemplateSyntaxError
+_______________ TestTemplatingDirectives.test_switch_directive ________________
+
+self = <tests.test_templating_comprehensive.TestTemplatingDirectives object at 0x0000022D17D77490>
+
+    def test_switch_directive(self):
+        """Test @switch/@case directive."""
+        template_str = "@switch (status)\n@case ('active')\nActive\n@break\n@default\nInactive\n@endswitch"
+        env = Environment(extensions=[EdenDirectivesExtension])
+>       template = env.from_string(template_str)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_templating_comprehensive.py:192: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\jinja2\environment.py:1111: in from_string
+    return cls.from_code(self, self.compile(source), gs, None)
+                               ^^^^^^^^^^^^^^^^^^^^
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\jinja2\environment.py:771: in compile
+    self.handle_exception(source=source_hint)
+C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\jinja2\environment.py:942: in handle_exception
+    raise rewrite_traceback_stack(source=source)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+>   ???
+E   jinja2.exceptions.TemplateSyntaxError: Encountered unknown tag 'break'.
+
+<unknown>:4: TemplateSyntaxError
+____________ TestTemplatingIntegration.test_eden_templates_render _____________
+
+self = <tests.test_templating_comprehensive.TestTemplatingIntegration object at 0x0000022D17EB51D0>
+
+    def test_eden_templates_render(self):
+        """Test template rendering through EdenTemplates."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Create a template file
+            template_path = Path(tmpdir) / "test.html"
+            template_path.write_text("Hello {{ name }}!")
+    
+            templates = EdenTemplates(directory=tmpdir)
+>           result = templates.render_to_string("test.html", {"name": "World"})
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           AttributeError: 'EdenTemplates' object has no attribute 'render_to_string'
+
+tests\test_templating_comprehensive.py:223: AttributeError
+_______ TestTemplatingIntegration.test_eden_templates_filters_available _______
+
+self = <tests.test_templating_comprehensive.TestTemplatingIntegration object at 0x0000022D17D776F0>
+
+    def test_eden_templates_filters_available(self):
+        """Test that all filters are available in templates."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            templates = EdenTemplates(directory=tmpdir)
+            env = templates.env
+    
+            # Check that key filters are registered
+>           assert 'format_money' in env.filters
+E           AssertionError: assert 'format_money' in {'abs': <built-in function abs>, 'add_class': <function add_class at 0x0000022D113A5010>, 'add_error_attr': <function add_error_attr at 0x0000022D113A59B0>, 'add_error_class': <function add_error_class at 0x0000022D113A52D0>, ...}
+E            +  where {'abs': <built-in function abs>, 'add_class': <function add_class at 0x0000022D113A5010>, 'add_error_attr': <function add_error_attr at 0x0000022D113A59B0>, 'add_error_class': <function add_error_class at 0x0000022D113A52D0>, ...} = <jinja2.sandbox.SandboxedEnvironment object at 0x0000022D19D2C2D0>.filters
+
+tests\test_templating_comprehensive.py:233: AssertionError
+_______________ TestTemplatingPerformance.test_template_caching _______________
+
+self = <tests.test_templating_comprehensive.TestTemplatingPerformance object at 0x0000022D17EB5810>
+
+    def test_template_caching(self):
+        """Test that templates are cached."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            template_path = Path(tmpdir) / "cache_test.html"
+            template_path.write_text("{{ value }}")
+    
+            templates = EdenTemplates(directory=tmpdir)
+    
+            # First render
+>           result1 = templates.render_to_string("cache_test.html", {"value": "test"})
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           AttributeError: 'EdenTemplates' object has no attribute 'render_to_string'
+
+tests\test_templating_comprehensive.py:302: AttributeError
+_____ TestTemplatingExtensions.test_eden_directives_extension_registered ______
+
+self = <tests.test_templating_comprehensive.TestTemplatingExtensions object at 0x0000022D17EB5950>
+
+    def test_eden_directives_extension_registered(self):
+        """Test that EdenDirectivesExtension is properly registered."""
+>       templates = EdenTemplates()
+                    ^^^^^^^^^^^^^^^
+E       TypeError: EdenTemplates.__init__() missing 1 required positional argument: 'directory'
+
+tests\test_templating_comprehensive.py:315: TypeError
+_______________________________ test_while_loop _______________________________
+
+    def test_while_loop():
+        source = "@while(count > 0) { {{ count }} @let count = count - 1 }"
+        compiled = compile_template(source)
+        # Check that it uses our for-break construct
+>       assert "{% for _ in range(2147483647) %}" in compiled
+E       AssertionError: assert '{% for _ in range(2147483647) %}' in '{% for _ in range(__eden_max_loop_iterations__) %}{% if loop.index0 >= __eden_max_loop_iterations__ %}<!-- EDEN: Loop... break %}{% endif %}{% if not (count > 0) %}{% break %}{% endif %} {{ count }} {% set count = count - 1 %}{% endfor %}'
+
+tests\test_templating_v2.py:35: AssertionError
+_______________________ test_tenancy_context_leak_fixed _______________________
+
+    @pytest.mark.asyncio
+    async def test_tenancy_context_leak_fixed():
+        """Test that tenancy context is properly reset across requests (FIXED)."""
+        # Simulate first request setting tenant
+        tenant_id_1 = "tenant-1"
+        context_manager.set_tenant(tenant_id_1)
+    
+        # Verify it's set in both
+        assert get_tenant_id() == tenant_id_1
+        # get_current_tenant_id returns UUID if it can be parsed
+        current_tid = get_current_tenant_id()
+        assert str(current_tid) == tenant_id_1
+    
+        # End first request
+        await context_manager.on_request_end()
+    
+        # Verify cleanup in BOTH contexts
+>       assert get_tenant_id() is None, "eden.context._tenant_id_ctx not reset!"
+E       AssertionError: eden.context._tenant_id_ctx not reset!
+E       assert 'tenant-1' is None
+E        +  where 'tenant-1' = get_tenant_id()
+
+tests\test_tenancy_leak.py:24: AssertionError
+---------------------------- Captured stdout call -----------------------------
+[33m00:21:27 WARNING [0m eden.context — Error cleaning up context: <Token used var=<ContextVar name='eden_user' default=None at 0x0000022D113AD8A0> at 0x0000022D182EF340> has already been used once
+============================== warnings summary ===============================
+eden\testing.py:64
+  C:\PROJECTS\eden-framework\eden\testing.py:64: PytestCollectionWarning: cannot collect test class 'EdenTestClient' because it has a __init__ constructor (from: tests/test_config_and_testing.py)
+    class EdenTestClient(httpx.AsyncClient):
+
+tests\test_db_lifecycle_fixes.py:7
+  C:\PROJECTS\eden-framework\tests\test_db_lifecycle_fixes.py:7: PytestCollectionWarning: cannot collect test class 'TestModel' because it has a __init__ constructor (from: tests/test_db_lifecycle_fixes.py)
+    class TestModel(Model):
+
+tests\test_directives_integration.py:295
+  C:\PROJECTS\eden-framework\tests\test_directives_integration.py:295: PytestUnknownMarkWarning: Unknown pytest.mark.unit - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.unit
+
+tests\test_directives_integration.py:313
+  C:\PROJECTS\eden-framework\tests\test_directives_integration.py:313: PytestUnknownMarkWarning: Unknown pytest.mark.integration - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.integration
+
+tests\test_enums.py:10
+  C:\PROJECTS\eden-framework\tests\test_enums.py:10: PytestCollectionWarning: cannot collect test class 'TestStatus' because it has a __new__ constructor (from: tests/test_enums.py)
+    class TestStatus(ChoiceEnum):
+
+tests\test_models.py:11
+  C:\PROJECTS\eden-framework\tests\test_models.py:11: PytestCollectionWarning: cannot collect test class 'TestArticle' because it has a __init__ constructor (from: tests/test_models.py)
+    class TestArticle(Model):
+
+tests\test_panel.py:16
+  C:\PROJECTS\eden-framework\tests\test_panel.py:16: PytestCollectionWarning: cannot collect test class 'TestUser' because it has a __init__ constructor (from: tests/test_panel.py)
+    class TestUser(Model):
+
+tests\test_panel.py:22
+  C:\PROJECTS\eden-framework\tests\test_panel.py:22: PytestCollectionWarning: cannot collect test class 'TestUserPanel' because it has a __init__ constructor (from: tests/test_panel.py)
+    class TestUserPanel(BasePanel):
+
+tests\test_querysets.py:13
+  C:\PROJECTS\eden-framework\tests\test_querysets.py:13: PytestCollectionWarning: cannot collect test class 'TestUser' because it has a __init__ constructor (from: tests/test_querysets.py)
+    class TestUser(Model):
+
+tests\test_schemas.py:15
+  C:\PROJECTS\eden-framework\tests\test_schemas.py:15: PytestCollectionWarning: cannot collect test class 'TestUser' because it has a __init__ constructor (from: tests/test_schemas.py)
+    class TestUser(Model):
+
+tests\test_schemas.py:22
+  C:\PROJECTS\eden-framework\tests\test_schemas.py:22: PytestCollectionWarning: cannot collect test class 'TestUserSchema' because it has a __init__ constructor (from: tests/test_schemas.py)
+    class TestUserSchema(ModelSchema):
+
+tests\test_storage_cleanup.py:26
+  C:\PROJECTS\eden-framework\tests\test_storage_cleanup.py:26: PytestCollectionWarning: cannot collect test class 'TestUser' because it has a __init__ constructor (from: tests/test_storage_cleanup.py)
+    class TestUser(Model):
+
+tests\test_storage_cleanup.py:34
+  C:\PROJECTS\eden-framework\tests\test_storage_cleanup.py:34: PytestCollectionWarning: cannot collect test class 'TestPost' because it has a __init__ constructor (from: tests/test_storage_cleanup.py)
+    class TestPost(Model):
+
+tests/test_app_security.py::test_app_fails_without_secret_key_in_dev
+tests/test_app_security.py::test_app_status_lifecycle
+  C:\PROJECTS\eden-framework\eden\app.py:211: RuntimeWarning: coroutine 'spawn_safe_task.<locals>._context_wrapper' was never awaited
+    self._diagnostics.register(
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_app_security.py::test_app_status_running
+  C:\PROJECTS\eden-framework\eden\core\backends\redis.py:79: DeprecationWarning: Call to deprecated close. (Use aclose() instead) -- Deprecated since version 5.0.1.
+    await self._pubsub.close()
+
+tests/test_auth_critical_fixes.py::test_complete_login_required_alias
+  C:\PROJECTS\eden-framework\tests\test_auth_critical_fixes.py:225: DeprecationWarning: eden.auth.complete is deprecated. Import from eden.auth instead.
+    from eden.auth.complete import login_required as complete_login_required
+
+tests/test_config_and_testing.py::TestTestClientContext::test_testclient_context_isolation
+tests/test_core_integration.py::test_client_authentication
+  C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\jwt\api_jwt.py:147: InsecureKeyLengthWarning: The HMAC key is 30 bytes long, which is below the minimum recommended length of 32 bytes for SHA256. See RFC 7518 Section 3.2.
+    return self._jws.encode(
+
+tests/test_config_and_testing.py::TestTestClientContext::test_testclient_context_isolation
+tests/test_core_integration.py::test_client_authentication
+  C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\jwt\api_jwt.py:365: InsecureKeyLengthWarning: The HMAC key is 30 bytes long, which is below the minimum recommended length of 32 bytes for SHA256. See RFC 7518 Section 3.2.
+    decoded = self.decode_complete(
+
+tests/test_db_bulk_lifecycle.py::test_bulk_create_triggers_lifecycle
+tests/test_signals_disconnect.py::test_signals_disconnect_basic
+tests/test_signals_disconnect.py::test_signals_disconnect_with_dispatch_uid
+tests/test_signals_disconnect.py::test_signals_disconnect_with_sender
+tests/test_signals_fix.py::test_signal_send_receives_correctly
+tests/test_signals_fix.py::test_signal_disconnect_then_send
+tests/test_signals_fix.py::test_signal_sender_filtering
+  C:\PROJECTS\eden-framework\eden\db\signals.py:126: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    if asyncio.iscoroutinefunction(receiver):
+
+tests/test_distributed_infrastructure.py: 7 warnings
+tests/test_phase3_reliability.py: 4 warnings
+tests/test_tasks.py: 1 warning
+tests/test_tasks_advanced.py: 8 warnings
+tests/test_tasks_comprehensive.py: 8 warnings
+tests/test_tasks_full.py: 12 warnings
+tests/test_template_errors.py: 1 warning
+tests/test_templating.py: 1 warning
+  C:\PROJECTS\eden-framework\eden\tasks\__init__.py:639: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    if asyncio.iscoroutinefunction(func):
+
+tests/test_distributed_infrastructure.py::test_websocket_distributed_broadcast
+tests/test_distributed_infrastructure.py::test_websocket_distributed_broadcast
+  C:\PROJECTS\eden-framework\tests\test_distributed_infrastructure.py:34: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    if asyncio.iscoroutinefunction(cb):
+
+tests/test_forms.py::test_render_all
+  C:\PROJECTS\eden-framework\eden\forms.py:754: UserWarning: render_csrf() called outside of request context. No token will be produced.
+    warnings.warn("render_csrf() called outside of request context. No token will be produced.")
+
+tests/test_orm.py::test_orm_basic_crud
+  C:\PROJECTS\eden-framework\tests\test_orm.py:28: FutureWarning: Task.get(value) positional form is deprecated. Use Task.get(id=value) instead.
+    fetched = await Task.get(task.id)
+
+tests/test_orm.py::test_orm_basic_crud
+  C:\PROJECTS\eden-framework\tests\test_orm.py:39: FutureWarning: Task.get(value) positional form is deprecated. Use Task.get(id=value) instead.
+    refetched = await Task.get(task.id)
+
+tests/test_orm.py::test_orm_basic_crud
+  C:\PROJECTS\eden-framework\tests\test_orm.py:45: FutureWarning: Task.get(value) positional form is deprecated. Use Task.get(id=value) instead.
+    deleted = await Task.get(task.id)
+
+tests/test_orm_enhanced.py::test_orm_json_field
+  C:\PROJECTS\eden-framework\tests\test_orm_enhanced.py:35: FutureWarning: EnhancedUser.get(value) positional form is deprecated. Use EnhancedUser.get(id=value) instead.
+    fetched = await EnhancedUser.get(user.id)
+
+tests/test_orm_enhanced.py::test_orm_json_field
+  C:\PROJECTS\eden-framework\tests\test_orm_enhanced.py:44: FutureWarning: EnhancedUser.get(value) positional form is deprecated. Use EnhancedUser.get(id=value) instead.
+    refreshed = await EnhancedUser.get(user.id)
+
+tests/test_panel.py::test_dashboard_view
+  C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\starlette\templating.py:162: DeprecationWarning: The `name` is not the first parameter anymore. The first parameter should be the `Request` instance.
+  Replace `TemplateResponse(name, {"request": request})` by `TemplateResponse(request, name)`.
+    warnings.warn(
+
+tests/test_postgres_full_session.py::test_postgres_multi_tenancy_schemas
+tests/test_postgres_full_session.py::test_postgres_multi_tenancy_schemas
+  C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\alembic\config.py:612: DeprecationWarning: No path_separator found in configuration; falling back to legacy splitting on spaces, commas, and colons for prepend_sys_path.  Consider adding path_separator=os to Alembic config.
+    util.warn_deprecated(
+
+tests/test_security_middleware.py::TestHealthChecks::test_ready_endpoint_passing_check
+tests/test_security_middleware.py::TestHealthChecks::test_ready_endpoint_failing_check
+tests/test_security_middleware.py::TestHealthChecks::test_ready_endpoint_exception_check
+  C:\PROJECTS\eden-framework\eden\app.py:396: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    if asyncio.iscoroutinefunction(check_fn):
+
+tests/test_storage_cleanup.py: 10 warnings
+  C:\PROJECTS\eden-framework\eden\db\file_reference.py:189: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    ref.deleted_at = datetime.utcnow()
+
+tests/test_storage_cleanup.py::test_file_reference_query_only_active_references
+  C:\PROJECTS\eden-framework\tests\test_storage_cleanup.py:430: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    already_deleted.deleted_at = datetime.utcnow()
+
+tests/test_tenancy.py::test_cross_tenant_access_prevention
+  C:\PROJECTS\eden-framework\tests\test_tenancy.py:89: FutureWarning: TenantTask.get(value) positional form is deprecated. Use TenantTask.get(id=value) instead.
+    fetched = await TenantTask.get(task_a.id)
+
+tests/test_websocket_manager_fix.py::TestHeartbeatLifecycle::test_start_heartbeat_creates_task
+tests/test_websocket_manager_fix.py::TestHeartbeatLifecycle::test_stop_heartbeat_cancels_task
+tests/test_websocket_manager_fix.py::TestHeartbeatLifecycle::test_start_heartbeat_idempotent
+tests/test_websocket_manager_fix.py::TestShutdown::test_shutdown_stops_heartbeat
+  C:\Users\COBBY\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\events.py:94: RuntimeWarning: coroutine 'ConnectionManager._heartbeat_loop' was never awaited
+    self._context.run(self._callback, *self._args)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/cli/test_entity_gen.py::test_generate_route_auto_registration - ...
+FAILED tests/test_app_security.py::test_app_fails_without_secret_key_in_dev
+FAILED tests/test_auth_audit.py::test_query_rbac - AssertionError: assert ('1...
+FAILED tests/test_auth_rbac_ownership.py::test_rbac_allow_roles - AssertionEr...
+FAILED tests/test_background_tasks.py::test_task_decorator_and_defer - assert...
+FAILED tests/test_component_security.py::test_component_signature_verification
+FAILED tests/test_db_bulk_lifecycle.py::test_bulk_create_triggers_lifecycle
+FAILED tests/test_db_commit_logic.py::test_soft_delete_commit_false_rollback
+FAILED tests/test_model_maturity.py::test_signal_registration - sqlalchemy.ex...
+FAILED tests/test_model_maturity.py::test_update_or_create - sqlalchemy.exc.O...
+FAILED tests/test_model_maturity.py::test_delete_signals - sqlalchemy.exc.Ope...
+FAILED tests/test_model_maturity.py::test_bulk_signals - eden.exceptions.Eden...
+FAILED tests/test_orm_hooks_and_m2m.py::test_orm_hooks - sqlalchemy.exc.Opera...
+FAILED tests/test_orm_hooks_and_m2m.py::test_orm_m2m - sqlalchemy.exc.Operati...
+FAILED tests/test_templating.py::test_directives_preprocessing - assert '<lin...
+FAILED tests/test_templating.py::test_while_loop - AssertionError: assert '{%...
+FAILED tests/test_templating_advanced.py::test_role_permission_directives - a...
+FAILED tests/test_templating_comprehensive.py::TestTemplatingFilters::test_format_time_ago
+FAILED tests/test_templating_comprehensive.py::TestTemplatingFilters::test_mask_filter
+FAILED tests/test_templating_comprehensive.py::TestTemplatingDirectives::test_for_directive
+FAILED tests/test_templating_comprehensive.py::TestTemplatingDirectives::test_switch_directive
+FAILED tests/test_templating_comprehensive.py::TestTemplatingIntegration::test_eden_templates_render
+FAILED tests/test_templating_comprehensive.py::TestTemplatingIntegration::test_eden_templates_filters_available
+FAILED tests/test_templating_comprehensive.py::TestTemplatingPerformance::test_template_caching
+FAILED tests/test_templating_comprehensive.py::TestTemplatingExtensions::test_eden_directives_extension_registered
+FAILED tests/test_templating_v2.py::test_while_loop - AssertionError: assert ...
+FAILED tests/test_tenancy_leak.py::test_tenancy_context_leak_fixed - Assertio...
+27 failed, 1589 passed, 4 skipped, 100 warnings in 93.88s (0:01:33)

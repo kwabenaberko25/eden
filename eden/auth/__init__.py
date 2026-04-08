@@ -79,6 +79,8 @@ from eden.auth.access import (
     require_permission as access_require_permission,
     RoleManager,
 )
+
+from eden.auth.base import get_current_user
 from eden.auth.decorators import (
     login_required,
     roles_required,
@@ -141,6 +143,13 @@ from eden.auth.actions import (
 from eden.auth.access import (
     RoleManager,
 )
+
+async def require_auth(request):
+    from eden.exceptions import Unauthorized
+    user = await get_current_user(request)
+    if user is None:
+        raise Unauthorized(detail="Authentication required.")
+    return user
 
 __all__ = [
     # Models & Utils
@@ -211,6 +220,7 @@ __all__ = [
     "create_user",
     "check_permission",
     "RoleManager",
+    "require_auth",
     
     # Middleware
     "AuthenticationMiddleware",

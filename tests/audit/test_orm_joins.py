@@ -29,17 +29,20 @@ class AuditChild(Model):
 # ── Audit Tests ───────────────────────────────────────────────────────────
 
 @pytest.fixture
-async def join_db():
-    import os
-    db_path = "test_audit_joins.db"
-    if os.path.exists(db_path):
-        os.remove(db_path)
-        
-    db = Database(f"sqlite+aiosqlite:///{db_path}")
+async def join_db(tmp_path):
+    db_path = tmp_path / "test_audit_joins.db"
+    db = Database(f"sqlite+aiosqlite:///{db_path.as_posix()}")
     await db.connect()
     
     async with db.engine.begin() as conn:
-        await conn.run_sync(Model.metadata.create_all)
+        try:
+            await conn.run_sync(Model.metadata.create_all)
+        except Exception as exc:
+            if "already exists" in str(exc).lower():
+                # SQLite may report existing indexes when metadata is reused across tests.
+                pass
+            else:
+                raise
         
     async with db.session() as session:
         gp = await AuditGrandParent.create(session, name="GP1")

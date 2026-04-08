@@ -151,59 +151,49 @@ class ContextManager:
             - Does NOT raise exceptions; logs warnings instead
         """
         tokens = _context_tokens.get(None)
-        if tokens is None:
-            # No context was initialized for this request — nothing to clean up
-            return
-
+        
         try:
-            # Log any user/tenant context for audit trail
-            user = _user_ctx.get(None)
-            tenant_id = _tenant_id_ctx.get(None)
-            request_id = _request_id_ctx.get("")
+            # Attempt to reset context vars using saved tokens (proper ContextVar cleanup)
+            if tokens is not None:
+                # Import tenancy context var for cross-module cleanup
+                try:
+                    from eden.tenancy.context import _tenant_ctx
+                except ImportError:
+                    _tenant_ctx = None
 
-            if hasattr(logger, "isEnabledFor") and logger.isEnabledFor(logging.DEBUG):
-                if user is not None or tenant_id is not None:
-                    logger.debug(
-                        f"Request context ending: request_id={request_id}, "
-                        f"user={getattr(user, 'id', user)}, tenant_id={tenant_id}"
-                    )
+                _ctx_var_map = {
+                    "request_id": _request_id_ctx,
+                    "app": _app_ctx,
+                    "request": _request_ctx,
+                    "user": _user_ctx,
+                    "tenant_id": _tenant_id_ctx,
+                    "organization_id": _organization_id_ctx,
+                    "tenancy_ctx": _tenant_ctx,  # eden.tenancy.context._tenant_ctx
+                }
+                for key in list(tokens.keys()):
+                    token = tokens.pop(key, None)
+                    if token is not None:
+                        try:
+                            ctx_var = _ctx_var_map.get(key)
+                            if ctx_var:
+                                ctx_var.reset(token)
+                        except (ValueError, LookupError):
+                            # Token already used or from different context — safe to ignore
+                            pass
 
-            # Reset context vars using saved tokens (proper ContextVar cleanup)
-            # Import tenancy context var for cross-module cleanup
-            try:
-                from eden.tenancy.context import _tenant_ctx
-            except ImportError:
-                _tenant_ctx = None
-
-            _ctx_var_map = {
-                "request_id": _request_id_ctx,
-                "app": _app_ctx,
-                "request": _request_ctx,
-                "user": _user_ctx,
-                "tenant_id": _tenant_id_ctx,
-                "organization_id": _organization_id_ctx,
-                "tenancy_ctx": _tenant_ctx,  # eden.tenancy.context._tenant_ctx
-            }
-            for key in list(tokens.keys()):
-                token = tokens.pop(key, None)
-                if token is not None:
-                    try:
-                        ctx_var = _ctx_var_map.get(key)
-                        if ctx_var:
-                            ctx_var.reset(token)
-                    except (ValueError, LookupError):
-                        # Token already used or from different context — safe to ignore
-                        pass
-
-            # Explicitly clear context vars to ensure cleanup
+            # Always explicitly clear context vars to ensure cleanup
+            # This is a safety measure in case token resets fail or tokens is None
             _request_id_ctx.set("")
             _app_ctx.set(None)
             _request_ctx.set(None)
             _user_ctx.set(None)
             _tenant_id_ctx.set(None)
             _organization_id_ctx.set(None)
-            if _tenant_ctx:
+            try:
+                from eden.tenancy.context import _tenant_ctx
                 _tenant_ctx.set(None)
+            except ImportError:
+                pass
 
             # Clear the per-request token dict itself
             _context_tokens.set(None)
@@ -458,6 +448,11 @@ def get_request() -> Optional["Request"]:
 def get_user() -> Any:
     """Get the current user from context."""
     return context_manager.get_user()
+
+
+def get_current_user() -> Any:
+    """Alias for get_user."""
+    return get_user()
 
 
 def set_user(user: Any) -> contextvars.Token:

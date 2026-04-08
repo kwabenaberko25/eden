@@ -102,11 +102,11 @@ class TestConfigValidation:
 class TestConfigEnvironmentVariables:
     """Test environment variable loading."""
     
-    def test_config_from_envvars(self):
+    def test_config_from_envvars(self, monkeypatch):
         """Config loads from environment variables."""
-        os.environ["EDEN_ENV"] = "prod"
-        os.environ["SECRET_KEY"] = "prod-secret"
-        os.environ["DATABASE_URL"] = "postgresql://prod"
+        monkeypatch.setenv("EDEN_ENV", "prod")
+        monkeypatch.setenv("SECRET_KEY", "prod-secret")
+        monkeypatch.setenv("DATABASE_URL", "postgresql://prod")
         
         config = create_config(
             env=os.getenv("EDEN_ENV"),
@@ -117,16 +117,11 @@ class TestConfigEnvironmentVariables:
         assert config.env == Environment.PROD
         assert config.secret_key == "prod-secret"
         assert config.database_url == "postgresql://prod"
-        
-        # Cleanup
-        del os.environ["EDEN_ENV"]
-        del os.environ["SECRET_KEY"]
-        del os.environ["DATABASE_URL"]
     
-    def test_config_manager_loads_from_env(self):
+    def test_config_manager_loads_from_env(self, monkeypatch):
         """ConfigManager loads from environment."""
-        os.environ["EDEN_ENV"] = "test"
-        os.environ["SECRET_KEY"] = "test-secret"
+        monkeypatch.setenv("EDEN_ENV", "test")
+        monkeypatch.setenv("SECRET_KEY", "test-secret")
         
         manager = ConfigManager()
         manager.reset()
@@ -134,10 +129,6 @@ class TestConfigEnvironmentVariables:
         
         assert config.env == Environment.TEST
         assert config.secret_key == "test-secret"
-        
-        # Cleanup
-        del os.environ["EDEN_ENV"]
-        del os.environ["SECRET_KEY"]
     
     def test_config_manager_singleton(self):
         """ConfigManager is a singleton."""
@@ -146,18 +137,15 @@ class TestConfigEnvironmentVariables:
         
         assert manager1 is manager2
     
-    def test_get_config_convenience(self):
+    def test_get_config_convenience(self, monkeypatch):
         """get_config() convenience function works."""
-        os.environ["EDEN_ENV"] = "test"
+        monkeypatch.setenv("EDEN_ENV", "test")
         
         ConfigManager().reset()
         config1 = get_config()
         config2 = get_config()
         
         assert config1 is config2
-        
-        # Cleanup
-        del os.environ["EDEN_ENV"]
 
 
 class TestConfigModes:

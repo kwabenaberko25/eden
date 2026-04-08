@@ -152,15 +152,64 @@ class Model(Base, AccessControl, ValidatorMixin, LifecycleMixin, SerializationMi
         for key, value in kwargs.items():
             setattr(self, key, value)
 
+    @staticmethod
+    def _deduplicate_table_indexes(table: Table) -> None:
+        """Remove duplicated indexes that can arise from reusing the same table name."""
+        seen_names: set[str] = set()
+        for index in list(table.indexes):
+            if index.name in seen_names:
+                table.indexes.remove(index)
+            else:
+                seen_names.add(index.name)
+
     def __init_subclass__(cls, **kwargs):
         """Standard Eden model initialization."""
         # Use vars() instead of __dict__ to aid some static analysis environments
         class_vars = vars(cls)
-        if "__tablename__" not in class_vars and not class_vars.get("__abstract__", False):
-            cls.__tablename__ = _camel_to_snake(cls.__name__) + "s"
+        existing_table = None
+        if not class_vars.get("__abstract__", False):
+            if "__tablename__" not in class_vars:
+                cls.__tablename__ = _camel_to_snake(cls.__name__) + "s"
+
+            existing_table = cls.metadata.tables.get(cls.__tablename__)
+            if existing_table is not None:
+                table_args = getattr(cls, "__table_args__", None)
+                if table_args is None:
+                    cls.__table_args__ = {"extend_existing": True}
+                elif isinstance(table_args, dict):
+                    table_args["extend_existing"] = True
+                elif isinstance(table_args, tuple):
+                    if table_args and isinstance(table_args[-1], dict):
+                        new_args = list(table_args)
+                        new_args[-1] = {**new_args[-1], "extend_existing": True}
+                        cls.__table_args__ = tuple(new_args)
+                    else:
+                        cls.__table_args__ = (*table_args, {"extend_existing": True})
 
         from eden.db.schema import SchemaInferenceEngine, ValidationScanner
-        
+
+        # Support a nested Django-style Meta class for model configuration.
+        meta_cls = class_vars.get('Meta')
+        model_config = None
+        if isinstance(meta_cls, type):
+            from eden.models import ModelConfig
+
+            config = ModelConfig()
+            for key, value in vars(meta_cls).items():
+                if key.startswith('_'):
+                    continue
+                setattr(config, key, value)
+            config._model_cls = cls
+            cls.Meta = config
+            if not hasattr(cls, 'model_config'):
+                cls.model_config = config
+            model_config = config
+
+        # Propagate ChoiceField metadata into annotations for runtime introspection.
+        for attr_name, attr_value in list(class_vars.items()):
+            if not attr_name.startswith('_') and hasattr(attr_value, 'choices') and callable(getattr(attr_value, 'get_sqlalchemy_column', None)) and hasattr(attr_value, 'default'):
+                cls.__annotations__[attr_name] = attr_value
+
         # 1. Process schema via the Engine (safe for abstract models)
         SchemaInferenceEngine.process_class(cls)
 
@@ -169,6 +218,9 @@ class Model(Base, AccessControl, ValidatorMixin, LifecycleMixin, SerializationMi
 
         # 3. Initialize/Isolate validation state via ValidatorMixin
         super().__init_subclass__(**kwargs)
+
+        if model_config is not None:
+            model_config._apply_defaults()
 
         # Apply discovered validation rules
         for meth, name, val in discovered_rules:
@@ -193,10 +245,17 @@ class Model(Base, AccessControl, ValidatorMixin, LifecycleMixin, SerializationMi
                     from eden.db.utils import get_utc_now
                     target.updated_at = get_utc_now()
 
+        if existing_table is not None:
+            Model._deduplicate_table_indexes(existing_table)
+
     @classmethod
     def _bind_db(cls, db: Any) -> None:
         """Bind a Database instance so models can auto-acquire sessions."""
         Model._db = db
+        # Restore the default `_get_db` logic in case a previous test or
+        # temporary monkeypatch replaced it. This ensures later model queries
+        # resolve against the currently bound database instance.
+        Model._get_db = classmethod(_DEFAULT_GET_DB)
 
     @classmethod
     def to_schema(
@@ -431,6 +490,10 @@ class Model(Base, AccessControl, ValidatorMixin, LifecycleMixin, SerializationMi
                 instances.append(instance)
             return instances
         return _execute()
+
+# Preserve the original `_get_db` implementation so Model binding can recover
+# from temporary monkeypatches that may leak between tests.
+_DEFAULT_GET_DB = Model._get_db.__func__
 
 # Register listeners
 from .listeners import register_listeners

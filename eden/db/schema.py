@@ -239,6 +239,16 @@ class SchemaInferenceEngine:
             except Exception:
                 attr_hint = hint
             
+            # Handle ChoiceField annotations from Eden enums
+            if (
+                hasattr(attr_hint, 'choices')
+                and callable(getattr(attr_hint, 'get_sqlalchemy_column', None))
+                and hasattr(attr_hint, 'default')
+            ):
+                setattr(model_cls, name, attr_hint.get_sqlalchemy_column(name))
+                inferred_names.append(name)
+                continue
+
             # Eval fallback for strings
             if isinstance(attr_hint, str):
                 try:
@@ -341,6 +351,14 @@ class SchemaInferenceEngine:
             except Exception:
                 attr_hint = hint
             
+            # Skip ChoiceField declarations: they are stored as metadata not relationships.
+            if (
+                hasattr(attr_hint, 'choices')
+                and callable(getattr(attr_hint, 'get_sqlalchemy_column', None))
+                and hasattr(attr_hint, 'default')
+            ):
+                continue
+
             # If hint is still a string (due to from __future__ import annotations),
             # we might need to eval it if we really need the MetadataTokens.
             if isinstance(attr_hint, str):

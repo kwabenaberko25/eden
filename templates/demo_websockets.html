@@ -1,0 +1,161 @@
+@extends('admin/base.html')
+
+@section('title', 'WebSocket Integration Demo')
+
+@section('content')
+<div class="container mx-auto px-4 py-8">
+    <div class="mb-8">
+        <h1 class="text-4xl font-bold mb-2">WebSockets</h1>
+        <p class="text-lg text-gray-600">Real-time bidirectional communication with pub/sub</p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Chat Demo -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-2xl font-bold mb-4">Live Chat</h2>
+            
+            <div id="chat-messages" class="mb-4 p-4 bg-gray-50 rounded border border-gray-200 h-64 overflow-y-auto flex flex-col-reverse">
+                <div class="text-gray-500 text-sm">Waiting for messages...</div>
+            </div>
+
+            <div class="space-y-2">
+                <input type="text" id="message-input" placeholder="Type a message..." class="w-full px-3 py-2 border border-gray-300 rounded">
+                <button id="send-btn" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 w-full">
+                    Send Message
+                </button>
+            </div>
+
+            <div class="mt-4 text-sm">
+                <p id="connection-status" class="text-gray-600">Connecting...</p>
+            </div>
+        </div>
+
+        <!-- Info Card -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-2xl font-bold mb-4">Features</h2>
+            <ul class="space-y-3">
+                <li class="flex items-start">
+                    <span class="text-green-500 mr-3">✅</span>
+                    <div>
+                        <p class="font-semibold">ConnectionManager</p>
+                        <p class="text-sm text-gray-600">Unified connection & pub/sub system with channel-based broadcasting</p>
+                    </div>
+                </li>
+                <li class="flex items-start">
+                    <span class="text-green-500 mr-3">✅</span>
+                    <div>
+                        <p class="font-semibold">WebSocketRouter</p>
+                        <p class="text-sm text-gray-600">Decorator-based event handling with @ws.on() syntax</p>
+                    </div>
+                </li>
+                <li class="flex items-start">
+                    <span class="text-green-500 mr-3">✅</span>
+                    <div>
+                        <p class="font-semibold">Heartbeat Monitoring</p>
+                        <p class="text-sm text-gray-600">Automatic dead connection detection with ping/pong</p>
+                    </div>
+                </li>
+                <li class="flex items-start">
+                    <span class="text-green-500 mr-3">✅</span>
+                    <div>
+                        <p class="font-semibold">Security Features</p>
+                        <p class="text-sm text-gray-600">Origin validation, CSRF protection, user/tenant isolation</p>
+                    </div>
+                </li>
+                <li class="flex items-start">
+                    <span class="text-green-500 mr-3">✅</span>
+                    <div>
+                        <p class="font-semibold">Redis Support</p>
+                        <p class="text-sm text-gray-600">Distributed backend for multi-worker deployments</p>
+                    </div>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="mt-8 bg-gray-50 rounded-lg p-6">
+        <h2 class="text-2xl font-bold mb-4">Code Example</h2>
+        <pre class="bg-gray-900 text-gray-100 p-4 rounded overflow-x-auto text-sm"><code>from eden.websocket import WebSocketRouter
+
+ws = WebSocketRouter(prefix="/ws", auth_required=True)
+
+@ws.on_connect
+async def on_connect(socket, manager):
+    await manager.broadcast({"type": "joined"}, channel="chat")
+
+@ws.on("message")
+async def on_message(socket, data, manager):
+    await manager.broadcast(data, channel="chat", exclude=socket)
+
+@ws.on_disconnect
+async def on_disconnect(socket, manager):
+    await manager.broadcast({"type": "left"}, channel="chat")
+
+app.routes.extend(ws.routes)</code></pre>
+    </div>
+
+    <div class="mt-6 text-center">
+        <a href="/demo" class="text-blue-600 hover:underline">← Back to Features</a>
+    </div>
+</div>
+
+<script>
+const chatMessages = document.getElementById('chat-messages');
+const messageInput = document.getElementById('message-input');
+const sendBtn = document.getElementById('send-btn');
+const connectionStatus = document.getElementById('connection-status');
+
+const ws = new WebSocket('ws://localhost:8001/ws');
+
+ws.onopen = () => {
+    connectionStatus.textContent = '✅ Connected';
+    connectionStatus.className = 'text-green-600';
+};
+
+ws.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+    
+    if (data.type === 'message') {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'mb-2 p-2 bg-blue-100 rounded';
+        messageDiv.innerHTML = `<strong>Chat:</strong> ${data.text}`;
+        chatMessages.insertBefore(messageDiv, chatMessages.firstChild);
+    } else if (data.type === 'notification') {
+        const notifDiv = document.createElement('div');
+        notifDiv.className = 'mb-2 p-2 bg-yellow-100 rounded text-sm';
+        notifDiv.innerHTML = `<em>${data.message}</em>`;
+        chatMessages.insertBefore(notifDiv, chatMessages.firstChild);
+    }
+};
+
+ws.onerror = (error) => {
+    connectionStatus.textContent = '❌ Error: ' + error;
+    connectionStatus.className = 'text-red-600';
+};
+
+ws.onclose = () => {
+    connectionStatus.textContent = '⏹ Disconnected';
+    connectionStatus.className = 'text-gray-600';
+};
+
+sendBtn.addEventListener('click', () => {
+    const message = messageInput.value.trim();
+    if (message) {
+        ws.send(JSON.stringify({ text: message }));
+        messageInput.value = '';
+        
+        // Echo to user
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'mb-2 p-2 bg-green-100 rounded';
+        messageDiv.innerHTML = `<strong>You:</strong> ${message}`;
+        chatMessages.insertBefore(messageDiv, chatMessages.firstChild);
+    }
+});
+
+messageInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+        sendBtn.click();
+    }
+});
+</script>
+@endsection

@@ -58,7 +58,12 @@ class SchemaConfig:
     ):
         self.model = model
         self.exclude_fields = exclude_fields or []
-        self.read_only_fields = read_only_fields or []
+        default_read_only = ['id', 'created_at', 'updated_at']
+        provided_read_only = read_only_fields or []
+        self.read_only_fields = [
+            field for field in (default_read_only + provided_read_only)
+            if field not in self.exclude_fields
+        ]
         self.required_fields = required_fields or []
         self.nested_fields = nested_fields or []
         self.validation_level = validation_level
@@ -132,18 +137,28 @@ class ModelSchema(BaseModel):
             # Convert SQLAlchemy types to Pydantic
             pydantic_type = cls._convert_type(type_hint, field_name)
 
-            # Determine if required
+            # Determine if required; read-only fields are not required for input
             is_required = (
                 field_name in cls._config.required_fields or
-                not cls._is_optional_type(type_hint)
+                (
+                    not cls._is_optional_type(type_hint) and
+                    field_name not in cls._config.read_only_fields
+                )
             )
 
             # Create field
             default_value = ... if is_required else None
             field_info = Field(default=default_value, description=f"{field_name} field")
 
-            # Add field to class
+            # Add field to class annotations and attributes
+            annotations = getattr(cls, "__annotations__", {})
+            annotations[field_name] = pydantic_type
+            cls.__annotations__ = annotations
             setattr(cls, field_name, field_info)
+
+        # Rebuild Pydantic model fields after dynamic field injection
+        if hasattr(cls, "model_rebuild"):
+            cls.model_rebuild()
 
     @classmethod
     def _convert_type(cls, type_hint: Any, field_name: str) -> Any:

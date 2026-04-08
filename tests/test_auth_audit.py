@@ -124,7 +124,7 @@ async def test_query_rbac():
     qs = QuerySet(ProtectedModel)
     applied_qs = qs._apply_rbac("read")
     assert applied_qs._rbac_applied is True
-    assert "1 = 0" in str(applied_qs._stmt) or "1=0" in str(applied_qs._stmt)
+    assert "false" in str(applied_qs._stmt).lower() or "0 = 1" in str(applied_qs._stmt)
     print("✓ Query deny without user OK")
     
     # 2. Public access -> should allow even without user

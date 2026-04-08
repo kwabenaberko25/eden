@@ -3,6 +3,7 @@ Tests for Eden Model Schemas.
 """
 
 import pytest
+from unittest.mock import AsyncMock
 from pydantic import ValidationError
 import uuid
 

@@ -8,6 +8,7 @@ utilities.
 
 from typing import Any
 
+from starlette.requests import Request as HTMXRequest
 from starlette.responses import HTMLResponse
 
 

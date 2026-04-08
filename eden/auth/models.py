@@ -239,7 +239,7 @@ class SocialAccount(Model):
 
 
     # Relationships (One-liner)
-    user: Mapped["User"] = Reference(back_populates="social_accounts", overlaps="social_accounts")
+    user: Mapped["User"] = Reference(User, back_populates="social_accounts", overlaps="social_accounts")
 
     def __repr__(self) -> str:
         return f"<SocialAccount(provider='{self.provider}', user_id={self.user_id})>"

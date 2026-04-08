@@ -162,12 +162,35 @@ class Database:
         from eden.db.base import Model
         Model._bind_db(self)
 
+        if self._connected:
+            if create_tables:
+                async with self.engine.begin() as conn:
+                    try:
+                        await conn.run_sync(Model.metadata.create_all)
+                    except Exception as exc:
+                        message = str(exc).lower()
+                        if self.engine.dialect.name == "sqlite" and "already exists" in message:
+                            logger.warning(
+                                "Ignoring SQLite 'already exists' error during create_all: %s",
+                                exc,
+                            )
+                        else:
+                            raise
+            return
+
         if create_tables:
             async with self.engine.begin() as conn:
-                await conn.run_sync(Model.metadata.create_all)
-
-        if self._connected:
-            return
+                try:
+                    await conn.run_sync(Model.metadata.create_all)
+                except Exception as exc:
+                    message = str(exc).lower()
+                    if self.engine.dialect.name == "sqlite" and "already exists" in message:
+                        logger.warning(
+                            "Ignoring SQLite 'already exists' error during create_all: %s",
+                            exc,
+                        )
+                    else:
+                        raise
 
         self._connected = True
         logger.info(f"Database connected to {self.url}")

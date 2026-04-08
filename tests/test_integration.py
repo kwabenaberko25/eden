@@ -85,7 +85,9 @@ async def test_complete_workflow():
 
     # Mock the queryset
     mock_qs = AsyncMock()
-    manager.get_queryset = AsyncMock(return_value=mock_qs)
+    mock_qs.filter = MagicMock(return_value=MagicMock())
+    mock_qs.order_by = MagicMock(return_value=MagicMock())
+    manager.get_queryset = MagicMock(return_value=mock_qs)
 
     # Test custom methods
     published_qs = manager.published()
@@ -122,7 +124,7 @@ async def test_complete_workflow():
 
     class ArticlePanel(BasePanel):
         display_fields = ["title", "status", "author_name"]
-        search_fields = ["title", "content", "author_name"]
+        search_fields = ["title", "content", "author_name", "status"]
         filter_fields = ["status"]
 
     panel.register(Article)(ArticlePanel)
@@ -178,6 +180,16 @@ async def test_panel_with_real_data():
     mock_queryset = AsyncMock()
     mock_queryset.all.return_value = mock_articles
     mock_queryset.count.return_value = len(mock_articles)
+    mock_queryset.order_by.return_value = mock_queryset
+    mock_queryset.paginate.return_value = MagicMock(
+        items=mock_articles,
+        total=len(mock_articles),
+        page=1,
+        per_page=25,
+        has_next=False,
+        has_prev=False,
+        total_pages=1,
+    )
 
     article_panel.get_queryset = AsyncMock(return_value=mock_queryset)
 
@@ -192,11 +204,12 @@ async def test_panel_with_real_data():
     # Test detail data
     mock_article = mock_articles[0]
     mock_detail_qs = AsyncMock()
-    mock_detail_qs.filter.return_value.first.return_value = mock_article
+    mock_detail_qs.filter = MagicMock(return_value=mock_detail_qs)
+    mock_detail_qs.first.return_value = mock_article
 
     # Temporarily replace the model's query method
     original_query = Article.query
-    Article.query = mock_detail_qs
+    Article.query = MagicMock(return_value=mock_detail_qs)
 
     try:
         detail_data = await article_panel.get_detail_data(request, str(mock_article.id))
@@ -355,6 +368,16 @@ async def test_end_to_end_crud_workflow():
         mock_panel_qs = AsyncMock()
         mock_panel_qs.all.return_value = [saved_article]
         mock_panel_qs.count.return_value = 1
+        mock_panel_qs.order_by.return_value = mock_panel_qs
+        mock_panel_qs.paginate.return_value = MagicMock(
+            items=[saved_article],
+            total=1,
+            page=1,
+            per_page=25,
+            has_next=False,
+            has_prev=False,
+            total_pages=1,
+        )
         article_panel.get_queryset = AsyncMock(return_value=mock_panel_qs)
 
         list_data = await article_panel.get_list_data(request)

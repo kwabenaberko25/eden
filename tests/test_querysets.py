@@ -75,12 +75,10 @@ async def test_queryset_aggregate():
     mock_result = (25, 100)
     qs._execute_first = AsyncMock(return_value=mock_result)
 
-    # Mock aggregate expressions
-    from unittest.mock import MagicMock
-    expr1 = MagicMock()
-    expr1.__str__ = MagicMock(return_value="avg_age")
-    expr2 = MagicMock()
-    expr2.__str__ = MagicMock(return_value="total_count")
+    # Use actual SQLAlchemy expressions for aggregation
+    from sqlalchemy import func
+    expr1 = func.count(TestUser.id).label("avg_age")
+    expr2 = func.count(TestUser.id).label("total_count")
 
     result = await qs.aggregate(expr1, expr2)
 

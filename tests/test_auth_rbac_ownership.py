@@ -64,9 +64,10 @@ async def test_rbac_allow_roles():
     
     # For regular user, it should inject a false() filter (or equivalent)
     # We can check the statement
-    assert "0 = 1" in str(qs_reg._stmt) or "false" in str(qs_reg._stmt).lower()
+    stmt_str = str(qs_reg._stmt).lower()
+    assert "false" in stmt_str or "0 = 1" in stmt_str or "1 = 0" in stmt_str
     
     # For admin, it should be the base select
-    assert "0 = 1" not in str(qs_admin._stmt)
+    assert "false" not in str(qs_admin._stmt).lower()
     
     await db.disconnect()

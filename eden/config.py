@@ -609,11 +609,13 @@ def create_config(env: str = "dev", **kwargs) -> Config:
     else:
         env_name = env.value if hasattr(env, "value") else str(env).lower()
 
-    if not kwargs.get("secret_key") and env_name in ("dev", "test"):
+    # Auto-generate secret_key for dev/test if not provided
+    if "secret_key" not in kwargs and env_name in ("dev", "test"):
         import secrets
         kwargs["secret_key"] = secrets.token_urlsafe(32)
 
-    if not kwargs.get("redis_url") and env_name == "dev":
+    # Auto-generate redis_url for dev if not provided
+    if "redis_url" not in kwargs and env_name == "dev":
         kwargs["redis_url"] = "redis://localhost:6379"
 
     return Config(env=env, **kwargs)
