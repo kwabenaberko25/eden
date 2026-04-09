@@ -15,7 +15,7 @@ from typing import Any
 
 from eden.dependencies import DependencyResolver
 from eden.requests import Request
-from eden.responses import JsonResponse
+from eden.responses import JsonResponse, HtmlResponse
 
 __all__ = ["Router", "Route", "WebSocketRoute", "View"]
 
@@ -65,9 +65,13 @@ class Route:
                 result = await result
 
             # Auto-wrap return values
-            from eden.responses import Response
-            if isinstance(result, (dict, list)):
+            import pydantic
+            if isinstance(result, (dict, list, pydantic.BaseModel)):
                 return JsonResponse(content=result)
+            if isinstance(result, str):
+                return HtmlResponse(content=result)
+            
+            from eden.responses import Response
             if isinstance(result, Response):
                 return result
             return result
@@ -128,9 +132,13 @@ class View:
                 result = await result
             
             # Auto-wrap return values for consistency with Route.handle
-            from eden.responses import Response
-            if isinstance(result, (dict, list)):
+            import pydantic
+            if isinstance(result, (dict, list, pydantic.BaseModel)):
                 return JsonResponse(content=result)
+            if isinstance(result, str):
+                return HtmlResponse(content=result)
+            
+            from eden.responses import Response
             if isinstance(result, Response):
                 return result
             return result
@@ -612,10 +620,10 @@ class Router:
 
     def include_router(self, router: "Router", prefix: str = "") -> None:
         """Merge another router's routes into this one."""
-        prefix = prefix.rstrip("/")
+        combined_prefix = (self.prefix + prefix).rstrip("/")
         for route in router.routes:
             # Join prefixes and ensure no double slashes
-            new_path = prefix + route.path
+            new_path = combined_prefix + route.path
             if not new_path.startswith("/"):
                 new_path = "/" + new_path
                 

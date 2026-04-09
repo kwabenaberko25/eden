@@ -222,14 +222,14 @@ class TemplateParser:
                         i = next_idx
                         if node.name in ("for", "foreach", "recursive"):
                             break
-                        continue
+                    break
                     break
                 new_nodes.append(chain)
                 i += 1
                 continue
-            else:
-                new_nodes.append(node)
-                i += 1
+
+            new_nodes.append(node)
+            i += 1
         return new_nodes
 
     def parse_node(self, current_depth: int = 0) -> Node | None:
@@ -322,9 +322,7 @@ class TemplateParser:
                     while depth > 0 and self.peek().type != TokenType.EOF:
                         # Check for nested opens/closes
                         if self.peek().type == TokenType.BLOCK_OPEN:
-                            # This is an inner block — will be handled by recursive parse_node
-                            pass
-
+                             depth += 1
                         if self.peek().type == TokenType.BLOCK_CLOSE:
                             depth -= 1
                             if depth == 0:
@@ -335,33 +333,13 @@ class TemplateParser:
                             body.append(n)
 
                         if self.pos == _last_pos:  # Parser stalled
-                            # Preserve the dropped token as text to avoid silent content loss
                             stalled_token = self.advance()
                             body.append(TextNode(content=stalled_token.value))
                         _last_pos = self.pos
 
-                    if self.peek().type == TokenType.EOF:
-                        # Try to show the problematic line
-                        line_content = ""
-                        if self.source and directive_token.line > 0:
-                            lines = self.source.splitlines()
-                            if 0 < directive_token.line <= len(lines):
-                                line_content = lines[directive_token.line - 1].strip()[:80]
-                        msg = f"Unclosed block for @{directive_token.value}. Expected '}}'."
-                        if line_content:
-                            msg += f" Found: {line_content}"
-                        raise TemplateSyntaxError(
-                            msg,
-                            line=directive_token.line,
-                            column=directive_token.column,
-                            name=self.name,
-                            filename=self.filename,
-                        )
-
                     if self.peek().type == TokenType.BLOCK_CLOSE:
                         self.advance()  # consume }
 
-                    # Group conditionals recursively within the body
                     grouped_body = self._group_conditionals(body)
 
                     return DirectiveNode(

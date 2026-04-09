@@ -44,74 +44,73 @@
         }
     </style>
 
-    @eden_head
+    @eden_head(tailwind=False, alpine=False)
+    <link rel="stylesheet" href="{{ url_for('admin:admin_static', path='css/admin.css') }}">
 </head>
-<body class="h-full flex items-center justify-center p-6">
-    <div class="w-full max-w-md" x-data="{ loading: false }">
+<body class="login-page">
+    <div class="w-full max-w-md">
         <!-- Logo -->
         <div class="text-center mb-8">
-            <div class="h-16 w-16 bg-gradient-to-tr from-primary to-primary-container rounded-2xl flex items-center justify-center text-on-primary text-3xl font-bold mx-auto mb-4 shadow-xl shadow-primary/20">
+            <div class="h-16 w-16 bg-primary rounded-2xl flex items-center justify-center text-white text-3xl font-bold mx-auto mb-4">
                 E
             </div>
-            <h1 class="text-2xl font-bold tracking-tight text-on-surface">Eden <span class="text-primary">Elite</span></h1>
-            <p class="text-on-surface-variant text-sm mt-1">Production-Grade Infrastructure Management</p>
+            <h1 class="brand-title">Eden <span class="text-primary">Elite</span></h1>
+            <p class="text-muted text-sm mt-1">Infrastructure Management</p>
         </div>
 
         <!-- Login Card -->
-        <div class="glass-card rounded-3xl p-8 md:p-10">
-            <h2 class="text-xl font-semibold mb-6 text-on-surface">Sign In</h2>
+        <div class="card login-card">
+            <h2 class="card-title-lg mb-6">Sign In</h2>
 
             @if(error) {
-            <div class="mb-6 p-4 rounded-xl bg-error/10 text-error text-sm flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
+            <div class="alert alert-error mb-6">
                 <i class="fa-solid fa-circle-exclamation"></i>
                 <span>@span(error)</span>
             </div>
             }
 
-            <form action="/admin/login?next=@span(next_url)" method="POST" @submit="loading = true">
+            <form action="/admin/login?next=@span(next_url)" method="POST" id="login-form">
                 @csrf
                 
-                <div class="space-y-5">
-                    <div>
-                        <label class="block text-xs font-black text-on-surface-variant uppercase tracking-widest mb-2 px-1">Email Address</label>
+                <div class="form-stack">
+                    <div class="form-group">
+                        <label>Email Address</label>
                         <input type="email" name="email" required 
-                            class="w-full input-pill rounded-xl px-4 py-3 text-sm placeholder-on-surface-variant/40"
+                            class="input"
                             placeholder="name@company.com" autofocus>
                     </div>
 
-                    <div>
-                        <div class="flex items-center justify-between mb-2 px-1">
-                            <label class="text-xs font-black text-on-surface-variant uppercase tracking-widest">Password</label>
-                            <a href="#" class="text-xs font-bold text-primary hover:text-primary-container transition-colors">Forgot?</a>
+                    <div class="form-group">
+                        <div class="flex-between mb-2">
+                            <label>Password</label>
+                            <a href="#" class="text-link text-xs">Forgot?</a>
                         </div>
                         <input type="password" name="password" required 
-                            class="w-full input-pill rounded-xl px-4 py-3 text-sm placeholder-on-surface-variant/40"
+                            class="input"
                             placeholder="••••••••">
                     </div>
 
-                    <button type="submit" 
-                        class="w-full bg-primary hover:bg-primary-container text-on-primary font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-primary/25 flex items-center justify-center gap-2 group"
-                        :disabled="loading">
-                        <template x-if="!loading">
-                            <span class="flex items-center gap-2">
-                                Sign Into Admin
-                                <i class="fa-solid fa-arrow-right text-xs group-hover:translate-x-1 transition-transform"></i>
-                            </span>
-                        </template>
-                        <template x-if="loading">
-                            <i class="fa-solid fa-circle-notch fa-spin"></i>
-                        </template>
+                    <button type="submit" class="btn btn-primary btn-block" id="login-btn">
+                        <span>Sign Into Admin</span>
+                        <i class="fa-solid fa-arrow-right text-xs"></i>
                     </button>
                 </div>
             </form>
         </div>
 
-        <p class="text-center text-on-surface-variant/60 text-xs mt-8">
+        <p class="login-footer">
             &copy; 2026 Eden Framework. All rights reserved.<br>
-            <span class="font-bold opacity-50 uppercase tracking-widest">Enterprise License Active</span>
+            <span class="license-tag">Enterprise License Active</span>
         </p>
     </div>
 
     @eden_scripts
+    <script>
+        document.getElementById('login-form').addEventListener('submit', () => {
+            const btn = document.getElementById('login-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i>';
+        });
+    </script>
 </body>
 </html>

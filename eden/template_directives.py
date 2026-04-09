@@ -70,12 +70,14 @@ def render_eden_toasts(compiler: "TemplateCompiler", node: "DirectiveNode", expr
 @directive("css")
 def render_css(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -> str:
     # FIXED: Quote the href attribute to prevent XSS injection
-    return f'<link rel="stylesheet" href="{expr}">'
+    val = expr.strip('"\'') if expr else ""
+    return f'<link rel="stylesheet" href="{val}">'
 
 @directive("js")
 def render_js(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -> str:
     # FIXED: Quote the src attribute to prevent XSS injection
-    return f'<script src="{expr}"></script>'
+    val = expr.strip('"\'') if expr else ""
+    return f'<script src="{val}"></script>'
 
 @directive("vite")
 def render_vite(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -> str:
@@ -291,16 +293,22 @@ def render_empty(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str)
 
 @directive(["for", "foreach"])
 def render_for(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -> str:
-    inner = expr.replace('$', '') if expr else ""
+    # Strip parentheses if present
+    inner = (expr or "").strip()
+    if inner.startswith('(') and inner.endswith(')'):
+        inner = inner[1:-1].strip()
+    inner = inner.replace('$', '')
+    
     if ' as ' in inner:
         # FIXED: split(' as ', 1) to only split on first occurrence
         parts = inner.split(' as ', 1)
         inner = f"{parts[1].strip()} in {parts[0].strip()}"
+    
     body_compiled = get_body_compiled(compiler, node)
     res = [
         f"{{% for {inner} %}}"
         f"{{% if loop.index0 >= __eden_max_loop_iterations__ %}}"
-        f"<!-- EDEN: Loop iteration limit ({{{{ __eden_max_loop_iterations__ }}}}) exceeded -->{{% break %}}"
+        f"<!-- EDEN: Loop iteration limit exceeded -->{{% break %}}"
         f"{{% endif %}}"
         + body_compiled
     ]
@@ -326,8 +334,13 @@ def render_while(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str)
 
 @directive("switch")
 def render_switch(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -> str:
+    # Strip parentheses from switch condition
+    inner_expr = (expr or "").strip()
+    if inner_expr.startswith('(') and inner_expr.endswith(')'):
+        inner_expr = inner_expr[1:-1].strip()
+        
     # FIXED: Validate that expression is provided
-    if not expr or not expr.strip():
+    if not inner_expr:
         return '<!-- @switch requires a value: @switch(status) -->'
     
     cases_compiled = []
@@ -336,19 +349,29 @@ def render_switch(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str
     
     if node.body:
         for n in node.body:
-            # We import DirectiveNode cleanly here though typing is mostly only used for hints
+            # Robust type check using class name to avoid import issues
             if type(n).__name__ == "DirectiveNode":
                 if n.name == "case":
-                    c_expr = n.expression[1:-1] if n.expression else "None"
-                    c_body = compiler.compile(n.body or [])
+                    # Strip parentheses from case value
+                    c_expr = (n.expression or "").strip()
+                    if c_expr.startswith('(') and c_expr.endswith(')'):
+                        c_expr = c_expr[1:-1].strip()
+                    
+                    # Filter out break/continue from case body
+                    filtered_body = [child for child in (n.body or []) 
+                                     if not (type(child).__name__ == "DirectiveNode" and child.name in ("break", "continue"))]
+                    c_body = compiler.compile(filtered_body)
                     pfx = "{% if" if not has_cases else "{% elif"
                     cases_compiled.append(f"{pfx} __sw == {c_expr} %}}" + c_body)
                     has_cases = True
                 elif n.name == "default":
                     pfx = "{% else %}" if has_cases else "{% if True %}"
-                    default_compiled = pfx + compiler.compile(n.body or [])
+                    # Filter out break/continue from default body
+                    filtered_body = [child for child in (n.body or []) 
+                                     if not (type(child).__name__ == "DirectiveNode" and child.name in ("break", "continue"))]
+                    default_compiled = pfx + compiler.compile(filtered_body)
     
-    res = [f"{{% with __sw = {expr} %}}"]
+    res = [f"{{% with __sw = {inner_expr} %}}"]
     res.extend(cases_compiled)
     if default_compiled:
         res.append(default_compiled)
@@ -406,6 +429,7 @@ def render_role(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) 
     else:
         roles_tuple = tuple(roles_list)
         cond = f'request.user.role in {roles_tuple}'
+    
     return f'{{% if request.user and request.user.is_authenticated and {cond} %}}{body_compiled}{{% endif %}}'
 
 @directive("permission")
@@ -435,14 +459,14 @@ def render_admin(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str)
     Convenience shortcut for @role('admin') or @auth('admin').
     
     Usage:
-        @admin
+        @admin {
             <a href="/admin">Admin Panel</a>
-        @endadmin
+        }
         
         <!-- Equivalent to: -->
-        @role('admin')
+        @role('admin') {
             <a href="/admin">Admin Panel</a>
-        @endrole
+        }
     
     Returns:
         Jinja2 condition checking if user is authenticated AND has 'admin' role.

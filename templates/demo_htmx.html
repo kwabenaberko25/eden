@@ -1,8 +1,10 @@
 @extends('admin/base.html')
 
-@section('title', 'HTMX Integration Demo')
+@section('title') {
+HTMX Integration Demo
+}   
 
-@section('content')
+@section('content') {
 <div class="container mx-auto px-4 py-8">
     <div class="mb-8">
         <h1 class="text-4xl font-bold mb-2">HTMX Integration</h1>
@@ -101,4 +103,4 @@ async def list_items(request):
 </div>
 
 <script src="https://unpkg.com/htmx.org"></script>
-@endsection
+}

@@ -213,6 +213,19 @@ stats = await Order.filter(status="paid").aggregate(
 # Returns: {"revenue": 10500.25, "avg_order": 125.00, "count": 84}
 ```
 
+#### Aggregation Arithmetic
+Eden supports performing math directly within the `aggregate()` and `annotate()` methods. This is processed on the database side for maximum efficiency.
+
+```python
+from eden.db import Sum, Count
+
+# Calculate conversion rates or ratios in a single DB hit
+stats = await Order.aggregate(
+    conversion_rate=Sum("successful_checkouts") / Count("id"),
+    average_yield=(Sum("revenue") - Sum("costs")) / Sum("revenue")
+)
+```
+
 ### Annotations: Virtual Fields
 Inject calculated values into each record in a list.
 
@@ -258,6 +271,71 @@ print(plan)
 ```
 > [!TIP]
 > `explain()` resolves all prefetch and joins before generating the diagnostic log, making it a perfectly accurate representation of how deeply optimized your ORM chaining is.
+
+---
+
+## 📑 Optimization: Cursor Pagination
+
+For datasets with millions of records, traditional `OFFSET` pagination becomes increasingly slow as the database must "skip" thousands of rows. Eden provides **Cursor Pagination** (also known as Keyset Pagination) for consistent O(1) performance.
+
+### 🧩 Architectural Flow
+
+```mermaid
+sequenceDiagram
+    participant C as Client (HTMX)
+    participant A as App (Eden)
+    participant D as Database
+    
+    C->>A: GET /items?limit=20
+    A->>D: SELECT * FROM items ORDER BY id LIMIT 21
+    D-->>A: Results
+    A->>A: Encode last_id to opaque string
+    A-->>C: HTML + next_cursor (fragment)
+    
+    Note over C,D: For next page
+    C->>A: GET /items?limit=20&after=cXdl
+    A->>D: SELECT * FROM items WHERE id > last_id ORDER BY id LIMIT 21
+    D-->>A: Results
+    A-->>C: HTML (Appended)
+```
+
+### 1. Basic Usage
+
+Use the `.paginate_cursor()` method on any QuerySet.
+
+```python
+# First page
+page = await User.order_by("id").paginate_cursor(limit=20)
+
+# Get items and the next cursor
+items = page.items
+next_cursor = page.next_cursor # Opaque string for next page
+
+# Subsequent page
+next_page = await User.order_by("id").paginate_cursor(
+    after=next_cursor, 
+    limit=20
+)
+```
+
+### 2. Bidirectional Navigation
+
+Eden's paginator supports moving backwards using `before`.
+
+```python
+# Previous page
+prev_page = await User.order_by("id").paginate_cursor(
+    before=page.prev_cursor, 
+    limit=20
+)
+```
+
+### 3. Requirements
+
+- **Strict Ordering**: Cursors require a consistent sort order. The field(s) used in `order_by()` must be unique (usually including the Primary Key).
+- **No Offset**: Cursors do not support jumping to arbitrary page numbers (e.g., "Page 10") because they rely on knowing where the previous page ended.
+
+---
 
 ---
 

@@ -243,34 +243,17 @@ async def admin_add_view(
             
             await model_admin.save_model(request, instance, form_data, change=False)
             
-            # Save inlines
+            # Save inlines with enhanced handler
             if hasattr(model_admin, "inlines"):
-                for inline_cls in model_admin.inlines:
-                    inline = inline_cls()
-                    inline_model = inline.model
-                    # Parse form data for this inline
-                    # Format: inline_{model_name}_{index}_{field_name}
-                    for key in form_data:
-                        if key.startswith(f"inline_{inline_model.__name__}_"):
-                            parts = key.split("_")
-                            if len(parts) >= 4:
-                                # index = parts[2]
-                                field_name = parts[3]
-                                # This is a bit simplified, usually we'd group by index
-                                # For now, handles single 'extra' row well
-                                val = form_data[key]
-                                if val:
-                                    inline_instance = inline_model()
-                                    # Set foreign key (assuming 'ticket_id' or similar, but need generic way)
-                                    # For SupportTicket -> TicketMessage, it's 'ticket_id'
-                                    fk_name = str(getattr(model, "__tablename__", model.__name__.lower())).rstrip("s") + "_id"
-                                    if hasattr(inline_instance, fk_name):
-                                        setattr(inline_instance, fk_name, instance.id)
-                                    elif hasattr(inline_instance, "ticket_id") and model.__name__ == "SupportTicket":
-                                        setattr(inline_instance, "ticket_id", instance.id)
-                                    
-                                    setattr(inline_instance, field_name, val)
-                                    await inline_instance.save()
+                from eden.admin.inline import process_inline_forms
+                inline_result = await process_inline_forms(
+                    dict(form_data),
+                    instance,
+                    model,
+                    model_admin
+                )
+                if not inline_result["success"]:
+                    logger.warning(f"Inline processing warnings: {inline_result['errors']}")
 
             # Log action
             user = getattr(request.state, "user", None)
@@ -343,27 +326,17 @@ async def admin_edit_view(
             
             await model_admin.save_model(request, record, form_data, change=True)
             
-            # Save inlines
+            # Save inlines with enhanced handler
             if hasattr(model_admin, "inlines"):
-                for inline_cls in model_admin.inlines:
-                    inline = inline_cls()
-                    inline_model = inline.model
-                    for key in form_data:
-                        if key.startswith(f"inline_{inline_model.__name__}_"):
-                            parts = key.split("_")
-                            if len(parts) >= 4:
-                                field_name = parts[3]
-                                val = form_data[key]
-                                if val:
-                                    inline_instance = inline_model()
-                                    fk_name = str(getattr(model, "__tablename__", model.__name__.lower())).rstrip("s") + "_id"
-                                    if hasattr(inline_instance, fk_name):
-                                        setattr(inline_instance, fk_name, record.id)
-                                    elif hasattr(inline_instance, "ticket_id") and model.__name__ == "SupportTicket":
-                                        setattr(inline_instance, "ticket_id", record.id)
-                                    
-                                    setattr(inline_instance, field_name, val)
-                                    await inline_instance.save()
+                from eden.admin.inline import process_inline_forms
+                inline_result = await process_inline_forms(
+                    dict(form_data),
+                    record,
+                    model,
+                    model_admin
+                )
+                if not inline_result["success"]:
+                    logger.warning(f"Inline processing warnings: {inline_result['errors']}")
 
             # Log action
             user = getattr(request.state, "user", None)
@@ -537,33 +510,38 @@ async def _get_fields_data(model: type, model_admin: Any, instance: Any | None =
 
 
 async def _get_inlines_data(model: type, model_admin: Any, instance: Any | None = None) -> list[dict[str, Any]]:
-    """Prepare inline formsets (Tabular/Stacked)."""
-    inlines_data = []
-    if not hasattr(model_admin, "inlines"):
-        return inlines_data
-        
-    for inline_class in model_admin.inlines:
-        inline = inline_class()
-        inline_model = inline.model
-        fields = inline.get_form_fields()
-        rows = []
-        
-        # Add blank rows for new related objects
-        for _ in range(getattr(inline, "extra", 1)):
-            row_fields = []
-            for field_name in fields:
-                row_fields.append({
-                    "name": field_name,
-                    "label": field_name.replace("_", " ").title(),
-                    "value": ""
+    """Prepare inline formsets (Tabular/Stacked) with full data."""
+    from eden.admin.inline import prepare_inline_data
+    
+    if not instance:
+        # For add view, return empty inlines
+        inlines_data = []
+        if hasattr(model_admin, "inlines"):
+            for inline_class in model_admin.inlines:
+                inline = inline_class()
+                child_model = inline.model
+                fields = inline.get_form_fields() if hasattr(inline, 'get_form_fields') else []
+                
+                # Add blank rows for new related objects
+                rows = []
+                for _ in range(getattr(inline, "extra", 1)):
+                    row_fields = []
+                    for field_name in fields:
+                        row_fields.append({
+                            "name": field_name,
+                            "label": field_name.replace("_", " ").title(),
+                            "value": ""
+                        })
+                    rows.append(row_fields)
+                
+                inlines_data.append({
+                    "model_name": child_model.__name__,
+                    "template": getattr(inline, "template", "tabular_inline"),
+                    "rows": rows,
+                    "fields": fields
                 })
-            rows.append(row_fields)
-            
-        inlines_data.append({
-            "model_name": inline_model.__name__,
-            "template": getattr(inline, "template", "tabular_inline"),
-            "rows": rows,
-            "fields": fields
-        })
-    return inlines_data
+        return inlines_data
+    
+    # For edit view with instance, fetch related data
+    return await prepare_inline_data(model_admin, instance, model)
 

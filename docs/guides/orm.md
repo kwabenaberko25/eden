@@ -27,6 +27,29 @@ sequenceDiagram
 
 ---
 
+## 💎 Modern: Zero-Boilerplate Models (Type-Only)
+
+For maximum brevity and developer speed, Eden supports **Inferred Models**. By using the `SchemaInferenceEngine`, you can define your data architecture using only Python type hints. Eden automatically maps these to the correct SQL types and constraints.
+
+```python
+from eden.db import Model
+
+class Developer(Model):
+    # No f() or Mapped[] needed for simple fields
+    name: str 
+    email: str 
+    github_handle: str | None = None
+    is_admin: bool = False
+    
+    # Relationships are also inferred from type hints
+    profile: "Profile"
+```
+
+> [!TIP]
+> Use the Modern syntax for rapid prototyping or simple data structures. For production fields requiring specific labels, indices, or validation rules, use the `f()` helper as shown below.
+
+---
+
 ## ⚡ 60-Second Data Setup
 
 Bootstrap your data layer in under a minute with `f()` helpers and `Mapped` types.

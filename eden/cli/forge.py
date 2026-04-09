@@ -154,10 +154,11 @@ async def delete_{snake_name}(id: int) -> Dict[str, Any]:
     # 2. Update routes/__init__.py for auto-registration
     init_file = routes_dir / "__init__.py"
     if init_file.exists():
-        lines = init_file.read_text(encoding="utf-8").splitlines()
+        content_str = init_file.read_text(encoding="utf-8")
+        lines = content_str.splitlines()
         
         import_line = f"from .{snake_name} import {router_name}"
-        if import_line not in lines:
+        if import_line not in content_str:
             insert_pos = 0
             for i, line in enumerate(lines):
                 if line.startswith("from ") or line.startswith("import "):
@@ -165,7 +166,7 @@ async def delete_{snake_name}(id: int) -> Dict[str, Any]:
             lines.insert(insert_pos, import_line)
 
         inclusion_line = f"main_router.include_router({router_name})"
-        if inclusion_line not in "".join(lines):
+        if inclusion_line not in content_str:
             lines.append(f"\n{inclusion_line}")
         
         init_file.write_text("\n".join(lines) + "\n", encoding="utf-8")

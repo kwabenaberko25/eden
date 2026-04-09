@@ -259,7 +259,7 @@ class TemplateLexer:
                     while self.pos < len(self.source) and self.source[self.pos].isspace():
                         ws += self.advance()
                     
-                    if self.peek() == '{':
+                    if self.peek() == '{' and self.peek(2) != '{{':
                         if ws: self.tokens.append(Token(TokenType.TEXT, ws, saved_line, saved_col))
                         self.brace_stack.append(True)
                         self.tokens.append(Token(TokenType.BLOCK_OPEN, self.advance(), self.line, self.column))

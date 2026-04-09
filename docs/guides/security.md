@@ -300,9 +300,9 @@ All user-controlled output is automatically escaped:
 
 ```html
 <!-- Safe: User input is HTML-escaped -->
-@foreach(item in items)
+@for(item in items) {
   <p>{{ item.title }}</p>  <!-- Special chars escaped: <, >, &, ", ' -->
-@endforeach
+}
 
 <!-- Safe: @dump directive escapes output -->
 @dump(user_input)  <!-- <, >, & converted to HTML entities -->
@@ -313,10 +313,10 @@ All user-controlled output is automatically escaped:
 Eden prevents code injection through template directives:
 
 ```html
-<!-- Safe: Role names treated as data, not code -->
-@can('edit:posts')
+<!-- Safe: Template Injection Protection -->
+@can('edit:posts') {
   <button>Edit</button>
-@endcan
+}
 
 <!-- Safe: CSS/JS URLs properly quoted -->
 @css('/styles/main.css')  <!-- href="..." prevents attribute injection -->
@@ -357,9 +357,9 @@ async def search(request):
 <h1>Search results for: {{ query }}</h1>
 
 <!-- Safe: Using directives with user data -->
-@if(user.role in ['admin', 'moderator'])
+@if(user.role in ['admin', 'moderator']) {
   <button>Moderate</button>
-@endif
+}
 ```
 
 ### Best Practices
@@ -369,9 +369,9 @@ async def search(request):
 {{ user.input }}
 
 <!-- ✅ SAFE: Use @role/@can for permissions -->
-@role('admin')
+@role('admin') {
   Sensitive content
-@endrole
+}
 
 <!-- ✅ SAFE: Use @csrf in forms -->
 <form method="POST">

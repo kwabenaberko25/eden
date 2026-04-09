@@ -434,9 +434,9 @@ class DefaultErrorHandler(ErrorHandler):
         status_code = getattr(exc, "status_code", None)
         detail = getattr(exc, "detail", None) or str(exc)
         if status_code is not None:
-             if self._should_render_html(request, app):
-                 return app._render_enhanced_exception(request, exc)
-             return JsonResponse(
+            if self._should_render_html(request, app):
+                return app._render_enhanced_exception(request, exc)
+            return JsonResponse(
                 {
                     "error": True,
                     "status_code": status_code,

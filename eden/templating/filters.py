@@ -23,10 +23,10 @@ def format_time_ago(value: datetime.datetime) -> str:
         return f"{diff.days // 30} months ago"
     if diff.days > 0:
         return f"{diff.days} days ago"
-    if diff.seconds > 3600:
-        return f"{diff.seconds // 3600} hours ago"
-    if diff.seconds > 60:
-        return f"{diff.seconds // 60} minutes ago"
+    if diff.seconds >= 3600:
+        return f"{diff.seconds // 3600} {'hour' if diff.seconds // 3600 == 1 else 'hours'} ago"
+    if diff.seconds >= 60:
+        return f"{diff.seconds // 60} {'minute' if diff.seconds // 60 == 1 else 'minutes'} ago"
     return "just now"
 
 def format_money(value: int | float | None, currency: str = "$") -> str:
@@ -157,16 +157,21 @@ def format_number(value: Any) -> str:
     except (TypeError, ValueError):
         return str(value)
 
-def mask_filter(value: Any) -> str:
-    """Mask a string, showing first and last character (e.g. emails → ``u***@e.com``)."""
+def mask_filter(value: Any, visible: int = 1) -> str:
+    """Mask a string, showing last 'visible' characters."""
     s = str(value)
+    if not s:
+        return ""
     if "@" in s:
         local, domain = s.split("@", 1)
-        masked_local = local[0] + "***" if local else "***"
-        return f"{masked_local}@{domain}"
-    if len(s) <= 2:
+        # For emails, show start of local part by default
+        visible_local = local[:visible]
+        return f"{visible_local}***@{domain}"
+    
+    if len(s) <= visible:
         return "*" * len(s)
-    return s[0] + "*" * (len(s) - 2) + s[-1]
+    
+    return "*" * (len(s) - visible) + s[-visible:]
 
 def file_size_filter(value: Any) -> str:
     """Format a byte count as a human-readable file size."""

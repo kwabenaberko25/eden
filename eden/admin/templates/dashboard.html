@@ -4,25 +4,25 @@
 @section('content') {
 {% from "components.html" import card, stat_card, table %}
 
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+<div class="stats-grid mb-8">
     @span(stat_card("Total Tenants", stats.tenants, trend="+5%", icon="fa-solid fa-building"))
     @span(stat_card("Active Subscriptions", stats.subscriptions, trend="+12%", icon="fa-solid fa-credit-card"))
     @span(stat_card("Monthly Revenue", stats.revenue|money, trend="+8%", icon="fa-solid fa-wallet"))
     @span(stat_card("System Health", "99.9%", trend="Stable", icon="fa-solid fa-heart-pulse"))
 </div>
 
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+<div class="dashboard-layout">
     <!-- Resource Overviews -->
-    <div class="lg:col-span-2 space-y-8">
+    <div class="dashboard-main space-y-8">
         {% call card(title="Registered Models", icon="fa-solid fa-database") %}
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="resource-grid">
                 @foreach(models_info as info) {
-                <a href="/admin/{{ info.table }}/" class="p-4 rounded-xl bg-surface-container-low hover:bg-surface-container transition-all flex items-center justify-between group">
-                    <div>
-                        <p class="font-bold text-on-surface">@span(info.name_plural)</p>
-                        <p class="text-xs text-on-surface-variant uppercase tracking-widest mt-0.5">@span(info.count) records</p>
+                <a href="/admin/{{ info.table }}/" class="resource-item">
+                    <div class="resource-info">
+                        <p class="resource-name">@span(info.name_plural)</p>
+                        <p class="resource-meta">@span(info.count) records</p>
                     </div>
-                    <i class="fa-solid fa-chevron-right text-on-surface-variant/30 group-hover:text-primary transform group-hover:translate-x-1 transition-all"></i>
+                    <i class="fa-solid fa-chevron-right resource-arrow"></i>
                 </a>
                 }
             </div>
@@ -37,26 +37,26 @@
     </div>
 
     <!-- Sidebar Cards -->
-    <div class="space-y-8">
+    <div class="dashboard-sidebar space-y-8">
         {% call card(title="Quick Actions", icon="fa-solid fa-bolt") %}
-            <div class="space-y-2">
-                <button class="w-full text-left px-4 py-3 rounded-lg hover:bg-surface-container text-sm font-semibold text-on-surface flex items-center gap-3 transition-colors">
+            <div class="action-list">
+                <button class="btn-action">
                     <i class="fa-solid fa-plus text-primary"></i> New Tenant
                 </button>
-                <button class="w-full text-left px-4 py-3 rounded-lg hover:bg-surface-container text-sm font-semibold text-on-surface flex items-center gap-3 transition-colors">
+                <button class="btn-action">
                     <i class="fa-solid fa-file-export text-primary"></i> Export Audit Logs
                 </button>
-                <button class="w-full text-left px-4 py-3 rounded-lg hover:bg-surface-container text-sm font-semibold text-on-surface flex items-center gap-3 transition-colors">
+                <button class="btn-action">
                     <i class="fa-solid fa-sync text-primary"></i> Clear System Cache
                 </button>
             </div>
         {% endcall %}
 
         {% call card(title="Eden Framework", icon="fa-solid fa-leaf") %}
-            <div class="text-center py-4">
-                <img src="https://raw.githubusercontent.com/kwabenaberko25/eden/main/docs/assets/logo.png" class="h-12 mx-auto mb-4 opacity-75" alt="Eden">
-                <p class="text-sm text-on-surface-variant mb-4">Version 1.0.0 (Elite Edition)</p>
-                <a href="https://eden-framework.io/docs" target="_blank" class="text-xs font-bold text-primary uppercase tracking-widest hover:text-primary-container transition-colors">View Documentation</a>
+            <div class="framework-card">
+                <img src="https://raw.githubusercontent.com/kwabenaberko25/eden/main/docs/assets/logo.png" class="framework-logo" alt="Eden">
+                <p class="framework-version">Version 1.0.0 (Elite Edition)</p>
+                <a href="https://eden-framework.io/docs" target="_blank" class="text-link-sm">View Documentation</a>
             </div>
         {% endcall %}
     </div>

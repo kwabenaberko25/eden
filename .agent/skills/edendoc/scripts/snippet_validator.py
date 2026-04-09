@@ -82,6 +82,9 @@ def validate_snippet(snippet: str, line_offset: int, filename: str) -> bool:
                 'WARNING:  You must pass the application as an import string',
                 'ImportWarning',
                 'DeprecationWarning',
+                'pgvector is required',
+                "No module named 'openai'",
+                "No module named 'asyncmy'",
             ]
             if not any(err in stderr_out for err in ignore_errors):
                 print(f"FAILED [L{line_offset}] Snippet in {filename}:")

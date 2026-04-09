@@ -85,5 +85,35 @@ if not await form.validate():
 
 ---
 
+## 5. Advanced Dynamic Schemas
+
+For complex workflows, you may need a form that doesn't map 1:1 to a single model. Eden allows you to merge multiple models into a single form context.
+
+```python
+# Create a unified form from User and Profile models
+form = Form.from_models([User, Profile], data=request.data)
+
+if await form.validate():
+    # Eden handles splitting data back to the correct models
+    user_data, profile_data = form.split()
+    await User.create(**user_data)
+    await Profile.create(**profile_data)
+```
+
+---
+
+## 🚀 HTMX Auto-Partial Rendering
+
+Eden forms are designed for the modern web. By simply passing the `partial=True` flag to your template, Eden will only render the form fields that have validation errors, allowing for ultra-fast HTMX updates.
+
+```html
+<!-- task_form.html -->
+<form hx-post="/tasks" hx-target="this" hx-swap="outerHTML">
+    @form(form, partial=True)
+</form>
+```
+
+---
+
 **Next: [Storage & File Management](../guides/storage.md) →**
 

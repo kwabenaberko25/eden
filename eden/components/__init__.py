@@ -784,3 +784,43 @@ def get_component_router() -> Any:
     router.post("/_components/{action_slug}", name="component_dispatch_post")(component_dispatcher)
     return router
 
+
+# ── Exports ──────────────────────────────────────────────────────────────────
+
+__all__ = [
+    # Core classes and functions
+    "Component",
+    "register",
+    "action",
+    
+    # Registry and lookup
+    "get_component",
+    "_registry",
+    "_action_registry",
+    
+    # Rendering
+    "render_component",
+    "get_component_router",
+    
+    # Jinja2 extension
+    "ComponentExtension",
+    
+    # Handlers
+    "component_action_handler",
+    "component_dispatcher",
+]
+
+
+# Lazy import template loaders to avoid circular imports
+def __getattr__(name):
+    if name == "ComponentTemplateLoader":
+        from eden.components.loaders import ComponentTemplateLoader
+        return ComponentTemplateLoader
+    elif name == "CachedTemplateLoader":
+        from eden.components.loaders import CachedTemplateLoader
+        return CachedTemplateLoader
+    elif name == "BaseTemplateLoader":
+        from eden.components.loaders import BaseTemplateLoader
+        return BaseTemplateLoader
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+

@@ -4,6 +4,10 @@ Eden treats HTMX as a first-class citizen. Rather than just returning strings, E
 
 ## Getting Started
 
+> [!TIP]
+> **🚀 Live Demo Available!**
+> You can see HTMX in action in the Eden Framework example application. Run `python app/support_app.py` and visit **`http://localhost:8001/demo/htmx`** to see live search and fragment rendering.
+
 Eden includes HTMX by default in its recommended setup. If you're building a custom layout, use the `@eden_head` directive:
 
 ```html

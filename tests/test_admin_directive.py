@@ -27,7 +27,7 @@ class TestAdminDirectiveCompilation:
     
     def test_admin_basic_compilation(self):
         """Test @admin compiles to role check."""
-        source = "@admin Admin content @endadmin"
+        source = "@admin { Admin content }"
         compiled = compile_template(source)
         
         # Should check for authenticated user with admin role
@@ -38,13 +38,13 @@ class TestAdminDirectiveCompilation:
     def test_admin_with_nested_content(self):
         """Test @admin with nested directives."""
         source = """
-        @admin
+        @admin {
             <div>
-                @for(item in items)
+                @for(item in items) {
                     <p>{{ item }}</p>
-                @endfor
+                }
             </div>
-        @endadmin
+        }
         """
         compiled = compile_template(source)
         
@@ -139,8 +139,8 @@ class TestAdminVsRole:
     
     def test_admin_equivalent_to_role_admin(self):
         """Test that @admin produces same output as @role('admin')."""
-        admin_source = "@admin Content @endadmin"
-        role_source = "@role('admin') Content @endrole"
+        admin_source = "@admin { Content }"
+        role_source = "@role('admin') { Content }"
         
         admin_compiled = compile_template(admin_source)
         role_compiled = compile_template(role_source)
@@ -155,7 +155,7 @@ class TestAdminEdgeCases:
     
     def test_admin_empty_body(self):
         """Test @admin with no content."""
-        source = "@admin @endadmin"
+        source = "@admin { }"
         compiled = compile_template(source)
         
         # Should compile without error
@@ -164,11 +164,11 @@ class TestAdminEdgeCases:
     def test_admin_nested_in_other_directives(self):
         """Test @admin nested inside other directives."""
         source = """
-        @if(show_advanced_options)
-            @admin
+        @if(show_advanced_options) {
+            @admin {
                 <button>Advanced Settings</button>
-            @endadmin
-        @endif
+            }
+        }
         """
         compiled = compile_template(source)
         
@@ -179,15 +179,15 @@ class TestAdminEdgeCases:
     def test_admin_multiple_instances(self):
         """Test multiple @admin blocks in same template."""
         source = """
-        @admin
+        @admin {
             <nav>Admin Nav</nav>
-        @endadmin
+        }
         
         <main>Content</main>
         
-        @admin
+        @admin {
             <button>Admin Action</button>
-        @endadmin
+        }
         """
         compiled = compile_template(source)
         

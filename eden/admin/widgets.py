@@ -334,27 +334,149 @@ class DeactivateAction(Action):
 
 
 class ExportAction(Action):
-    """Export selected records."""
+    """Export selected records to CSV, JSON, or Excel format.
+    
+    Provides bulk export capability with support for multiple formats.
+    Integrates with Eden's export utilities for full data serialization.
+    
+    Args:
+        format: Export format - "csv" (default), "json", or "xlsx"/"excel"
+    
+    Example:
+        export_csv = ExportAction(format="csv")
+        export_excel = ExportAction(format="xlsx")
+    """
     
     name = "export"
     description = "Export selected items"
     permission_required = "export"
     
     def __init__(self, format: str = "csv"):
-        self.format = format
-    
-    async def execute(self, selected_ids: List[Any], model: Type = None, **kwargs) -> Dict[str, Any]:
-        if not model:
-            raise ValueError("Model required")
+        """
+        Initialize export action with desired format.
         
+        Args:
+            format: One of "csv", "json", "xlsx", or "excel"
+        """
+        format_lower = format.lower()
+        if format_lower in ("excel", "xls"):
+            format_lower = "xlsx"
+        
+        if format_lower not in ("csv", "json", "xlsx"):
+            raise ValueError(f"Unsupported export format: {format}. Use csv, json, or xlsx.")
+        
+        self.format = format_lower
+    
+    async def execute(
+        self,
+        selected_ids: List[Any],
+        model: Type = None,
+        fields: Optional[List[str]] = None,
+        **kwargs
+    ) -> Dict[str, Any]:
+        """
+        Execute the export action and return exported data.
+        
+        Returns a dictionary with:
+        - success: bool indicating success
+        - data: The exported data (CSV string, JSON string, or Excel bytes)
+        - format: The export format used
+        - count: Number of records exported
+        - filename: Suggested download filename
+        - content_type: MIME type for response headers
+        
+        Args:
+            selected_ids: List of record IDs to export
+            model: The model class
+            fields: Optional list of field names to include
+        
+        Raises:
+            ValueError: If model not provided or no records found
+        
+        Returns:
+            Dictionary with export data and metadata
+        """
+        if not model:
+            raise ValueError("Model required for export")
+        
+        if not selected_ids:
+            return {
+                "success": False,
+                "message": "No records selected for export",
+                "count": 0
+            }
+        
+        # Fetch all selected records
         items = []
         for item_id in selected_ids:
-            item = await model.get(id=item_id)
-            if item:
-                items.append(item)
+            try:
+                item = await model.get(id=item_id)
+                if item:
+                    items.append(item)
+            except Exception as e:
+                logger.warning(f"Failed to fetch record {item_id}: {e}")
         
-        logger.info(f"Exported {len(items)} items as {self.format}")
-        return {"success": True, "message": f"Exported {len(items)} item(s)", "count": len(items)}
+        if not items:
+            return {
+                "success": False,
+                "message": "No valid records found for export",
+                "count": 0
+            }
+        
+        # Import export utilities
+        from eden.admin.export import (
+            to_csv, to_json, to_excel,
+            generate_export_filename,
+            get_export_response_headers
+        )
+        
+        # Generate export based on format
+        model_name = getattr(model, "__tablename__", model.__name__.lower())
+        filename = await generate_export_filename(model_name, self.format)
+        headers = await get_export_response_headers(filename, self.format)
+        
+        try:
+            if self.format == "csv":
+                data = await to_csv(items, model, fields)
+                content_type = headers["Content-Type"]
+            elif self.format == "json":
+                data = await to_json(items, model, fields, pretty=True)
+                content_type = headers["Content-Type"]
+            elif self.format == "xlsx":
+                data = await to_excel(items, model, fields)
+                content_type = headers["Content-Type"]
+            else:
+                raise ValueError(f"Unsupported format: {self.format}")
+            
+            logger.info(
+                f"Exported {len(items)} records from {model_name} as {self.format.upper()}"
+            )
+            
+            return {
+                "success": True,
+                "message": f"Successfully exported {len(items)} record(s) as {self.format.upper()}",
+                "count": len(items),
+                "data": data,
+                "format": self.format,
+                "filename": filename,
+                "content_type": content_type,
+                "content_disposition": headers["Content-Disposition"],
+            }
+        
+        except ImportError as e:
+            logger.error(f"Export failed - missing dependency: {e}")
+            return {
+                "success": False,
+                "message": f"Export format '{self.format}' not available: {str(e)}",
+                "count": 0
+            }
+        except Exception as e:
+            logger.error(f"Export failed: {e}", exc_info=True)
+            return {
+                "success": False,
+                "message": f"Export failed: {str(e)}",
+                "count": 0
+            }
 
 
 class ApproveAction(Action):

@@ -18,7 +18,7 @@
         }
 
         .sidebar {
-            width: 280px;
+            width: 240px;
             background-color: var(--eden-sidebar-bg);
             color: var(--eden-sidebar-text);
             display: flex;
@@ -35,21 +35,21 @@
 
         .main-content {
             flex: 1;
-            margin-left: 280px;
+            margin-left: 240px;
             display: flex;
             flex-direction: column;
             min-width: 0;
         }
 
         .top-nav {
-            height: 64px;
+            height: 56px;
             background: rgba(255, 255, 255, 0.8);
             backdrop-filter: blur(12px);
             /* REPLACED: border-bottom with background shift */
             background-color: var(--eden-bg-surface-container-low);
             display: flex;
             align-items: center;
-            padding: 0 2rem;
+            padding: 0 1.5rem;
             position: sticky;
             top: 0;
             z-index: 40;
@@ -61,8 +61,8 @@
             border: none;
             background-color: var(--eden-bg-surface-container);
             border-radius: var(--eden-radius);
-            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
-            padding: 1.5rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+            padding: 1rem;
         }
 
         .btn-primary {
@@ -110,99 +110,108 @@
         }
     </style>
 
-    @eden_head
+    @eden_head(tailwind=False, alpine=False)
+    <link rel="stylesheet" href="{{ url_for('admin:admin_static', path='css/admin.css') }}">
 </head>
-<body x-data="{ sidebarOpen: true }">
+<body class="admin-body">
     
-    <!-- Sidebar -->
-    <aside class="sidebar" :class="{ '-translate-x-full': !sidebarOpen }">
-        <div class="p-6 flex items-center gap-3">
-            <div class="h-8 w-8 bg-indigo-500 rounded-lg flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-indigo-500/20">E</div>
-            <span class="text-white font-bold text-xl tracking-tight">Eden <span class="text-indigo-400 font-medium">Elite</span></span>
-        </div>
+    <div class="admin-wrapper">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="h-8 w-8 bg-primary rounded-lg flex items-center justify-center text-white font-bold text-lg">E</div>
+                <span class="brand-text">Eden <span class="text-primary">Elite</span></span>
+            </div>
 
-        <nav class="flex-1 mt-4 overflow-y-auto">
-            <div class="px-6 mb-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">Management</div>
-            
-            <a href="/admin" class="nav-item @active_link('/admin', 'active')">
-                <i class="fa-solid fa-gauge-high"></i>
-                <span>Dashboard</span>
-            </a>
+            <nav class="nav-section">
+                <div class="nav-title">Management</div>
+                
+                <a href="/admin" class="nav-item {{ 'active' if request.url.path == '/admin' else '' }}">
+                    <i class="fa-solid fa-gauge-high"></i>
+                    <span>Dashboard</span>
+                </a>
 
-            <!-- Model Links -->
-            @foreach(registry.items() as model, config) {
-            <a href="/admin/@span(config.slug)" class="nav-item @active_link('/admin/' ~ config.slug, 'active')">
-                <i class="@span(config.icon ?? 'fa-solid fa-box')"></i>
-                <span>@span(config.label_plural)</span>
-            </a>
-            }
+                <!-- Model Links -->
+                @foreach(registry.items() as model, config) {
+                <a href="/admin/@span(config.slug)" class="nav-item {{ 'active' if request.url.path.startswith('/admin/' ~ config.slug) else '' }}">
+                    <i class="@span(config.icon ?? 'fa-solid fa-box')"></i>
+                    <span>@span(config.label_plural)</span>
+                </a>
+                }
 
-            <div class="px-6 mt-8 mb-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">Services</div>
-            
-            <a href="/admin/support" class="nav-item @active_link('/admin/support', 'active')">
-                <i class="fa-solid fa-life-ring"></i>
-                <span>Support Tickets</span>
-            </a>
-            <a href="/admin/tenants" class="nav-item @active_link('/admin/tenants', 'active')">
-                <i class="fa-solid fa-building"></i>
-                <span>Tenants</span>
-            </a>
+                <div class="nav-title">Services</div>
+                
+                <a href="/admin/support" class="nav-item @active_link('/admin/support', 'active')">
+                    <i class="fa-solid fa-life-ring"></i>
+                    <span>Support Tickets</span>
+                </a>
+                <a href="/admin/tenants" class="nav-item @active_link('/admin/tenants', 'active')">
+                    <i class="fa-solid fa-building"></i>
+                    <span>Tenants</span>
+                </a>
 
-            <div class="px-6 mt-8 mb-2 text-xs font-semibold text-indigo-400 uppercase tracking-wider">Configuration</div>
-            <a href="/admin/settings" class="nav-item @active_link('/admin/settings', 'active')">
-                <i class="fa-solid fa-sliders"></i>
-                <span>Model Display Settings</span>
-            </a>
-        </nav>
+                <div class="nav-title">Configuration</div>
+                <a href="/admin/settings" class="nav-item @active_link('/admin/settings', 'active')">
+                    <i class="fa-solid fa-sliders"></i>
+                    <span>Model Settings</span>
+                </a>
+            </nav>
 
-        <div class="p-4 bg-slate-800/50 backdrop-blur-sm">
-            <div class="flex items-center gap-3 px-2">
-                <div class="h-8 w-8 rounded-full bg-slate-600 flex items-center justify-center text-xs font-bold text-white shadow-inner">
-                    @span(user.name[:1] if user.name else "A")
-                </div>
-                <div class="flex-1 min-w-0">
-                    <p class="text-sm font-medium text-white truncate">@span(user.name ?? "Admin User")</p>
-                    <p class="text-xs text-slate-400 truncate">@span(user.email ?? "admin@eden.io")</p>
+            <div class="user-profile">
+                <div class="flex items-center gap-3">
+                    <div class="avatar">
+                        @span(user.name[:1] if user.name else "A")
+                    </div>
+                    <div class="user-info">
+                        <p class="user-name">@span(user.name ?? "Admin User")</p>
+                        <p class="user-email">@span(user.email ?? "admin@eden.io")</p>
+                    </div>
                 </div>
             </div>
-        </div>
-    </aside>
+        </aside>
 
-    <!-- Main Content -->
-    <main class="main-content">
-        <!-- Top Nav -->
-        <header class="top-nav">
-            <button @click="sidebarOpen = !sidebarOpen" class="p-2 text-slate-500 hover:text-slate-700 lg:hidden">
-                <i class="fa-solid fa-bars"></i>
-            </button>
-            <div class="flex-1 px-4">
-                <h1 class="text-lg font-bold text-slate-800 tracking-tight">@yield('header')</h1>
-            </div>
-            <div class="flex items-center gap-4">
-                <div id="loader" class="htmx-indicator">
-                    <i class="fa-solid fa-circle-notch fa-spin text-indigo-500"></i>
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Top Bar -->
+            <header class="top-bar">
+                <button id="sidebar-toggle" class="btn btn-outline lg-hidden">
+                    <i class="fa-solid fa-bars"></i>
+                </button>
+                <div class="flex-1">
+                    <h1 class="page-title">@yield('header')</h1>
                 </div>
-                <!-- Search Box -->
-                <div class="relative hidden md:block">
-                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
-                        <i class="fa-solid fa-search text-xs"></i>
-                    </span>
-                    <input type="text" placeholder="Search system..." class="bg-slate-100 border-none rounded-full py-1.5 pl-10 pr-4 text-sm focus:ring-2 focus:ring-indigo-500 w-64 transition-all focus:w-80">
+                <div class="top-bar-actions">
+                    <div id="loader" class="htmx-indicator">
+                        <i class="fa-solid fa-circle-notch fa-spin"></i>
+                    </div>
+                    <!-- Search Box -->
+                    <div class="search-box">
+                        <span class="search-icon"><i class="fa-solid fa-search"></i></span>
+                        <input type="text" placeholder="Search system...">
+                    </div>
+                    
+                    <div class="dropdown">
+                        <button class="btn btn-outline" data-dropdown-toggle="user-menu">
+                            <i class="fa-solid fa-user"></i>
+                        </button>
+                        <div id="user-menu" class="dropdown-menu">
+                            <a href="/admin/profile" class="dropdown-item">Profile</a>
+                            <a href="/logout" class="dropdown-item">Logout</a>
+                        </div>
+                    </div>
                 </div>
-                <button class="p-2 text-slate-400 hover:text-slate-600 transition-colors"><i class="fa-solid fa-bell"></i></button>
-                <div class="h-6 w-px bg-slate-200"></div>
-                <a href="/logout" class="text-sm text-slate-500 hover:text-red-600 font-bold transition-colors">Logout</a>
-            </div>
-        </header>
+            </header>
 
-        <!-- Page Body -->
-        <div class="p-8">
-            @yield('content')
-        </div>
-    </main>
+            <!-- Page Body -->
+            <div class="container htmx-fade-in" id="content-area">
+                @yield('content')
+            </div>
+        </main>
+    </div>
 
     @eden_toasts
     @eden_scripts
+    <script src="{{ url_for('admin:admin_static', path='js/admin.js') }}"></script>
     @yield('scripts')
 </body>
 </html>

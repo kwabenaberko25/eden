@@ -4,6 +4,10 @@
 
 ---
 
+> [!TIP]
+> **🚀 Live Demo Available!**
+> You can see Stripe integration in action in the Eden Framework example application. Run `python app/support_app.py` and visit **`http://localhost:8001/demo/stripe`** to see Checkout session creation and the billing portal pattern.
+
 ## 🧠 The Eden Payment Pipeline
 
 Eden separates your business logic from payment provider implementation (Stripe, Paddle, etc.). This ensures your application remains clean, testable, and ready to scale.

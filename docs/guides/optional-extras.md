@@ -5,8 +5,10 @@
 Handle payment webhooks with automatic routing:
 
 ```python
+from eden.app import Eden
 from eden.payments.webhooks import WebhookRouter
 
+app = Eden()
 webhooks = WebhookRouter()
 
 @webhooks.on("checkout.session.completed")
@@ -56,6 +58,8 @@ Eden's core is lightweight and focused. Extended features are available as **opt
 | `[tasks]` | Background jobs, cron tasks | `@Task()` | `pip install eden-framework[tasks]` |
 | `[mail]` | Email, SMTP, templates | `EmailMessage` | `pip install eden-framework[mail]` |
 | `[ai]` | Vector embeddings, semantic search | `VectorModel` | `pip install eden-framework[ai]` |
+| `[analytics]` | Multi-provider analytics tracking | `AnalyticsManager` | `pip install eden-framework[analytics]` |
+| `[flags]` | Feature flags and rollouts | `FlagManager` | `pip install eden-framework[flags]` |
 
 ---
 
@@ -311,10 +315,12 @@ pip install eden-framework[tasks]
 ```
 
 ```python
-from eden.tasks import Task, broker
+from eden.app import Eden
+
+app = Eden()
 
 # Define a task
-@Task()
+@app.task()
 async def send_welcome_email(user_id: int):
     user = await User.get(id=user_id)
     await send_email(user.email, "Welcome!")
@@ -355,21 +361,24 @@ pip install eden-framework[mail]
 ```
 
 ```python
+# Using SMTP
 from eden.mail import EmailMessage, send_mail
 
-# Using SMTP
 message = EmailMessage(
     subject="Welcome!",
     body="Thanks for signing up.",
     from_email="noreply@example.com",
     to=["user@example.com"]
 )
-await message.send()
+# Send using the global helper
+await send_mail(message.to, message.subject, message.body)
 
 # Or via shortcut
+from eden.mail import send_mail
+
 await send_mail(
     subject="Confirm Email",
-    message="Click here to confirm",
+    body="Click here to confirm",
     recipient_list=["user@example.com"]
 )
 ```
@@ -377,6 +386,8 @@ await send_mail(
 **Templates:**
 
 ```python
+from eden.mail import send_mail
+
 await send_mail(
     template="welcome",  # renders templates/emails/welcome.html
     context={"user": request.user},
@@ -487,6 +498,9 @@ except ImportError:
 
 if HAS_PAYMENTS:
     # Payment routes
+    from eden.app import Eden
+    app = Eden()
+    
     @app.get("/checkout")
     async def checkout(request):
         pass

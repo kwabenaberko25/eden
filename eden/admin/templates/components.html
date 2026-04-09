@@ -3,57 +3,57 @@
 {% macro card(title=None, subtitle=None, icon=None, class="") %}
 <div class="card {{ class }}">
     @if(title or icon) {
-    <div class="flex items-center justify-between mb-4">
-        <div class="flex items-center gap-3">
-            @if(icon) { <i class="{{ icon }} text-indigo-500"></i> }
-            <h3 class="font-bold text-slate-800 tracking-tight">@span(title)</h3>
+    <div class="card-header">
+        <div class="card-title-group">
+            @if(icon) { <i class="{{ icon }} text-primary"></i> }
+            <h3 class="card-title">@span(title)</h3>
         </div>
         @yield('extra')
     </div>
     }
-    @if(subtitle) { <p class="text-sm text-slate-500 mb-4 -mt-3">@span(subtitle)</p> }
-    <div>{{ caller() }}</div>
+    @if(subtitle) { <p class="card-subtitle">@span(subtitle)</p> }
+    <div class="card-body">{{ caller() }}</div>
 </div>
 {% endmacro %}
 
 {% macro stat_card(label, value, trend=None, icon="fa-solid fa-chart-line") %}
-<div class="card flex flex-col justify-between hover:scale-[1.02] transition-transform cursor-default">
-    <div class="flex justify-between items-start">
-        <div class="h-10 w-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-500 shadow-sm shadow-indigo-200/50">
+<div class="card stat-card">
+    <div class="stat-header">
+        <div class="stat-icon">
             <i class="{{ icon }}"></i>
         </div>
         @if(trend) {
-        <span class="text-xs font-bold px-2.5 py-1 rounded-full {{ 'bg-emerald-100 text-emerald-700' if trend.startswith('+') else 'bg-rose-100 text-rose-700' }}">
+        <span class="badge {{ 'badge-success' if trend.startswith('+') else 'badge-danger' }}">
             @span(trend)
         </span>
         }
     </div>
-    <div class="mt-4">
-        <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">@span(label)</p>
-        <p class="text-2xl font-black text-slate-800 mt-1">@span(value)</p>
+    <div class="stat-body">
+        <p class="stat-label">@span(label)</p>
+        <p class="stat-value">@span(value)</p>
     </div>
 </div>
 {% endmacro %}
 
 {% macro table(headers, rows) %}
-<div class="overflow-x-auto">
-    <table class="min-w-full divide-y divide-slate-100">
-        <thead class="bg-slate-50/50">
+<div class="table-responsive">
+    <table class="table-premium">
+        <thead>
             <tr>
                 @foreach(headers as header) {
-                <th class="px-6 py-3 text-left text-xs font-bold text-slate-400 uppercase tracking-widest">@span(header)</th>
+                <th class="table-header">@span(header)</th>
                 }
-                <th class="px-6 py-3 text-right"></th>
+                <th class="table-header-actions"></th>
             </tr>
         </thead>
-        <tbody class="divide-y divide-slate-50">
+        <tbody>
             @foreach(rows as row) {
-            <tr class="hover:bg-slate-50/80 transition-colors group">
+            <tr>
                 @foreach(row as col) {
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600 group-hover:text-slate-900 transition-colors">@span(col|safe)</td>
+                <td class="table-cell">@span(col|safe)</td>
                 }
-                <td class="px-6 py-4 text-right">
-                    <button class="text-indigo-600 hover:text-indigo-900 font-bold text-xs uppercase tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity">Edit</button>
+                <td class="table-actions">
+                    <button class="btn-text">Edit</button>
                 </td>
             </tr>
             }

@@ -90,3 +90,92 @@ class AdminConfig(Model):
     model_name: str = StringField(max_length=255, unique=True)
     config: dict = JSONField(default={}) # e.g., {"list_display": ["id", "name"], "search_fields": ["name"]}
     updated_at: datetime = DateTimeField(auto_now=True)
+
+
+class PasswordHistory(Model):
+    """
+    Tracks password change history for admin users to prevent reuse.
+    """
+    __tablename__ = "eden_password_history"
+    __rbac__ = {
+        "read": AllowRoles(["admin"]),
+        "create": AllowRoles(["admin"])
+    }
+
+    id: uuid.UUID = UUIDField(primary_key=True, default_factory=uuid.uuid4)
+    username: str = StringField(max_length=255)  # Reference to admin user
+    password_hash: str = TextField()  # Argon2 hash
+    changed_at: datetime = DateTimeField(auto_now_add=True)
+
+
+class PasswordResetToken(Model):
+    """
+    Tracks password reset tokens for admin users.
+    """
+    __tablename__ = "eden_password_reset_tokens"
+    __rbac__ = {
+        "read": AllowRoles(["admin"]),
+        "create": AllowRoles(["admin"])
+    }
+
+    id: uuid.UUID = UUIDField(primary_key=True, default_factory=uuid.uuid4)
+    username: str = StringField(max_length=255)  # Reference to admin user
+    token: str = StringField(max_length=255, unique=True)  # URL-safe token
+    created_at: datetime = DateTimeField(auto_now_add=True)
+    expires_at: datetime = DateTimeField()  # Expiry time
+    used: bool = BoolField(default=False)  # Whether token was used
+
+
+class EmailVerificationToken(Model):
+    """
+    Tracks email verification tokens for new admin users.
+    """
+    __tablename__ = "eden_email_verification_tokens"
+    __rbac__ = {
+        "read": AllowRoles(["admin"]),
+        "create": AllowRoles(["admin"])
+    }
+
+    id: uuid.UUID = UUIDField(primary_key=True, default_factory=uuid.uuid4)
+    username: str = StringField(max_length=255)  # Reference to admin user
+    email: str = StringField(max_length=255)  # Email to verify
+    token: str = StringField(max_length=255, unique=True)  # URL-safe token
+    created_at: datetime = DateTimeField(auto_now_add=True)
+    expires_at: datetime = DateTimeField()  # Expiry time
+    verified: bool = BoolField(default=False)  # Whether email was verified
+
+
+class TOTPSecret(Model):
+    """
+    Stores TOTP secrets for admin users with 2FA enabled.
+    """
+    __tablename__ = "eden_totp_secrets"
+    __rbac__ = {
+        "read": AllowRoles(["admin"]),
+        "create": AllowRoles(["admin"]),
+        "update": AllowRoles(["admin"])
+    }
+
+    id: uuid.UUID = UUIDField(primary_key=True, default_factory=uuid.uuid4)
+    username: str = StringField(max_length=255, unique=True)  # Reference to admin user
+    secret: str = TextField()  # Base32-encoded secret
+    enabled_at: datetime = DateTimeField()  # When 2FA was enabled
+    verified: bool = BoolField(default=False)  # Whether 2FA is verified
+
+
+class BackupCode(Model):
+    """
+    Backup codes for account recovery when TOTP device is unavailable.
+    """
+    __tablename__ = "eden_backup_codes"
+    __rbac__ = {
+        "read": AllowRoles(["admin"]),
+        "create": AllowRoles(["admin"]),
+        "update": AllowRoles(["admin"])
+    }
+
+    id: uuid.UUID = UUIDField(primary_key=True, default_factory=uuid.uuid4)
+    username: str = StringField(max_length=255)  # Reference to admin user
+    code: str = StringField(max_length=50)  # Formatted code (e.g., XXXX-XXXX)
+    used: bool = BoolField(default=False)  # Whether code has been used
+    used_at: datetime = DateTimeField(nullable=True)  # When code was used

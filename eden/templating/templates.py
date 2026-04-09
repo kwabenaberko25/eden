@@ -312,6 +312,7 @@ class EdenTemplates(StarletteJinja2Templates):
 
         self.env.filters["time_ago"] = filters.format_time_ago
         self.env.filters["money"] = filters.format_money
+        self.env.filters["format_money"] = filters.format_money
         self.env.filters["truncate"] = filters.truncate_filter
         self.env.filters["truncate_filter"] = filters.truncate_filter
         self.env.filters["slugify"] = filters.slugify_filter
@@ -324,8 +325,11 @@ class EdenTemplates(StarletteJinja2Templates):
         self.env.filters["pluralize_filter"] = filters.pluralize_filter
         self.env.filters["title"] = filters.title_case
         self.env.filters["date"] = filters.format_date
+        self.env.filters["format_date"] = filters.format_date
         self.env.filters["time"] = filters.format_time
+        self.env.filters["format_time"] = filters.format_time
         self.env.filters["number"] = filters.format_number
+        self.env.filters["format_number"] = filters.format_number
         self.env.filters["mask"] = filters.mask_filter
         self.env.filters["mask_filter"] = filters.mask_filter
         self.env.filters["file_size"] = filters.file_size_filter
@@ -455,6 +459,17 @@ class EdenTemplates(StarletteJinja2Templates):
         # Maximum iterations for template loops (DoS prevention).
         # Injected as a global so compiled loop guards can reference it.
         self.env.globals["__eden_max_loop_iterations__"] = 10_000
+
+    def render_to_string(
+        self, template_name: str, context: Optional[dict[str, Any]] = None, **kwargs: Any
+    ) -> str:
+        """
+        Render a template and return the result as a string instead of a Response.
+        """
+        context = context or {}
+        ctx = {**context, **kwargs}
+        template = self.env.get_template(template_name)
+        return template.render(ctx)
 
     def _old_helper(self, name: str, default: Any = "") -> Any:
         """Helper for @old directive logic."""

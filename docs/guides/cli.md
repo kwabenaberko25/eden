@@ -30,17 +30,21 @@ graph TD
 
 ---
 
-## 🚀 Execution & Monitoring: `eden run`
+### 🚀 Execution & Monitoring: `eden run`
 
-Launch your development server with high-fidelity logging and auto-reload.
+Launch your development server with high-fidelity logging, auto-reload, and **Integrated Health Probes**.
 
 ```bash
-# Basic run with auto-reload
+# Basic run with auto-reload and smart discovery
 eden run
 
-# Performance-tuned for heavy testing
-eden run --port 8000 --workers 4 --no-browser-reload
+# Industrial Mode: Multi-worker with SSL and specific host
+eden run --host 0.0.0.0 --port 443 --workers 4 --ssl-keyfile key.pem --ssl-certfile cert.pem
 ```
+
+> [!TIP]
+> **Proactive Health Monitoring**
+> When running with `eden run`, the CLI automatically mounts an internal `/health` endpoint cluster-wide, allowing your load balancer or kubernetes liveness probes to verify the application's peak condition without manual configuration.
 
 > [!TIP]
 > **Why `eden.json`?**
@@ -92,14 +96,18 @@ eden db generate -m "Add task priority" --tenant
 
 The "Forge" creates architectural scaffolds and handles the **Auto-Registration** into your main application.
 
-### 1. Model Generation
+### 1. Interactive Model Forge
 
-Scaffold models with built-in audit trails and multi-tenancy.
+Scaffold models through a guided interactive process. The Forge will ask for field names, types, and constraints, automatically generating the `Mapped` attributes and `f()` metadata.
 
 ```bash
-# Create a tenant-isolated model with createdAt/updatedAt
-eden generate model Invoice --tenant-aware --audit
+# Start the interactive model wizard
+eden generate model
 ```
+
+> [!NOTE]
+> **Auto-Registration**
+> Every model created via the Forge is automatically registered in your application's `models/__init__.py`, ensuring migrations and the Admin Panel pick it up instantly.
 
 ### 2. Router Scaffolding
 

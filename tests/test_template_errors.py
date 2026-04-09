@@ -1,7 +1,7 @@
 
 import os
 import pytest
-from starlette.testclient import TestClient
+from httpx import AsyncClient, ASGITransport
 from eden.app import Eden
 from eden.templating import EdenDirectivesExtension
 from jinja2 import Environment
@@ -19,7 +19,8 @@ def test_line_preservation_unit():
     lines = processed.splitlines()
     assert "line 7" in lines[6]
 
-def test_syntax_error_rendering(tmp_path):
+@pytest.mark.asyncio
+async def test_syntax_error_rendering(tmp_path):
     """Integration test for premium error page on SyntaxError."""
     template_dir = tmp_path / "templates"
     template_dir.mkdir()
@@ -37,14 +38,16 @@ def test_syntax_error_rendering(tmp_path):
     async def index(request):
         return app.render("error.html")
     
-    client = TestClient(app, raise_server_exceptions=False)
-    response = client.get("/")
-    
-    assert response.status_code == 500
-    assert "Template Error" in response.text
-    assert "Syntax Error" in response.text
-    assert "Line 3" in response.text
-    assert "unknown tag" in response.text and "broken" in response.text
+    starlette_app = await app.build()
+    transport = ASGITransport(app=starlette_app)
+    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+        response = await client.get("/")
+        
+        assert response.status_code == 500
+        assert "Template Error" in response.text
+        assert "Syntax Error" in response.text
+        assert "Line 3" in response.text
+        assert "unknown tag" in response.text and "broken" in response.text
 
 @pytest.mark.asyncio
 async def test_undefined_error_rendering(tmp_path):
@@ -72,9 +75,11 @@ async def test_undefined_error_rendering(tmp_path):
     async def index(request):
         return app.render("undef.html", {"missing": None})
     
-    client = TestClient(app, raise_server_exceptions=False)
-    response = client.get("/")
-    
-    assert response.status_code == 500
-    assert "Undefined Variable" in response.text or "Template Error" in response.text
-    assert "mandatory" in response.text
+    starlette_app = await app.build()
+    transport = ASGITransport(app=starlette_app)
+    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+        response = await client.get("/")
+        
+        assert response.status_code == 500
+        assert "Undefined Variable" in response.text or "Template Error" in response.text
+        assert "mandatory" in response.text

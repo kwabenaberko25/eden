@@ -4,6 +4,10 @@
 
 ---
 
+> [!TIP]
+> **🚀 Live Demo Available!**
+> You can see Background Tasks in action in the Eden Framework example application. Run `python app/support_app.py` and visit **`http://localhost:8001/demo/tasks`** to see async task queueing with live HTMX progress bars.
+
 ## 🧠 The Eden Task Pipeline
 
 Eden's Task system is designed for **Context Awareness**. When you defer a task from a web request, Eden automatically serializes the current `tenant_id`, `user_id`, and `correlation_id` and restores them in the background worker—ensuring RLS and Audit trails remain intact.
@@ -65,6 +69,77 @@ app.task = EdenBroker(create_broker())
 
 # Production (Redis Streams)
 app.task = EdenBroker(create_broker(redis_url="redis://localhost:6379"))
+---
+
+## 📅 Advanced Scheduling: APScheduler
+
+While `@app.task.every` covers basic interval/cron needs, Eden provides a robust **APSchedulerBackend** for complex scheduling requirements, such as persistent job stores and per-job configuration.
+
+### 🧩 Architectural Flow
+
+```mermaid
+sequenceDiagram
+    participant S as APScheduler
+    participant J as JobStore (DB/Redis)
+    participant B as EdenBroker
+    participant W as Worker
+    
+    S->>J: Poll for due jobs
+    J-->>S: Jobs due now
+    S->>B: Dispatch job metadata
+    B->>W: Push task to queue
+    W->>W: Execute function
+```
+
+### 1. Configuration
+
+```python
+from eden.apscheduler_backend import APSchedulerBackend, SchedulerConfig
+
+# Configure with max workers and persistent store (optional)
+app.scheduler = APSchedulerBackend(
+    config=SchedulerConfig(max_workers=5)
+)
+
+await app.scheduler.start()
+```
+
+### 2. Adding Dynamic Jobs
+
+Add jobs programmatically with fine-grained control over execution.
+
+```python
+async def send_welcome_email(user_id: int):
+    # Logic...
+    pass
+
+# Schedule for a specific date/time
+await app.scheduler.add_job(
+    send_welcome_email,
+    trigger="date",
+    run_date=datetime.now() + timedelta(hours=2),
+    kwargs={"user_id": 123}
+)
+
+# Schedule for a specific interval
+await app.scheduler.add_job(
+    send_welcome_email,
+    trigger="interval",
+    hours=24,
+    kwargs={"user_id": 123}
+)
+```
+
+### 3. Job Management
+
+List, retrieve, or remove scheduled jobs at runtime.
+
+```python
+# Get all active jobs
+jobs = await app.scheduler.get_all_jobs()
+
+# Remove a specific job by ID
+await app.scheduler.remove_job("job_id_123")
 ```
 
 ---

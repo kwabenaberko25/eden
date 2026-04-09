@@ -4,6 +4,10 @@ Eden provides a high-level, event-driven WebSocket system that makes real-time c
 
 ## The Event-Driven Router: `WebSocketRouter`
 
+> [!TIP]
+> **🚀 Live Demo Available!**
+> You can see WebSockets in action in the Eden Framework example application. Run `python app/support_app.py` and visit **`http://localhost:8001/demo/websockets`** to experience the real-time chat demo.
+
 For production applications, we recommend using the `WebSocketRouter`. It allows you to organize your real-time logic into specialized event handlers.
 
 ```python

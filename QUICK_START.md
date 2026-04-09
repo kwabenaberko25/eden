@@ -23,6 +23,32 @@
 
 ---
 
+## 🚀 Exploring the Interactive Demos
+
+The best way to learn Eden is by exploring our **Interactive Demo Dashboard**. We've pre-configured a comprehensive showcase application that demonstrates all major framework features in a live, interactive environment.
+
+### Getting Started with Demos
+
+1. **Launch the Showcase Mobile/Web App**:
+   ```bash
+   python app/support_app.py
+   ```
+
+2. **Access the Dashboard**:
+   Open **`http://localhost:8001/demo`** in your browser.
+
+### Available Interactive Experiences
+
+| Demo | What you'll learn |
+|------|-------------------|
+| **HTMX Showcase** | Fragment rendering, live search, and backend-to-frontend events. |
+| **WebSockets Chat** | Real-time bidirectional communication and multi-channel rooms. |
+| **Background Tasks** | Queueing async logic with live progress bars and Redis fallback. |
+| **Stripe Payments** | Checkout session creation, billing portals, and webhook patterns. |
+| **Multi-Tenant Dashboard** | Fail-secure data isolation and tenant resolution strategies. |
+
+---
+
 ## 🚀 Quick Examples
 
 ### Authentication

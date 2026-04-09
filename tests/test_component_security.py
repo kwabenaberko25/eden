@@ -2,7 +2,7 @@ import hmac
 import hashlib
 import json
 import pytest
-from starlette.testclient import TestClient
+from httpx import AsyncClient, ASGITransport
 from eden.app import Eden
 from eden.components import Component, register, action
 

@@ -1,41 +1,41 @@
 @extends("base.html")
 
 @block("content") {
-<div class="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+<div class="page-container htmx-fade-in">
     <!-- Header Section -->
-    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-            <h1 class="text-3xl font-bold tracking-tight text-white font-display">{{ model_name_plural }}</h1>
-            <p class="text-stone-400 mt-1">Manage and audit {{ model_name_plural.lower() }} in the Elite ecosystem.</p>
+    <div class="page-header">
+        <div class="header-content">
+            <h1 class="page-title">{{ model_name_plural }}</h1>
+            <p class="page-subtitle">Manage and audit {{ model_name_plural.lower() }} in the Elite ecosystem.</p>
         </div>
-        <div class="flex items-center gap-3">
+        <div class="header-actions">
             @if(has_custom_config) {
-            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                <i class="fa-solid fa-wand-magic-sparkles text-[10px]"></i>
+            <span class="badge badge-warning">
+                <i class="fa-solid fa-wand-magic-sparkles"></i>
                 Dynamic Layout Active
             </span>
             }
-            <a href="/admin/{{ table_name }}/add" class="inline-flex items-center justify-center rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-black shadow-xl shadow-white/5 hover:bg-stone-200 transition-all active:scale-95 gap-2">
-                <i class="fa-solid fa-plus text-xs"></i>
+            <a href="/admin/{{ table_name }}/add" class="btn btn-primary">
+                <i class="fa-solid fa-plus"></i>
                 Add {{ model_name }}
             </a>
         </div>
     </div>
 
     <!-- Search & Filters -->
-    <div class="bg-stone-900/40 backdrop-blur-xl rounded-2xl p-4 shadow-2xl shadow-black/20">
-        <form method="GET" class="flex flex-col md:flex-row gap-4">
-            <div class="relative flex-1">
-                <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-stone-500 text-sm"></i>
+    <div class="toolbar card">
+        <form method="GET" class="search-form">
+            <div class="search-input-wrapper">
+                <i class="fa-solid fa-magnifying-glass search-icon-inner"></i>
                 <input type="text" name="q" value="{{ search }}" placeholder="Search {{ model_name_plural.lower() }}..." 
-                       class="w-full bg-black/40 border-0 rounded-xl py-3 pl-11 pr-4 text-sm text-white placeholder-stone-500 focus:ring-2 focus:ring-white/20 transition-all outline-none">
+                       class="search-input">
             </div>
-            <div class="flex items-center gap-2">
-                <button type="submit" class="px-5 py-3 rounded-xl bg-stone-800 text-white text-sm font-medium hover:bg-stone-700 transition-all active:scale-95">
+            <div class="form-actions">
+                <button type="submit" class="btn btn-secondary">
                     Filter
                 </button>
                 @if(search) {
-                <a href="/admin/{{ table_name }}/" class="px-4 py-3 rounded-xl bg-transparent text-stone-400 text-sm font-medium hover:text-white transition-all">
+                <a href="/admin/{{ table_name }}/" class="btn btn-ghost">
                     Reset
                 </a>
                 }
@@ -44,41 +44,41 @@
     </div>
 
     <!-- Table Section -->
-    <div class="bg-stone-900/40 backdrop-blur-xl rounded-2xl overflow-hidden shadow-2xl shadow-black/20">
-        <div class="overflow-x-auto">
-            <table class="w-full text-left border-collapse">
+    <div class="card table-card">
+        <div class="table-responsive">
+            <table class="table-premium">
                 <thead>
-                    <tr class="bg-white/5 border-b border-white/5">
-                        <th class="px-6 py-4 text-xs font-bold text-stone-400 uppercase tracking-wider">
-                            <input type="checkbox" class="rounded border-stone-700 bg-black/40 text-white focus:ring-white/20">
+                    <tr>
+                        <th class="table-header table-checkbox">
+                            <input type="checkbox" class="checkbox">
                         </th>
                         @for(col in columns) {
-                        <th class="px-6 py-4 text-xs font-bold text-stone-400 uppercase tracking-wider">{{ col.replace('_', ' ').title() }}</th>
+                        <th class="table-header">{{ col.replace('_', ' ').title() }}</th>
                         }
-                        <th class="px-6 py-4 text-xs font-bold text-stone-400 uppercase tracking-wider text-right">Actions</th>
+                        <th class="table-header text-right">Actions</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-white/5">
+                <tbody>
                     @for(record in records) {
-                    <tr class="hover:bg-white/[0.02] transition-colors group">
-                        <td class="px-6 py-4">
-                            <input type="checkbox" name="selected_ids" value="{{ record.id }}" class="rounded border-stone-700 bg-black/40 text-white focus:ring-white/20">
+                    <tr class="table-row">
+                        <td class="table-cell">
+                            <input type="checkbox" name="selected_ids" value="{{ record.id }}" class="checkbox">
                         </td>
                         @for(col in columns) {
-                        <td class="px-6 py-4 text-sm text-stone-300 font-medium">
-                            <span class="line-clamp-1">
+                        <td class="table-cell">
+                            <span class="text-truncate">
                                 {{ record[col] if record[col] is not none else '—' }}
                             </span>
                         </td>
                         }
-                        <td class="px-6 py-4 text-right">
-                            <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <a href="/admin/{{ table_name }}/{{ record.id }}/edit" class="p-2 rounded-lg hover:bg-white/10 text-stone-400 hover:text-white transition-all" title="Edit">
-                                    <i class="fa-solid fa-pen-to-square text-sm"></i>
+                        <td class="table-cell text-right">
+                            <div class="row-actions">
+                                <a href="/admin/{{ table_name }}/{{ record.id }}/edit" class="btn-icon" title="Edit">
+                                    <i class="fa-solid fa-pen-to-square"></i>
                                 </a>
                                 <form action="/admin/{{ table_name }}/{{ record.id }}/delete" method="POST" class="inline" onsubmit="return confirm('Archive this record?')">
-                                    <button type="submit" class="p-2 rounded-lg hover:bg-red-500/10 text-stone-400 hover:text-red-400 transition-all" title="Archive">
-                                        <i class="fa-solid fa-box-archive text-sm"></i>
+                                    <button type="submit" class="btn-icon btn-icon-danger" title="Archive">
+                                        <i class="fa-solid fa-box-archive"></i>
                                     </button>
                                 </form>
                             </div>
@@ -87,9 +87,9 @@
                     }
                     @if(!records) {
                     <tr>
-                        <td colspan="{{ columns|length + 2 }}" class="px-6 py-20 text-center text-stone-500">
-                            <i class="fa-solid fa-inbox text-4xl mb-4 block opacity-20"></i>
-                            <p class="text-sm">No {{ model_name_plural.lower() }} found matching your criteria.</p>
+                        <td colspan="{{ columns|length + 2 }}" class="table-empty-state">
+                            <i class="fa-solid fa-inbox empty-icon"></i>
+                            <p>No {{ model_name_plural.lower() }} found matching your criteria.</p>
                         </td>
                     </tr>
                     }
@@ -99,22 +99,22 @@
 
         <!-- Pagination -->
         @if(total_pages > 1) {
-        <div class="px-6 py-4 bg-white/5 flex items-center justify-between gap-4">
-            <span class="text-xs text-stone-500 font-medium">
-                Showing <span class="text-white">{{ records|length }}</span> of <span class="text-white">{{ total }}</span> results
+        <div class="pagination">
+            <span class="pagination-info">
+                Showing {{ records|length }} of {{ total }} results
             </span>
-            <div class="flex items-center gap-1">
+            <div class="pagination-controls">
                 @if(page > 1) {
-                <a href="?page={{ page - 1 }}&q={{ search }}" class="p-2 rounded-lg hover:bg-white/10 text-stone-400 hover:text-white transition-all">
-                    <i class="fa-solid fa-chevron-left text-xs"></i>
+                <a href="?page={{ page - 1 }}&q={{ search }}" class="btn-icon">
+                    <i class="fa-solid fa-chevron-left"></i>
                 </a>
                 }
-                <span class="px-3 py-1.5 rounded-lg bg-white/10 text-white text-xs font-bold mx-1">
+                <span class="pagination-current">
                     {{ page }}
                 </span>
                 @if(page < total_pages) {
-                <a href="?page={{ page + 1 }}&q={{ search }}" class="p-2 rounded-lg hover:bg-white/10 text-stone-400 hover:text-white transition-all">
-                    <i class="fa-solid fa-chevron-right text-xs"></i>
+                <a href="?page={{ page + 1 }}&q={{ search }}" class="btn-icon">
+                    <i class="fa-solid fa-chevron-right"></i>
                 </a>
                 }
             </div>

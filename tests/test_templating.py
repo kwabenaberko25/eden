@@ -80,7 +80,7 @@ def test_directives_preprocessing():
     assert '{{ eden_dump(user, "user") }}' in processed
     
     # Auth/Guest Check
-    assert "request.user.role in ['admin', 'editor']" in processed
+    assert "request.user.role in ('admin', 'editor')" in processed
     assert "{% if not (request.user and request.user.is_authenticated) %}" in processed
     
     assert "{% set x = 10 %}" in processed
@@ -253,7 +253,7 @@ def test_elseif_variants():
 def test_while_loop():
     source = "@while(count > 0) { {{ count }} @let count = count - 1 }"
     compiled = compile_template(source)
-    assert "{% for _ in range(2147483647) %}" in compiled
+    assert "{% for _ in range(__eden_max_loop_iterations__) %}" in compiled
     assert "{% if not (count > 0) %}" in compiled
     assert "{% break %}" in compiled
     assert "{{ count }}" in compiled

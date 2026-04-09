@@ -169,16 +169,18 @@ class TestTemplatingDirectives:
     
     def test_if_directive(self):
         """Test @if directive."""
-        template_str = "@if (True)\nYes\n@endif"
-        env = Environment(extensions=[EdenDirectivesExtension])
+        template_str = "@if (True) { Yes }"
+        env = Environment(extensions=[EdenDirectivesExtension, "jinja2.ext.loopcontrols"])
+        env.globals["__eden_max_loop_iterations__"] = 1000
         template = env.from_string(template_str)
         result = template.render()
         assert "Yes" in result
     
     def test_for_directive(self):
         """Test @for directive."""
-        template_str = "@for (item in items)\n{{ item }}\n@endfor"
-        env = Environment(extensions=[EdenDirectivesExtension])
+        template_str = "@for (item in items) { {{ item }} }"
+        env = Environment(extensions=[EdenDirectivesExtension, "jinja2.ext.loopcontrols"])
+        env.globals["__eden_max_loop_iterations__"] = 1000
         template = env.from_string(template_str)
         result = template.render(items=[1, 2, 3])
         assert "1" in result
@@ -187,8 +189,15 @@ class TestTemplatingDirectives:
     
     def test_switch_directive(self):
         """Test @switch/@case directive."""
-        template_str = "@switch (status)\n@case ('active')\nActive\n@break\n@default\nInactive\n@endswitch"
-        env = Environment(extensions=[EdenDirectivesExtension])
+        template_str = """
+        @switch (status) {
+            @case ('active') { Active }
+            @case ('inactive') { Inactive }
+            @default { Unknown }
+        }
+        """
+        env = Environment(extensions=[EdenDirectivesExtension, "jinja2.ext.loopcontrols"])
+        env.globals["__eden_max_loop_iterations__"] = 1000
         template = env.from_string(template_str)
         result = template.render(status="active")
         assert "Active" in result
@@ -196,7 +205,8 @@ class TestTemplatingDirectives:
     def test_let_directive(self):
         """Test @let directive."""
         template_str = "@let (name = 'World')\nHello {{ name }}!"
-        env = Environment(extensions=[EdenDirectivesExtension])
+        env = Environment(extensions=[EdenDirectivesExtension, "jinja2.ext.loopcontrols"])
+        env.globals["__eden_max_loop_iterations__"] = 1000
         template = env.from_string(template_str)
         result = template.render()
         assert "Hello World!" in result
@@ -244,7 +254,8 @@ class TestTemplatingErrorHandling:
     def test_undefined_variable_graceful_degradation(self):
         """Test graceful handling of undefined variables."""
         template_str = "Hello {{ missing_var }}!"
-        env = Environment(extensions=[EdenDirectivesExtension])
+        env = Environment(extensions=[EdenDirectivesExtension, "jinja2.ext.loopcontrols"])
+        env.globals["__eden_max_loop_iterations__"] = 1000
         template = env.from_string(template_str)
         # Should not raise, should return empty or placeholder
         result = template.render()
@@ -253,7 +264,8 @@ class TestTemplatingErrorHandling:
     def test_malformed_directive_handling(self):
         """Test handling of malformed directives."""
         template_str = "@if (True) Missing @endif"
-        env = Environment(extensions=[EdenDirectivesExtension])
+        env = Environment(extensions=[EdenDirectivesExtension, "jinja2.ext.loopcontrols"])
+        env.globals["__eden_max_loop_iterations__"] = 1000
         # Should handle gracefully or raise meaningful error
         try:
             template = env.from_string(template_str)
@@ -270,7 +282,8 @@ class TestTemplatingSecurityFeatures:
     def test_target_blank_noopener_injection(self):
         """Test automatic noopener injection for target="_blank"."""
         template_str = '<a href="https://example.com" target="_blank">Link</a>'
-        env = Environment(extensions=[EdenDirectivesExtension])
+        env = Environment(extensions=[EdenDirectivesExtension, "jinja2.ext.loopcontrols"])
+        env.globals["__eden_max_loop_iterations__"] = 1000
         template = env.from_string(template_str)
         result = template.render()
         # Should add noopener/noreferrer automatically
@@ -279,7 +292,8 @@ class TestTemplatingSecurityFeatures:
     def test_xss_protection(self):
         """Test XSS protection in templates."""
         template_str = "{{ content | safe }}"
-        env = Environment(extensions=[EdenDirectivesExtension])
+        env = Environment(extensions=[EdenDirectivesExtension, "jinja2.ext.loopcontrols"])
+        env.globals["__eden_max_loop_iterations__"] = 1000
         template = env.from_string(template_str)
         dangerous_content = "<script>alert('xss')</script>"
         result = template.render(content=dangerous_content)
@@ -312,7 +326,8 @@ class TestTemplatingExtensions:
     
     def test_eden_directives_extension_registered(self):
         """Test that EdenDirectivesExtension is properly registered."""
-        templates = EdenTemplates()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            templates = EdenTemplates(directory=tmpdir)
         assert EdenDirectivesExtension in templates.env.extensions.values() or \
                any('EdenDirectivesExtension' in str(e) for e in templates.env.extensions.values())
 

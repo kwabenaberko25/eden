@@ -4,6 +4,10 @@
 
 ---
 
+> [!TIP]
+> **🚀 Live Demo Available!**
+> You can see Multi-Tenancy isolation in action in the Eden Framework example application. Run `python app/support_app.py` and visit **`http://localhost:8001/demo/tenancy`** to explore the tenant-aware dashboard and isolation strategies.
+
 ## 🧠 Architectural Mental Model
 
 Multi-tenancy in Eden is designed around the **Request-Context-Isolation** loop. Every request is automatically scanned for a "Tenant Identifier," which is then injected into the framework's context to enforce strict data silos.

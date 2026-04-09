@@ -71,15 +71,16 @@ class LifecycleMixin:
         # Handle Auto-Slugging
         await self._auto_slugify()
 
-        # Ensure updated_at is set for updates (helps SQLAlchemy detect the change)
-        if not is_new and hasattr(self, 'updated_at'):
-            self.updated_at = get_utc_now()
-
         # Phase 2: Execution within Transaction Boundary
         # If commit=False, we use savepoint even if no session is provided, 
         # but db.transaction handles the details.
         
         async with db.transaction(session=session, commit=commit) as sess:
+            # Ensure updated_at is set for updates (helps SQLAlchemy detect the change)
+            # Must be done INSIDE transaction so session can detect the change
+            if not is_new and hasattr(self, 'updated_at'):
+                self.updated_at = get_utc_now()
+
             # 1. Trigger Signals & Hooks (Before)
             await pre_save.send(sender=self.__class__, instance=self, is_new=is_new, session=sess)
             if is_new:

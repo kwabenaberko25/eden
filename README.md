@@ -70,12 +70,26 @@ if __name__ == "__main__":
 Run your app:
 
 ```bash
-python app.py
+## 🚀 Interactive Demo Dashboard
+
+The best way to experience Eden is to see it in action. We've built a comprehensive interactive demo dashboard that showcases all major features.
+
+To run the demos locally:
+
+```bash
+python app/support_app.py
 ```
+
+Then visit **`http://localhost:8001/demo`** in your browser to explore:
+- **HTMX Showcase**: Live search and fragment rendering.
+- **WebSockets Chat**: Real-time multi-channel communication.
+- **Background Tasks**: Async task queue with live progress tracking.
+- **Stripe Payments**: Checkout and billing portal integration.
+- **Multi-Tenant Dashboard**: Tenant isolation and resolution strategies.
 
 ---
 
-## 📝 Modern Templating Syntax
+## 💎 Premium Design System
 
 Eden replaces the verbose Jinja2 tags with a clean, brace-based `@directive` syntax. It's fully line-preserving, ensuring that error traces point to the exact location in your original source.
 
@@ -384,7 +398,7 @@ my_project/
 - [x] **Eden CLI:** Scaffolding and automated migrations.
 - [x] **Real-time:** Native WebSocket support for reactive UIs and secure channel isolation.
 - [x] **Observability:** Unified Prometheus-compatible metrics engine.
-- [ ] **Native HTMX Integration:** Deeply integrated partial rendering and fragment control.
+- [x] **Native HTMX Integration:** Deeply integrated partial rendering and fragment control.
 
 ---
 

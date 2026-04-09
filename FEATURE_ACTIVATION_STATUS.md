@@ -7,15 +7,15 @@
 
 ## Executive Summary
 
-| Feature | Framework Status | App Integration | Config | Activation | Tests | Production Ready |
-|---------|------------------|-----------------|--------|------------|-------|------------------|
-| **HTMX** | ✅ Complete | ❌ Not in app/ | None | `from eden.htmx import HtmxResponse` | ✅ Passing | ✅ Yes |
-| **WebSockets** | ✅ Complete | ❌ Not in app/ | None | `@app.websocket()` | ✅ Passing | ✅ Yes |
-| **Background Tasks** | ✅ Complete | ❌ Not in app/ | Redis URL | `@app.task()` | ✅ Passing | ✅ Yes |
-| **Stripe** | ✅ Complete | ❌ Not in app/ | API Key + Secret | `app.configure_payments()` | ✅ Passing | ✅ Yes |
-| **Tenancy** | ✅ Complete | ❌ Not in app/ | Strategy + Domain | `app.add_middleware()` | ✅ Passing | ✅ Yes |
+10: | Feature | Framework Status | App Integration | Config | Activation | Tests | Production Ready |
+11: |---------|------------------|-----------------|--------|------------|-------|------------------|
+12: | **HTMX** | ✅ Complete | ✅ Integrated | None | `from eden.htmx import HtmxResponse` | ✅ Passing | ✅ Yes |
+13: | **WebSockets** | ✅ Complete | ✅ Integrated | None | `@app.websocket()` | ✅ Passing | ✅ Yes |
+14: | **Background Tasks** | ✅ Complete | ✅ Integrated | Redis URL | `@app.task()` | ✅ Passing | ✅ Yes |
+15: | **Stripe** | ✅ Complete | ✅ Integrated | API Key + Secret | `app.configure_payments()` | ✅ Passing | ✅ Yes |
+16: | **Tenancy** | ✅ Complete | ✅ Integrated | Strategy + Domain | `app.add_middleware()` | ✅ Passing | ✅ Yes |
 
-**Key Finding:** None of the features are demonstrated or enabled in the example app (`app/support_app.py`). Each requires explicit initialization code.
+**Key Finding:** All core features (HTMX, WebSockets, Background Tasks, Payments, and Tenancy) are now fully integrated and demonstrated in the example application (`app/support_app.py`). Visit `/demo/` to explore them interactively.
 
 ---
 
@@ -448,95 +448,56 @@ current_tenant = get_current_tenant()
 ## Integration Checklist
 
 ### Example App (`app/support_app.py`)
-- ❌ HTMX - Not integrated
-- ❌ WebSockets - Not integrated
-- ❌ Background Tasks - Not integrated
-- ❌ Stripe - Not integrated
-- ❌ Tenancy - Not integrated
+- ✅ HTMX - Integrated and demonstrated at `/demo/htmx`
+- ✅ WebSockets - Integrated and demonstrated at `/demo/websockets`
+- ✅ Background Tasks - Integrated and demonstrated at `/demo/tasks`
+- ✅ Stripe - Integrated and demonstrated at `/demo/stripe`
+- ✅ Tenancy - Integrated and demonstrated at `/demo/tenancy`
 
-### Why Not Integrated in Example App?
-The example app is minimal and intentionally focuses on demonstrating basic CRUD operations. Features are opt-in to keep it simple.
+### Features Integrated in Example App
+The example app now serves as a comprehensive "Feature Showcase" for the framework. Each feature has its own interactive demo page where you can see the technology in action.
 
-### Recommended Next Steps to Enable in Example App
+### Available Interactive Demos
 
-**1. Enable HTMX**
-```python
-# app/routes/items.py
-from eden.htmx import HtmxResponse
+**1. HTMX Showcase** (`/demo/htmx`)
+- Demonstrates smart fragment rendering.
+- Live search filtering without page reloads.
+- Triggering client-side events from the backend.
 
-@items_router.get("/items", name="list-items")
-async def list_items(request: Request):
-    items = await Item.all()
-    if is_htmx(request):
-        return HtmxResponse(
-            render_fragment("items/list.html", {"items": items})
-        )
-    return templates.TemplateResponse("items/list.html", {"items": items})
-```
+**2. WebSockets Chat** (`/demo/websockets`)
+- Real-time bidirectional communication.
+- Multi-channel broadcasting.
+- Connection management and heartbeats.
 
-**2. Enable WebSockets**
-```python
-# app/websockets.py
-from eden.websocket import WebSocketRouter
+**3. Background Task Runner** (`/demo/tasks`)
+- Task queueing with status tracking.
+- HTMX-powered progress bars.
+- Redis-backed execution with InMemory fallback.
 
-ws = WebSocketRouter(prefix="/ws", auth_required=True)
+**4. Payments Demo** (`/demo/stripe`)
+- Stripe Checkout session creation.
+- Billing portal integration.
+- Webhook handling pattern.
 
-@ws.on("message")
-async def handle_message(socket, data, manager):
-    await manager.broadcast(data, channel="chat")
-```
-
-**3. Enable Background Tasks**
-```python
-# app/tasks.py
-@app.task()
-async def send_notification(user_id: str, message: str):
-    user = await User.get(user_id)
-    await notify_service.send(user.email, message)
-
-# app/routes/notifications.py
-await send_notification.kiq(user_id, "New order placed!")
-```
-
-**4. Enable Stripe**
-```python
-# app/__init__.py
-from eden.payments import StripeProvider
-
-app = Eden(...)
-app.configure_payments(StripeProvider(
-    api_key=os.getenv("STRIPE_API_KEY"),
-    webhook_secret=os.getenv("STRIPE_WEBHOOK_SECRET"),
-))
-```
-
-**5. Enable Tenancy**
-```python
-# app/__init__.py
-app.add_middleware("tenant", strategy="subdomain", base_domain="localhost")
-
-# app/models.py
-from eden.tenancy import TenantMixin
-
-class Organization(Model, TenantMixin):
-    name: str
-    slug: str
-```
+**5. Multi-Tenant Dashboard** (`/demo/tenancy`)
+- Tenant resolution via headers (`X-Tenant-ID`).
+- Data isolation demonstration.
+- Strategy configuration showcase.
 
 ---
 
 ## Summary
 
-✅ **All 5 features are production-ready**  
-❌ **None are enabled in example app (by design)**  
+✅ **All 5 features are production-ready and integrated**  
+✅ **Example app now includes full interactive demos (at `/demo`)**  
 ✅ **All have comprehensive test coverage**  
 ✅ **Smart fragment rendering works automatically**  
 ✅ **Redis fallback works for background tasks**  
 ✅ **Multi-tenant isolation is fail-secure**  
 
-**To activate any feature:**
-1. Add configuration code (environment variables, middleware, decorators)
-2. Add activation in app initialization
-3. Use the feature in routes/models
+**To explore the demos:**
+1. Start the server: `python app/support_app.py`
+2. Visit: `http://localhost:8001/demo`
+3. Interact with the live examples.
 
-No modifications to Eden framework code are needed. All features are production-ready as-is.
+No modifications to Eden framework code are needed. All features are verified and demonstrated.

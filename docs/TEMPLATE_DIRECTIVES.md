@@ -21,25 +21,25 @@ Eden templates use `@directive(args)` syntax instead of `{{ ... }}`:
 
 ```html
 <!-- Conditional rendering -->
-@if(user.is_authenticated)
+@if(user.is_authenticated) {
   Welcome, {{ user.name }}!
-@endif
+}
 
 <!-- Loops -->
-@for(item in items)
+@for(item in items) {
   <li>{{ item.name }}</li>
-@endfor
+}
 
 <!-- Template inheritance -->
 @extends('layout.html')
-@section('content')
+@section('content') {
   Content here
-@endsection
+}
 
 <!-- Components -->
-@component('button', text='Click me')
+@component('button', text='Click me') {
   <i class="icon"></i>
-@endcomponent
+}
 ```
 
 ---
@@ -52,25 +52,25 @@ Conditional rendering. Use with any expression.
 
 ```html
 <!-- Basic if -->
-@if(age >= 18)
+@if(age >= 18) {
   You are an adult
-@endif
+}
 
 <!-- if-else -->
-@if(status == 'pending')
+@if(status == 'pending') {
   Pending approval
-@else
+} @else {
   Approved
-@endif
+}
 
 <!-- Multiple conditions -->
-@if(user.is_admin)
+@if(user.is_admin) {
   Admin panel
-@elseif(user.is_moderator)
+} @elseif(user.is_moderator) {
   Moderator tools
-@else
+} @else {
   User view
-@endif
+}
 ```
 
 **Aliases:**
@@ -83,14 +83,14 @@ Conditional rendering. Use with any expression.
 Inverted if (renders when condition is FALSE).
 
 ```html
-@unless(user.is_banned)
+@unless(user.is_banned) {
   <p>Welcome!</p>
-@endunless
+}
 
 <!-- Equivalent to: -->
-@if(not user.is_banned)
+@if(not user.is_banned) {
   <p>Welcome!</p>
-@endif
+}
 ```
 
 ---
@@ -100,14 +100,17 @@ Inverted if (renders when condition is FALSE).
 Pattern matching.
 
 ```html
-@switch(user.role)
-  @case('admin')
+@switch(user.role) {
+  @case('admin') {
     Admin controls
-  @case('moderator')
+  }
+  @case('moderator') {
     Moderation tools
-  @default
+  }
+  @default {
     Standard user view
-@endswitch
+  }
+}
 ```
 
 ---
@@ -120,24 +123,24 @@ Iterate over a collection. Supports `loop` context variable.
 
 ```html
 <!-- Basic loop -->
-@for(item in items)
+@for(item in items) {
   <div>{{ item.name }}</div>
-@endfor
+}
 
 <!-- With loop context -->
-@for(item in items)
+@for(item in items) {
   <li class="item-{{ loop.index }}">
     {{ item.name }}
-    @if(loop.first)
+    @if(loop.first) {
       <em>(First item)</em>
-    @endif
+    }
   </li>
-@endfor
+}
 
 <!-- Alias: foreach -->
-@foreach(user in users)
+@foreach(user in users) {
   {{ user.name }}
-@endforeach
+}
 ```
 
 **Loop Context Variables:**
@@ -161,11 +164,11 @@ Iterate over a collection. Supports `loop` context variable.
 Fallback content when loop is empty (Blade-style).
 
 ```html
-@for(item in items)
+@for(item in items) {
   <div>{{ item.name }}</div>
-@empty
+} @empty {
   <p>No items found</p>
-@endfor
+}
 ```
 
 ---
@@ -175,10 +178,10 @@ Fallback content when loop is empty (Blade-style).
 Loop while condition is true. Implemented as `for` with break.
 
 ```html
-@while(count > 0)
+@while(count > 0) {
   <p>{{ count }}</p>
   @let count = count - 1
-@endwhile
+}
 ```
 
 **Safety:**
@@ -192,16 +195,16 @@ Loop while condition is true. Implemented as `for` with break.
 Render hierarchical (tree) structures recursively.
 
 ```html
-@recursive(menu in menus)
+@recursive(menu in menus) {
   <li>
     {{ menu.name }}
-    @if(menu.children)
+    @if(menu.children) {
       <ul>
         @child(menu.children)
       </ul>
-    @endif
+    }
   </li>
-@endrecursive
+}
 ```
 
 **Within @recursive:**
@@ -218,19 +221,19 @@ Render hierarchical (tree) structures recursively.
 Exit loop immediately.
 
 ```html
-@for(item in items)
-  @if(item.id == target_id)
+@for(item in items) {
+  @if(item.id == target_id) {
     Found it! Breaking...
     @break
-  @endif
-@endfor
+  }
+}
 
 <!-- Conditional break -->
-@for(i in range(100))
-  @if(i == 50)
+@for(i in range(100)) {
+  @if(i == 50) {
     @break
-  @endif
-@endfor
+  }
+}
 ```
 
 ---
@@ -240,20 +243,20 @@ Exit loop immediately.
 Skip to next iteration.
 
 ```html
-@for(item in items)
-  @if(item.hidden)
+@for(item in items) {
+  @if(item.hidden) {
     @continue
-  @endif
+  }
   <div>{{ item.name }}</div>
-@endfor
+}
 
 <!-- Conditional continue -->
-@for(i in range(10))
-  @if(i % 2 == 0)
+@for(i in range(10)) {
+  @if(i % 2 == 0) {
     @continue
-  @endif
+  }
   <span>Odd: {{ i }}</span>
-@endfor
+}
 ```
 
 ---
@@ -265,29 +268,29 @@ Skip to next iteration.
 Render content based on loop position.
 
 ```html
-@for(item in items)
-  <tr class="@if(loop.even) even @else odd @endif">
+@for(item in items) {
+  <tr class="@if(loop.even) { even } @else { odd }">
     <td>{{ item.name }}</td>
   </tr>
-@endfor
+}
 
 <!-- Simplified -->
-@for(item in items)
-  <tr class="@even even @endevenborder @odd odd @endodd">
+@for(item in items) {
+  <tr class="@even { even } @odd { odd }">
     <td>{{ item.name }}</td>
   </tr>
-@endfor
+}
 
 <!-- First/last items -->
-@for(item in items)
-  @first
+@for(item in items) {
+  @first {
     <h2>First: {{ item.name }}</h2>
-  @endfirst
+  }
   
-  @last
+  @last {
     <h2>Last: {{ item.name }}</h2>
-  @endlast
-@endfor
+  }
+}
 ```
 
 ---
@@ -312,15 +315,15 @@ Define named blocks for content injection.
 
 ```html
 <!-- In layout.html -->
-@section('header')
+@section('header') {
   <header>Default header</header>
-@endsection
+}
 
 <!-- In child template -->
 @extends('layout.html')
-@section('header')
+@section('header') {
   <header>Custom header</header>
-@endsection
+}
 ```
 
 **Alias:** `@block` (same as `@section`)
@@ -338,9 +341,9 @@ Define a placeholder block.
 </div>
 
 <!-- In child template -->
-@section('content')
+@section('content') {
   <p>Page content</p>
-@endsection
+}
 ```
 
 ---
@@ -380,13 +383,13 @@ Conditional includes.
 Define a named fragment for HTMX partial rendering.
 
 ```html
-@fragment('user-list')
+@fragment('user-list') {
   <ul id="user-list">
-    @for(user in users)
+    @for(user in users) {
       <li>{{ user.name }}</li>
-    @endfor
+    }
   </ul>
-@endfragment
+}
 ```
 
 **Smart Fragment Rendering:** When HTMX targets a fragment ID, only that block is rendered, not the entire page. Greatly improves performance for dynamic updates.
@@ -399,20 +402,20 @@ Define reusable components with named slots.
 
 ```html
 <!-- components/badge.html -->
-@component('badge')
-  @slot('content')
+@component('badge') {
+  @slot('content') {
     Default badge text
-  @endslot
+  }
   
-  @slot('icon')
+  @slot('icon') {
     📌
-  @endslot
-@endcomponent
+  }
+}
 
 <!-- Usage -->
-@component('badge')
+@component('badge') {
   <span>Premium Member</span>
-@endcomponent
+}
 ```
 
 ---
@@ -431,7 +434,7 @@ Declare component properties (metadata).
     type="{{ type }}" 
     name="{{ name }}" 
     id="{{ name }}"
-    @if(required) required @endif
+    @if(required) { required }
   />
 </div>
 ```
@@ -453,19 +456,19 @@ Accumulate content in stacks (useful for scripts, styles).
 </body>
 
 <!-- In child template -->
-@push('scripts')
+@push('scripts') {
   <script src="/js/page-specific.js"></script>
-@endpush
+}
 
 <!-- Only push once per request, even if included multiple times -->
-@pushOnce('scripts')
+@pushOnce('scripts') {
   <script>console.log("Once");</script>
-@endpushonce
+}
 
 <!-- Prepend to stack (goes first) -->
-@prepend('scripts')
+@prepend('scripts') {
   <script>console.log("First");</script>
-@endprepend
+}
 ```
 
 ---
@@ -477,12 +480,12 @@ Accumulate content in stacks (useful for scripts, styles).
 Render a form tag with automatic CSRF protection.
 
 ```html
-@form(method='POST', action='/users')
+@form(method='POST', action='/users') {
   <!-- CSRF token automatically injected for POST forms -->
   
   <input type="text" name="username" />
   <button type="submit">Create</button>
-@endform
+}
 ```
 
 ---
@@ -533,9 +536,9 @@ Render a form field with validation errors.
 Display validation errors.
 
 ```html
-@error('email')
+@error('email') {
   <span class="text-red-500">{{ error }}</span>
-@enderror
+}
 ```
 
 ---
@@ -576,19 +579,19 @@ Hidden method override for HTTP verb tunneling.
 Render content only if user is authenticated.
 
 ```html
-@auth
+@auth {
   <p>Welcome, {{ request.user.name }}!</p>
-@endauth
+}
 
 <!-- Check specific role -->
-@auth('admin')
+@auth('admin') {
   Admin controls visible
-@endauth
+}
 
 <!-- Check multiple roles -->
-@auth('admin', 'moderator')
+@auth('admin', 'moderator') {
   Staff controls
-@endauth
+}
 ```
 
 ---
@@ -598,9 +601,9 @@ Render content only if user is authenticated.
 Render content only if user is NOT authenticated.
 
 ```html
-@guest
+@guest {
   <p><a href="/login">Login</a></p>
-@endguest
+}
 ```
 
 ---
@@ -610,18 +613,18 @@ Render content only if user is NOT authenticated.
 Permission-based rendering.
 
 ```html
-@can('edit_post')
+@can('edit_post') {
   <a href="/posts/{{ post.id }}/edit">Edit</a>
-@endcan
+}
 
-@cannot('delete_post')
+@cannot('delete_post') {
   <p>You don't have permission to delete</p>
-@endcannot
+}
 
 <!-- Alias: @permission -->
-@permission('publish_post')
+@permission('publish_post') {
   <button>Publish</button>
-@endpermission
+}
 ```
 
 ---
@@ -631,13 +634,13 @@ Permission-based rendering.
 Check user role.
 
 ```html
-@role('admin')
+@role('admin') {
   Administrator view
-@endrole
+}
 
-@role('admin', 'moderator')
+@role('admin', 'moderator') {
   Staff view
-@endrole
+}
 ```
 
 ---
@@ -647,16 +650,16 @@ Check user role.
 Admin-only content (convenience shorthand for `@role('admin')`).
 
 ```html
-@admin
+@admin {
   <a href="/admin">Admin Panel</a>
   <button>Admin Settings</button>
-@endadmin
+}
 
 <!-- Equivalent to: -->
-@role('admin')
+@role('admin') {
   <a href="/admin">Admin Panel</a>
   <button>Admin Settings</button>
-@endrole
+}
 ```
 
 Perfect for protecting admin-only UI elements and links.
@@ -791,10 +794,10 @@ Form field conditionals.
 Prevent directive parsing (useful for nested templating).
 
 ```html
-@verbatim
-  This @if(condition) will not be parsed
+@verbatim {
+  This @if(condition) { ... } will not be parsed
   It's treated as literal text
-@endverbatim
+}
 ```
 
 ---

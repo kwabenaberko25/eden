@@ -332,6 +332,13 @@ class AdminSite:
         async def login_view(request) -> Any:
             return await admin_login(request, site_instance)
 
+        @router.get("/static/{path:path}", name="admin_static")
+        async def admin_static(request, path: str) -> Any:
+            from starlette.staticfiles import StaticFiles
+            static_app = StaticFiles(directory=os.path.join(os.path.dirname(__file__), "static"))
+            # Delegate to Starlette StaticFiles app
+            return await static_app(request.scope, request.receive, request._send)
+
         @router.get("/", name="admin_dashboard")
         @admin_required
         async def dashboard(request) -> Any:
