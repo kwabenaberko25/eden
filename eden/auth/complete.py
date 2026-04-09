@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Eden Authentication System — Complete Implementation (Legacy Wrapper)
 
@@ -12,7 +13,6 @@ Unified locations:
 - Decorators -> eden.auth.decorators
 """
 
-from __future__ import annotations
 
 import logging
 import warnings

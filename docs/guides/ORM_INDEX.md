@@ -58,7 +58,7 @@ Ensuring data consistency and handling concurrent access.
 - Read-only transactions
 - Savepoints and rollbacks
 
-### **[Migrations](orm-migrations.md)**
+### **[Migrations](orm-orm-migrations.md)**
 Managing database schema changes over time.
 - Creating migrations
 - Running migrations

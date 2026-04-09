@@ -1,6 +1,6 @@
+from __future__ import annotations
 """Layout building for forms."""
 
-from __future__ import annotations
 
 from dataclasses import dataclass, field as dataclass_field
 from typing import Any

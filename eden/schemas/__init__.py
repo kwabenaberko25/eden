@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Eden Schemas - Type-safe form schemas with async validation.
 
@@ -5,7 +6,6 @@ Provides Pydantic-based schemas that auto-generate from Eden models,
 with async validation, nested relationships, and API documentation.
 """
 
-from __future__ import annotations
 
 import uuid
 from datetime import datetime, date, time

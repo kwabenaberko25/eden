@@ -1,8 +1,8 @@
+from __future__ import annotations
 """
 Eden Doctor — Diagnostic utility for identifying environment and project issues.
 """
 
-from __future__ import annotations
 
 import os
 import sys

@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Eden — Database Pagination
 
@@ -9,7 +10,6 @@ Usage:
     # users.links contains: {"self": "/users?page=1&per_page=10", "next": "/users?page=2&...", ...}
 """
 
-from __future__ import annotations
 
 import math
 from collections.abc import Sequence

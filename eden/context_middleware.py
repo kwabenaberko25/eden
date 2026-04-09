@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Eden — Context Middleware (Layer 2)
 
@@ -26,7 +27,6 @@ Important:
 - Does NOT require manual setup by developers
 """
 
-from __future__ import annotations
 
 import logging
 from typing import Callable, TYPE_CHECKING

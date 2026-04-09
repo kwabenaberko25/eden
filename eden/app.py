@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Eden — Application
 
@@ -6,7 +7,6 @@ Combines routing, middleware, dependency injection, exception handling,
 and lifespan management into a clean, decorator-driven API.
 """
 
-from __future__ import annotations
 
 import inspect
 import os
@@ -94,6 +94,7 @@ class Eden:
         static_url: str = "/static",
         templates_dir: str = "templates",
         browser_reload: bool = True,
+        admin_enabled: bool = True,
     ) -> None:
         from eden.context import set_app
         set_app(self)
@@ -146,6 +147,7 @@ class Eden:
         self._apply_config()
         
         self.browser_reload = self.config.browser_reload
+        self.admin_enabled = admin_enabled
         self.template_dir = templates_dir
         self.media_dir = "media"
         self.static_dir = static_dir
@@ -400,7 +402,7 @@ class Eden:
             results: dict[str, Any] = {}
             for name, check_fn in checks:
                 try:
-                    if asyncio.iscoroutinefunction(check_fn):
+                    if inspect.iscoroutinefunction(check_fn):
                         result = await check_fn()
                     else:
                         result = check_fn()
@@ -1063,6 +1065,16 @@ class Eden:
                 return self._app
 
             self.setup_defaults()
+
+            # ── Automatic Admin Mounting ───────────────────────────────
+            if self.admin_enabled:
+                has_admin = any(
+                    getattr(r, "path", "").startswith("/admin") 
+                    for r in self._router.routes
+                )
+                if not has_admin:
+                    self.mount_admin("/admin")
+
             starlette_routes = self._router.to_starlette_routes()
             self._build_websockets(starlette_routes)
             

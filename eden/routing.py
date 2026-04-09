@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Eden — Routing
 
@@ -5,7 +6,6 @@ Decorator-based router with path parameters, method filtering,
 prefix-based grouping, and sub-router composition.
 """
 
-from __future__ import annotations
 
 import inspect
 import re

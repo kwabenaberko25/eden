@@ -1,3 +1,4 @@
+            # If hint is still a string (due to from __future__ import annotations),
 import re
 from typing import Any, Dict, List, Optional, Type, Union, get_type_hints, Annotated, get_origin, get_args
 from datetime import datetime, date
@@ -359,7 +360,6 @@ class SchemaInferenceEngine:
             ):
                 continue
 
-            # If hint is still a string (due to from __future__ import annotations),
             # we might need to eval it if we really need the MetadataTokens.
             if isinstance(attr_hint, str):
                 try:

@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Eden — Tenant Mixin
 
@@ -5,7 +6,6 @@ Add to any Model to scope it to the current tenant.
 Automatically filters queries and sets tenant_id on create.
 """
 
-from __future__ import annotations
 
 import uuid
 from typing import Any

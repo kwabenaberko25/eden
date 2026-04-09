@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Eden — Redis Cache Backend
 
@@ -11,7 +12,6 @@ Usage:
     value = await cache.get("key")
 """
 
-from __future__ import annotations
 
 import json
 import asyncio

@@ -1,6 +1,6 @@
+from __future__ import annotations
 """Form widgets for rendering input elements."""
 
-from __future__ import annotations
 
 from typing import Any
 from html import escape

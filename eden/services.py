@@ -1,8 +1,8 @@
+from __future__ import annotations
 """
 Eden — Business Logic Services
 """
 
-from __future__ import annotations
 
 from typing import Any, TypeVar, Generic, Optional, TYPE_CHECKING # Added TYPE_CHECKING
 if TYPE_CHECKING:

@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Eden Error Handling — Standardized Response Format
 
@@ -30,7 +31,6 @@ Usage:
         return error_handler(exc)
 """
 
-from __future__ import annotations
 
 import logging
 from typing import Optional, Dict, Any
@@ -93,7 +93,7 @@ class ErrorInfo:
     message: str
     status: int
     path: Optional[str] = None
-    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat() + "Z")
+    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None).isoformat() + "Z")
     details: Dict[str, Any] = field(default_factory=dict)
     validation_errors: list[ErrorDetail] = field(default_factory=list)
     

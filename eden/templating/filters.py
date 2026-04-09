@@ -1,5 +1,5 @@
-
 from __future__ import annotations
+
 import datetime
 import re
 import json as _json
@@ -158,7 +158,30 @@ def format_number(value: Any) -> str:
         return str(value)
 
 def mask_filter(value: Any, visible: int = 1) -> str:
-    """Mask a string, showing last 'visible' characters."""
+    """Mask a string, showing first and last 'visible' characters.
+    
+    For non-email strings:
+    - If the string is too short to show both first and last (len <= visible * 2),
+      the entire string is masked.
+    - Otherwise, the first `visible` and last `visible` characters are shown,
+      with the middle replaced by asterisks.
+    
+    For email strings:
+    - Shows the first `visible` characters of the local part, masks the rest,
+      and preserves the domain.
+    
+    Args:
+        value: The value to mask (converted to string).
+        visible: Number of characters to show at each end (default: 1).
+    
+    Returns:
+        The masked string.
+    
+    Examples:
+        >>> mask_filter("secret123")       # "s*******3"
+        >>> mask_filter("ab")              # "**"
+        >>> mask_filter("user@example.com") # "u***@example.com"
+    """
     s = str(value)
     if not s:
         return ""
@@ -168,10 +191,12 @@ def mask_filter(value: Any, visible: int = 1) -> str:
         visible_local = local[:visible]
         return f"{visible_local}***@{domain}"
     
-    if len(s) <= visible:
+    # Too short to show first+last — fully mask
+    if len(s) <= visible * 2:
         return "*" * len(s)
     
-    return "*" * (len(s) - visible) + s[-visible:]
+    # Show first `visible` and last `visible`, mask the middle
+    return s[:visible] + "*" * (len(s) - visible * 2) + s[-visible:]
 
 def file_size_filter(value: Any) -> str:
     """Format a byte count as a human-readable file size."""

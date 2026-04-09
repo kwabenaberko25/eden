@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Eden — Startup Diagnostics
 
@@ -20,7 +21,6 @@ Output:
     ─── 0 failed, 1 degraded subsystem(s). Review configuration. ───
 """
 
-from __future__ import annotations
 
 import logging
 from typing import Any, Literal

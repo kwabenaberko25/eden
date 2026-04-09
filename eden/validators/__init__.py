@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Eden Validator Library - Structured validation rules with error messaging.
 
@@ -6,7 +7,6 @@ validator system that composes validation rules with context-aware
 error messages, chainable validators, and support for custom rules.
 """
 
-from __future__ import annotations
 
 import importlib.util
 import pathlib

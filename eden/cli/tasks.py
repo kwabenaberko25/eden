@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Eden — Task Queue Management CLI
 
@@ -13,7 +14,6 @@ Usage::
     eden tasks retry <task_id>     # Manually retry a failed task
 """
 
-from __future__ import annotations
 
 import importlib
 import asyncio

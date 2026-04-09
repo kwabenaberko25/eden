@@ -1,6 +1,6 @@
+from __future__ import annotations
 """Composite validators for combining multiple validators."""
 
-from __future__ import annotations
 
 from typing import Any
 

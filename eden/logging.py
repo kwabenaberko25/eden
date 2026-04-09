@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Eden — Structured Logging
 
@@ -6,7 +7,6 @@ configurable JSON or human-readable output, and a request
 logging middleware for automatic access log generation.
 """
 
-from __future__ import annotations
 
 import logging
 import sys

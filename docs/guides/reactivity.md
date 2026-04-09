@@ -103,4 +103,4 @@ async def approve_project(id: int):
 
 ---
 
-**Next Steps**: [Multi-Tenancy Guide](tenancy.md) | [HTMX Deep Dive](htmx.md)
+**Next Steps**: [Multi-Tenancy Guide](tenancy-postgres.md) | [HTMX Deep Dive](htmx.md)

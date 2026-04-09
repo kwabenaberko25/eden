@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Eden — Exception Classes & Error Handler System
 
@@ -8,7 +9,6 @@ Structured error handling with:
 - Chainable error handlers for customization
 """
 
-from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod

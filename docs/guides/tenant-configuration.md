@@ -663,6 +663,6 @@ finally:
 ## Next Steps
 
 - [Tenant Schema Switching](tenancy-postgres.md) - PostgreSQL isolation
-- [Tenancy Fundamentals](tenancy.md) - Row-level isolation
+- [Tenancy Fundamentals](tenancy-postgres.md) - Row-level isolation
 - [Security & Multi-Tenancy](security.md#multi-tenancy-security) - Secure tenant access
 - [Billing & Payments](../guides/payments.md) - Stripe integration

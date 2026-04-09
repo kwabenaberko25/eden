@@ -147,4 +147,4 @@ oauth.register_google(
 
 ---
 
-**Next Steps**: [Multi-Tenacy & SaaS Architecture](tenancy.md)
+**Next Steps**: [Multi-Tenacy & SaaS Architecture](tenancy-postgres.md)

@@ -1,6 +1,6 @@
+from __future__ import annotations
 """Field type converters for form building."""
 
-from __future__ import annotations
 
 from typing import Any
 

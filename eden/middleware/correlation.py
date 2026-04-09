@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Eden — Request Correlation ID Middleware
 
@@ -5,7 +6,6 @@ Generates or propagates a unique correlation ID for every request/connection,
 enabling unified logging across distributed worker systems.
 """
 
-from __future__ import annotations
 
 import uuid
 from typing import Any, Optional, TYPE_CHECKING

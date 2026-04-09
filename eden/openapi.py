@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Eden — OpenAPI Documentation Generator
 
@@ -5,7 +6,6 @@ Auto-generates an OpenAPI 3.1 spec from the app's registered routes,
 and serves a Swagger UI at /docs.
 """
 
-from __future__ import annotations
 
 import inspect
 import re

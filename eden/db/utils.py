@@ -18,7 +18,7 @@ def get_utc_now() -> datetime:
     Returns:
         datetime: Current UTC time without tzinfo
     """
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    return datetime.now(timezone.utc).replace(tzinfo=None).replace(tzinfo=None)
 
 
 def renumber_sql_params(sql: str, offset: int = 0) -> str:

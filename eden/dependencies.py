@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Eden — Dependency Injection
 
@@ -14,7 +15,6 @@ FastAPI-style dependency injection with support for:
 - Proper async generator cleanup with __aexit__ support
 """
 
-from __future__ import annotations
 
 import contextlib
 import functools

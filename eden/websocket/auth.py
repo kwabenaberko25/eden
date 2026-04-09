@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Eden — WebSocket Authentication
 
@@ -5,7 +6,6 @@ Provides utilities for secure WebSocket connections, including token and
 cookie-based authentication.
 """
 
-from __future__ import annotations
 
 import json
 from dataclasses import dataclass, asdict

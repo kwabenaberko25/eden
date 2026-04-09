@@ -1,8 +1,8 @@
+from __future__ import annotations
 """
 Eden — Tenant Management CLI Commands
 """
 
-from __future__ import annotations
 
 import asyncio
 import sys

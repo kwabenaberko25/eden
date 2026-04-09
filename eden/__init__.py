@@ -123,6 +123,8 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     "Schema": ("eden.forms", "Schema"),
     "v": ("eden.forms", "v"),
     "field": ("eden.forms", "field"),
+    "EmailStr": ("eden.forms", "EmailStr"),
+    "AnyUrl": ("eden.forms", "AnyUrl"),
     "validate_email": ("eden.validators", "validate_email"),
     "validate_phone": ("eden.validators", "validate_phone"),
     "validate_password": ("eden.validators", "validate_password"),

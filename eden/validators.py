@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Eden — Validators
 
@@ -21,7 +22,6 @@ Usage (Pydantic field):
         location: GPSCoordinate
 """
 
-from __future__ import annotations
 
 import ipaddress
 import re

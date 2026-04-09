@@ -4,7 +4,7 @@ from typing import Any, Optional
 from jinja2 import Undefined
 from jinja2.sandbox import SandboxedEnvironment
 from markupsafe import Markup
-from starlette.templating import Jinja2Templates as StarletteJinja2Templates
+from starlette.templating import Jinja2Templates as StarletteJinja2Templates, _TemplateResponse
 from .extensions import EdenDirectivesExtension
 from .lexer import TokenType
 
@@ -174,6 +174,39 @@ def render_fragment(
     return Markup("".join(block_gen))
 
 
+    return Markup("".join(block_gen))
+
+
+class EdenTemplateResponse(_TemplateResponse):
+    """
+    Custom TemplateResponse that handles lazy stack replacement.
+    
+    This is necessary because @stack directives in the <head> may be rendered
+    before @push directives in the <body> have had a chance to execute.
+    By using placeholders and a post-render replacement, we ensure all pushed
+    content is correctly captured in all stacks regardless of render order.
+    """
+    def render(self, *args, **kwargs) -> bytes:
+        body = super().render(*args, **kwargs)
+        
+        # If we have a request context with eden_stacks, perform replacement
+        request = self.context.get("request")
+        if request and hasattr(request.state, "eden_stacks") and request.state.eden_stacks:
+            content = body.decode()
+            modified = False
+            
+            for name, stack in request.state.eden_stacks.items():
+                placeholder = f"[[EDEN_STACK:{name}]]"
+                if placeholder in content:
+                    content = content.replace(placeholder, "\n".join(stack))
+                    modified = True
+            
+            if modified:
+                return content.encode()
+        
+        return body
+
+
 class EdenTemplates(StarletteJinja2Templates):
     """
     Jinja2 templates with Eden logic.
@@ -235,8 +268,14 @@ class EdenTemplates(StarletteJinja2Templates):
                     )
                     pass
 
-        # Fallback to standard full template response
-        return super().TemplateResponse(request, name, context, *args, **kwargs)
+        # Fallback to custom EdenTemplateResponse for lazy stack replacement
+        template = self.get_template(name)
+        return EdenTemplateResponse(
+            template,
+            context,
+            *args,
+            **kwargs,
+        )
 
     # Legacy/Compatibility alias
     template_response = TemplateResponse
@@ -497,20 +536,22 @@ class EdenTemplates(StarletteJinja2Templates):
     def _csrf_helper(self) -> Markup:
         """Render a hidden CSRF token input field."""
         from eden.context import get_request
+        from eden.middleware import get_csrf_token
 
         request = get_request()
         token = ""
-        if request and hasattr(request, "scope"):
-            token = getattr(request.state, "csrf_token", "")
-        return Markup(f'<input type="hidden" name="_token" value="{token}">')
+        if request:
+            token = get_csrf_token(request)
+        return Markup(f'<input type="hidden" name="csrf_token" value="{token}">')
 
     def _csrf_token_helper(self) -> str:
         """Render the raw CSRF token."""
         from eden.context import get_request
+        from eden.middleware import get_csrf_token
 
         request = get_request()
-        if request and hasattr(request, "state"):
-            return getattr(request.state, "csrf_token", "")
+        if request:
+            return get_csrf_token(request)
         return ""
 
     def _dump_helper(self, value: Any, label: str = "") -> Markup:
@@ -562,15 +603,14 @@ class EdenTemplates(StarletteJinja2Templates):
                 request.state.eden_seen_pushes.add(name)
         return ""
 
-    def _stack_helper(self, name: str) -> Markup:
-        """Helper for @stack directive."""
-        from eden.context import get_request
-
-        request = get_request()
-        if request and hasattr(request.state, "eden_stacks"):
-            stack = request.state.eden_stacks.get(name, [])
-            return Markup("\n".join(stack))
-        return Markup("")
+    def _stack_helper(self, name: str) -> str:
+        """
+        Helper for @stack directive.
+        
+        Returns a placeholder that will be replaced in EdenTemplateResponse 
+        after the full template execution is complete.
+        """
+        return f"[[EDEN_STACK:{name}]]"
 
     def _dependency_helper(self, alias: str) -> Any:
         """

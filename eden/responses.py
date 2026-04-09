@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Eden — Response Classes
 
@@ -5,7 +6,6 @@ JSON, HTML, Redirect, and File responses with auto-serialization
 of Pydantic models and dictionaries.
 """
 
-from __future__ import annotations
 
 from typing import Any
 from urllib.parse import urlparse

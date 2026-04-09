@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Template Directives Registry for Eden Framework.
 
@@ -5,7 +6,6 @@ This module provides a decoupled registry of all template directives (@if, @fore
 making the compiler pluggable and reducing the complexity of the visit_directive method.
 """
 
-from __future__ import annotations
 import typing
 
 if typing.TYPE_CHECKING:
@@ -308,7 +308,7 @@ def render_for(compiler: "TemplateCompiler", node: "DirectiveNode", expr: str) -
     res = [
         f"{{% for {inner} %}}"
         f"{{% if loop.index0 >= __eden_max_loop_iterations__ %}}"
-        f"<!-- EDEN: Loop iteration limit exceeded -->{{% break %}}"
+        f"<!-- EDEN: Loop iteration limit ({{{{ __eden_max_loop_iterations__ }}}}) exceeded -->{{% break %}}"
         f"{{% endif %}}"
         + body_compiled
     ]

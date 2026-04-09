@@ -1,6 +1,6 @@
+from __future__ import annotations
 """Form factory and builder for creating forms programmatically."""
 
-from __future__ import annotations
 
 from typing import Any, Callable, Generic, Type, TypeVar
 

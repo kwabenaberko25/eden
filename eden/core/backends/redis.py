@@ -1,8 +1,9 @@
+from __future__ import annotations
+import inspect
 """
 Eden — Redis Distributed Backend
 """
 
-from __future__ import annotations
 
 import asyncio
 import json
@@ -183,7 +184,7 @@ class RedisBackend(DistributedBackend):
                     callbacks = self._subscriptions.get(channel, set())
                     for cb in callbacks:
                         try:
-                            if asyncio.iscoroutinefunction(cb):
+                            if inspect.iscoroutinefunction(cb):
                                 await cb(data)
                             else:
                                 cb(data)

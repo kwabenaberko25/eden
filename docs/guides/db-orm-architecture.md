@@ -468,7 +468,7 @@ class Post(Model):
 
 ## See Also
 
-- [Migration Guide](./migrations.md)
-- [Validation Guide](./validation.md)
+- [Migration Guide](./orm-migrations.md)
+- [Validation Guide](./forms.md)
 - [Multi-Tenancy Guide](./multi-tenancy-masterclass.md)
 - [Query Reference](./orm-querying.md)

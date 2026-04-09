@@ -1,0 +1,22 @@
+
+@extends('base.html')
+
+@section('content') {
+    @push('styles') {
+        <link rel="stylesheet" href="style.css">
+    }
+
+    @prepend('styles') {
+        <link rel="stylesheet" href="reset.css">
+    }
+
+    <h1>Hello World</h1>
+
+    @push('scripts') {
+        <script src="app.js"></script>
+    }
+
+    @prepend('scripts') {
+        <script src="jquery.js"></script>
+    }
+}

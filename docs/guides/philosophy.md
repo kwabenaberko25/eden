@@ -60,4 +60,4 @@ If you don't need a specific feature (like Tenancy), you don't use it. Eden is a
 
 ---
 
-**Next: [The Multi-Tenancy Master Class](multi-tenancy.md) →**
+**Next: [The Multi-Tenancy Master Class](multi-tenancy-postgres.md) →**

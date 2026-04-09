@@ -21,7 +21,7 @@ Added all new ORM documentation to the Database & ORM section:
     - Single Record Retrieval: guides/SINGLE_RECORD_RETRIEVAL.md       # ✅ NEW
     - Relationship Patterns: guides/orm-relationships.md
     - Transactions & Atomicity: guides/orm-transactions.md
-    - Migrations: guides/orm-migrations.md
+    - Migrations: guides/orm-orm-migrations.md
     - JSON Functionality: guides/json.md
     - ORM Documentation Index: guides/ORM_INDEX.md                     # ✅ NEW
 ```
@@ -41,7 +41,7 @@ Added all new ORM documentation to the Database & ORM section:
 | SINGLE_RECORD_RETRIEVAL.md | 10.3 KB | ✅ NEW |
 | orm-relationships.md | ~10 KB | ✅ Existing |
 | orm-transactions.md | ~8 KB | ✅ Existing |
-| orm-migrations.md | ~6 KB | ✅ Existing |
+| orm-orm-migrations.md | ~6 KB | ✅ Existing |
 | ORM_INDEX.md | 10.5 KB | ✅ NEW |
 | ORM_DOCUMENTATION_SUMMARY.md | 11 KB | ✅ NEW (reference) |
 | MODERN_Q_SYNTAX_VERIFICATION.md | 10 KB | ✅ NEW (reference) |
@@ -118,7 +118,7 @@ docs/
 │   ├── SINGLE_RECORD_RETRIEVAL.md # ✅ NEW - Linked in nav
 │   ├── orm-relationships.md   # Linked in nav
 │   ├── orm-transactions.md    # Linked in nav
-│   ├── orm-migrations.md      # Linked in nav
+│   ├── orm-orm-migrations.md      # Linked in nav
 │   ├── ORM_INDEX.md           # ✅ NEW - Linked in nav
 │   └── [other guides]
 ├── getting-started/

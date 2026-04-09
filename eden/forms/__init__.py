@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Eden Typed Forms - HTML form generation from field definitions.
 
@@ -6,7 +7,6 @@ that generates HTML forms from field definitions with proper validation,
 error rendering, and accessibility support.
 """
 
-from __future__ import annotations
 
 import importlib.util
 import pathlib

@@ -1,6 +1,6 @@
+from __future__ import annotations
 """Base form classes."""
 
-from __future__ import annotations
 
 from dataclasses import dataclass, field as dataclass_field
 from typing import Any, Generic, TypeVar, get_type_hints

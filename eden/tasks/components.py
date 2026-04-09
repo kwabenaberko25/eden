@@ -1,10 +1,10 @@
+from __future__ import annotations
 """
 Eden — Task UI Components
 
 Provides HTMX-powered components for real-time task progress tracking.
 """
 
-from __future__ import annotations
 
 from typing import Any, Dict, Optional
 

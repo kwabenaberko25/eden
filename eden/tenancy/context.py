@@ -103,10 +103,11 @@ def is_across_tenants() -> bool:
 
 
 def spawn_safe_task(
-    coro,
-    *,
+    coro_or_func,
+    *args,
     isolate: bool = False,
     name: str | None = None,
+    **kwargs
 ) -> "asyncio.Task":
     """
     Spawn an asyncio.Task with eagerly-captured Eden context.
@@ -119,12 +120,14 @@ def spawn_safe_task(
     and **re-injects** them into the child coroutine before execution begins.
 
     Args:
-        coro: The awaitable coroutine to schedule.
+        coro_or_func: The awaitable coroutine to schedule, or an async callable.
+        *args: Arguments to pass if coro_or_func is a callable.
         isolate: If ``True``, the task runs deliberately without tenant/session
                  context. Use this for infrastructure tasks (heartbeat, metrics
                  sync, pub/sub listeners) that genuinely do not need tenancy.
                  Documents intent and prevents false-positive audit warnings.
         name: Optional name for the created ``asyncio.Task`` (aids debugging).
+        **kwargs: Keyword arguments if coro_or_func is a callable.
 
     Returns:
         The created ``asyncio.Task`` instance.
@@ -136,11 +139,11 @@ def spawn_safe_task(
         async def send_invoice_email(invoice_id: str):
             ...  # This will see the correct tenant DB schema
 
-        spawn_safe_task(send_invoice_email(invoice.id))
+        spawn_safe_task(send_invoice_email, invoice.id)
 
     Example — infrastructure task (no tenant needed)::
 
-        spawn_safe_task(self._heartbeat_loop(), isolate=True, name="ws-heartbeat")
+        spawn_safe_task(self._heartbeat_loop, isolate=True, name="ws-heartbeat")
     """
     import asyncio
 
@@ -178,12 +181,50 @@ def spawn_safe_task(
             pass
 
         try:
-            return await coro
+            if callable(coro_or_func):
+                return await coro_or_func(*args, **kwargs)
+            else:
+                return await coro_or_func
         finally:
             _tenant_ctx.reset(t_token)
             _across_tenants_ctx.reset(a_token)
             if s_token:
                 from eden.db.session import _session_context
                 _session_context.reset(s_token)
+            
+            # If we received a naked coroutine but never awaited it, prevent the Warning
+            # by closing it here (in case of CancelledError during start).
+            if not callable(coro_or_func) and hasattr(coro_or_func, "close"):
+                import sys
+                if sys.exc_info()[0] is asyncio.CancelledError:
+                    coro_or_func.close()
 
-    return asyncio.create_task(_context_wrapper(), name=name)
+    # Create task. To prevent "coroutine was never awaited" if the returned task is quickly
+    # cancelled before _context_wrapper even begins, we should close the coroutine if it's
+    # a raw object. But actually, closing it inside _context_wrapper's finally block handles
+    # the cancellation assuming _context_wrapper gets scheduled. We still need to make sure
+    # _context_wrapper is used.
+    task = asyncio.create_task(_context_wrapper(), name=name)
+    
+    # Store reference to prevent garbage collection until the task executes
+    def _on_done(f):
+        # 1. First, check if the task has an underlying coroutine that we can close
+        # to prevent "coroutine '_context_wrapper' was never awaited" warnings.
+        if f.cancelled():
+            try:
+                coro = f.get_coro()
+                if coro:
+                    coro.close()
+            except Exception:
+                pass
+                
+        # 2. Also close the user's provided naked coroutine if they passed one
+        if not callable(coro_or_func) and hasattr(coro_or_func, "close"):
+            if f.cancelled():
+                try:
+                    coro_or_func.close()
+                except Exception:
+                    pass
+
+    task.add_done_callback(_on_done)
+    return task

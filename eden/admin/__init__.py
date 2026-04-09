@@ -14,6 +14,8 @@ from eden.requests import Request
 from eden.templating import EdenTemplates
 from .theme import default_theme
 from eden.db import Model, _MISSING
+from .premium_dashboard import PremiumAdminTemplate
+import eden.admin.views as views
 
 # Re-export new widget system for backward compatibility
 try:
@@ -197,6 +199,20 @@ class AdminSite:
         """Get all registered models and their admins."""
         return dict(self._registry)
 
+    def auto_discover(self):
+        """Automatically find and register all non-abstract Model subclasses."""
+        from eden.db import get_models
+        from eden.admin.options import ModelAdmin
+        
+        # Ensure system defaults (Auth, Audit, etc.) are registered first
+        self.register_defaults()
+        
+        # Discover and register all models that haven't been manually registered
+        for model in get_models():
+            if not self.is_registered(model):
+                # We use the base ModelAdmin which has auto-detection for fields/titles
+                self.register(model, ModelAdmin)
+
     def register_defaults(self):
         """Register core models (User, AuditLog, etc.) if they are available."""
         from eden.admin.options import ModelAdmin
@@ -259,21 +275,49 @@ class AdminSite:
             pass
 
         try:
-            from eden.auth.api_key_model import APIKey
-            if not self.is_registered(APIKey):
-                class APIKeyAdmin(ModelAdmin):
-                    list_display = ["name", "prefix", "user_id", "created_at", "revoked_at"]
-                    search_fields = ["name", "prefix"]
-                    list_filter = ["revoked_at"]
-                self.register(APIKey, APIKeyAdmin)
+            from eden.payments.models import Customer, Subscription, PaymentEvent
+            if not self.is_registered(Customer):
+                class CustomerAdmin(ModelAdmin):
+                    list_display = ["user_id", "provider", "provider_customer_id"]
+                    search_fields = ["provider_customer_id"]
+                    icon = "fa-solid fa-address-card"
+                self.register(Customer, CustomerAdmin)
+                
+            if not self.is_registered(Subscription):
+                class SubscriptionAdmin(ModelAdmin):
+                    list_display = ["customer_id", "status", "price_id", "current_period_end"]
+                    list_filter = ["status"]
+                    icon = "fa-solid fa-credit-card"
+                self.register(Subscription, SubscriptionAdmin)
+                
+            if not self.is_registered(PaymentEvent):
+                class PaymentEventAdmin(ModelAdmin):
+                    list_display = ["event_type", "provider_event_id", "processed"]
+                    list_filter = ["event_type", "processed"]
+                    icon = "fa-solid fa-receipt"
+                self.register(PaymentEvent, PaymentEventAdmin)
+        except ImportError:
+            pass
+
+        try:
+            # Also register the Feature Flag model if using DB backend
+            from eden.flags_db import FlagModel
+            if not self.is_registered(FlagModel):
+                class FlagAdmin(ModelAdmin):
+                    list_display = ["name", "strategy", "enabled", "updated_at"]
+                    list_filter = ["strategy", "enabled"]
+                    search_fields = ["name"]
+                    icon = "fa-solid fa-flag"
+                self.register(FlagModel, FlagAdmin)
         except ImportError:
             pass
 
     def build_router(self, prefix: str = "/admin") -> Router:
         """
         Generate the admin Router with all CRUD routes.
+        Automatically performs model discovery if not already done.
         """
-        self.register_defaults()
+        self.auto_discover()
 
         # Update registry in global template context before building routes
         registry_data = {}
@@ -390,6 +434,69 @@ class AdminSite:
 
             register_model_routes(model, model_admin)
 
+        # ── Generic API Endpoints ─────────────────────────────────────
+        
+        @router.get("/api/metadata")
+        async def api_metadata(request: Request):
+            return await views.admin_api_metadata(request, self)
+
+        def make_api_list(model_class, admin_class):
+            async def api_list(request: Request):
+                return await views.admin_api_list(request, model_class, admin_class)
+            return api_list
+
+        def make_api_get(model_class):
+            async def api_get(request: Request, id: str):
+                return await views.admin_api_get(request, model_class, id)
+            return api_get
+
+        def make_api_create(model_class, admin_class):
+            async def api_create(request: Request):
+                return await views.admin_api_create(request, model_class, admin_class)
+            return api_create
+
+        def make_api_update(model_class, admin_class):
+            async def api_update(request: Request, id: str):
+                return await views.admin_api_update(request, model_class, admin_class, id)
+            return api_update
+
+        def make_api_delete(model_class, admin_class):
+            async def api_delete(request: Request, id: str):
+                return await views.admin_api_delete(request, model_class, admin_class, id)
+            return api_delete
+
+        def make_api_action(model_class, admin_class):
+            async def api_action(request: Request):
+                return await views.admin_api_action(request, model_class, admin_class)
+            return api_action
+
+        for model, model_admin in self._registry.items():
+            table = str(getattr(model, "__tablename__", model.__name__.lower()))
+            
+            router.get(f"/api/{table}/list", name=f"admin_api_{table}_list")(make_api_list(model, model_admin))
+            router.get(f"/api/{table}/get/{{id}}", name=f"admin_api_{table}_get")(make_api_get(model))
+            router.post(f"/api/{table}/create", name=f"admin_api_{table}_create")(make_api_create(model, model_admin))
+            router.patch(f"/api/{table}/update/{{id}}", name=f"admin_api_{table}_update")(make_api_update(model, model_admin))
+            router.delete(f"/api/{table}/delete/{{id}}", name=f"admin_api_{table}_delete")(make_api_delete(model, model_admin))
+            router.post(f"/api/{table}/action", name=f"admin_api_{table}_action")(make_api_action(model, model_admin))
+
+        # ── Dashboard Root ───────────────────────────────────────────
+
+        @router.get("/")
+        async def dashboard(request: Request):
+            # Check staff permission
+            from .views import _check_staff
+            try:
+                await _check_staff(request)
+            except Exception:
+                return Response.redirect(f"{request.url.path}login")
+                
+            admin_url = str(request.url.path).rstrip("/")
+            return HtmlResponse(PremiumAdminTemplate.render(api_base=f"{admin_url}/api"))
+
+        # Legacy routes (kept for compatibility during transition if needed)
+        # ... existing routes ...
+        
         return router
 
 

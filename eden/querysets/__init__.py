@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Eden QuerySets - Type-safe query behaviors and custom managers.
 
@@ -5,7 +6,6 @@ Provides async-first QuerySet classes with chainable methods,
 business logic encapsulation, and full type safety.
 """
 
-from __future__ import annotations
 
 import uuid
 import inspect

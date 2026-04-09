@@ -20,64 +20,58 @@ from datetime import datetime
 from typing import List, Optional, Dict, Any
 from enum import Enum
 
-from sqlalchemy import Column, String, Integer, Boolean, DateTime, Text, JSON, create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import Session
-
-logger = logging.getLogger(__name__)
-
-Base = declarative_base()
-
+from eden.db import Model, StringField, IntField, BoolField, DateTimeField, TextField, JSONField
+from datetime import datetime
 
 # ============================================================================
 # Database Models
 # ============================================================================
 
-class FlagModel(Base):
+class FlagModel(Model):
     """Feature flag database model."""
     __tablename__ = "feature_flags"
     
-    id = Column(String(100), primary_key=True)
-    name = Column(String(255), nullable=False, unique=True)
-    description = Column(Text, nullable=True)
-    strategy = Column(String(50), nullable=False)  # Enum string
-    percentage = Column(Integer, nullable=True)
-    user_ids = Column(JSON, nullable=True)
-    segments = Column(JSON, nullable=True)
-    tenant_ids = Column(JSON, nullable=True)
-    environments = Column(JSON, nullable=True)
-    enabled = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.now)
-    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
-    created_by = Column(String(255), nullable=True)
-    updated_by = Column(String(255), nullable=True)
+    id = StringField(100, primary_key=True)
+    name = StringField(255, required=True, unique=True)
+    description = TextField(nullable=True)
+    strategy = StringField(50, required=True)  # Enum string
+    percentage = IntField(nullable=True)
+    user_ids = JSONField(nullable=True)
+    segments = JSONField(nullable=True)
+    tenant_ids = JSONField(nullable=True)
+    environments = JSONField(nullable=True)
+    enabled = BoolField(default=True)
+    created_at = DateTimeField(default=datetime.now)
+    updated_at = DateTimeField(default=datetime.now)
+    created_by = StringField(255, nullable=True)
+    updated_by = StringField(255, nullable=True)
 
 
-class FlagHistoryModel(Base):
+class FlagHistoryModel(Model):
     """Flag change history."""
     __tablename__ = "feature_flag_history"
     
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    flag_id = Column(String(100), nullable=False)
-    action = Column(String(50), nullable=False)  # created, updated, deleted, enabled, disabled
-    old_value = Column(JSON, nullable=True)
-    new_value = Column(JSON, nullable=True)
-    changed_by = Column(String(255), nullable=True)
-    changed_at = Column(DateTime, default=datetime.now)
-    reason = Column(Text, nullable=True)
+    id = IntField(primary_key=True)
+    flag_id = StringField(100, required=True)
+    action = StringField(50, required=True)  # created, updated, deleted, enabled, disabled
+    old_value = JSONField(nullable=True)
+    new_value = JSONField(nullable=True)
+    changed_by = StringField(255, nullable=True)
+    changed_at = DateTimeField(default=datetime.now)
+    reason = TextField(nullable=True)
 
 
-class FlagMetricsModel(Base):
+class FlagMetricsModel(Model):
     """Flag usage metrics."""
     __tablename__ = "feature_flag_metrics"
     
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    flag_id = Column(String(100), nullable=False)
-    total_checks = Column(Integer, default=0)
-    enabled_count = Column(Integer, default=0)
-    disabled_count = Column(Integer, default=0)
-    error_count = Column(Integer, default=0)
-    last_checked = Column(DateTime, nullable=True)
+    id = IntField(primary_key=True)
+    flag_id = StringField(100, required=True)
+    total_checks = IntField(default=0)
+    enabled_count = IntField(default=0)
+    disabled_count = IntField(default=0)
+    error_count = IntField(default=0)
+    last_checked = DateTimeField(nullable=True)
 
 
 # ============================================================================

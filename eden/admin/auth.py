@@ -66,9 +66,9 @@ class AdminUser:
     
     def __post_init__(self):
         if self.created_at is None:
-            self.created_at = datetime.now(timezone.utc)
+            self.created_at = datetime.now(timezone.utc).replace(tzinfo=None)
         if self.password_changed_at is None:
-            self.password_changed_at = datetime.now(timezone.utc)
+            self.password_changed_at = datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 @dataclass
@@ -81,11 +81,11 @@ class AdminSession:
     
     def __post_init__(self):
         if self.created_at is None:
-            self.created_at = datetime.now(timezone.utc)
+            self.created_at = datetime.now(timezone.utc).replace(tzinfo=None)
     
     def is_expired(self) -> bool:
         """Check if session is expired."""
-        return datetime.now(timezone.utc) > self.expires_at
+        return datetime.now(timezone.utc).replace(tzinfo=None) > self.expires_at
 
 
 class AdminAuthManager:
@@ -283,7 +283,7 @@ class AdminAuthManager:
         
         # Update password
         user.password_hash = new_hash
-        user.password_changed_at = datetime.now(timezone.utc)
+        user.password_changed_at = datetime.now(timezone.utc).replace(tzinfo=None)
         self._add_to_password_history(user, new_hash)
         return True
     
@@ -309,12 +309,12 @@ class AdminAuthManager:
         user = self.get_user(username)
         
         # Check lockout
-        if user and user.locked_until and datetime.now(timezone.utc) < user.locked_until:
+        if user and user.locked_until and datetime.now(timezone.utc).replace(tzinfo=None) < user.locked_until:
             raise HTTPException(
                 status_code=429,
                 detail="Too many failed login attempts. Try again later."
             )
-        elif user and user.locked_until and datetime.now(timezone.utc) >= user.locked_until:
+        elif user and user.locked_until and datetime.now(timezone.utc).replace(tzinfo=None) >= user.locked_until:
             # Lockout expired, reset
             user.locked_until = None
             user.failed_login_attempts = 0
@@ -348,10 +348,10 @@ class AdminAuthManager:
         
         # Create token and session
         token = self._create_jwt_token(user)
-        user.last_login = datetime.now(timezone.utc)
+        user.last_login = datetime.now(timezone.utc).replace(tzinfo=None)
         
         # Store session
-        expires_at = datetime.now(timezone.utc) + timedelta(hours=self.token_expiry_hours)
+        expires_at = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=self.token_expiry_hours)
         session = AdminSession(
             user=user,
             token=token,
@@ -390,8 +390,8 @@ class AdminAuthManager:
             "username": user.username,
             "role": user.role.value,
             "jti": str(uuid.uuid4()),  # Unique token ID
-            "iat": datetime.now(timezone.utc),
-            "exp": datetime.now(timezone.utc) + timedelta(hours=self.token_expiry_hours),
+            "iat": datetime.now(timezone.utc).replace(tzinfo=None),
+            "exp": datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=self.token_expiry_hours),
         }
         token = jwt.encode(payload, self.secret_key, algorithm=self.algorithm)
         return token
@@ -706,7 +706,7 @@ class AdminAuthManager:
         
         # Update password
         user.password_hash = new_hash
-        user.password_changed_at = datetime.now(timezone.utc)
+        user.password_changed_at = datetime.now(timezone.utc).replace(tzinfo=None)
         self._add_to_password_history(user, new_hash)
         return True
     
@@ -721,7 +721,7 @@ class AdminAuthManager:
         
         user.failed_login_attempts += 1
         if user.failed_login_attempts >= self.max_login_attempts:
-            user.locked_until = datetime.now(timezone.utc) + timedelta(minutes=self.lockout_minutes)
+            user.locked_until = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=self.lockout_minutes)
     
     def get_session_stats(self) -> Dict[str, Any]:
         """Get session statistics."""

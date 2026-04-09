@@ -1,3 +1,4 @@
+from __future__ import annotations
 
 """
 Eden — S3 Storage Backend
@@ -6,7 +7,6 @@ Provides async file storage via AWS S3 (or S3-compatible services like MinIO).
 Uses aioboto3 for native async performance.
 """
 
-from __future__ import annotations
 
 import asyncio
 import logging

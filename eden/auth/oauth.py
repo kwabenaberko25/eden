@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Eden — OAuth Integration
 
@@ -13,7 +14,6 @@ Usage:
     oauth.mount(app)
 """
 
-from __future__ import annotations
 
 import secrets
 from dataclasses import dataclass, field

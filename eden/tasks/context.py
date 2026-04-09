@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Eden — Task Context Tracking
 
@@ -5,7 +6,6 @@ Provides access to the currently executing task's information (ID, broker)
 from within the task function itself.
 """
 
-from __future__ import annotations
 
 import contextvars
 from typing import TYPE_CHECKING, Any, Dict, Optional

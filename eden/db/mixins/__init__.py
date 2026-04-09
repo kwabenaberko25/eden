@@ -1,10 +1,10 @@
+from __future__ import annotations
 """
 Eden — Database Mixins
 
 Helper mixins to add common functionality to Eden models.
 """
 
-from __future__ import annotations
 
 import datetime
 import uuid

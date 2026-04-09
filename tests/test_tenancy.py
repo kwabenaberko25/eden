@@ -86,7 +86,7 @@ async def test_cross_tenant_access_prevention(tenant_a, tenant_b):
     token = set_current_tenant(tenant_b)
     try:
         # get() uses _base_select() which applies the filter
-        fetched = await TenantTask.get(task_a.id)
+        fetched = await TenantTask.get(id=task_a.id)
         assert fetched is None
         
         # filter() should be empty

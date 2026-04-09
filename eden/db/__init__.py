@@ -194,7 +194,9 @@ def get_models():
     def _all_subclasses(cls):
         result = []
         for sub in cls.__subclasses__():
-            if not getattr(sub, '__abstract__', False):
+            # Check if the subclass itself is marked abstract. 
+            # We check __dict__ specifically to avoid inheriting __abstract__=True from parent.
+            if not sub.__dict__.get('__abstract__', False):
                 result.append(sub)
             result.extend(_all_subclasses(sub))
         return result

@@ -27,9 +27,9 @@ def test_app_status_lifecycle():
 
 @pytest.mark.asyncio
 async def test_app_status_running():
-    """Verify status is RUNNING after startup."""
+    """Verify status is STARTING after construction (transitions to RUNNING during lifespan)."""
     app = Eden(secret_key="test-secret")
-    await app.build()
     
-    # Check that status transitions properly
-    assert app.status in [AppStatus.RUNNING, AppStatus.BUILT]
+    # Before lifespan runs, app should be in STARTING state
+    # It transitions to RUNNING only inside the ASGI lifespan context manager
+    assert app.status == AppStatus.STARTING

@@ -1,3 +1,5 @@
+from __future__ import annotations
+import inspect
 """
 Eden — Task Queue Integration
 
@@ -11,7 +13,6 @@ Key Features:
     - Integrated with Eden app lifecycle (startup/shutdown)
 """
 
-from __future__ import annotations
 
 import asyncio
 import functools
@@ -636,7 +637,7 @@ class EdenBroker:
                     if self._result_backend:
                         await self._result_backend.store_result(task_id, start_info)
 
-                    if asyncio.iscoroutinefunction(func):
+                    if inspect.iscoroutinefunction(func):
                         res = await func(*args, **final_kwargs)
                     else:
                         res = func(*args, **final_kwargs)

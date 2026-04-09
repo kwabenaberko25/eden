@@ -216,7 +216,7 @@ users = await db.execute(
 
 Eden includes CSRF protection by default with sophisticated handling for both session-based and session-less forms.
 
-For comprehensive CSRF documentation including token signing, session-less pages, and troubleshooting, see [CSRF Protection & Session-Less Handling](csrf-protection.md).
+For comprehensive CSRF documentation including token signing, session-less pages, and troubleshooting, see [CSRF Protection & Session-Less Handling](security.md).
 
 **Quick setup:**
 

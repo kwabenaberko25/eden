@@ -1,5 +1,6 @@
-
 from __future__ import annotations
+from datetime import timezone
+
 import inspect
 import logging
 from typing import Any, List, Optional, TYPE_CHECKING
@@ -146,7 +147,7 @@ class LifecycleMixin:
         # 1. Soft-delete handling
         if hasattr(self, "deleted_at") and not hard:
             from datetime import datetime
-            self.deleted_at = datetime.utcnow()
+            self.deleted_at = datetime.now(timezone.utc).replace(tzinfo=None)
             await self.save(session=session, commit=commit)
             return
 

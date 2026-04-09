@@ -143,45 +143,34 @@ from eden.payments import StripeProvider
 
 # In eden.json or environment
 STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
-STRIPE_PUBLISHABLE_KEY = os.getenv("STRIPE_PUBLISHABLE_KEY")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
 
 # Initialize
 stripe = StripeProvider(
-    secret_key=STRIPE_SECRET_KEY,
-    publishable_key=STRIPE_PUBLISHABLE_KEY
+    api_key=STRIPE_SECRET_KEY,
+    webhook_secret=STRIPE_WEBHOOK_SECRET,
 )
 ```
 
 **Common Tasks:**
 
 ```python
-from eden.payments import Customer, Subscription
-
-# Create customer
-customer = await Customer.create(
-    user=request.user,
-    stripe_customer_id=stripe_id
+# Create a customer
+customer_id = await stripe.create_customer(
+    email="user@example.com",
+    name="Jane Doe"
 )
 
-# Create subscription
-sub = await Subscription.create(
-    customer=customer,
-    plan="pro",
-    stripe_subscription_id=sub_id
+# Create a checkout session
+url = await stripe.create_checkout_session(
+    customer_id=customer_id,
+    price_id="price_123",
+    success_url="https://example.com/success",
+    cancel_url="https://example.com/cancel"
 )
 
-# Listen for webhooks
-@app.post("/webhooks/stripe")
-async def stripe_webhook(request):
-    payload = await request.body()
-    sig_header = request.headers.get('stripe-signature')
-    
-    event = stripe.verify_webhook_signature(payload, sig_header)
-    
-    if event['type'] == 'charge.succeeded':
-        # Handle charge
-        pass
+# Cancel a subscription
+await stripe.cancel_subscription("sub_123")
 ```
 
 **Docs**: See [Payment Processing with Stripe](../tutorial/task8_saas.md#payments)
@@ -205,64 +194,67 @@ pip install eden-framework[storage]
 ```
 
 ```python
-from eden.storage import S3StorageBackend, LocalStorageBackend
+from eden.storage import LocalStorageBackend
 
 # Local storage
-storage = LocalStorageBackend(path="/var/uploads")
+local = LocalStorageBackend(base_path="./media", base_url="/media/")
+```
 
-# S3
-storage = S3StorageBackend(
+```python
+from eden.storage_backends import S3StorageBackend
+
+# S3 (requires boto3)
+s3 = S3StorageBackend(
     bucket="my-bucket",
     region="us-east-1",
     # Uses AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY from env
 )
+```
+
+```python
+from eden.storage_backends import SupabaseStorageBackend
 
 # Supabase
-storage = SupabaseStorageBackend(
+supa = SupabaseStorageBackend(
     url="https://xxxx.supabase.co",
     key="anon-key",
     bucket="my-bucket"
 )
 ```
 
-**S3 Presigned URLs (Private Files):**
+**Using the StorageManager (multi-backend registry):**
 
 ```python
-# Generate time-limited access URL for private S3 files
-presigned_url = await storage.get_presigned_url(
-    key="private/documents/contract.pdf",
-    expires_in=3600  # URL valid for 1 hour
-)
+from eden.storage import storage, LocalStorageBackend
 
-# Send to client for download
-return json({
-    "download_url": presigned_url,
-    "expires_in": 3600
-})
+# Register backends at startup
+storage.register("local", LocalStorageBackend(base_path="./media"), default=True)
+# storage.register("s3", s3_backend)
 
-# Client can download without AWS credentials
-```
-
-**Common Tasks:**
-
-```python
-# Save file
-key = await storage.save(
-    content=request.files['upload'],
+# Save to default backend
+key = await storage.get().save(
+    content=b"file bytes here",
     name="profile.jpg",
     folder="users"
 )
-# Returns: "users/profile_a1b2c3de.jpg"
 
 # Get public URL
-url = storage.url(key)  # https://bucket.s3.amazonaws.com/users/profile_a1b2c3de.jpg
+url = storage.get().url(key)
 
 # Delete
-await storage.delete(key)
+await storage.get().delete(key)
+```
 
-# For S3: Get presigned URL (for private files)
-if hasattr(storage, 'get_presigned_url'):
-    presigned = await storage.get_presigned_url(key, expires_in=3600)
+**Atomic Transactions (prevent orphaned files):**
+
+```python
+from eden.storage import storage
+
+# If database save fails, uploaded files are auto-cleaned
+async with storage.transaction() as txn:
+    file_key = await txn.save(upload_file, folder="avatars")
+    # user.avatar_path = file_key
+    # await user.save()  # If this fails, file_key is auto-deleted
 ```
 
 ---
@@ -316,23 +308,17 @@ pip install eden-framework[tasks]
 
 ```python
 from eden.app import Eden
+from eden.mail import send_mail
 
 app = Eden()
 
 # Define a task
 @app.task()
-async def send_welcome_email(user_id: int):
-    user = await User.get(id=user_id)
-    await send_email(user.email, "Welcome!")
+async def send_welcome_email(user_email: str):
+    await send_mail(to=[user_email], subject="Welcome!", body="Thanks for joining!")
 
 # Queue the task
-await send_welcome_email.delay(user_id=123)
-
-# Or schedule it
-await send_welcome_email.schedule(
-    user_id=123,
-    delay=3600  # 1 hour from now
-)
+await send_welcome_email.kiq(user_email="user@example.com")
 ```
 
 **Running the worker:**
@@ -361,25 +347,28 @@ pip install eden-framework[mail]
 ```
 
 ```python
-# Using SMTP
 from eden.mail import EmailMessage, send_mail
 
+# Create a message object
 message = EmailMessage(
     subject="Welcome!",
     body="Thanks for signing up.",
     from_email="noreply@example.com",
     to=["user@example.com"]
 )
+
 # Send using the global helper
 await send_mail(message.to, message.subject, message.body)
+```
 
-# Or via shortcut
+```python
 from eden.mail import send_mail
 
+# Shortcut: send directly
 await send_mail(
     subject="Confirm Email",
     body="Click here to confirm",
-    recipient_list=["user@example.com"]
+    to=["user@example.com"]
 )
 ```
 
@@ -389,9 +378,10 @@ await send_mail(
 from eden.mail import send_mail
 
 await send_mail(
+    subject="Welcome",
     template="welcome",  # renders templates/emails/welcome.html
-    context={"user": request.user},
-    recipient_list=[request.user.email]
+    context={"user_name": "John Doe"},
+    to=["user@example.com"]
 )
 ```
 
@@ -497,13 +487,10 @@ except ImportError:
     HAS_PAYMENTS = False
 
 if HAS_PAYMENTS:
-    # Payment routes
-    from eden.app import Eden
-    app = Eden()
-    
-    @app.get("/checkout")
-    async def checkout(request):
-        pass
+    stripe = StripeProvider(
+        api_key="sk_test_...",
+        webhook_secret="whsec_..."
+    )
 ```
 
 ---

@@ -586,5 +586,5 @@ class ContextProxy:
 
 - [Authentication Middleware](../guides/security.md#authentication) - Multi-backend auth
 - [Dependency Injection](../guides/dependency-injection.md) - Automatic context resolution
-- [Tenancy Context](tenancy.md) - Tenant-scoped operations
+- [Tenancy Context](tenancy-postgres.md) - Tenant-scoped operations
 - [Testing & Mocking](../guides/testing.md) - Context in tests

@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Eden Form Builder - Dynamic form generation from models and field definitions.
 
@@ -6,7 +7,6 @@ generates complete forms from model definitions, with support for field
 customization, layout control, and complex form logic.
 """
 
-from __future__ import annotations
 
 from eden.builder.form_factory import FormFactory, FormBuilder
 from eden.builder.field_converters import FieldConverter

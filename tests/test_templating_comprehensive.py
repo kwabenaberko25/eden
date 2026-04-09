@@ -121,7 +121,8 @@ class TestTemplatingFilters:
     def test_mask_filter(self):
         """Test mask filter."""
         result = mask_filter("1234567890", visible=4)
-        assert "****" in result
+        assert "**" in result
+        assert "1234" in result
         assert "7890" in result
     
     def test_file_size_filter(self):

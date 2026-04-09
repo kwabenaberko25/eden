@@ -1,3 +1,4 @@
+import inspect
 """
 Eden Framework — APScheduler Integration
 
@@ -155,7 +156,7 @@ class Executor:
         async with self.semaphore:
             self.active_jobs += 1
             try:
-                if asyncio.iscoroutinefunction(func):
+                if inspect.iscoroutinefunction(func):
                     return await func(*args, **kwargs)
                 else:
                     return func(*args, **kwargs)

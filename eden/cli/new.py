@@ -88,8 +88,8 @@ app.state.database_url = os.getenv("DATABASE_URL", "{db_config['url']}")
     if "Chats/Websockets" in extras:
         main_content += '\n# WebSocket Configuration\nfrom eden import WebSocketRouter\nws_router = WebSocketRouter()\n\n@ws_router.on("connect")\nasync def on_connect(socket, user):\n    await socket.accept()\n    await socket.send_json({{"msg": "Connected to {name}"}})\n\napp.include_router(ws_router)\n'
 
-    if "Admin UI" in extras:
-        main_content += '\n# Admin Panel\napp.mount_admin("/admin")\n'
+    if "Admin UI" not in extras:
+        main_content += '\n# Disable Admin Panel\napp.admin_enabled = False\n'
 
     main_content += f'''
 @app.get("/")
@@ -170,8 +170,8 @@ def create_app():
 '''
         app_init += ws_block
 
-    if "Admin UI" in extras:
-        app_init += '    app.mount_admin("/admin")\n'
+    if "Admin UI" not in extras:
+        app_init += '    app.admin_enabled = False\n'
 
     if "Mail Support" in extras:
         app_init += '    # TODO: configure mail support (e.g. using aiosmtplib)\n'
@@ -275,8 +275,8 @@ def create_new_project(project_name: str, target_path: Optional[Path] = None, **
     extras = questionary.checkbox(
         "Select additional features to include:",
         choices=[
-            "Admin UI",
-            "Authentication & RBAC",
+            questionary.Choice("Admin UI", checked=True),
+            questionary.Choice("Authentication & RBAC", checked=True),
             "Payments (Stripe)",
             "Chats/Websockets",
             "Mail Support"

@@ -1,6 +1,6 @@
+from __future__ import annotations
 """Common validation rules."""
 
-from __future__ import annotations
 
 import re
 from typing import Any, Callable

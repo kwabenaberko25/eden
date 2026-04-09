@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Eden — Messaging System (Flash & Real-time)
 
@@ -5,7 +6,6 @@ Provides a Django-like messaging system with both session-based persistence
 and real-time WebSocket broadcasting.
 """
 
-from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any, Iterator, List, Optional, Union

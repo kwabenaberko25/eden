@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Eden — Column Field Helpers
 
@@ -5,7 +6,6 @@ Clean, Django-style shorthand for defining SQLAlchemy columns.
 Each helper returns a `mapped_column()` with sensible defaults.
 """
 
-from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
@@ -355,7 +355,7 @@ def DateTimeField(
 
     # Helper to get current UTC time
     # We use naive UTC for standard DateTime columns to avoid asyncpg mismatch
-    utc_now = lambda: datetime.now(timezone.utc).replace(tzinfo=None)
+    utc_now = lambda: datetime.now(timezone.utc).replace(tzinfo=None).replace(tzinfo=None)
 
     if auto_now_add:
         kw["server_default"] = func.now()

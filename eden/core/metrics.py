@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Eden — Observability & Metrics
 
@@ -9,7 +10,6 @@ Supports export in:
 - JSON format (for internal dashboards)
 """
 
-from __future__ import annotations
 
 import time
 import asyncio

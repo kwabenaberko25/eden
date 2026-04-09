@@ -271,6 +271,7 @@ class TemplateParser:
                 "non_htmx",
                 "fragment",
                 "push",
+                "prepend",
                 "verbatim",
                 "section",
                 "block",
@@ -336,6 +337,19 @@ class TemplateParser:
                             stalled_token = self.advance()
                             body.append(TextNode(content=stalled_token.value))
                         _last_pos = self.pos
+
+                    # Unclosed block: reached EOF without finding closing brace
+                    if depth > 0:
+                        raise TemplateSyntaxError(
+                            f"Unclosed block for @{directive_token.value} — "
+                            f"expected closing '}}' but reached end of template. "
+                            f"Check for mismatched braces.",
+                            line=directive_token.line,
+                            column=directive_token.column,
+                            name=self.name,
+                            filename=self.filename,
+                            source=self.source,
+                        )
 
                     if self.peek().type == TokenType.BLOCK_CLOSE:
                         self.advance()  # consume }

@@ -1,8 +1,8 @@
+from __future__ import annotations
 """
 Eden DB — CLI database migration utilities.
 """
 
-from __future__ import annotations
 
 import asyncio
 import sys

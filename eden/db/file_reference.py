@@ -1,3 +1,4 @@
+from datetime import timezone
 """
 File Reference Model & Automatic Cleanup (Layer 2)
 
@@ -186,7 +187,7 @@ class FileReference(Model):
                 )
 
                 # Mark reference as deleted (soft delete for audit trail)
-                ref.deleted_at = datetime.utcnow()
+                ref.deleted_at = datetime.now(timezone.utc).replace(tzinfo=None)
                 await ref.save()
                 deleted_count += 1
 

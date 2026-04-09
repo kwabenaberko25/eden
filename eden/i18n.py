@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Eden — Internationalization (i18n)
 
@@ -17,7 +18,6 @@ Usage:
     {{ _("Welcome") }}
 """
 
-from __future__ import annotations
 
 import gettext
 import os

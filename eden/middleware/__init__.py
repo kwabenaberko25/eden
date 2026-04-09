@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Eden — Middleware
 
@@ -5,7 +6,6 @@ Built-in middleware for CORS, CSRF, GZip compression, sessions, and more.
 All middleware wraps Starlette's implementations with Eden-friendly configuration.
 """
 
-from __future__ import annotations
 
 import functools
 import hmac

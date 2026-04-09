@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Eden Control Panel - Auto-generated admin interface for Eden models.
 
@@ -5,7 +6,6 @@ Provides async-first, type-safe admin interfaces with real-time updates,
 RBAC integration, and HTMX-powered progressive enhancement.
 """
 
-from __future__ import annotations
 
 import inspect
 import uuid

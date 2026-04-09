@@ -1,3 +1,4 @@
+import inspect
 import pytest
 import asyncio
 import uuid
@@ -31,7 +32,7 @@ class InMemoryDistributedBackend(DistributedBackend):
     async def publish(self, channel: str, message: Any) -> int:
         callbacks = self._channels.get(channel, set())
         for cb in callbacks:
-            if asyncio.iscoroutinefunction(cb):
+            if inspect.iscoroutinefunction(cb):
                 await cb(message)
             else:
                 cb(message)

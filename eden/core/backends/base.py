@@ -1,8 +1,8 @@
+from __future__ import annotations
 """
 Eden — Distributed Backend Base
 """
 
-from __future__ import annotations
 
 import abc
 import asyncio

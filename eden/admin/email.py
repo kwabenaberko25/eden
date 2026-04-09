@@ -1,3 +1,4 @@
+from datetime import timezone
 """
 Email service for Eden Admin Dashboard.
 
@@ -289,12 +290,12 @@ class PasswordResetToken:
         """
         self.username = username
         self.token = token or secrets.token_urlsafe(32)
-        self.created_at = datetime.utcnow()
+        self.created_at = datetime.now(timezone.utc).replace(tzinfo=None)
         self.expires_at = self.created_at + timedelta(hours=expiry_hours)
     
     def is_expired(self) -> bool:
         """Check if token is expired."""
-        return datetime.utcnow() > self.expires_at
+        return datetime.now(timezone.utc).replace(tzinfo=None) > self.expires_at
     
     def __repr__(self) -> str:
         return f"PasswordResetToken(username={self.username}, expires_at={self.expires_at})"

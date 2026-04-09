@@ -1,10 +1,10 @@
+from __future__ import annotations
 """
 Eden — Caching Layer
 
 Provides tenant-aware caching with automatic isolation and global namespace support.
 """
 
-from __future__ import annotations
 import functools
 import time
 import os

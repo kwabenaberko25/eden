@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Eden Satellite — Lightweight ASGI Core
 
@@ -5,7 +6,6 @@ A stripped-down, high-performance version of the Eden framework designed
 for edge computing, microservices, and serverless environments.
 """
 
-from __future__ import annotations
 
 import inspect
 from collections.abc import AsyncGenerator, Callable

@@ -571,21 +571,6 @@ class ComponentExtension(Extension):
         return Markup("")
 
 
-# ── Auto-discovery of built-in components ─────────────────────────────────────
-
-def _discover_builtins():
-    """Import all modules in eden.components.* to trigger @register decorators."""
-    import importlib
-    import pkgutil
-    pkg_dir = os.path.dirname(__file__)
-    for _importer, modname, _ispkg in pkgutil.iter_modules([pkg_dir]):
-        if modname.startswith("_"):
-            continue
-        importlib.import_module(f"eden.components.{modname}")
-
-_discover_builtins()
-
-
 def render_component(name: str, **kwargs: Any) -> Markup:
     """
     Renders a component by name with the given context data.
@@ -605,6 +590,21 @@ def render_component(name: str, **kwargs: Any) -> Markup:
     
     tmpl = app.templates.get_template(inst.template_name)
     return Markup(tmpl.render(ctx))
+
+
+# ── Auto-discovery of built-in components ─────────────────────────────────────
+
+def _discover_builtins():
+    """Import all modules in eden.components.* to trigger @register decorators."""
+    import importlib
+    import pkgutil
+    pkg_dir = os.path.dirname(__file__)
+    for _importer, modname, _ispkg in pkgutil.iter_modules([pkg_dir]):
+        if modname.startswith("_"):
+            continue
+        importlib.import_module(f"eden.components.{modname}")
+
+_discover_builtins()
 
 
 

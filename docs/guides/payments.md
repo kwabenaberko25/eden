@@ -150,4 +150,4 @@ async def handle_payment(event):
 
 ---
 
-**Next Steps**: [SaaS Multi-Tenancy](tenancy.md) | [Background Tasks](background-tasks.md)
+**Next Steps**: [SaaS Multi-Tenancy](tenancy-postgres.md) | [Background Tasks](background-tasks.md)

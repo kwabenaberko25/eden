@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Eden Enums - Type-safe choice fields with enum support.
 
@@ -5,7 +6,6 @@ Provides ChoiceField for database columns with predefined options,
 enum validation, and display name support.
 """
 
-from __future__ import annotations
 
 from enum import Enum, EnumMeta
 from typing import Any, Dict, List, Optional, Type, Union, get_type_hints

@@ -73,10 +73,9 @@ async def test_templates_stacking():
     assert "scripts" in request.state.eden_stacks
     assert len(request.state.eden_stacks["scripts"]) == 2
     
-    # Render stack
+    # Render stack - should return placeholder now for lazy replacement
     stack_content = templates._stack_helper("scripts")
-    assert '<script src="app.js"></script>' in stack_content
-    assert '<script src="extra.js"></script>' in stack_content
+    assert stack_content == "[[EDEN_STACK:scripts]]"
 
 def test_templates_dependency_injection():
     """Test @inject helper."""
@@ -134,7 +133,7 @@ def test_role_permission_directives():
     
     # @role("admin, editor")
     res = render_role(compiler, node, '"admin", "editor"')
-    assert "request.user.role in ['admin', 'editor']" in res
+    assert "request.user.role in ('admin', 'editor')" in res
     
     # @permission("edit")
     res = render_permission(compiler, node, '"edit"')

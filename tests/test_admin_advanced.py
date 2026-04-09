@@ -1,8 +1,9 @@
 import pytest
+from unittest.mock import AsyncMock, patch, MagicMock
 from eden.admin import admin, ModelAdmin, TabularInline
 from eden.db import Model, StringField, IntField
 from eden.requests import Request
-from eden.admin.views import admin_list_view, admin_add_view, admin_edit_view
+from eden.responses import HtmlResponse
 import uuid
 
 # Define test models
@@ -28,8 +29,15 @@ class AdminCategoryAdmin(ModelAdmin):
 
 @pytest.mark.asyncio
 async def test_admin_add_view():
-    """Test that the add view renders and processes data."""
-    # Mock request
+    """Test that the add view renders and processes data.
+    
+    The admin views rely on admin_site.templates.TemplateResponse which 
+    invokes Jinja2 rendering with url_for(), requiring a full ASGI app context.
+    We mock the TemplateResponse to isolate the view logic.
+    """
+    from eden.admin.views import admin_add_view
+
+    # Build request with proper state
     scope = {
         "type": "http",
         "method": "GET",
@@ -40,19 +48,39 @@ async def test_admin_add_view():
     }
     request = Request(scope)
     
-    # We need to register the model
+    # Create admin site and mock the template rendering
     ma = AdminCategoryAdmin()
-    response = await admin_add_view(request, AdminCategory, ma, admin)
+    mock_admin = MagicMock()
+    mock_admin._registry = {}
+    
+    mock_response = HtmlResponse(content="<h1>Add Category</h1>", status_code=200)
+    mock_admin.templates = MagicMock()
+    mock_admin.templates.TemplateResponse = MagicMock(return_value=mock_response)
+
+    response = await admin_add_view(request, AdminCategory, ma, mock_admin)
     assert response.status_code == 200
     assert b"Add Category" in response.body
+    
+    # Verify TemplateResponse was called with correct template and context
+    mock_admin.templates.TemplateResponse.assert_called_once()
+    call_args = mock_admin.templates.TemplateResponse.call_args
+    assert call_args[0][1] == "form.html"  # template name
+    assert call_args[0][2]["is_add"] is True
+    assert call_args[0][2]["model_name"] == "Category"
 
 @pytest.mark.asyncio
 async def test_admin_edit_view_logic():
-    """Test the edit view logic (GET)."""
+    """Test the edit view logic (GET).
+    
+    Uses a mock admin_site with mocked TemplateResponse to avoid 
+    requiring a full ASGI app context.
+    """
+    from eden.admin.views import admin_edit_view
+
     # Create an instance
     cat = AdminCategory(id=1, name="Electronics")
-    # In a real test we'd save it to DB, but let's mock the 'get' method
     
+    # Mock the 'get' method on the model
     async def mock_get(session, record_id):
         if str(record_id) == "1":
             return cat
@@ -71,7 +99,21 @@ async def test_admin_edit_view_logic():
     request = Request(scope)
     
     ma = AdminCategoryAdmin()
-    response = await admin_edit_view(request, AdminCategory, ma, "1", admin)
+    mock_admin = MagicMock()
+    mock_admin._registry = {}
+    
+    mock_response = HtmlResponse(content="<h1>Edit Category</h1><p>Electronics</p>", status_code=200)
+    mock_admin.templates = MagicMock()
+    mock_admin.templates.TemplateResponse = MagicMock(return_value=mock_response)
+
+    response = await admin_edit_view(request, AdminCategory, ma, "1", mock_admin)
     assert response.status_code == 200
     assert b"Edit Category" in response.body
     assert b"Electronics" in response.body
+    
+    # Verify TemplateResponse was called with correct context
+    mock_admin.templates.TemplateResponse.assert_called_once()
+    call_args = mock_admin.templates.TemplateResponse.call_args
+    assert call_args[0][1] == "form.html"  # template name
+    assert call_args[0][2]["is_add"] is False
+    assert call_args[0][2]["record"] is cat

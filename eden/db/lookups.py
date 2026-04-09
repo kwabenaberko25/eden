@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Eden — Database Lookups and Query Objects
 
@@ -7,7 +8,6 @@ Implements Django-style query capabilities:
 - Lookup parsing (e.g., `title__icontains="Eden"`)
 """
 
-from __future__ import annotations
 
 import operator
 from typing import Any, Callable, List, Dict, Type, Union, TYPE_CHECKING, TypeVar

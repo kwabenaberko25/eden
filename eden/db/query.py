@@ -1,10 +1,10 @@
+from __future__ import annotations
 """
 Eden — QuerySet Interface
 
 Provides a fluent, chainable API for building and executing database queries.
 """
 
-from __future__ import annotations
 
 import logging
 from datetime import UTC

@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Eden Database Migrations — Alembic Integration
 
@@ -20,7 +21,6 @@ Usage:
     print(f"Current version: {history.current}")
 """
 
-from __future__ import annotations
 
 import logging
 import asyncio
@@ -63,7 +63,7 @@ class MigrationInfo(Model):
     id: int = Column(Integer, primary_key=True)
     version: str = Column(String(32), unique=True, index=True)
     description: str = Column(String(255))
-    applied_at: datetime = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    applied_at: datetime = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
     duration_ms: int = Column(Integer)
     status: str = Column(String(20), default='success')  # success, failed
     error_message: str = Column(String(1000), nullable=True)

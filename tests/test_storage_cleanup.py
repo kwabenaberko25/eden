@@ -1,3 +1,4 @@
+from datetime import timezone
 """Test suite for automatic file cleanup on model deletion (Layer 2).
 
 Tests verify that:
@@ -427,7 +428,7 @@ async def test_file_reference_query_only_active_references():
     active_ref = MagicMock(spec=FileReference, file_path="active.jpg", storage_backend="s3")
     active_ref.save = AsyncMock()
     already_deleted = MagicMock(spec=FileReference, file_path="deleted.jpg", storage_backend="s3")
-    already_deleted.deleted_at = datetime.utcnow()
+    already_deleted.deleted_at = datetime.now(timezone.utc).replace(tzinfo=None)
     
     with patch.object(FileReference, 'filter', return_value=MagicMock()) as mock_filter:
         mock_query = MagicMock()

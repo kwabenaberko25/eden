@@ -1,5 +1,5 @@
-
 from __future__ import annotations
+
 import asyncio
 import inspect
 import weakref
@@ -123,7 +123,7 @@ class Signal:
                 continue
 
             try:
-                if asyncio.iscoroutinefunction(receiver):
+                if inspect.iscoroutinefunction(receiver):
                     res = await receiver(sender=sender, instance=instance, **kwargs)
                 else:
                     res = receiver(sender=sender, instance=instance, **kwargs)

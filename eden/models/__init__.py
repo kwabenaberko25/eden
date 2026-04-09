@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Eden Model Config - Enhanced model configuration options.
 
@@ -5,7 +6,6 @@ Provides comprehensive model configuration similar to Django's Meta class,
 with additional Eden-specific options for API, admin, and database behavior.
 """
 
-from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Type, Union

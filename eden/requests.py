@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Eden — Request Wrapper
 
@@ -5,7 +6,6 @@ Extends Starlette's Request with convenience methods for JSON, form data,
 file uploads, and type-safe access to params/headers/cookies.
 """
 
-from __future__ import annotations
 
 from typing import Any
 

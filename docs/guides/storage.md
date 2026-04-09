@@ -134,4 +134,4 @@ async def download_invoice(request, id: int):
 
 ---
 
-**Next Steps**: [Background Tasks & Task Queues](background-tasks.md) | [SaaS Multi-Tenancy](tenancy.md)
+**Next Steps**: [Background Tasks & Task Queues](background-tasks.md) | [SaaS Multi-Tenancy](tenancy-postgres.md)

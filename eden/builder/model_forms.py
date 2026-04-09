@@ -1,6 +1,6 @@
+from __future__ import annotations
 """Model form generation."""
 
-from __future__ import annotations
 
 from typing import Any, Type
 

@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Eden — Database Aggregates
 
@@ -5,7 +6,6 @@ Django-style aggregation functions that wrap SQLAlchemy's func calls.
 These allow for expressive data analysis in QuerySet.aggregate() and QuerySet.annotate().
 """
 
-from __future__ import annotations
 
 import operator
 from collections.abc import Callable

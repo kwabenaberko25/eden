@@ -140,4 +140,4 @@ WITH (m = 16, ef_construction = 64);
 
 ---
 
-**Next Steps**: [Multi-Tenancy Guide](tenancy.md) | [Background Tasks](background-tasks.md)
+**Next Steps**: [Multi-Tenancy Guide](tenancy-postgres.md) | [Background Tasks](background-tasks.md)

@@ -57,7 +57,7 @@ def render_error_response(
     detail: str,
     traceback_text: str | None = None,
 ) -> str:
-    """Render a simple, clean error page (non-debug/generic)."""
+    """Render a premium, self-contained error page (zero-dependency)."""
     title = STATUS_MESSAGES.get(status_code, "Error")
     icon = STATUS_ICONS.get(status_code, "❌")
     safe_detail = html_mod.escape(detail)
@@ -78,49 +78,68 @@ def render_error_response(
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{status_code} — {title}</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
     <style>
+        :root {{
+            --bg: #020617;
+            --card: rgba(15, 23, 42, 0.7);
+            --border: rgba(255, 255, 255, 0.1);
+            --primary: #3b82f6;
+            --text: #f8fafc;
+            --text-muted: #94a3b8;
+            --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+        }}
         * {{ margin: 0; padding: 0; box-sizing: border-box; }}
         body {{
-            font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
-            background: #0F172A;
-            color: #e2e8f0;
+            font-family: var(--font-sans);
+            background-color: var(--bg);
+            background-image: radial-gradient(circle at 50% 50%, #1e1b4b 0%, #020617 100%);
+            color: var(--text);
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 24px;
+            line-height: 1.5;
         }}
         .error-container {{
             text-align: center;
             max-width: 520px;
             width: 100%;
+            padding: 48px;
+            background: var(--card);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            animation: fadeIn 0.6s ease-out;
+        }}
+        @keyframes fadeIn {{
+            from {{ opacity: 0; transform: translateY(10px); }}
+            to {{ opacity: 1; transform: translateY(0); }}
         }}
         .error-icon {{
             font-size: 64px;
             margin-bottom: 24px;
-            filter: drop-shadow(0 0 15px rgba(255, 255, 255, 0.1));
+            filter: drop-shadow(0 0 20px rgba(59, 130, 246, 0.3));
         }}
         .error-code {{
-            font-family: 'Outfit', sans-serif;
             font-size: 14px;
             font-weight: 700;
-            color: #3B82F6;
+            color: var(--primary);
             text-transform: uppercase;
-            letter-spacing: 0.1em;
-            margin-bottom: 8px;
+            letter-spacing: 0.2em;
+            margin-bottom: 12px;
         }}
         .error-title {{
-            font-family: 'Outfit', sans-serif;
             font-size: 32px;
-            font-weight: 700;
+            font-weight: 800;
             color: #ffffff;
             margin-bottom: 16px;
+            letter-spacing: -0.02em;
         }}
         .error-detail {{
             font-size: 16px;
-            color: #94A3B8;
+            color: var(--text-muted);
             line-height: 1.6;
             margin-bottom: 32px;
         }}
@@ -129,69 +148,76 @@ def render_error_response(
             gap: 12px;
             justify-content: center;
         }}
-        .btn-home {{
-            display: inline-block;
-            background: #2563EB;
-            color: white;
+        .btn {{
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
             padding: 12px 24px;
-            border-radius: 10px;
+            border-radius: 12px;
             text-decoration: none;
             font-weight: 600;
             font-size: 14px;
-            transition: all 0.2s;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }}
+        .btn-home {{
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 4px 14px 0 rgba(59, 130, 246, 0.39);
         }}
         .btn-home:hover {{
-            background: #1D4ED8;
-            transform: translateY(-1px);
+            background: #2563eb;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.23);
         }}
         .btn-secondary {{
-            display: inline-block;
-            background: #1E293B;
-            color: #e2e8f0;
-            padding: 12px 24px;
-            border-radius: 10px;
-            text-decoration: none;
-            font-weight: 600;
-            font-size: 14px;
-            border: 1px solid #334155;
-            transition: all 0.2s;
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text);
+            border: 1px solid var(--border);
         }}
         .btn-secondary:hover {{
-            background: #334155;
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
         }}
         .brand {{
             margin-top: 48px;
             font-size: 12px;
             color: #475569;
-            font-weight: 500;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
         }}
-        .brand span {{ color: #2563EB; }}
+        .brand span {{ color: var(--primary); }}
         .traceback {{
             text-align: left;
-            margin-top: 28px;
-            background: #1e293b;
-            border: 1px solid #334155;
-            border-radius: 10px;
-            padding: 4px;
-            max-width: 100%;
+            margin-top: 32px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            overflow: hidden;
         }}
         .traceback summary {{
-            padding: 10px 14px;
+            padding: 14px 20px;
             cursor: pointer;
-            font-size: 0.82rem;
-            color: #f59e0b;
-            font-weight: 500;
+            font-size: 13px;
+            color: #fbbf24;
+            font-weight: 600;
             user-select: none;
+            background: rgba(255, 255, 255, 0.02);
+            transition: background 0.2s;
+        }}
+        .traceback summary:hover {{
+            background: rgba(255, 255, 255, 0.05);
         }}
         .traceback pre {{
-            padding: 12px 14px;
-            font-size: 0.75rem;
-            line-height: 1.5;
-            color: #94a3b8;
+            padding: 20px;
+            font-size: 12px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            line-height: 1.7;
+            color: var(--text-muted);
             overflow-x: auto;
             white-space: pre-wrap;
-            word-break: break-word;
-            max-height: 320px;
+            word-break: break-all;
+            max-height: 400px;
             overflow-y: auto;
         }}
     </style>
@@ -199,15 +225,15 @@ def render_error_response(
 <body>
     <div class="error-container">
         <div class="error-icon">{icon}</div>
-        <div class="error-code">{status_code}</div>
+        <div class="error-code">{status_code} Error</div>
         <div class="error-title">{title}</div>
         <div class="error-detail">{safe_detail}</div>
         <div class="actions">
-            <a href="/" class="btn-home">← Go Home</a>
-            <a href="javascript:history.back()" class="btn-secondary">Go Back</a>
+            <a href="/" class="btn btn-home">Back to Home</a>
+            <a href="javascript:history.back()" class="btn btn-secondary">Previous Page</a>
         </div>
         {traceback_html}
-        <div class="brand">Powered by <span>Eden 🌿</span></div>
+        <div class="brand">Powered by <span>Eden Framework 🌿</span></div>
     </div>
 </body>
 </html>"""
@@ -282,28 +308,27 @@ def render_premium_debug_page(
     badge: str = "ERROR"
 ) -> HTMLResponse:
     """Renders the high-fidelity Eden debug/error page with code context and request details."""
-    jakarta_sans = "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
-    outfit = "https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700&display=swap"
+    # CDNs removed for zero-dependency premium design
     
     # Format context variables for display
     def format_value(value, max_length=150):
         """Format a value safely for display."""
         try:
             if value is None:
-                return '<span class="text-slate-500 italic">None</span>'
+                return '<span class="val-null italic">None</span>'
             elif isinstance(value, bool):
-                return f'<span class="text-blue-400 font-mono">{str(value)}</span>'
+                return f'<span class="val-bool">{str(value)}</span>'
             elif isinstance(value, (int, float)):
-                return f'<span class="text-emerald-400 font-mono">{value}</span>'
+                return f'<span class="val-num">{value}</span>'
             elif isinstance(value, str):
                 escaped = html_mod.escape(value[:max_length])
                 if len(value) > max_length:
-                    escaped += '...'
-                return f'<span class="text-amber-300 font-mono">"{escaped}"</span>'
+                    escaped += "..."
+                return f'<span class="val-str">"{escaped}"</span>'
             elif isinstance(value, dict):
-                return f'<span class="text-slate-400 font-mono">dict({len(value)} items)</span>'
+                return f'<span class="val-meta">dict({len(value)} items)</span>'
             elif isinstance(value, (list, tuple)):
-                return f'<span class="text-slate-400 font-mono">{type(value).__name__}({len(value)} items)</span>'
+                return f'<span class="val-meta">{type(value).__name__}({len(value)} items)</span>'
             return html_mod.escape(str(type(value).__name__))
         except Exception:
             return "???"
@@ -313,27 +338,28 @@ def render_premium_debug_page(
     if suggestions:
         for suggestion in suggestions:
             suggestions_html += f"""
-            <div class="flex items-start gap-3 p-3 bg-blue-500/5 rounded-xl border border-blue-500/10 mb-2 last:mb-0">
-                <div class="mt-0.5 text-blue-400">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            <div class="suggestion-item">
+                <div class="suggestion-icon">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                 </div>
-                <p class="text-[11px] text-slate-300 leading-relaxed font-medium">{suggestion}</p>
+                <p class="suggestion-text">{suggestion}</p>
             </div>
             """
+
     # Prepare Metadata Tabs
     def dict_to_table(d, title):
         if not d:
-            return f'<p class="text-slate-500 italic text-xs p-4">No {title} data available</p>'
+            return f'<p class="no-data">No {title} data available</p>'
         
         rows = []
         for k, v in sorted(d.items()):
             rows.append(f"""
-            <tr class="border-b border-white/5 last:border-0 hover:bg-white/[0.02] transition-colors">
-                <td class="py-3 px-4 font-mono text-[11px] text-blue-400 align-top w-1/3 break-all">{html_mod.escape(str(k))}</td>
-                <td class="py-3 px-4 font-mono text-[11px] text-slate-300 break-all">{format_value(v)}</td>
+            <tr class="table-row">
+                <td class="table-key">{html_mod.escape(str(k))}</td>
+                <td class="table-val">{format_value(v)}</td>
             </tr>
             """)
-        return f'<table class="w-full text-left border-collapse"><tbody>{"".join(rows)}</tbody></table>'
+        return f'<table class="data-table"><tbody>{"".join(rows)}</tbody></table>'
 
     request_data = metadata.get("Request", {})
     env_data = metadata.get("Environment", {})
@@ -355,7 +381,7 @@ def render_premium_debug_page(
         import json
         try:
             formatted_payload = json.dumps(payload_data_json, indent=2)
-            tabs["Payload (JSON)"] = f'<pre class="p-4 text-[11px] font-mono text-amber-200/80 overflow-x-auto bg-black/20"><code>{html_mod.escape(formatted_payload)}</code></pre>'
+            tabs["Payload (JSON)"] = f'<pre class="json-payload"><code>{html_mod.escape(formatted_payload)}</code></pre>'
         except:
             pass
 
@@ -365,20 +391,20 @@ def render_premium_debug_page(
     for i, (name, content) in enumerate(tabs.items()):
         safe_id = name.lower().replace(" ", "-").replace("(", "").replace(")", "")
         is_active = i == 0
-        active_class = "text-blue-400 border-b-2 border-blue-500 active" if is_active else "text-slate-500 hover:text-slate-300"
-        hidden_class = "" if is_active else "hidden"
+        active_class = "active" if is_active else ""
+        hidden_style = "" if is_active else 'style="display:none"'
         
         tabs_nav.append(f"""
         <button onclick="switchTab(this, '{safe_id}')" 
                 id="tab-btn-{safe_id}" 
                 data-tab-link="{safe_id}"
-                class="tab-btn pb-3 text-[10px] font-bold uppercase tracking-widest transition-all {active_class}">
+                class="tab-btn {active_class}">
             {name}
         </button>
         """)
         
         tabs_content.append(f"""
-        <div id="tab-content-{safe_id}" class="tab-pane {hidden_class} animate-in fade-in duration-300">
+        <div id="tab-content-{safe_id}" class="tab-pane" {hidden_style}>
             {content}
         </div>
         """)
@@ -387,229 +413,299 @@ def render_premium_debug_page(
     if context_vars:
         rows: list[str] = []
         for key, val in sorted(context_vars.items()):
-            # Filter internal jinja/eden vars for cleaner view
             if key.startswith("__") or key in ("app", "debug", "found_context"):
                 continue
             rows.append(f"""
-            <tr class="border-b border-slate-800/50 last:border-0 hover:bg-white/[0.01]">
-                <td class="py-2.5 px-4 font-mono text-[11px] text-indigo-400 align-top w-1/3">{key}</td>
-                <td class="py-2.5 px-4 font-mono text-[11px] text-slate-300 break-all">{format_value(val)}</td>
+            <tr class="table-row">
+                <td class="table-key-alt">{key}</td>
+                <td class="table-val">{format_value(val)}</td>
             </tr>
             """)
         context_html = "".join(rows)
 
     html = f"""
     <!DOCTYPE html>
-    <html lang="en" class="dark">
+    <html lang="en">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>{title} — {filename}:{lineno}{f":{column + 1}" if column >= 0 else ""}</title>
-        <script src="https://cdn.tailwindcss.com"></script>
-        <link rel="preconnect" href="https://fonts.googleapis.com">
-        <link href="{jakarta_sans}" rel="stylesheet">
-        <link href="{outfit}" rel="stylesheet">
         <style>
-            body {{ font-family: 'Plus Jakarta Sans', sans-serif; background: #020617; color: #cbd5e1; overflow-x: hidden; }}
-            h1, h2, h3, .font-heading {{ font-family: 'Outfit', sans-serif; }}
-            .glass {{ background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.05); }}
-            .error-line {{ background: rgba(239, 68, 68, 0.08); border-left: 3px solid #f43f5e; margin-left: -3px; position: relative; width: 100%; }}
-            .line-no {{ 
-                color: #475569; 
-                margin-right: 0.5rem; 
-                user-select: none; 
-                width: 3.5rem; 
-                display: inline-block; 
-                text-align: right; 
-                font-size: 0.72rem; 
-                font-weight: 700; 
-                opacity: 0.4; 
-                font-family: ui-monospace, monospace;
+            :root {{
+                --bg: #020617;
+                --card: rgba(15, 23, 42, 0.6);
+                --border: rgba(255, 255, 255, 0.06);
+                --primary: #3b82f6;
+                --rose: #f43f5e;
+                --emerald: #10b981;
+                --amber: #f59e0b;
+                --indigo: #6366f1;
+                --text: #f8fafc;
+                --text-muted: #94a3b8;
+                --text-extra-muted: #64748b;
+                --font-sans: ui-sans-serif, system-ui, -apple-system, sans-serif;
+                --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
             }}
-            pre {{ font-family: 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', monospace; }}
-            .column-marker {{ 
-                position: absolute; 
-                bottom: -2px; 
-                height: 3px; 
-                width: 1ch;
-                background: linear-gradient(90deg, #f43f5e, #fb7185); 
-                box-shadow: 0 0 15px rgba(244, 63, 94, 0.9); 
-                border-radius: 2px;
-                z-index: 30;
-                pointer-events: none;
+            * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+            body {{
+                font-family: var(--font-sans);
+                background-color: var(--bg);
+                color: #cbd5e1;
+                min-height: 100vh;
+                line-height: 1.5;
             }}
-            .error-line .column-marker {{ left: calc(4.0rem + {column}ch); }}
-            .code-explorer {{ max-height: 520px; overflow-y: auto; scrollbar-gutter: stable; background: #0b1222; }}
-            ::-webkit-scrollbar {{ width: 6px; height: 6px; }}
-            ::-webkit-scrollbar-track {{ background: transparent; }}
-            ::-webkit-scrollbar-thumb {{ background: #1e293b; border-radius: 10px; }}
-            ::-webkit-scrollbar-thumb:hover {{ background: #334155; }}
+            .glass {{ background: var(--card); backdrop-filter: blur(12px); border: 1px solid var(--border); }}
             
-            @keyframes slideIn {{
-                from {{ transform: translateY(10px); opacity: 0; }}
-                to {{ transform: translateY(0); opacity: 1; }}
+            /* Header */
+            header {{
+                position: sticky;
+                top: 0;
+                z-index: 50;
+                padding: 1rem 1.5rem;
+                margin-bottom: 2rem;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                border-bottom: 1px solid var(--border);
             }}
-            .animate-slide {{ animation: slideIn 0.4s ease-out forwards; }}
-            .tab-btn.active {{ color: #60a5fa; border-color: #3b82f6; }}
+            .header-info {{ display: flex; align-items: center; gap: 0.75rem; }}
+            .header-icon {{
+                background: rgba(244, 63, 94, 0.1);
+                color: var(--rose);
+                width: 2rem;
+                height: 2rem;
+                border-radius: 0.5rem;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border: 1px solid rgba(244, 63, 94, 0.2);
+            }}
+            .header-title {{ font-weight: 700; color: white; font-size: 0.875rem; }}
+            .header-subtitle {{ color: var(--text-extra-muted); font-size: 0.625rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; }}
+            
+            /* Layout */
+            main {{ max-width: 80rem; margin: 0 auto; padding: 0 1.5rem 6rem; }}
+            .grid {{ display: grid; grid-template-columns: 1fr; gap: 3rem; align-items: start; }}
+            @media (min-width: 1024px) {{ .grid {{ grid-template-columns: 2fr 1fr; }} }}
+
+            /* Exception Summary */
+            .exception-header {{ margin-bottom: 3rem; animation: slideUp 0.4s ease-out; }}
+            @keyframes slideUp {{ from {{ transform: translateY(10px); opacity: 0; }} to {{ transform: translateY(0); opacity: 1; }} }}
+            .message-title {{ color: var(--rose); font-weight: 700; font-size: 1.25rem; margin-bottom: 1rem; }}
+            .message-title span {{ color: var(--rose); filter: brightness(1.2); }}
+            .meta-tags {{ display: flex; flex-wrap: wrap; gap: 1rem; font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-extra-muted); }}
+            .meta-tag {{ background: rgba(255, 255, 255, 0.05); padding: 0.25rem 0.625rem; border-radius: 9999px; border: 1px solid var(--border); display: flex; gap: 0.375rem; }}
+            .tag-key {{ opacity: 0.6; }}
+            .tag-val-file {{ color: var(--indigo); }}
+            .tag-val-line {{ color: var(--emerald); }}
+            .tag-val-col {{ color: var(--amber); }}
+            
+            .btn-copy {{
+                margin-left: auto;
+                background: rgba(244, 63, 94, 0.1);
+                color: var(--rose);
+                border: 1px solid rgba(244, 63, 94, 0.2);
+                padding: 0.25rem 0.75rem;
+                border-radius: 9999px;
+                font-size: 0.625rem;
+                font-weight: 700;
+                text-transform: uppercase;
+                cursor: pointer;
+                transition: all 0.2s;
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+            }}
+            .btn-copy:hover {{ background: rgba(244, 63, 94, 0.2); }}
+
+            /* Suggestions */
+            .suggestions {{ margin-top: 1.5rem; }}
+            .suggestion-item {{ display: flex; gap: 0.75rem; padding: 0.75rem; background: rgba(59, 130, 246, 0.05); border-radius: 0.75rem; border: 1px solid rgba(59, 130, 246, 0.1); margin-bottom: 0.5rem; last-child: 0; }}
+            .suggestion-icon {{ color: var(--primary); margin-top: 0.125rem; width: 0.875rem; }}
+            .suggestion-icon svg {{ width: 0.875rem; height: 0.875rem; }}
+            .suggestion-text {{ font-size: 0.6875rem; color: var(--text-extra-muted); font-weight: 500; line-height: 1.5; }}
+            .suggestion-text code {{ background: rgba(59, 130, 246, 0.15); color: #93c5fd; padding: 0.1rem 0.25rem; border-radius: 0.25rem; }}
+
+            /* Explorer */
+            .explorer-section {{ margin-top: 3rem; animation: slideUp 0.4s ease-out 0.1s backwards; }}
+            .section-label {{ font-size: 0.625rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.2em; color: var(--text-extra-muted); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }}
+            .explorer-card {{ border-radius: 1.5rem; border: 1px solid var(--border); overflow: hidden; background: #0b1222; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }}
+            .explorer-header {{ background: rgba(255, 255, 255, 0.02); padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); display: flex; gap: 0.375rem; }}
+            .dot {{ width: 0.625rem; height: 0.625rem; border-radius: 9999px; }}
+            .dot-red {{ background: rgba(244, 63, 94, 0.2); border: 1px solid rgba(244, 63, 94, 0.4); }}
+            .dot-yellow {{ background: rgba(245, 158, 11, 0.2); border: 1px solid rgba(245, 158, 11, 0.4); }}
+            .dot-green {{ background: rgba(16, 185, 129, 0.2); border: 1px solid rgba(16, 185, 129, 0.4); }}
+            .code-box {{ padding: 1.5rem; font-size: 0.75rem; line-height: 1.6; overflow-x: auto; max-height: 520px; }}
+            
+            /* Code Highlighter Classes */
+            .error-line {{ background: rgba(244, 63, 94, 0.1); border-left: 3px solid var(--rose); margin-left: -3px; }}
+            .line-no {{ color: var(--text-extra-muted); opacity: 0.4; width: 3.5rem; display: inline-block; text-align: right; padding-right: 1.5rem; user-select: none; font-weight: 700; font-family: var(--font-mono); font-size: 0.7rem; }}
+            .column-marker {{ position: absolute; bottom: -2px; height: 3px; width: 1ch; background: linear-gradient(90deg, #f43f5e, #fb7185); box-shadow: 0 0 15px rgba(244, 63, 94, 0.9); border-radius: 2px; z-index: 30; pointer-events: none; }}
+
+            /* Tabs */
+            .tabs-nav {{ border-bottom: 1px solid var(--border); display: flex; gap: 2rem; padding: 0 0.5rem; margin-bottom: 1.5rem; }}
+            .tab-btn {{ background: none; border: none; padding-bottom: 0.75rem; color: var(--text-extra-muted); font-size: 0.625rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; cursor: pointer; transition: all 0.2s; position: relative; }}
+            .tab-btn:hover {{ color: var(--text-muted); }}
+            .tab-btn.active {{ color: var(--primary); }}
+            .tab-btn.active::after {{ content: ''; position: absolute; bottom: -1px; left: 0; width: 100%; height: 2px; background: var(--primary); }}
+            
+            .data-table {{ width: 100%; border-collapse: collapse; text-align: left; }}
+            .table-row {{ border-bottom: 1px solid rgba(255, 255, 255, 0.05); }}
+            .table-row:last-child {{ border-bottom: none; }}
+            .table-row:hover {{ background: rgba(255, 255, 255, 0.015); }}
+            .table-key {{ padding: 0.75rem 1rem; font-family: var(--font-mono); font-size: 0.6875rem; color: var(--primary); width: 33%; vertical-align: top; word-break: break-all; }}
+            .table-key-alt {{ padding: 0.75rem 1rem; font-family: var(--font-mono); font-size: 0.6875rem; color: var(--indigo); width: 33%; vertical-align: top; word-break: break-all; }}
+            .table-val {{ padding: 0.75rem 1rem; font-family: var(--font-mono); font-size: 0.6875rem; color: var(--text-muted); word-break: break-all; }}
+            .no-data {{ color: var(--text-extra-muted); font-style: italic; font-size: 0.75rem; padding: 1rem; }}
+            .json-payload {{ padding: 1rem; background: rgba(0, 0, 0, 0.2); font-size: 0.6875rem; color: #fde68a; overflow-x: auto; }}
+
+            /* Value Formatting */
+            .val-null {{ color: var(--text-extra-muted); font-style: italic; }}
+            .val-bool {{ color: var(--primary); font-weight: 600; }}
+            .val-num {{ color: var(--emerald); font-weight: 600; }}
+            .val-str {{ color: var(--amber); }}
+            .val-meta {{ color: var(--text-extra-muted); font-style: italic; }}
+
+            /* Sidebar */
+            .sidebar {{ animation: slideUp 0.4s ease-out 0.3s backwards; }}
+            .side-card {{ background: rgba(15, 23, 42, 0.3); padding: 1.25rem; border-radius: 1.5rem; border: 1px solid var(--border); margin-bottom: 2rem; }}
+            .side-label {{ font-size: 0.625rem; font-weight: 600; text-transform: uppercase; color: var(--text-extra-muted); margin-bottom: 0.75rem; letter-spacing: 0.1em; }}
+            .side-val {{ font-size: 1.125rem; font-weight: 700; color: white; display: flex; align-items: center; gap: 0.5rem; }}
+            .side-val span {{ color: var(--primary); }}
+
+            /* Footer */
+            footer {{ margin-top: 5rem; padding: 3rem 0; border-top: 1px solid var(--border); text-align: center; }}
+            .footer-tag {{ font-size: 0.625rem; font-weight: 700; text-transform: uppercase; color: var(--text-extra-muted); letter-spacing: 0.2em; margin-bottom: 1rem; }}
+            .footer-brand {{ display: flex; align-items: center; justify-content: center; gap: 1rem; opacity: 0.4; }}
+            .f-line {{ width: 2rem; height: 1px; background: var(--text-extra-muted); }}
+            .f-text {{ font-size: 0.75rem; font-weight: 700; color: var(--text-muted); letter-spacing: 0.05em; }}
         </style>
     </head>
-    <body class="bg-[#020617] text-slate-300 min-h-screen selection:bg-rose-500/20">
-        <!-- Persistent Header -->
-        <div class="sticky top-0 z-50 glass border-b border-white/5 px-6 py-4 mb-8">
-            <div class="max-w-7xl mx-auto flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 bg-rose-500/10 rounded-lg flex items-center justify-center border border-rose-500/20 text-rose-500">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-                    </div>
-                    <div>
-                        <h1 class="text-sm font-bold text-white tracking-tight">{badge}: {title}</h1>
-                        <p class="text-[10px] text-slate-500 font-medium">Eden Framework Diagnostic Utility</p>
-                    </div>
+    <body class="selection:bg-rose-500/20">
+        <header class="glass">
+            <div class="header-info">
+                <div class="header-icon">
+                    <svg style="width:1.25rem;height:1.25rem" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
                 </div>
-                <div class="flex items-center gap-4">
-                    <span class="text-[10px] text-slate-500 font-mono tracking-tighter uppercase">{filename}:{lineno}{f":{column + 1}" if column >= 0 else ""}</span>
-                    <button onclick="window.location.reload()" class="p-2 hover:bg-white/5 rounded-lg transition-colors text-slate-400">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-                    </button>
+                <div>
+                    <h1 class="header-title">{badge}: {title}</h1>
+                    <p class="header-subtitle">Eden Framework Diagnostic Utility</p>
                 </div>
             </div>
-        </div>
+            <div style="display:flex;align-items:center;gap:1.5rem">
+                <span style="font-family:var(--font-mono);font-size:0.625rem;color:var(--text-extra-muted)">{filename}:{lineno}{f":{column + 1}" if column >= 0 else ""}</span>
+                <button onclick="window.location.reload()" style="background:none;border:none;cursor:pointer;color:var(--text-extra-muted);transition:color 0.2s" onmouseover="this.style.color='white'" onmouseout="this.style.color='var(--text-extra-muted)'">
+                    <svg style="width:1rem;height:1rem" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                </button>
+            </div>
+        </header>
 
-        <main class="max-w-7xl mx-auto px-6 pb-24 space-y-12">
-            <!-- Exception Summary -->
-            <section class="space-y-4 animate-slide">
-                <div class="space-y-1">
-                    <h2 class="text-rose-400 font-bold text-lg mb-2 flex items-center gap-2">
-                        <span class="text-rose-500">{badge}:</span> {html_mod.escape(message.split(' (Did you mean:')[0])}
-                    </h2>
-                    <div class="flex flex-wrap items-center gap-4 text-xs font-mono text-slate-500">
-                        <div class="flex items-center gap-1.5 px-2.5 py-1 bg-white/5 rounded-full border border-white/5 shadow-inner">
-                            <span class="text-indigo-400 opacity-60">FILE:</span> {html_mod.escape(str(filename))}
-                        </div>
-                        <div class="flex items-center gap-1.5 px-2.5 py-1 bg-white/5 rounded-full border border-white/5 shadow-inner">
-                            <span class="text-emerald-400 opacity-60">LINE:</span> {lineno}
-                        </div>
-                        {f'<div class="flex items-center gap-1.5 px-2.5 py-1 bg-white/5 rounded-full border border-white/5 shadow-inner"><span class="text-amber-400 opacity-60">COL:</span> {column + 1}</div>' if column >= 0 else ''}
-                        
-                        <button onclick="copyToClipboard(event, '{html_mod.escape(message.replace("'", "\\'"))}')" class="ml-auto flex items-center gap-2 px-3 py-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded-full border border-rose-500/20 transition-all text-[10px] font-bold tracking-tight uppercase group">
-                            <svg class="w-3 h-3 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
-                            Copy Error
-                        </button>
-                    </div>
+        <main>
+            <section class="exception-header">
+                <h2 class="message-title">
+                    <span>{badge}:</span> {html_mod.escape(message.split(' (Did you mean:')[0])}
+                </h2>
+                <div class="meta-tags">
+                    <div class="meta-tag"><span class="tag-key">FILE:</span> <span class="tag-val-file">{html_mod.escape(str(filename))}</span></div>
+                    <div class="meta-tag"><span class="tag-key">LINE:</span> <span class="tag-val-line">{lineno}</span></div>
+                    {f'<div class="meta-tag"><span class="tag-key">COL:</span> <span class="tag-val-col">{column + 1}</span></div>' if column >= 0 else ''}
+                    <button onclick="copyToClipboard(event, `{html_mod.escape(message.replace("'", "\\'"))}`)" class="btn-copy">
+                        <svg style="width:0.75rem;height:0.75rem" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+                        Copy Error
+                    </button>
                 </div>
                 {suggestions_html}
             </section>
 
-            <!-- Code Explorer -->
-            <section class="space-y-3 animate-slide" style="animation-delay: 0.1s">
-                <div class="flex items-center justify-between px-1">
-                    <h3 class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 flex items-center gap-2">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
-                        Source Explorer
-                    </h3>
-                    <span class="text-[9px] text-slate-600 font-mono opacity-60 truncate max-w-md">{filename}:{lineno}{f":{column + 1}" if column >= 0 else ""}</span>
+            <section class="explorer-section">
+                <div class="section-label">
+                    <svg style="width:0.875rem;height:0.875rem" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
+                    Source Explorer
                 </div>
-                <div class="rounded-2xl border border-white/5 shadow-2xl overflow-hidden bg-[#0b1222]">
-                    <div class="flex items-center gap-1.5 px-4 py-3 bg-white/[0.02] border-b border-white/5">
-                        <div class="w-2.5 h-2.5 rounded-full bg-rose-500/20 border border-rose-500/40"></div>
-                        <div class="w-2.5 h-2.5 rounded-full bg-amber-500/20 border border-amber-500/40"></div>
-                        <div class="w-2.5 h-2.5 rounded-full bg-emerald-500/20 border border-emerald-500/40"></div>
+                <div class="explorer-card">
+                    <div class="explorer-header">
+                        <div class="dot dot-red"></div>
+                        <div class="dot dot-yellow"></div>
+                        <div class="dot dot-green"></div>
                     </div>
-                    <div class="code-explorer p-6 text-[12px] leading-relaxed">
+                    <div class="code-box">
                         {code_frame}
                     </div>
                 </div>
             </section>
 
-            <div class="grid lg:grid-cols-3 gap-12 items-start">
-                <div class="lg:col-span-2 space-y-12 animate-slide" style="animation-delay: 0.2s">
-                    <!-- Metadata Tabs -->
-                    <section class="space-y-6">
-                        <div class="flex items-center gap-8 border-b border-white/5 px-2">
+            <div class="grid" style="margin-top:3rem">
+                <div style="display:flex;flex-direction:column;gap:3rem">
+                    <section>
+                        <div class="tabs-nav">
                             {"".join(tabs_nav)}
                         </div>
-                        <div class="bg-[#0b1222] rounded-2xl border border-white/5 overflow-hidden shadow-xl">
+                        <div class="explorer-card" style="background:#0b1222">
                             {"".join(tabs_content)}
                         </div>
                     </section>
-
                     {traceback_html}
                 </div>
 
-                <div class="space-y-12 animate-slide" style="animation-delay: 0.3s">
-                    <!-- Context Variables -->
-                    <section class="space-y-4">
-                        <h3 class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 flex items-center gap-2 px-1">
-                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 1.1.9 2 2 2h12a2 2 0 002-2V7a2 2 0 00-2-2H6a2 2 0 00-2 2zM9 12h.01M13 12h.01M17 12h.01"></path></svg>
+                <div class="sidebar">
+                    <section style="margin-bottom: 3rem">
+                        <div class="section-label">
+                            <svg style="width:0.875rem;height:0.875rem" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 1.1.9 2 2 2h12a2 2 0 002-2V7a2 2 0 00-2-2H6a2 2 0 00-2 2zM9 12h.01M13 12h.01M17 12h.01"></path></svg>
                             Frame Locals
-                        </h3>
-                        <div class="bg-[#0b1222] rounded-2xl border border-white/10 overflow-hidden shadow-2xl">
-                            <div class="overflow-x-auto">
-                                <table class="w-full text-left border-collapse">
-                                    <tbody class="divide-y divide-white/5">
-                                        {context_html if context_html else '<tr><td class="p-8 text-center text-slate-600 italic text-xs">No local variables to display</td></tr>'}
+                        </div>
+                        <div class="explorer-card">
+                            <div style="overflow-x:auto">
+                                <table class="data-table">
+                                    <tbody>
+                                        {context_html if context_html else '<tr><td style="padding:2rem;text-align:center;color:var(--text-extra-muted);font-style:italic;font-size:0.75rem">No local variables to display</td></tr>'}
                                     </tbody>
                                 </table>
                             </div>
                         </div>
-                    <div class="space-y-4">
-                        <h2 class="text-sm font-bold uppercase tracking-widest text-slate-500 px-1">Eden Framework</h2>
-                        <div class="bg-slate-900/30 rounded-2xl border border-white/5 p-5">
-                            <div class="text-[10px] text-slate-500 font-semibold mb-3 tracking-widest uppercase">Version</div>
-                            <div class="text-lg font-bold text-white flex items-center gap-2">
-                                🌿 Eden <span class="text-blue-500">v1.0.0</span>
-                            </div>
-                        </div>
-                    </div>
-                </aside>
+                    </section>
+
+                    <section class="side-card">
+                        <div class="side-label">Eden Framework</div>
+                        <div class="side-val">🌿 Eden <span>v1.0.0</span></div>
+                    </section>
+                </div>
             </div>
         </main>
 
-        <footer class="py-12 border-t border-white/5 text-center mt-20">
-            <p class="text-slate-600 text-[10px] font-bold uppercase tracking-[0.2em] mb-4">You are seeing this page because you are in debug mode.</p>
-            <div class="flex items-center justify-center gap-4 grayscale opacity-40">
-                <span class="h-px w-8 bg-slate-700"></span>
-                <span class="text-slate-400 font-bold text-xs tracking-wider font-heading">Powered by Eden 🌿</span>
-                <span class="h-px w-8 bg-slate-700"></span>
+        <footer>
+            <p class="footer-tag">You are seeing this page because you are in debug mode.</p>
+            <div class="footer-brand">
+                <span class="f-line"></span>
+                <span class="f-text">Powered by Eden 🌿</span>
+                <span class="f-line"></span>
             </div>
         </footer>
+
         <script>
             function switchTab(el, tabId) {{
                 const tabBtns = document.querySelectorAll('.tab-btn');
                 const tabPanes = document.querySelectorAll('.tab-pane');
 
-                tabBtns.forEach(btn => {{
-                    btn.classList.remove('text-blue-400', 'border-b-2', 'border-blue-500', 'active');
-                    btn.classList.add('text-slate-500', 'hover:text-slate-300');
-                }});
-                tabPanes.forEach(pane => {{
-                    pane.classList.add('hidden');
-                }});
+                tabBtns.forEach(btn => btn.classList.remove('active'));
+                tabPanes.forEach(pane => pane.style.display = 'none');
 
-                if (el) {{
-                    el.classList.add('text-blue-400', 'border-b-2', 'border-blue-500', 'active');
-                    el.classList.remove('text-slate-500', 'hover:text-slate-300');
-                }}
+                if (el) el.classList.add('active');
                 
                 const activePane = document.getElementById(`tab-content-${{tabId}}`);
-                if (activePane) {{
-                    activePane.classList.remove('hidden');
-                }}
+                if (activePane) activePane.style.display = 'block';
             }}
 
             function copyToClipboard(event, text) {{
                 navigator.clipboard.writeText(text).then(() => {{
                     const btn = event.currentTarget;
-                    const originalText = btn.innerHTML;
-                    btn.innerHTML = `<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Copied!`;
-                    btn.classList.replace('text-rose-400', 'text-emerald-400');
+                    const originalHTML = btn.innerHTML;
+                    btn.innerHTML = `<svg style="width:0.75rem;height:0.75rem" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Copied!`;
+                    btn.style.color = 'var(--emerald)';
                     setTimeout(() => {{
-                        btn.innerHTML = originalText;
-                        btn.classList.replace('text-emerald-400', 'text-rose-400');
+                        btn.innerHTML = originalHTML;
+                        btn.style.color = 'var(--rose)';
                     }}, 2000);
-                }}).catch(err => {{
-                    console.error('Failed to copy text: ', err);
-                }});
+                }}).catch(err => console.error('Failed to copy: ', err));
             }}
         </script>
     </body>
@@ -1101,20 +1197,20 @@ def render_enhanced_exception(
                     inner_frame += f'<span class="line-content">{line}</span>'
                     inner_frame += f'</div>{marker}'
                 
-                code_frame = f'<pre class="p-0 border-0 bg-transparent"><code>{inner_frame}</code></pre>'
+                code_frame = f'<pre style="margin:0;padding:0;border:0;background:transparent"><code>{inner_frame}</code></pre>'
         except Exception:
-            code_frame = f"<div class='p-8 border border-red-500/20 bg-red-500/5 rounded-2xl'><p class='text-red-400 font-medium'>Could not read source file: {filename}</p></div>"
+            code_frame = f"<div style='padding:2rem;border:1px solid rgba(244,63,94,0.2);background:rgba(244,63,94,0.05);border-radius:1rem'><p style='color:var(--rose);font-weight:600'>Could not read source file: {filename}</p></div>"
 
     # 4. Generate Traceback Section
     formatted_tb = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
     traceback_html = f"""
-    <div class="mt-8 space-y-3">
-        <h2 class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 flex items-center gap-2 px-1">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2a4 4 0 00-4-4H5m11 0h.01M16 21h4a2 2 0 002-2v-9a2 2 0 00-2-2H4a2 2 0 00-2 2v9a2 2 0 002 2h4"></path></svg>
+    <div style="margin-top:2rem">
+        <h2 class="section-label" style="margin-bottom:0.75rem;padding:0 0.25rem">
+            <svg style="width:0.875rem;height:0.875rem" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2a4 4 0 00-4-4H5m11 0h.01M16 21h4a2 2 0 002-2v-9a2 2 0 00-2-2H4a2 2 0 00-2 2v9a2 2 0 002 2h4"></path></svg>
             Stack Traceback
         </h2>
-        <div class="bg-[#0b1222] rounded-xl border border-white/5 p-4 shadow-sm">
-            <pre class="text-[10px] font-mono text-slate-400 overflow-x-auto leading-relaxed"><code>{html_mod.escape(formatted_tb)}</code></pre>
+        <div class="explorer-card" style="padding:1rem">
+            <pre style="font-size:0.625rem;font-family:var(--font-mono);color:var(--text-muted);overflow-x:auto;line-height:1.6"><code>{html_mod.escape(formatted_tb)}</code></pre>
         </div>
     </div>
     """

@@ -240,4 +240,4 @@ users = await User.filter(
 
 ---
 
-**Next Steps**: [Query Syntax Guide](orm-query-syntax.md) | [Relationship Patterns](orm-relationships.md) | [Multi-Tenancy Guide](tenancy.md) | [ORM Index](ORM_INDEX.md)
+**Next Steps**: [Query Syntax Guide](orm-query-syntax.md) | [Relationship Patterns](orm-relationships.md) | [Multi-Tenancy Guide](tenancy-postgres.md) | [ORM Index](ORM_INDEX.md)

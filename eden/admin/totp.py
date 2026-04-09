@@ -1,3 +1,4 @@
+from datetime import timezone
 """
 Two-Factor Authentication (2FA) with TOTP for Eden Admin Dashboard.
 
@@ -277,7 +278,7 @@ class TOTPSecretManager:
         totp_secret = self.secrets[username]
         if self.totp_manager.verify(totp_secret.secret, code):
             totp_secret.verified = True
-            totp_secret.enabled_at = datetime.utcnow()
+            totp_secret.enabled_at = datetime.now(timezone.utc).replace(tzinfo=None)
             return True
         
         return False

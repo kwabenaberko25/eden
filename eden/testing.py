@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Eden Testing Infrastructure
 
@@ -5,7 +6,6 @@ Provides Async TestClient, fixtures, and utilities for modern Eden applications.
 Supports database isolation via transactions and context-safe mocking.
 """
 
-from __future__ import annotations
 
 import asyncio
 from contextlib import asynccontextmanager
@@ -150,7 +150,7 @@ class EdenTestClient(httpx.AsyncClient):
             "sub": str(getattr(user, "id", "0")),
             "email": getattr(user, "email", "test@example.com"),
             "is_staff": getattr(user, "is_staff", False),
-            "exp": datetime.now(timezone.utc) + timedelta(hours=1),
+            "exp": datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=1),
             "test": True,
         }
         return jwt.encode(payload, secret, algorithm="HS256")

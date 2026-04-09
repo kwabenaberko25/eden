@@ -1,8 +1,8 @@
+from __future__ import annotations
 """
 Tests for eden.port — port availability and auto-selection utilities.
 """
 
-from __future__ import annotations
 
 import socket
 

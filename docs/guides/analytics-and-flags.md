@@ -180,4 +180,4 @@ async def track_long_iteration(user_id: int, data: dict):
 
 ---
 
-**Next Steps**: [Background Tasks](background-tasks.md) | [Multi-Tenancy](tenancy.md)
+**Next Steps**: [Background Tasks](background-tasks.md) | [Multi-Tenancy](tenancy-postgres.md)

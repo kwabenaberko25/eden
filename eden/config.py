@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Eden — Configuration Management
 
@@ -54,7 +55,6 @@ and .env file loading.
     - prod: Strict validation, all secrets required, optimized defaults
 """
 
-from __future__ import annotations
 
 import os
 from enum import Enum

@@ -1,0 +1,366 @@
+
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>NameError — app/routes.py:42:11</title>
+        <style>
+            :root {
+                --bg: #020617;
+                --card: rgba(15, 23, 42, 0.6);
+                --border: rgba(255, 255, 255, 0.06);
+                --primary: #3b82f6;
+                --rose: #f43f5e;
+                --emerald: #10b981;
+                --amber: #f59e0b;
+                --indigo: #6366f1;
+                --text: #f8fafc;
+                --text-muted: #94a3b8;
+                --text-extra-muted: #64748b;
+                --font-sans: ui-sans-serif, system-ui, -apple-system, sans-serif;
+                --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            }
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body {
+                font-family: var(--font-sans);
+                background-color: var(--bg);
+                color: #cbd5e1;
+                min-height: 100vh;
+                line-height: 1.5;
+            }
+            .glass { background: var(--card); backdrop-filter: blur(12px); border: 1px solid var(--border); }
+            
+            /* Header */
+            header {
+                position: sticky;
+                top: 0;
+                z-index: 50;
+                padding: 1rem 1.5rem;
+                margin-bottom: 2rem;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                border-bottom: 1px solid var(--border);
+            }
+            .header-info { display: flex; align-items: center; gap: 0.75rem; }
+            .header-icon {
+                background: rgba(244, 63, 94, 0.1);
+                color: var(--rose);
+                width: 2rem;
+                height: 2rem;
+                border-radius: 0.5rem;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border: 1px solid rgba(244, 63, 94, 0.2);
+            }
+            .header-title { font-weight: 700; color: white; font-size: 0.875rem; }
+            .header-subtitle { color: var(--text-extra-muted); font-size: 0.625rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; }
+            
+            /* Layout */
+            main { max-width: 80rem; margin: 0 auto; padding: 0 1.5rem 6rem; }
+            .grid { display: grid; grid-template-columns: 1fr; gap: 3rem; align-items: start; }
+            @media (min-width: 1024px) { .grid { grid-template-columns: 2fr 1fr; } }
+
+            /* Exception Summary */
+            .exception-header { margin-bottom: 3rem; animation: slideUp 0.4s ease-out; }
+            @keyframes slideUp { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+            .message-title { color: var(--rose); font-weight: 700; font-size: 1.25rem; margin-bottom: 1rem; }
+            .message-title span { color: var(--rose); filter: brightness(1.2); }
+            .meta-tags { display: flex; flex-wrap: wrap; gap: 1rem; font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-extra-muted); }
+            .meta-tag { background: rgba(255, 255, 255, 0.05); padding: 0.25rem 0.625rem; border-radius: 9999px; border: 1px solid var(--border); display: flex; gap: 0.375rem; }
+            .tag-key { opacity: 0.6; }
+            .tag-val-file { color: var(--indigo); }
+            .tag-val-line { color: var(--emerald); }
+            .tag-val-col { color: var(--amber); }
+            
+            .btn-copy {
+                margin-left: auto;
+                background: rgba(244, 63, 94, 0.1);
+                color: var(--rose);
+                border: 1px solid rgba(244, 63, 94, 0.2);
+                padding: 0.25rem 0.75rem;
+                border-radius: 9999px;
+                font-size: 0.625rem;
+                font-weight: 700;
+                text-transform: uppercase;
+                cursor: pointer;
+                transition: all 0.2s;
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+            }
+            .btn-copy:hover { background: rgba(244, 63, 94, 0.2); }
+
+            /* Suggestions */
+            .suggestions { margin-top: 1.5rem; }
+            .suggestion-item { display: flex; gap: 0.75rem; padding: 0.75rem; background: rgba(59, 130, 246, 0.05); border-radius: 0.75rem; border: 1px solid rgba(59, 130, 246, 0.1); margin-bottom: 0.5rem; last-child: 0; }
+            .suggestion-icon { color: var(--primary); margin-top: 0.125rem; width: 0.875rem; }
+            .suggestion-icon svg { width: 0.875rem; height: 0.875rem; }
+            .suggestion-text { font-size: 0.6875rem; color: var(--text-extra-muted); font-weight: 500; line-height: 1.5; }
+            .suggestion-text code { background: rgba(59, 130, 246, 0.15); color: #93c5fd; padding: 0.1rem 0.25rem; border-radius: 0.25rem; }
+
+            /* Explorer */
+            .explorer-section { margin-top: 3rem; animation: slideUp 0.4s ease-out 0.1s backwards; }
+            .section-label { font-size: 0.625rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.2em; color: var(--text-extra-muted); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+            .explorer-card { border-radius: 1.5rem; border: 1px solid var(--border); overflow: hidden; background: #0b1222; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
+            .explorer-header { background: rgba(255, 255, 255, 0.02); padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); display: flex; gap: 0.375rem; }
+            .dot { width: 0.625rem; height: 0.625rem; border-radius: 9999px; }
+            .dot-red { background: rgba(244, 63, 94, 0.2); border: 1px solid rgba(244, 63, 94, 0.4); }
+            .dot-yellow { background: rgba(245, 158, 11, 0.2); border: 1px solid rgba(245, 158, 11, 0.4); }
+            .dot-green { background: rgba(16, 185, 129, 0.2); border: 1px solid rgba(16, 185, 129, 0.4); }
+            .code-box { padding: 1.5rem; font-size: 0.75rem; line-height: 1.6; overflow-x: auto; max-height: 520px; }
+            
+            /* Code Highlighter Classes */
+            .error-line { background: rgba(244, 63, 94, 0.1); border-left: 3px solid var(--rose); margin-left: -3px; }
+            .line-no { color: var(--text-extra-muted); opacity: 0.4; width: 3.5rem; display: inline-block; text-align: right; padding-right: 1.5rem; user-select: none; font-weight: 700; font-family: var(--font-mono); font-size: 0.7rem; }
+            .column-marker { position: absolute; bottom: -2px; height: 3px; width: 1ch; background: linear-gradient(90deg, #f43f5e, #fb7185); box-shadow: 0 0 15px rgba(244, 63, 94, 0.9); border-radius: 2px; z-index: 30; pointer-events: none; }
+
+            /* Tabs */
+            .tabs-nav { border-bottom: 1px solid var(--border); display: flex; gap: 2rem; padding: 0 0.5rem; margin-bottom: 1.5rem; }
+            .tab-btn { background: none; border: none; padding-bottom: 0.75rem; color: var(--text-extra-muted); font-size: 0.625rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; cursor: pointer; transition: all 0.2s; position: relative; }
+            .tab-btn:hover { color: var(--text-muted); }
+            .tab-btn.active { color: var(--primary); }
+            .tab-btn.active::after { content: ''; position: absolute; bottom: -1px; left: 0; width: 100%; height: 2px; background: var(--primary); }
+            
+            .data-table { width: 100%; border-collapse: collapse; text-align: left; }
+            .table-row { border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+            .table-row:last-child { border-bottom: none; }
+            .table-row:hover { background: rgba(255, 255, 255, 0.015); }
+            .table-key { padding: 0.75rem 1rem; font-family: var(--font-mono); font-size: 0.6875rem; color: var(--primary); width: 33%; vertical-align: top; word-break: break-all; }
+            .table-key-alt { padding: 0.75rem 1rem; font-family: var(--font-mono); font-size: 0.6875rem; color: var(--indigo); width: 33%; vertical-align: top; word-break: break-all; }
+            .table-val { padding: 0.75rem 1rem; font-family: var(--font-mono); font-size: 0.6875rem; color: var(--text-muted); word-break: break-all; }
+            .no-data { color: var(--text-extra-muted); font-style: italic; font-size: 0.75rem; padding: 1rem; }
+            .json-payload { padding: 1rem; background: rgba(0, 0, 0, 0.2); font-size: 0.6875rem; color: #fde68a; overflow-x: auto; }
+
+            /* Value Formatting */
+            .val-null { color: var(--text-extra-muted); font-style: italic; }
+            .val-bool { color: var(--primary); font-weight: 600; }
+            .val-num { color: var(--emerald); font-weight: 600; }
+            .val-str { color: var(--amber); }
+            .val-meta { color: var(--text-extra-muted); font-style: italic; }
+
+            /* Sidebar */
+            .sidebar { animation: slideUp 0.4s ease-out 0.3s backwards; }
+            .side-card { background: rgba(15, 23, 42, 0.3); padding: 1.25rem; border-radius: 1.5rem; border: 1px solid var(--border); margin-bottom: 2rem; }
+            .side-label { font-size: 0.625rem; font-weight: 600; text-transform: uppercase; color: var(--text-extra-muted); margin-bottom: 0.75rem; letter-spacing: 0.1em; }
+            .side-val { font-size: 1.125rem; font-weight: 700; color: white; display: flex; align-items: center; gap: 0.5rem; }
+            .side-val span { color: var(--primary); }
+
+            /* Footer */
+            footer { margin-top: 5rem; padding: 3rem 0; border-top: 1px solid var(--border); text-align: center; }
+            .footer-tag { font-size: 0.625rem; font-weight: 700; text-transform: uppercase; color: var(--text-extra-muted); letter-spacing: 0.2em; margin-bottom: 1rem; }
+            .footer-brand { display: flex; align-items: center; justify-content: center; gap: 1rem; opacity: 0.4; }
+            .f-line { width: 2rem; height: 1px; background: var(--text-extra-muted); }
+            .f-text { font-size: 0.75rem; font-weight: 700; color: var(--text-muted); letter-spacing: 0.05em; }
+        </style>
+    </head>
+    <body class="selection:bg-rose-500/20">
+        <header class="glass">
+            <div class="header-info">
+                <div class="header-icon">
+                    <svg style="width:1.25rem;height:1.25rem" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                </div>
+                <div>
+                    <h1 class="header-title">ERROR: NameError</h1>
+                    <p class="header-subtitle">Eden Framework Diagnostic Utility</p>
+                </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:1.5rem">
+                <span style="font-family:var(--font-mono);font-size:0.625rem;color:var(--text-extra-muted)">app/routes.py:42:11</span>
+                <button onclick="window.location.reload()" style="background:none;border:none;cursor:pointer;color:var(--text-extra-muted);transition:color 0.2s" onmouseover="this.style.color='white'" onmouseout="this.style.color='var(--text-extra-muted)'">
+                    <svg style="width:1rem;height:1rem" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                </button>
+            </div>
+        </header>
+
+        <main>
+            <section class="exception-header">
+                <h2 class="message-title">
+                    <span>ERROR:</span> name &#x27;undefined_var&#x27; is not defined
+                </h2>
+                <div class="meta-tags">
+                    <div class="meta-tag"><span class="tag-key">FILE:</span> <span class="tag-val-file">app/routes.py</span></div>
+                    <div class="meta-tag"><span class="tag-key">LINE:</span> <span class="tag-val-line">42</span></div>
+                    <div class="meta-tag"><span class="tag-key">COL:</span> <span class="tag-val-col">11</span></div>
+                    <button onclick="copyToClipboard(event, `name \&#x27;undefined_var\&#x27; is not defined`)" class="btn-copy">
+                        <svg style="width:0.75rem;height:0.75rem" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+                        Copy Error
+                    </button>
+                </div>
+                
+            <div class="suggestion-item">
+                <div class="suggestion-icon">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                </div>
+                <p class="suggestion-text">Check if 'undefined_var' is defined in the current scope.</p>
+            </div>
+            
+            <div class="suggestion-item">
+                <div class="suggestion-icon">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                </div>
+                <p class="suggestion-text">Ensure the variable name is spelled correctly.</p>
+            </div>
+            
+            </section>
+
+            <section class="explorer-section">
+                <div class="section-label">
+                    <svg style="width:0.875rem;height:0.875rem" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
+                    Source Explorer
+                </div>
+                <div class="explorer-card">
+                    <div class="explorer-header">
+                        <div class="dot dot-red"></div>
+                        <div class="dot dot-yellow"></div>
+                        <div class="dot dot-green"></div>
+                    </div>
+                    <div class="code-box">
+                        <div class='code-line error-line'>undefined_var += 1</div>
+                    </div>
+                </div>
+            </section>
+
+            <div class="grid" style="margin-top:3rem">
+                <div style="display:flex;flex-direction:column;gap:3rem">
+                    <section>
+                        <div class="tabs-nav">
+                            
+        <button onclick="switchTab(this, 'request')" 
+                id="tab-btn-request" 
+                data-tab-link="request"
+                class="tab-btn active">
+            Request
+        </button>
+        
+        <button onclick="switchTab(this, 'environment')" 
+                id="tab-btn-environment" 
+                data-tab-link="environment"
+                class="tab-btn ">
+            Environment
+        </button>
+        
+        <button onclick="switchTab(this, 'session')" 
+                id="tab-btn-session" 
+                data-tab-link="session"
+                class="tab-btn ">
+            Session
+        </button>
+        
+        <button onclick="switchTab(this, 'cookies')" 
+                id="tab-btn-cookies" 
+                data-tab-link="cookies"
+                class="tab-btn ">
+            Cookies
+        </button>
+        
+                        </div>
+                        <div class="explorer-card" style="background:#0b1222">
+                            
+        <div id="tab-content-request" class="tab-pane" >
+            <table class="data-table"><tbody>
+            <tr class="table-row">
+                <td class="table-key">method</td>
+                <td class="table-val"><span class="val-str">"GET"</span></td>
+            </tr>
+            
+            <tr class="table-row">
+                <td class="table-key">url</td>
+                <td class="table-val"><span class="val-str">"/test"</span></td>
+            </tr>
+            </tbody></table>
+        </div>
+        
+        <div id="tab-content-environment" class="tab-pane" style="display:none">
+            <p class="no-data">No environment data available</p>
+        </div>
+        
+        <div id="tab-content-session" class="tab-pane" style="display:none">
+            <p class="no-data">No session data available</p>
+        </div>
+        
+        <div id="tab-content-cookies" class="tab-pane" style="display:none">
+            <p class="no-data">No cookies data available</p>
+        </div>
+        
+                        </div>
+                    </section>
+                    <div class='traceback'>Mock Traceback</div>
+                </div>
+
+                <div class="sidebar">
+                    <section style="margin-bottom: 3rem">
+                        <div class="section-label">
+                            <svg style="width:0.875rem;height:0.875rem" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 1.1.9 2 2 2h12a2 2 0 002-2V7a2 2 0 00-2-2H6a2 2 0 00-2 2zM9 12h.01M13 12h.01M17 12h.01"></path></svg>
+                            Frame Locals
+                        </div>
+                        <div class="explorer-card">
+                            <div style="overflow-x:auto">
+                                <table class="data-table">
+                                    <tbody>
+                                        
+            <tr class="table-row">
+                <td class="table-key-alt">session</td>
+                <td class="table-val"><span class="val-meta">dict(1 items)</span></td>
+            </tr>
+            
+            <tr class="table-row">
+                <td class="table-key-alt">user_id</td>
+                <td class="table-val"><span class="val-num">123</span></td>
+            </tr>
+            
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="side-card">
+                        <div class="side-label">Eden Framework</div>
+                        <div class="side-val">🌿 Eden <span>v1.0.0</span></div>
+                    </section>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p class="footer-tag">You are seeing this page because you are in debug mode.</p>
+            <div class="footer-brand">
+                <span class="f-line"></span>
+                <span class="f-text">Powered by Eden 🌿</span>
+                <span class="f-line"></span>
+            </div>
+        </footer>
+
+        <script>
+            function switchTab(el, tabId) {
+                const tabBtns = document.querySelectorAll('.tab-btn');
+                const tabPanes = document.querySelectorAll('.tab-pane');
+
+                tabBtns.forEach(btn => btn.classList.remove('active'));
+                tabPanes.forEach(pane => pane.style.display = 'none');
+
+                if (el) el.classList.add('active');
+                
+                const activePane = document.getElementById(`tab-content-${tabId}`);
+                if (activePane) activePane.style.display = 'block';
+            }
+
+            function copyToClipboard(event, text) {
+                navigator.clipboard.writeText(text).then(() => {
+                    const btn = event.currentTarget;
+                    const originalHTML = btn.innerHTML;
+                    btn.innerHTML = `<svg style="width:0.75rem;height:0.75rem" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Copied!`;
+                    btn.style.color = 'var(--emerald)';
+                    setTimeout(() => {
+                        btn.innerHTML = originalHTML;
+                        btn.style.color = 'var(--rose)';
+                    }, 2000);
+                }).catch(err => console.error('Failed to copy: ', err));
+            }
+        </script>
+    </body>
+    </html>
+    

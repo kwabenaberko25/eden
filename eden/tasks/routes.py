@@ -1,10 +1,10 @@
+from __future__ import annotations
 """
 Eden — Task Status API
 
 Provides endpoints for polling task progress and results.
 """
 
-from __future__ import annotations
 
 from typing import Any, Dict
 

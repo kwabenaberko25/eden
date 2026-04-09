@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Eden — Idempotency Support
 
@@ -5,7 +6,6 @@ Ensures that state-changing operations (like payments) are only executed once,
 even if the request is retried.
 """
 
-from __future__ import annotations
 
 import json
 import logging

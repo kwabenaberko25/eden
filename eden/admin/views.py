@@ -5,6 +5,7 @@ Auto-generated CRUD views for registered models.
 """
 
 import math
+import uuid
 from typing import Any, Type
 
 from eden.exceptions import Forbidden, NotFound
@@ -476,6 +477,306 @@ async def admin_login(request: Request, admin_site: Any) -> Response:
         "next_url": next_url,
     }
     return admin_site.templates.TemplateResponse(request, "login.html", context)
+
+
+# ── Generic Admin API ────────────────────────────────────────────────
+
+async def admin_api_metadata(request: Request, admin_site: Any) -> JsonResponse:
+    """
+    Returns metadata for all registered models, including field definitions,
+    available bulk actions, and nested inlines.
+    """
+    await _check_staff(request)
+    
+    metadata = {}
+    for model, model_admin in admin_site._registry.items():
+        table_name = str(getattr(model, "__tablename__", model.__name__.lower()))
+        
+        # Introspect fields
+        fields = await _get_fields_data(model, model_admin)
+        
+        # Introspect inlines
+        inlines = []
+        for inline_cls in model_admin.inlines:
+            inline = inline_cls()
+            inline_table = str(getattr(inline.model, "__tablename__", inline.model.__name__.lower()))
+            inlines.append({
+                "model": inline.model.__name__,
+                "table": inline_table,
+                "fields": inline.get_form_fields(),
+                "template": getattr(inline, "template", "tabular"),
+                "extra": getattr(inline, "extra", 3)
+            })
+        
+        metadata[table_name] = {
+            "name": model.__name__,
+            "verbose_name": model_admin.get_verbose_name(model),
+            "verbose_name_plural": model_admin.get_verbose_name_plural(model),
+            "table": table_name,
+            "slug": model_admin.get_slug(model),
+            "icon": getattr(model_admin, "icon", "fa-solid fa-cube"),
+            "fields": fields,
+            "list_display": model_admin.get_list_display(model),
+            "search_fields": model_admin.search_fields,
+            "list_filter": model_admin.list_filter,
+            "actions": model_admin.actions,
+            "inlines": inlines
+        }
+        
+    return JsonResponse(metadata)
+
+
+async def admin_api_list(
+    request: Request, model: type, model_admin: Any
+) -> JsonResponse:
+    """Generic JSON list view with support for search, filtering, and sorting."""
+    await _check_staff(request)
+    
+    page = int(request.query_params.get("page", 1))
+    per_page = int(request.query_params.get("per_page", 20))
+    search = request.query_params.get("q", "")
+    order_by = request.query_params.get("order_by", "")
+    
+    session = getattr(request.state, "db", None)
+    from eden.db import _MISSING
+    qs = model.query(session or _MISSING)
+    
+    # ── Search ────────────────────────────────────────────────────────
+    if search and model_admin.search_fields:
+        from eden.db import Q
+        conditions = []
+        for field_name in model_admin.search_fields:
+            conditions.append(Q(**{f"{field_name}__icontains": search}))
+        if conditions:
+            combined_q = conditions[0]
+            for q in conditions[1:]:
+                combined_q |= q
+            qs = qs.filter(combined_q)
+            
+    # ── Filtering ─────────────────────────────────────────────────────
+    for filter_field in model_admin.list_filter:
+        val = request.query_params.get(filter_field)
+        if val is not None and val != "":
+            # Basic equality filter, can be expanded for ranges/choices
+            kwargs = {filter_field: val}
+            if val.lower() == "true": kwargs[filter_field] = True
+            elif val.lower() == "false": kwargs[filter_field] = False
+            qs = qs.filter_by(**kwargs)
+            
+    # ── Ordering ──────────────────────────────────────────────────────
+    if order_by:
+        # Support multiple fields separated by comma
+        fields = order_by.split(",")
+        qs = qs.order_by(*fields)
+    else:
+        qs = qs.order_by(*model_admin.ordering)
+    
+    # Pagination
+    page_obj = await qs.paginate(page, per_page)
+    
+    # Convert records to dicts
+    serialized_records = []
+    for record in page_obj.items:
+        record_dict = {}
+        from sqlalchemy import inspect as sa_inspect
+        mapper = sa_inspect(model)
+        for col in mapper.columns:
+            val = getattr(record, col.key)
+            if hasattr(val, "isoformat"):
+                val = val.isoformat()
+            elif isinstance(val, (uuid.UUID, bytes)):
+                val = str(val)
+            record_dict[col.key] = val
+        serialized_records.append(record_dict)
+        
+    return JsonResponse({
+        "items": serialized_records,
+        "total": page_obj.total,
+        "page": page,
+        "total_pages": page_obj.total_pages,
+        "per_page": per_page
+    })
+
+
+async def admin_api_action(
+    request: Request, model: type, model_admin: Any
+) -> JsonResponse:
+    """Execute a bulk action on multiple records."""
+    await _check_staff(request)
+    
+    data = await request.json()
+    action_name = data.get("action")
+    ids = data.get("ids", [])
+    
+    if not action_name or not ids:
+        return JsonResponse({"error": "Missing action or ids"}, status_code=400)
+        
+    if action_name not in model_admin.actions:
+        return JsonResponse({"error": f"Action '{action_name}' not available"}, status_code=400)
+        
+    session = getattr(request.state, "db", None)
+    from eden.db import _MISSING
+    
+    # Built-in: delete_selected
+    if action_name == "delete_selected":
+        count = 0
+        for rid in ids:
+            record = await model.get(session or _MISSING, rid)
+            if record:
+                await model_admin.delete_model(request, record)
+                count += 1
+        return JsonResponse({"status": "ok", "message": f"Deleted {count} records"})
+        
+    # Custom actions
+    action_func = getattr(model_admin, action_name, None)
+    if action_func and callable(action_func):
+        try:
+            # Query objects
+            objects = await model.query(session or _MISSING).filter(model.id.in_(ids)).all()
+            result = await action_func(request, objects)
+            return JsonResponse({"status": "ok", "message": result or "Action executed successfully"})
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status_code=500)
+            
+    return JsonResponse({"error": f"Action function for '{action_name}' not found"}, status_code=500)
+
+
+async def admin_api_get(
+    request: Request, model: type, record_id: str
+) -> JsonResponse:
+    """Get a single record as JSON."""
+    await _check_staff(request)
+    
+    session = getattr(request.state, "db", None)
+    from eden.db import _MISSING
+    record = await model.get(session or _MISSING, record_id)
+    if not record:
+        return JsonResponse({"error": "Not found"}, status_code=404)
+        
+    # Serialization
+    from sqlalchemy import inspect as sa_inspect
+    mapper = sa_inspect(model)
+    record_dict = {}
+    for col in mapper.columns:
+        val = getattr(record, col.key)
+        if hasattr(val, "isoformat"):
+            val = val.isoformat()
+        elif isinstance(val, (uuid.UUID, bytes)):
+            val = str(val)
+        record_dict[col.key] = val
+        
+    return JsonResponse(record_dict)
+
+
+async def admin_api_create(
+    request: Request, model: type, model_admin: Any
+) -> JsonResponse:
+    """Create a new record via JSON."""
+    await _check_staff(request)
+    
+    data = await request.json()
+    try:
+        instance = model()
+        from sqlalchemy import inspect as sa_inspect
+        mapper = sa_inspect(model)
+        for col in mapper.columns:
+            if col.key in data and col.key not in model_admin.exclude_fields:
+                val = data[col.key]
+                # Type conversions if necessary
+                setattr(instance, col.key, val)
+                
+        await model_admin.save_model(request, instance, data, change=False)
+        
+        # Log action
+        user = getattr(request.state, "user", None)
+        try:
+            from eden.admin.models import AuditLog
+            await AuditLog.log(
+                user_id=str(user.id) if user else None,
+                action="create",
+                model=model,
+                record_id=str(getattr(instance, "id", "new"))
+            )
+        except Exception:
+            pass
+            
+        return JsonResponse({"status": "ok", "id": str(getattr(instance, "id", "new"))})
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status_code=400)
+
+
+async def admin_api_update(
+    request: Request, model: type, model_admin: Any, record_id: str
+) -> JsonResponse:
+    """Update a record via JSON."""
+    await _check_staff(request)
+    
+    session = getattr(request.state, "db", None)
+    from eden.db import _MISSING
+    record = await model.get(session or _MISSING, record_id)
+    if not record:
+        return JsonResponse({"error": "Not found"}, status_code=404)
+        
+    data = await request.json()
+    try:
+        from sqlalchemy import inspect as sa_inspect
+        mapper = sa_inspect(model)
+        for col in mapper.columns:
+            if col.key in data and col.key not in model_admin.exclude_fields:
+                val = data[col.key]
+                setattr(record, col.key, val)
+                
+        await model_admin.save_model(request, record, data, change=True)
+        
+        # Log action
+        user = getattr(request.state, "user", None)
+        try:
+            from eden.admin.models import AuditLog
+            await AuditLog.log(
+                user_id=str(user.id) if user else None,
+                action="update",
+                model=model,
+                record_id=str(record_id)
+            )
+        except Exception:
+            pass
+            
+        return JsonResponse({"status": "ok"})
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status_code=400)
+
+
+async def admin_api_delete(
+    request: Request, model: type, model_admin: Any, record_id: str
+) -> JsonResponse:
+    """Delete a record via JSON."""
+    await _check_staff(request)
+    
+    session = getattr(request.state, "db", None)
+    from eden.db import _MISSING
+    record = await model.get(session or _MISSING, record_id)
+    if not record:
+        return JsonResponse({"error": "Not found"}, status_code=404)
+        
+    try:
+        await model_admin.delete_model(request, record)
+        
+        # Log action
+        user = getattr(request.state, "user", None)
+        try:
+            from eden.admin.models import AuditLog
+            await AuditLog.log(
+                user_id=str(user.id) if user else None,
+                action="delete",
+                model=model,
+                record_id=str(record_id)
+            )
+        except Exception:
+            pass
+            
+        return JsonResponse({"status": "ok"})
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status_code=400)
 
 
 # ── Helper Utilities ──────────────────────────────────────────────────

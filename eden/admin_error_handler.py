@@ -197,19 +197,7 @@ class AdminErrorHandler(ErrorHandler):
         
         templates = self._get_templates()
         if templates is None:
-            # Fallback to plain HTML
-            return HTMLResponse(
-                f"""
-                <html>
-                <head><meta charset="utf-8"><title>Error</title></head>
-                <body>
-                <h1>{error_details['title']}</h1>
-                <p>{error_details['message']}</p>
-                </body>
-                </html>
-                """,
-                status_code=status_code,
-            )
+            return self._render_luxury_error_page(error_details, status_code)
         
         # Try to render template
         template_name = self.error_templates.get(status_code, "error.html")
@@ -225,16 +213,152 @@ class AdminErrorHandler(ErrorHandler):
             )
         except Exception as e:
             logger.warning(f"Failed to render {template_name}: {e}")
-            # Fallback to generic error template
-            return templates.TemplateResponse(
-                request,
-                "error.html",
-                {
-                    "request": request,
-                    **error_details,
-                },
-                status_code=status_code,
-            )
+            # Fallback to luxury page if template rendering fails
+            return self._render_luxury_error_page(error_details, status_code)
+
+    def _render_luxury_error_page(self, details: dict, status_code: int) -> HTMLResponse:
+        """Render a premium, zero-dependency fallback error page."""
+        title = details.get("title", f"Error {status_code}")
+        message = details.get("message", "An unexpected error occurred.")
+        error_id = details.get("error_id", "UNKNOWN")
+        
+        html = f"""
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{title} — Eden Admin</title>
+    <style>
+        :root {{
+            --bg: #020617;
+            --rose: #f43f5e;
+            --primary: #3b82f6;
+            --text-muted: #94a3b8;
+            --border: rgba(255, 255, 255, 0.06);
+            --font-sans: ui-sans-serif, system-ui, -apple-system, sans-serif;
+            --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        }}
+        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+        body {{
+            font-family: var(--font-sans);
+            background-color: var(--bg);
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            line-height: 1.5;
+        }}
+        .card {{
+            max-width: 32rem;
+            width: 100%;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border);
+            border-radius: 2rem;
+            padding: 3rem;
+            text-align: center;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }}
+        .icon {{
+            background: rgba(244, 63, 94, 0.1);
+            color: var(--rose);
+            width: 4rem;
+            height: 4rem;
+            border-radius: 1.25rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 2rem;
+            border: 1px solid rgba(244, 63, 94, 0.2);
+        }}
+        h1 {{ font-size: 1.5rem; font-weight: 800; margin-bottom: 1rem; color: white; }}
+        p {{ color: var(--text-muted); font-size: 1rem; margin-bottom: 2.5rem; }}
+        
+        .meta {{
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            border: 1px solid var(--border);
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            margin-bottom: 3rem;
+            color: var(--text-muted);
+        }}
+        .meta-id {{ color: var(--primary); font-weight: 700; }}
+        
+        .actions {{ display: flex; flex-direction: column; gap: 1rem; }}
+        .btn {{
+            padding: 1rem 2rem;
+            border-radius: 1rem;
+            font-size: 0.875rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+        }}
+        .btn-primary {{ background: var(--primary); color: white; border: none; }}
+        .btn-primary:hover {{ filter: brightness(1.1); transform: translateY(-1px); }}
+        .btn-secondary {{ background: rgba(255, 255, 255, 0.05); color: white; border: 1px solid var(--border); }}
+        .btn-secondary:hover {{ background: rgba(255, 255, 255, 0.1); }}
+
+        @keyframes fadeIn {{ from {{ opacity: 0; transform: translateY(10px); }} to {{ opacity: 1; transform: translateY(0); }} }}
+        .card {{ animation: fadeIn 0.4s ease-out; }}
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="icon">
+            <svg style="width:2rem;height:2rem" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+        </div>
+        <h1>{title}</h1>
+        <p>{message}</p>
+        
+        <div class="meta">
+            <span>ERROR_ID:</span>
+            <span class="meta-id">{error_id}</span>
+        </div>
+        
+        <div class="actions">
+            <a href="/admin" class="btn btn-primary">
+                <svg style="width:1.25rem;height:1.25rem" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+                Back to Dashboard
+            </a>
+            <button onclick="copyErrorId('{error_id}')" id="copy-btn" class="btn btn-secondary">
+                <svg style="width:1.25rem;height:1.25rem" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+                Copy Error ID
+            </button>
+        </div>
+    </div>
+
+    <script>
+        function copyErrorId(id) {{
+            navigator.clipboard.writeText(id).then(() => {{
+                const btn = document.getElementById('copy-btn');
+                const originalText = btn.innerHTML;
+                btn.innerHTML = 'Copied!';
+                btn.style.color = '#10b981';
+                setTimeout(() => {{
+                    btn.innerHTML = originalText;
+                    btn.style.color = 'white';
+                }}, 2000);
+            }});
+        }}
+    </script>
+</body>
+</html>
+        """
+        return HTMLResponse(content=html, status_code=status_code)
+
 
 
 class AdminPanelMiddleware:

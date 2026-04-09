@@ -1,3 +1,4 @@
+from datetime import timezone
 """
 Eden Audit System — Observability and Compliance
 
@@ -205,7 +206,7 @@ async def audit_log(
         model_name=resource,
         record_id="N/A",
         changes=details,
-        timestamp=datetime.utcnow()
+        timestamp=datetime.now(timezone.utc).replace(tzinfo=None)
     )
 
 __all__ = ["AuditLog", "AuditableMixin", "audit_log"]

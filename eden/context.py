@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Eden — Async Context Propagation System (Layer 1)
 
@@ -29,7 +30,6 @@ Design Philosophy:
 - Extensible with run_in_context() for background tasks
 """
 
-from __future__ import annotations
 
 import contextvars
 import logging
@@ -431,12 +431,27 @@ def set_request(request: "Request") -> contextvars.Token:
 
 def reset_request(token: contextvars.Token) -> None:
     """Reset the request context (legacy API)."""
-    _request_ctx.reset(token)
+    try:
+        _request_ctx.reset(token)
+    except ValueError:
+        pass
+    
+    tokens = _context_tokens.get(None)
+    if tokens is not None and tokens.get("request") == token:
+        tokens.pop("request", None)
 
 
 def reset_user(token: contextvars.Token) -> None:
     """Reset the user context (legacy API)."""
-    _user_ctx.reset(token)
+    try:
+        _user_ctx.reset(token)
+    except ValueError:
+        pass
+    
+    # Clean up from per-request storage to prevent double-resetting
+    tokens = _context_tokens.get(None)
+    if tokens is not None and tokens.get("user") == token:
+        tokens.pop("user", None)
 
 
 # Convenience accessor functions (use these throughout codebase)

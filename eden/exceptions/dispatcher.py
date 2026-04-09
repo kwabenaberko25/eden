@@ -1,5 +1,5 @@
-
 from __future__ import annotations
+
 import inspect
 from typing import Any, Callable, TYPE_CHECKING
 from starlette.requests import Request as StarletteRequest

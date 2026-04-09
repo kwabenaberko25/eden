@@ -1,3 +1,4 @@
+from datetime import timezone
 """
 Eden — API Key Model
 
@@ -66,7 +67,7 @@ class APIKey(Model):
         if self.expires_at is None:
             return False
         # SQLAlchemy DateTime by default is naive. Comparison must match.
-        now = datetime.datetime.utcnow()
+        now = datetime.datetime.now(timezone.utc).replace(tzinfo=None)
         return now >= self.expires_at
 
     @property
@@ -99,7 +100,7 @@ class APIKey(Model):
 
         expires_at = None
         if expires_in:
-            expires_at = datetime.datetime.utcnow() + expires_in
+            expires_at = datetime.datetime.now(timezone.utc).replace(tzinfo=None) + expires_in
 
         db = cls._get_db()
         async with db.transaction(session=session) as tx_session:

@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Eden — Port Utilities
 
@@ -5,7 +6,6 @@ Helpers for finding an available network port, enabling automatic
 port fallback when the default port is already in use.
 """
 
-from __future__ import annotations
 
 import socket
 

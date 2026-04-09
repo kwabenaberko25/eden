@@ -1,10 +1,10 @@
+from __future__ import annotations
 """
 Eden — Real-time Performance Telemetry
 
 Provides request-scoped metrics collection for app and database performance.
 """
 
-from __future__ import annotations
 import contextvars
 import time
 from dataclasses import dataclass, field

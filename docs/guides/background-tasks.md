@@ -69,6 +69,8 @@ app.task = EdenBroker(create_broker())
 
 # Production (Redis Streams)
 app.task = EdenBroker(create_broker(redis_url="redis://localhost:6379"))
+```
+
 ---
 
 ## 📅 Advanced Scheduling: APScheduler
@@ -263,4 +265,4 @@ Every execution is tracked in the `TaskResult` store.
 
 ---
 
-**Next Steps**: [SaaS Multi-Tenancy](tenancy.md) | [Real-time Events](realtime.md)
+**Next Steps**: [SaaS Multi-Tenancy](tenancy-postgres.md) | [Real-time Events](realtime.md)

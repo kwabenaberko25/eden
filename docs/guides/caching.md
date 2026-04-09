@@ -183,4 +183,4 @@ await cache.clear()
 
 ---
 
-**Next Steps**: [Multi-Tenant Database Architecture](tenancy.md)
+**Next Steps**: [Multi-Tenant Database Architecture](tenancy-postgres.md)
