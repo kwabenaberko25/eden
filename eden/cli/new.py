@@ -94,7 +94,7 @@ app.state.database_url = os.getenv("DATABASE_URL", "{db_config['url']}")
     main_content += f'''
 @app.get("/")
 async def index():
-    return html("<h1>Welcome to {name} 🌿</h1><p>Minimal setup is ready.</p>")
+    return html("<h1>Welcome to {name} 🌿</h1><p>Minimal setup is ready. Visit <a href='/admin'>/admin</a> to manage your data.</p>")
 
 if __name__ == "__main__":
     app.run()
@@ -192,7 +192,7 @@ main_router = Router()
 
 @main_router.get("/")
 async def home():
-    return html("<h1>Welcome to Eden Complete Setup 🌿</h1>")
+    return html("<h1>Welcome to Eden Complete Setup 🌿</h1><p>Visit <a href='/admin'>/admin</a> to see the auto-generated admin panel.</p>")
 '''
     (project_dir / "app" / "routes" / "__init__.py").write_text(routes_init, encoding="utf-8")
 
@@ -200,7 +200,18 @@ async def home():
     (project_dir / "app" / "routes" / "api.py").write_text("from eden import Router\n\napi_router = Router()\n", encoding="utf-8")
 
     # app/models/__init__.py
-    (project_dir / "app" / "models" / "__init__.py").write_text("# Put your models here\n", encoding="utf-8")
+    models_init = '''from eden.db import Model, StringField
+
+# 🚀 ANY MODEL DEFINED HERE OR IN ANY models.py FILE 
+# WILL BE AUTOMATICALLY DISCOVERED BY THE ADMIN UI
+# AT THE /admin ENDPOINT.
+
+class Item(Model):
+    """An example model that will automatically show up in the Admin Panel."""
+    name: str = StringField(max_length=100)
+    description: str = StringField(required=False)
+'''
+    (project_dir / "app" / "models" / "__init__.py").write_text(models_init, encoding="utf-8")
 
     # .env
     (project_dir / ".env").write_text(f"SECRET_KEY={secrets.token_hex(32)}\nDATABASE_URL={db_config['url']}\n", encoding="utf-8")

@@ -33,10 +33,69 @@ try:
 except ImportError:
 
     class AsyncBroker:
-        pass
+        """Minimal AsyncBroker fallback used when taskiq is not installed.
+        Provides a very small in-process task wrapper compatible with
+        EdenBroker's usage (task decorator, kicker().with_labels().kiq, etc.).
+        """
 
-    class InMemoryBroker:
-        pass
+        def task(self, *args, **kwargs):
+            def decorator(func):
+                # Lightweight task wrapper exposing .kiq() and .kicker().with_labels().kiq()
+                class _Task:
+                    def __init__(self, func):
+                        self._handler = func
+
+                        async def _kiq(*a, **kw):
+                            # Support calling handler with a 'context' kwarg
+                            if inspect.iscoroutinefunction(self._handler):
+                                return await self._handler(*a, **kw)
+                            res = self._handler(*a, **kw)
+                            if asyncio.iscoroutine(res):
+                                return await res
+                            return res
+
+                        self.kiq = _kiq
+
+                    def kicker(self):
+                        parent = self
+
+                        class Kicker:
+                            def __init__(self, parent):
+                                self._parent = parent
+                                self._labels: dict[str, Any] = {}
+
+                            def with_labels(self, **labels):
+                                self._labels.update(labels)
+                                return self
+
+                            async def kiq(self, *a, **kw):
+                                # Create a simple context object compatible with Eden's expectations
+                                ctx = type("_TaskIQContext", (), {})()
+                                ctx.task_id = str(uuid.uuid4())
+                                ctx.labels = self._labels
+                                kw = {**kw, "context": ctx}
+                                return await parent.kiq(*a, **kw)
+
+                        return Kicker(parent)
+
+                    # Allow the task object to be callable directly (not generally used)
+                    def __call__(self, *a, **kw):
+                        return self._handler(*a, **kw)
+
+                return _Task(func)
+
+            return decorator
+
+    class InMemoryBroker(AsyncBroker):
+        """In-process broker stub providing startup/shutdown no-ops for Eden's lifecycle.
+        This is intentionally minimal — for development/test environments only.
+        """
+
+        async def startup(self) -> None:
+            return None
+
+        async def shutdown(self) -> None:
+            return None
 
     _HAS_TASKIQ = False
 else:

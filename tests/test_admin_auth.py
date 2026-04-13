@@ -376,7 +376,7 @@ async def test_dashboard_with_auth(client):
     )
     
     assert response.status_code == 200
-    assert "Feature Flags Admin" in response.text
+    assert "Eden Framework" in response.text
 
 
 @pytest.mark.asyncio

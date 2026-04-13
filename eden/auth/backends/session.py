@@ -28,7 +28,8 @@ class SessionBackend(AuthBackend[User]):
         if not user_id:
             return None
 
-        session = getattr(request.state, "db", None)
+        # Get database session from app state
+        session = getattr(request.app.state, "db", None)
         return await User.get(session, user_id)
 
     async def login(self, request: Request, user: User) -> None:

@@ -21,7 +21,7 @@ from eden.responses import HtmlResponse as HTMLResponse
 from pydantic import BaseModel
 
 from .auth import AdminAuthManager, AdminRole, AdminUser
-from .dashboard_template import AdminDashboardTemplate
+from .premium_dashboard import PremiumAdminTemplate
 from .login_template import LoginPageTemplate
 from .flags_panel import FlagsAdminPanel
 from eden.flags import get_flag_manager
@@ -158,36 +158,38 @@ def get_protected_admin_routes(
     # =====================================================================
     
     @router.get("/")
-    async def dashboard(current_user: AdminUser = Depends(auth.verify)):
+    async def dashboard(request: Request):
         """Serve authenticated dashboard."""
-        return AdminDashboardTemplate.render(
-            api_base=f"{prefix}/api/flags",
+        admin_url = str(request.url.path).rstrip("/")
+        return HTMLResponse(PremiumAdminTemplate.render(
+            api_base=f"{admin_url}/api",
             app_name="Eden Framework"
-        )
+        ))
     
     @router.get("/dashboard")
-    async def dashboard_explicit(current_user: AdminUser = Depends(auth.verify)):
+    async def dashboard_explicit(request: Request):
         """Alias for dashboard route."""
-        return AdminDashboardTemplate.render(
-            api_base=f"{prefix}/api/flags",
+        admin_url = str(request.url.path).replace("/dashboard", "").rstrip("/")
+        return HTMLResponse(PremiumAdminTemplate.render(
+            api_base=f"{admin_url}/api",
             app_name="Eden Framework"
-        )
+        ))
     
     # =====================================================================
     # Flag Management Routes (Protected)
     # =====================================================================
     
-    @router.get("/api/flags/")
+    @router.get("/api/flags/stats")
     async def get_flags_stats(current_user: AdminUser = Depends(auth.verify)):
         """Get flag statistics (requires authentication)."""
         return await panel.get_stats()
     
-    @router.get("/api/flags/flags")
+    @router.get("/api/flags")
     async def list_flags(current_user: AdminUser = Depends(auth.verify)):
         """List all flags (read-only role allowed)."""
         return await panel.list_flags()
     
-    @router.post("/api/flags/flags")
+    @router.post("/api/flags")
     async def create_flag(
         request: Request,
         current_user: AdminUser = Depends(auth.require_role(AdminRole.ADMIN, AdminRole.EDITOR))
@@ -196,12 +198,12 @@ def get_protected_admin_routes(
         data = await request.json()
         return await panel.create_flag(data)
     
-    @router.get("/api/flags/flags/{flag_id}")
+    @router.get("/api/flags/{flag_id}")
     async def get_flag(flag_id: str, current_user: AdminUser = Depends(auth.verify)):
         """Get flag details (read-only role allowed)."""
         return await panel.get_flag(flag_id)
     
-    @router.patch("/api/flags/flags/{flag_id}")
+    @router.patch("/api/flags/{flag_id}")
     async def update_flag(
         flag_id: str,
         request: Request,
@@ -211,7 +213,7 @@ def get_protected_admin_routes(
         data = await request.json()
         return await panel.update_flag(flag_id, data)
     
-    @router.delete("/api/flags/flags/{flag_id}")
+    @router.delete("/api/flags/{flag_id}")
     async def delete_flag(
         flag_id: str,
         current_user: AdminUser = Depends(auth.require_role(AdminRole.ADMIN))
@@ -219,12 +221,12 @@ def get_protected_admin_routes(
         """Delete flag (requires ADMIN role only)."""
         return await panel.delete_flag(flag_id)
     
-    @router.get("/api/flags/flags/{flag_id}/metrics")
+    @router.get("/api/flags/{flag_id}/metrics")
     async def get_flag_metrics(flag_id: str, current_user: AdminUser = Depends(auth.verify)):
         """Get flag metrics (read-only role allowed)."""
         return await panel.get_metrics(flag_id)
     
-    @router.post("/api/flags/flags/{flag_id}/enable")
+    @router.post("/api/flags/{flag_id}/enable")
     async def enable_flag(
         flag_id: str,
         current_user: AdminUser = Depends(auth.require_role(AdminRole.ADMIN, AdminRole.EDITOR))
@@ -232,7 +234,7 @@ def get_protected_admin_routes(
         """Enable flag (requires ADMIN or EDITOR role)."""
         return await panel.enable_flag(flag_id)
     
-    @router.post("/api/flags/flags/{flag_id}/disable")
+    @router.post("/api/flags/{flag_id}/disable")
     async def disable_flag(
         flag_id: str,
         current_user: AdminUser = Depends(auth.require_role(AdminRole.ADMIN, AdminRole.EDITOR))

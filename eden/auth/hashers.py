@@ -7,7 +7,7 @@ Provides a high-level API for password hashing using Argon2id.
 from typing import Any, Dict, Optional, Type, Union, List, Protocol
 
 from argon2 import PasswordHasher
-from argon2.exceptions import VerifyMismatchError
+from argon2.exceptions import VerifyMismatchError, VerificationError
 
 
 class Hasher(Protocol):
@@ -34,7 +34,7 @@ class Argon2Hasher:
     def verify(self, password: str, hash: str) -> bool:
         try:
             return self.ph.verify(hash, password)
-        except VerifyMismatchError:
+        except (VerifyMismatchError, VerificationError):
             return False
 
     def needs_rehash(self, hash: str) -> bool:

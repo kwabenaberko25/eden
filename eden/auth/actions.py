@@ -50,9 +50,9 @@ async def authenticate(
                 "eden.auth.BaseUser and is registered."
             )
     
-    # Find user by email
+    # Find user by email (case-insensitive)
     # Assuming the user model has a `.filter()` or similar from CrudMixin
-    user = await user_model.filter(email=email.lower()).first()
+    user = await user_model.filter(email__iexact=email).first()
     
     if not user or not user.is_active:
         logger.warning(f"Login failed for {email}: user not found or inactive")

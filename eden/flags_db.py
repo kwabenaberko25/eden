@@ -22,6 +22,9 @@ from enum import Enum
 
 from eden.db import Model, StringField, IntField, BoolField, DateTimeField, TextField, JSONField
 from datetime import datetime
+from sqlalchemy.orm import Session
+
+logger = logging.getLogger(__name__)
 
 # ============================================================================
 # Database Models

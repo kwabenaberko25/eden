@@ -84,7 +84,8 @@ class JWTBackend(AuthBackend[User]):
                 )
 
             # Get session from request state if available (set by db middleware)
-            session = getattr(request.state, "db", None)
+            # Fall back to app-level database
+            session = getattr(request.state, "db", None) or getattr(request.app.state, "db", None)
             
             return await User.get(session, user_id)
 

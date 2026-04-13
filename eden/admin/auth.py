@@ -23,7 +23,7 @@ Usage:
     
     @app.get("/admin", dependencies=[Depends(auth.verify)])
     async def dashboard():
-        return AdminDashboardTemplate.render()
+        return PremiumAdminTemplate.render()
 """
 
 import jwt

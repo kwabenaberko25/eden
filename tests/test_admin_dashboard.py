@@ -27,7 +27,7 @@ def test_dashboard_template_renders():
     assert "</html>" in html
     
     # Should include key components
-    assert "Feature Flags Admin" in html
+    assert "Eden Framework" in html
     assert '<script>' in html
     assert '<style>' in html
     assert "getElementById" in html  # JavaScript
@@ -50,7 +50,7 @@ def test_dashboard_html_structure():
     
     # Check for required sections
     assert "<header>" in html
-    assert "Feature Flags Admin" in html
+    assert "Eden Framework" in html
     assert "<main>" in html
     assert 'id="statsContainer"' in html
     assert 'id="flagsTable"' in html
@@ -98,6 +98,11 @@ def test_dashboard_js_is_embedded():
 @pytest.fixture
 async def app_with_admin():
     """Create Eden app with admin dashboard."""
+    # Mock _check_staff to bypass authentication for tests
+    from unittest.mock import AsyncMock
+    import eden.admin.views
+    eden.admin.views._check_staff = AsyncMock()
+    
     app = Eden(secret_key="test-secret-key-long-enough-for-jwt")
     app.include_router(get_admin_routes(prefix="/admin"))
     return await app.build()
@@ -119,7 +124,7 @@ async def test_admin_dashboard_route(client):
     
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/html")
-    assert "Feature Flags Admin" in response.text
+    assert "Eden Framework" in response.text
 
 
 @pytest.mark.asyncio
@@ -133,8 +138,8 @@ async def test_admin_dashboard_alias_route(client):
 
 @pytest.mark.asyncio
 async def test_flags_list_endpoint(client):
-    """Test GET /admin/flags endpoint."""
-    response = await client.get("/admin/flags")
+    """Test GET /admin/api/flags endpoint."""
+    response = await client.get("/admin/api/flags")
     
     # Should return JSON list
     assert response.status_code == 200
@@ -143,8 +148,8 @@ async def test_flags_list_endpoint(client):
 
 @pytest.mark.asyncio
 async def test_flags_stats_endpoint(client):
-    """Test GET /admin/flags/ stats endpoint."""
-    response = await client.get("/admin/flags/")
+    """Test GET /admin/api/flags/ stats endpoint."""
+    response = await client.get("/admin/api/flags/")
     
     # Should return stats
     assert response.status_code == 200
@@ -164,7 +169,7 @@ async def test_create_flag_endpoint(client):
         "enabled": True
     }
     
-    response = await client.post("/admin/flags", json=flag_data)
+    response = await client.post("/admin/api/flags", json=flag_data)
     
     # Should create flag
     assert response.status_code == 200
@@ -182,11 +187,11 @@ async def test_get_flag_endpoint(client):
         "strategy": "always_off",
         "enabled": False
     }
-    create_resp = await client.post("/admin/flags", json=flag_data)
+    create_resp = await client.post("/admin/api/flags", json=flag_data)
     flag_id = create_resp.json()["id"]
     
     # Then get it
-    response = await client.get(f"/admin/flags/{flag_id}")
+    response = await client.get(f"/admin/api/flags/{flag_id}")
     
     assert response.status_code == 200
     data = response.json()
@@ -204,7 +209,7 @@ async def test_update_flag_endpoint(client):
         "percentage": 25,
         "enabled": True
     }
-    create_resp = await client.post("/admin/flags", json=flag_data)
+    create_resp = await client.post("/admin/api/flags", json=flag_data)
     flag_id = create_resp.json()["id"]
     
     # Update it
@@ -212,7 +217,7 @@ async def test_update_flag_endpoint(client):
         "percentage": 75,
         "enabled": False
     }
-    response = await client.patch(f"/admin/flags/{flag_id}", json=update_data)
+    response = await client.patch(f"/admin/api/flags/{flag_id}", json=update_data)
     
     assert response.status_code == 200
     data = response.json()
@@ -228,11 +233,11 @@ async def test_delete_flag_endpoint(client):
         "name": "Delete Test",
         "strategy": "always_on"
     }
-    create_resp = await client.post("/admin/flags", json=flag_data)
+    create_resp = await client.post("/admin/api/flags", json=flag_data)
     flag_id = create_resp.json()["id"]
     
     # Delete it
-    response = await client.delete(f"/admin/flags/{flag_id}")
+    response = await client.delete(f"/admin/api/flags/{flag_id}")
     
     assert response.status_code == 200
     data = response.json()

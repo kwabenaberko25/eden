@@ -4,15 +4,19 @@ Eden — Admin Panel Views
 Auto-generated CRUD views for registered models.
 """
 
-import math
 import uuid
-from typing import Any, Type
+from typing import Any
 
 from eden.exceptions import Forbidden, NotFound
 from eden.requests import Request
 from eden.responses import HtmlResponse, RedirectResponse, JsonResponse, Response
-from eden.middleware import get_csrf_token
-from eden.admin.models import AuditLog
+from eden.admin.models import AuditLog, SupportTicket, AdminConfig
+from eden.tenancy.models import Tenant
+from eden.payments.models import Subscription, PaymentEvent
+from datetime import datetime
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 async def _check_staff(request: Request) -> None:
@@ -30,6 +34,118 @@ async def _check_staff(request: Request) -> None:
         raise Forbidden(detail="Authentication required to access admin.")
     if not getattr(user, "is_staff", False) and not getattr(user, "is_superuser", False):
         raise Forbidden(detail="Staff access required.")
+
+
+async def admin_login(request: Request, admin_site: Any) -> Response:
+    """
+    Handle admin login page and authentication.
+    
+    GET: Render login form
+    POST: Authenticate user and redirect to dashboard
+    """
+    if request.method == "GET":
+        # Render login template
+        next_url = request.query_params.get("next", "")
+        return admin_site.templates.TemplateResponse(
+            request,
+            "login.html",
+            {
+                "title": "Admin Login",
+                "next_url": next_url,
+            }
+        )
+    
+    elif request.method == "POST":
+        # Handle login form submission
+        form_data = await request.form()
+        email = form_data.get("email", "").strip()
+        password = form_data.get("password", "")
+        
+        if not email or not password:
+            next_url = request.query_params.get("next", "")
+            return admin_site.templates.TemplateResponse(
+                request,
+                "login.html",
+                {
+                    "title": "Admin Login",
+                    "error": "Email and password are required",
+                    "email": email,
+                    "next_url": next_url,
+                }
+            )
+        
+        # Authenticate user
+        from eden.auth.actions import authenticate
+        user = await authenticate(email=email, password=password)
+        
+        if not user:
+            next_url = request.query_params.get("next", "")
+            return admin_site.templates.TemplateResponse(
+                request,
+                "login.html",
+                {
+                    "title": "Admin Login",
+                    "error": "Invalid email or password",
+                    "email": email,
+                    "next_url": next_url,
+                }
+            )
+        
+        # Check staff permissions
+        if not getattr(user, "is_staff", False) and not getattr(user, "is_superuser", False):
+            next_url = request.query_params.get("next", "")
+            return admin_site.templates.TemplateResponse(
+                request,
+                "login.html",
+                {
+                    "title": "Admin Login",
+                    "error": "Access denied. Staff privileges required.",
+                    "email": email,
+                    "next_url": next_url,
+                }
+            )
+        
+        # Login user (sets session)
+        from eden.auth.actions import login
+        await login(request, user)
+        
+        # Update last login
+        user.last_login = datetime.now()
+        await user.save()
+        
+        # Redirect to next URL or dashboard
+        next_url = request.query_params.get("next", "").strip()
+        if next_url and next_url.startswith("/"):
+            return RedirectResponse(url=next_url, status_code=303)
+        else:
+            return RedirectResponse(url="/admin/", status_code=303)
+    
+    # Method not allowed
+    return Response("Method not allowed", status_code=405)
+
+
+async def _get_model_count(model_name: str) -> int:
+    """Helper to get count of a model by its class name."""
+    from eden.admin.models import AuditLog, SupportTicket
+    from eden.tenancy.models import Tenant
+    from eden.payments.models import Subscription, PaymentEvent
+
+    model_registry = {
+        "Tenant": Tenant,
+        "Subscription": Subscription,
+        "SupportTicket": SupportTicket,
+        "AuditLog": AuditLog,
+        "PaymentEvent": PaymentEvent,
+    }
+
+    model_cls = model_registry.get(model_name)
+    if not model_cls:
+        return 0
+
+    try:
+        return await model_cls.count()
+    except Exception:
+        return 0
 
 
 async def admin_dashboard(request: Request, admin_site: Any) -> Response:
@@ -97,26 +213,15 @@ async def admin_dashboard(request: Request, admin_site: Any) -> Response:
     )
 
 
-async def _get_model_count(model_name: str) -> int:
-    """Helper to get count of a model by name safely."""
-    try:
-        from eden.db import Model
-        # This is a bit dynamic, normally we'd import the model directly
-        # But for the dashboard we can be more flexible
-        for subclass in Model.__subclasses__():
-            if subclass.__name__ == model_name:
-                return await subclass.count()
-    except Exception as e:
-        from eden.logging import get_logger
-        get_logger(__name__).error("Silent exception caught: %s", e, exc_info=True)
-    return 0
-
-
 async def admin_list_view(
     request: Request, model: type, model_admin: Any, admin_site: Any
 ) -> Response:
     """Paginated list view for a model."""
     await _check_staff(request)
+
+    page = int(request.query_params.get("page", 1))
+    per_page = int(request.query_params.get("per_page", 20))
+    search = request.query_params.get("q", "")
 
     session = getattr(request.state, "db", None)
     from eden.db import _MISSING
@@ -263,7 +368,7 @@ async def admin_add_view(
                 await AuditLog.log(
                     user_id=str(user.id) if user else None,
                     action="create",
-                    model_name=str(getattr(model, "__tablename__", model.__name__.lower())),
+                    model=model,
                     record_id=str(getattr(instance, "id", "new"))
                 )
             except (ImportError, Exception):
@@ -346,7 +451,7 @@ async def admin_edit_view(
                 await AuditLog.log(
                     user_id=str(user.id) if user else None,
                     action="update",
-                    model_name=str(getattr(model, "__tablename__", model.__name__.lower())),
+                    model=model,
                     record_id=str(record_id)
                 )
             except (ImportError, Exception):
@@ -408,7 +513,7 @@ async def admin_delete_view(
             await AuditLog.log(
                 user_id=str(user.id) if user else None,
                 action="delete",
-                model_name=str(getattr(model, "__tablename__", model.__name__.lower())),
+                model=model,
                 record_id=str(record_id)
             )
         except (ImportError, Exception):
@@ -453,38 +558,153 @@ async def admin_login(request: Request, admin_site: Any) -> Response:
     error = None
     next_url = request.query_params.get("next", "/admin/")
     
+    # Check if there are any superusers at all
+    no_superusers = False
+    try:
+        from eden.auth.models import User
+        from eden.db import _MISSING
+        session = getattr(request.state, "db", None)
+        superuser_count = await User.query(session or _MISSING).filter(
+            (User.is_superuser == True) | (User.is_staff == True)
+        ).count()
+        if superuser_count == 0:
+            no_superusers = True
+    except Exception:
+        pass
+    
     if request.method == "POST":
         form_data = await request.form()
-        email = str(form_data.get("email", ""))
-        password = str(form_data.get("password", ""))
+        email = str(form_data.get("email", "")).strip()
+        password = str(form_data.get("password", "")).strip()
         
-        from eden.auth.base import authenticate
-        user = await authenticate(request, email=email, password=password)
-        
-        if user and (getattr(user, "is_staff", False) or getattr(user, "is_superuser", False)):
-            from eden.auth.backends.session import SessionBackend
-            backend = SessionBackend()
-            await backend.login(request, user)
-            
-            from eden.responses import RedirectResponse
-            return RedirectResponse(url=next_url, status_code=303)
+        if not email or not password:
+            error = "Email and password are required."
         else:
-            error = "Invalid credentials or insufficient permissions for Elite access."
+            try:
+                from eden.auth.actions import authenticate
+                user = await authenticate(email=email, password=password)
+                
+                if user and (getattr(user, "is_staff", False) or getattr(user, "is_superuser", False)):
+                    from eden.auth.backends.session import SessionBackend
+                    backend = SessionBackend()
+                    await backend.login(request, user)
+                    
+                    from eden.responses import RedirectResponse
+                    return RedirectResponse(url=next_url, status_code=303)
+                elif user:
+                    # User exists but is not staff
+                    error = "Your account does not have administrator privileges."
+                else:
+                    # User doesn't exist or password is wrong
+                    error = "Invalid email or password."
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.exception(f"Login error for {email}: {e}")
+                error = f"Authentication error: {str(e)}"
+    elif no_superusers:
+        error = "No administrator account exists. Please create one with: eden auth createsuperuser"
             
     context = {
         "request": request,
         "error": error,
         "next_url": next_url,
+        "theme": admin_site.theme,
     }
     return admin_site.templates.TemplateResponse(request, "login.html", context)
 
 
-# ── Generic Admin API ────────────────────────────────────────────────
+
+# ── Dashboard API ────────────────────────────────────────────────────
+
+async def admin_api_dashboard(request: Request, admin_site: Any) -> JsonResponse:
+    """
+    Returns data for the admin dashboard, including stats, recent activities,
+    and model summaries. Optimized for the PremiumAdmin SPA.
+    """
+    await _check_staff(request)
+    
+    # 1. Fetch Stats (Real counts where possible)
+    stats = [
+        {
+            "label": "Total Tenants",
+            "value": await _get_model_count("Tenant"),
+            "icon": "fa-solid fa-building",
+            "color": "var(--primary)",
+            "trend": "+12%" # Mock trend for aesthetic
+        },
+        {
+            "label": "Active Subscriptions",
+            "value": await _get_model_count("Subscription"),
+            "icon": "fa-solid fa-credit-card",
+            "color": "#10b981",
+            "trend": "+5%"
+        },
+        {
+            "label": "Support Tickets",
+            "value": await _get_model_count("SupportTicket"),
+            "icon": "fa-solid fa-headset",
+            "color": "#f59e0b",
+            "trend": "-2%"
+        },
+        {
+            "label": "Revenue (MTD)",
+            "value": "$12,540.50", # Still placeholder for now, but formatted nicely
+            "icon": "fa-solid fa-money-bill-trend-up",
+            "color": "#6366f1",
+            "trend": "+8%"
+        }
+    ]
+    
+    # 2. Fetch Recent Activities (AuditLog)
+    activities = []
+    try:
+        from eden.admin.models import AuditLog
+        recent_logs = await AuditLog.query().order_by("-timestamp").limit(8).all()
+        for log in recent_logs:
+            activities.append({
+                "id": str(log.id),
+                "timestamp": log.timestamp.isoformat(),
+                "time_human": log.timestamp.strftime("%m-%d %H:%M"),
+                "user": str(log.user_id)[:8] + "..." if log.user_id else "System",
+                "action": log.action,
+                "model": log.model_name,
+                "target_id": str(log.record_id)[:8] + "..." if log.record_id else "-"
+            })
+    except Exception:
+        pass
+
+    # 3. Model Summaries (Quick counts for the grid)
+    models_summary = []
+    for model, model_admin in admin_site._registry.items():
+        table_name = str(getattr(model, "__tablename__", model.__name__.lower()))
+        try:
+            count = await model.count()
+        except Exception:
+            count = 0
+            
+        models_summary.append({
+            "name": model.__name__,
+            "table": table_name,
+            "label": model_admin.get_verbose_name_plural(model),
+            "count": count,
+            "icon": getattr(model_admin, "icon", "fa-solid fa-cube"),
+            "color": "var(--primary)"
+        })
+
+    return JsonResponse({
+        "stats": stats,
+        "activities": activities,
+        "models": models_summary,
+        "server_time": datetime.now().isoformat()
+    })
+
 
 async def admin_api_metadata(request: Request, admin_site: Any) -> JsonResponse:
     """
     Returns metadata for all registered models, including field definitions,
-    available bulk actions, and nested inlines.
+    available bulk actions, and nested inlines. Also includes feature flags as
+    a virtual model for the admin UI.
     """
     await _check_staff(request)
     
@@ -522,6 +742,33 @@ async def admin_api_metadata(request: Request, admin_site: Any) -> JsonResponse:
             "actions": model_admin.actions,
             "inlines": inlines
         }
+    
+    # Add feature flags as a virtual model
+    metadata["flags"] = {
+        "name": "FeatureFlag",
+        "verbose_name": "Feature Flag",
+        "verbose_name_plural": "Feature Flags",
+        "table": "flags",
+        "slug": "flags",
+        "icon": "fa-solid fa-flag",
+        "is_virtual": True,
+        "fields": [
+            {"key": "id", "name": "id", "type": "string", "label": "ID", "readonly": True},
+            {"key": "name", "name": "name", "type": "string", "label": "Flag Name", "required": True},
+            {"key": "description", "name": "description", "type": "text", "label": "Description", "required": False},
+            {"key": "strategy", "name": "strategy", "type": "select", "label": "Strategy", "required": True, "choices": ["always_on", "always_off", "percentage", "user_id", "user_segment", "tenant_id", "environment"]},
+            {"key": "percentage", "name": "percentage", "type": "integer", "label": "Percentage", "required": False},
+            {"key": "enabled", "name": "enabled", "type": "boolean", "label": "Enabled", "required": True},
+            {"key": "created_at", "name": "created_at", "type": "datetime", "label": "Created", "readonly": True},
+            {"key": "updated_at", "name": "updated_at", "type": "datetime", "label": "Updated", "readonly": True},
+            {"key": "usage_count", "name": "usage_count", "type": "integer", "label": "Usage Count", "readonly": True}
+        ],
+        "list_display": ["name", "strategy", "enabled", "usage_count", "updated_at"],
+        "search_fields": ["name", "description"],
+        "list_filter": ["strategy", "enabled"],
+        "actions": [],
+        "inlines": []
+    }
         
     return JsonResponse(metadata)
 

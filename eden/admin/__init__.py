@@ -201,8 +201,11 @@ class AdminSite:
 
     def auto_discover(self):
         """Automatically find and register all non-abstract Model subclasses."""
-        from eden.db import get_models
+        from eden.db import get_models, discover_models
         from eden.admin.options import ModelAdmin
+        
+        # Ensure all models.py in the project are imported first
+        discover_models()
         
         # Ensure system defaults (Auth, Audit, etc.) are registered first
         self.register_defaults()
@@ -383,10 +386,6 @@ class AdminSite:
             # Delegate to Starlette StaticFiles app
             return await static_app(request.scope, request.receive, request._send)
 
-        @router.get("/", name="admin_dashboard")
-        @admin_required
-        async def dashboard(request) -> Any:
-            return await admin_dashboard(request, site_instance)
 
         for model, model_admin in self._registry.items():
             def register_model_routes(m: Any, ma: ModelAdmin) -> None:
@@ -480,6 +479,19 @@ class AdminSite:
             router.delete(f"/api/{table}/delete/{{id}}", name=f"admin_api_{table}_delete")(make_api_delete(model, model_admin))
             router.post(f"/api/{table}/action", name=f"admin_api_{table}_action")(make_api_action(model, model_admin))
 
+        # ── Dashboard API ───────────────────────────────────────────
+        router.get("/api/dashboard", name="admin_api_dashboard")(
+            lambda req: views.admin_api_dashboard(req, self)
+        )
+
+        # ── Feature Flags API (Virtual Model) ────────────────────────
+        # Include the flags panel router with the flags API endpoints
+        from .flags_panel import FlagsAdminPanel
+        from eden.flags import get_flag_manager
+        
+        flags_panel = FlagsAdminPanel(manager=get_flag_manager())
+        router.include_router(flags_panel.router, prefix="/api/flags")
+
         # ── Dashboard Root ───────────────────────────────────────────
 
         @router.get("/")
@@ -488,8 +500,10 @@ class AdminSite:
             from .views import _check_staff
             try:
                 await _check_staff(request)
-            except Exception:
-                return Response.redirect(f"{request.url.path}login")
+            except Exception as e:
+                # Redirect to login with return path
+                login_url = f"{prefix}/login?next={prefix}/"
+                return RedirectResponse(url=login_url)
                 
             admin_url = str(request.url.path).rstrip("/")
             return HtmlResponse(PremiumAdminTemplate.render(api_base=f"{admin_url}/api"))

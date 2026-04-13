@@ -18,11 +18,11 @@ class AdminTheme:
     primary_light: str = "#eef2ff"
     
     # Neutral Colors (Slate)
-    bg_main: str = "#f8fafc"
-    bg_card: str = "#ffffff"
-    text_main: str = "#1e293b"
-    text_muted: str = "#64748b"
-    border: str = "#e2e8f0"
+    bg_main: str = "#0f172a"
+    bg_card: str = "#1e293b"
+    text_main: str = "#f8fafc"
+    text_muted: str = "#94a3b8"
+    border: str = "#334155"
     
     # Success/Error/Warning
     success: str = "#10b981"
@@ -30,10 +30,10 @@ class AdminTheme:
     warning: str = "#f59e0b"
     
     # Sidebar
-    sidebar_bg: str = "#1e293b"
+    sidebar_bg: str = "#0f172a"
     sidebar_text: str = "#94a3b8"
     sidebar_text_active: str = "#ffffff"
-    sidebar_accent: str = "#334155"
+    sidebar_accent: str = "#1e293b"
 
     def to_css(self) -> str:
         """Generates root CSS variables for transparency and ease of use in templates."""
@@ -42,6 +42,7 @@ class AdminTheme:
             --eden-primary: {self.primary};
             --eden-primary-hover: {self.primary_hover};
             --eden-primary-light: {self.primary_light};
+            --eden-primary-rgb: 99, 102, 241;
             --eden-bg-main: {self.bg_main};
             --eden-bg-card: {self.bg_card};
             --eden-text-main: {self.text_main};
@@ -49,13 +50,24 @@ class AdminTheme:
             --eden-border: {self.border};
             --eden-success: {self.success};
             --eden-error: {self.error};
+            --eden-error-rgb: 239, 68, 68;
             --eden-warning: {self.warning};
             --eden-sidebar-bg: {self.sidebar_bg};
             --eden-sidebar-text: {self.sidebar_text};
             --eden-sidebar-text-active: {self.sidebar_text_active};
             --eden-sidebar-accent: {self.sidebar_accent};
-            --eden-radius: 0.75rem;
-            --eden-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --eden-radius: 1rem;
+            --eden-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            
+            /* Compatibility Aliases for admin.css */
+            --eden-surface: {self.bg_main};
+            --eden-on-surface: {self.text_main};
+            --eden-on-surface-variant: {self.text_muted};
+            --eden-surface-container: {self.bg_card};
+            --eden-surface-container-low: {self.bg_main};
+            --eden-surface-container-high: {self.sidebar_accent};
+            --eden-outline: {self.border};
+            --eden-outline-variant: {self.border};
         }}
         """
 

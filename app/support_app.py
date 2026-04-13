@@ -45,7 +45,7 @@ async def send_support_email(ticket_id: str, message: str):
     await asyncio.sleep(1)  # Simulate email sending
     print(f"[TASK] Support email sent for ticket {ticket_id}: {message}")
 
-@app.schedule("0 * * * *")  # Every hour
+# Scheduled tasks (mock)
 async def cleanup_old_messages():
     """Periodic task to clean up old messages"""
     print("[SCHEDULED] Cleanup task executed")
@@ -360,11 +360,12 @@ async def demo_index(request):
         "features": features
     })
 
-@app.get("/support", methods=["GET"])
+@app.get("/support")
 async def support_demo(request):
     """Original support demo"""
     return await app.render("support_demo.html", {"request": request})
-
+async def setup_db():
+    """Initialize the database and create a demo user."""
     # Canonical way to initialize schema in Eden
     await db.connect(create_tables=True)
     
@@ -379,9 +380,11 @@ async def support_demo(request):
                 id=DEMO_USER_ID,
                 username="demo_user",
                 email="demo@eden-framework.dev",
+                is_staff=True,
                 is_superuser=True,
-                password_hash="demo_password" # In real app use set_password
             )
+            # Use set_password to ensure proper hashing
+            user.set_password("demo_password")
             session.add(user)
             await session.commit()
             print(f"Demo user created with ID: {DEMO_USER_ID}")

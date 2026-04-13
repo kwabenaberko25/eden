@@ -1,7 +1,5 @@
 /* --- Eden Elite Admin System Styles --- */
-:root {
-    {{ theme.to_css()|safe }}
-}
+/* Variable tokens are injected via @span(theme.to_css()|safe) in base templates */
 
 /* Base Styles */
 body {

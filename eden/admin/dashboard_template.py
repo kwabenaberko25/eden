@@ -1,11 +1,25 @@
 """
-Eden Framework Admin Panel — HTML Template
+Eden Framework Admin Panel — HTML Template (DEPRECATED)
+
+DEPRECATED: This module provides a legacy dashboard for feature flags only.
+
+The new unified admin dashboard is available via:
+    from eden.admin.premium_dashboard import PremiumAdminTemplate
+    
+The new dashboard includes:
+- All model management (not just flags)
+- Feature flags as a virtual model in the sidebar
+- Complete CRUD operations
+- Search, filtering, and sorting
+
+This template is kept for backward compatibility with existing code.
+New projects should use the PremiumAdminTemplate instead.
 
 Generates self-contained HTML with embedded CSS and JavaScript.
 No external dependencies, no internet required.
 
-Usage:
-    from eden.admin.dashboard import AdminDashboardTemplate
+Legacy Usage:
+    from eden.admin.dashboard_template import AdminDashboardTemplate
     
     html = AdminDashboardTemplate.render(
         api_base="/admin/flags",
@@ -17,15 +31,18 @@ Usage:
 """
 
 from datetime import datetime
+import warnings
 
 
 class AdminDashboardTemplate:
-    """Self-contained admin dashboard template."""
+    """Self-contained admin dashboard template (DEPRECATED - use PremiumAdminTemplate instead)."""
     
     @staticmethod
     def render(api_base: str = "/admin/flags", app_name: str = "Eden Framework") -> str:
         """
         Render complete admin dashboard HTML.
+        
+        DEPRECATED: Use PremiumAdminTemplate instead for the new unified dashboard.
         
         Args:
             api_base: Base URL for API endpoints

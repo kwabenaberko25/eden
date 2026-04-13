@@ -181,12 +181,14 @@ class CSRFMiddleware:
     Attributes:
         SAFE_METHODS: HTTP methods that don't require CSRF validation
         TOKEN_HEADER: HTTP header name for CSRF token submission
+        TOKEN_HEADER_ALT: HTMX-compatible header variant
         TOKEN_FIELD: HTML form field name for CSRF token submission
         SESSION_KEY: Session key where CSRF token is stored
     """
 
     SAFE_METHODS = {"GET", "HEAD", "OPTIONS", "TRACE"}
     TOKEN_HEADER = "X-CSRF-Token"
+    TOKEN_HEADER_ALT = "X-XSRF-Token"  # HTMX compatibility
     TOKEN_FIELD = "csrf_token"
     SESSION_KEY = "eden_csrf_token"
 
@@ -235,8 +237,9 @@ class CSRFMiddleware:
             await response(scope, receive, send)
             return
 
-        # Check header first, then form field
-        submitted_token = request.headers.get(self.TOKEN_HEADER)
+        # Check headers (support both X-CSRF-Token and X-XSRF-Token for HTMX compatibility)
+        submitted_token = request.headers.get(self.TOKEN_HEADER) or request.headers.get(self.TOKEN_HEADER_ALT)
+        
         if not submitted_token:
             # Try to read from form data — but only for form content types
             content_type = request.headers.get("content-type", "")
@@ -246,11 +249,14 @@ class CSRFMiddleware:
                     submitted_token = form.get(self.TOKEN_FIELD)
                 except Exception as e:
                     from eden.logging import get_logger
-                    get_logger(__name__).error("Silent exception caught: %s", e, exc_info=True)
-
-        # HTMX often uses X-XSRF-TOKEN or similar, but we'll stick to X-CSRF-Token or Form
+                    get_logger(__name__).error("Failed to parse form data for CSRF token: %s", e, exc_info=True)
 
         if not submitted_token or not hmac.compare_digest(submitted_token, expected_token):
+            from eden.logging import get_logger
+            get_logger(__name__).warning(
+                "CSRF token validation failed: submitted=%s, expected=%s",
+                bool(submitted_token), bool(expected_token)
+            )
             response = JSONResponse(
                 {"error": True, "detail": "CSRF token validation failed."},
                 status_code=403,

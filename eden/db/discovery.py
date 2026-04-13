@@ -48,29 +48,46 @@ def discover_models() -> None:
     if cwd_str not in sys.path:
         sys.path.insert(0, cwd_str)
 
-    # 3. Scan for models.py files dynamically
-    for path in cwd.rglob("models.py"):
+    # 3. Scan for models.py files or models/ packages dynamically
+    discovery_targets = list(cwd.rglob("models.py")) + list(cwd.rglob("models/__init__.py"))
+    
+    for path in discovery_targets:
         # Skip hidden directories, virtual environments, etc.
         parts = path.relative_to(cwd).parts
         if any(p.startswith(".") or p in _SKIP_DIRS for p in parts):
             continue
         
-        # Only import if the models.py is inside a proper Python package
-        # (i.e., its parent directory has an __init__.py)
+        # For a models.py file, the parent must be a package or the root.
+        # For a models/__init__.py, the models directory itself is the package.
+        is_init = path.name == "__init__.py"
         parent = path.parent
-        if parent != cwd and not (parent / "__init__.py").exists():
-            logger.debug(
-                f"Skipping {path}: parent directory is not a Python package "
-                f"(missing __init__.py)"
-            )
-            continue
+        
+        if not is_init:
+            # Standard models.py
+            if parent != cwd and not (parent / "__init__.py").exists():
+                logger.debug(
+                    f"Skipping {path}: parent directory is not a Python package "
+                    f"(missing __init__.py)"
+                )
+                continue
+        else:
+            # models/__init__.py - the 'models' directory is the package.
+            # We already know it has __init__.py because we found it.
+            pass
             
         try:
             rel_path = path.relative_to(cwd)
             # Convert path to module dotted name
-            module_name = ".".join(rel_path.with_suffix("").parts)
-            importlib.import_module(module_name)
-            logger.debug(f"Automatically imported models module: {module_name}")
+            if is_init:
+                # For app/models/__init__.py, module name is app.models
+                module_name = ".".join(rel_path.parent.parts)
+            else:
+                # For app/models.py, module name is app.models
+                module_name = ".".join(rel_path.with_suffix("").parts)
+            
+            if module_name:
+                importlib.import_module(module_name)
+                logger.debug(f"Automatically imported models module: {module_name}")
         except Exception as e:
             logger.warning(f"Failed to import {path}: {e}")
 

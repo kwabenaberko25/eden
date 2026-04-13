@@ -1,28 +1,29 @@
 """
-Eden Framework Admin Dashboard Routes
+Eden Framework Admin Dashboard Routes (Legacy Support)
 
-Integrates the self-contained admin UI into FastAPI.
+This file is now deprecated. Admin dashboard is now integrated directly into
+the AdminSite.build_router() method in eden/admin/__init__.py.
 
-Usage:
-    from eden.admin.dashboard_routes import get_admin_routes
-    
-    app = FastAPI()
-    app.include_router(get_admin_routes())
+For new implementations, use:
+    from eden.admin import admin
+    router = admin.build_router(prefix="/admin")
+
+This file is kept for backward compatibility with existing code that may
+import from it directly.
 """
 
 from eden.requests import Request
-from eden import Router as APIRouter, App as FastAPI
-from pathlib import Path
-import os
-
-from .dashboard_template import AdminDashboardTemplate
+from eden import Router as APIRouter
+from .premium_dashboard import PremiumAdminTemplate
 from .flags_panel import FlagsAdminPanel
 from eden.flags import get_flag_manager
 
 
 def get_admin_routes(prefix: str = "/admin") -> APIRouter:
     """
-    Create router with admin dashboard routes.
+    DEPRECATED: Create router with admin dashboard routes.
+    
+    Use AdminSite.build_router() instead.
     
     Args:
         prefix: URL prefix for admin routes
@@ -31,34 +32,12 @@ def get_admin_routes(prefix: str = "/admin") -> APIRouter:
         FastAPI Router with all admin endpoints
     """
     from eden.responses import HtmlResponse
+    from eden.admin import admin as default_admin
     
-    router = APIRouter(prefix=prefix)
-    panel = FlagsAdminPanel(manager=get_flag_manager())
-    
-    # Main dashboard page
-    @router.get("/")
-    async def admin_dashboard(request: Request):
-        """Serve self-contained admin dashboard."""
-        html = AdminDashboardTemplate.render(
-            api_base=f"{prefix}/flags",
-            app_name="Eden Framework"
-        )
-        return HtmlResponse(html)
-    
-    @router.get("/dashboard")
-    async def admin_dashboard_explicit(request: Request):
-        """Alias for main dashboard."""
-        html = AdminDashboardTemplate.render(
-            api_base=f"{prefix}/flags",
-            app_name="Eden Framework"
-        )
-        return HtmlResponse(html)
-    
-    # Include the panel's built-in routes for flags API
-    router.include_router(panel.router, prefix="/flags")
-    
-    return router
+    # Delegate to the new integrated approach
+    return default_admin.build_router(prefix=prefix)
 
 
-# Export for convenience
-__all__ = ["get_admin_routes", "AdminDashboardTemplate"]
+# Export for backward compatibility
+__all__ = ["get_admin_routes"]
+

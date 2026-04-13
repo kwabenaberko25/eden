@@ -115,31 +115,31 @@ class StartupDiagnostics:
         degraded = [s for s in self._subsystems if s["status"] == "degraded"]
         failed = [s for s in self._subsystems if s["status"] == "failed"]
 
-        logger.info("─── Eden Startup Diagnostics ───")
+        logger.info("--- Eden Startup Diagnostics ---")
 
         for s in healthy:
-            logger.info("  ✅ %s: %s", s["name"], s["detail"] or "OK")
+            logger.info("  [OK] %s: %s", s["name"], s["detail"] or "OK")
 
         for s in degraded:
             logger.warning(
-                "  ⚠️  %s: DEGRADED — %s", s["name"], s["detail"]
+                "  [DEGRADED] %s: %s", s["name"], s["detail"]
             )
 
         for s in failed:
             logger.error(
-                "  ❌ %s: FAILED — %s", s["name"], s["detail"]
+                "  [FAILED] %s: %s", s["name"], s["detail"]
             )
 
         if degraded or failed:
             logger.warning(
-                "─── %d degraded, %d failed subsystem(s). "
-                "Review configuration. ───",
+                "--- %d degraded, %d failed subsystem(s). "
+                "Review configuration. ---",
                 len(degraded),
                 len(failed),
             )
         else:
             logger.info(
-                "─── All %d subsystem(s) healthy ───", len(healthy)
+                "--- All %d subsystem(s) healthy ---", len(healthy)
             )
 
     def reset(self) -> None:

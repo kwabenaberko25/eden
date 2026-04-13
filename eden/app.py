@@ -855,7 +855,11 @@ class Eden:
         # 3. Session & CSRF (Conditional chain)
         # We disable these by default in tests to simplify TestClient usage
         if self.secret_key and not self.is_test():
-            self.add_middleware("session", priority=self.PRIORITY_CORE + 20, secret_key=self.secret_key)
+            # Security: Disable https_only in debug/dev mode or on localhost to allow local testing.
+            # The Secure cookie flag causes browsers to DROP the session cookie over HTTP.
+            # On production (non-debug), enforce https_only for security.
+            force_https = not (self.debug or self.config.env in ("dev", "test", "testing"))
+            self.add_middleware("session", priority=self.PRIORITY_CORE + 20, secret_key=self.secret_key, https_only=force_https)
             self.add_middleware("csrf", priority=self.PRIORITY_CORE + 30)
             self.add_middleware("messages", priority=self.PRIORITY_CORE + 40)
         elif self.debug and not self.is_test():

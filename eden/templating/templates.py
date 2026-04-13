@@ -1,5 +1,6 @@
 from __future__ import annotations
 import logging
+import re
 from typing import Any, Optional
 from jinja2 import Undefined
 from jinja2.sandbox import SandboxedEnvironment
@@ -189,22 +190,25 @@ class EdenTemplateResponse(_TemplateResponse):
     def render(self, *args, **kwargs) -> bytes:
         body = super().render(*args, **kwargs)
         
-        # If we have a request context with eden_stacks, perform replacement
+        # If no stack placeholders exist, return early
+        if b"[[EDEN_STACK:" not in body:
+            return body
+            
         request = self.context.get("request")
-        if request and hasattr(request.state, "eden_stacks") and request.state.eden_stacks:
-            content = body.decode()
-            modified = False
-            
-            for name, stack in request.state.eden_stacks.items():
-                placeholder = f"[[EDEN_STACK:{name}]]"
-                if placeholder in content:
-                    content = content.replace(placeholder, "\n".join(stack))
-                    modified = True
-            
-            if modified:
-                return content.encode()
+        content = body.decode()
         
-        return body
+        def replace_stack(match):
+            name = match.group(1)
+            # Resolve stack content from request state if available
+            if request and hasattr(request.state, "eden_stacks"):
+                stack = request.state.eden_stacks.get(name)
+                if stack:
+                    return "\n".join(stack)
+            return ""
+
+        # Global replacement of all placeholders (even those with no content)
+        content = re.sub(r"\[\[EDEN_STACK:(.*?)\]\]", replace_stack, content)
+        return content.encode()
 
 
 class EdenTemplates(StarletteJinja2Templates):
