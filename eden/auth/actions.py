@@ -9,11 +9,101 @@ from typing import Any, Optional, Type, TYPE_CHECKING
 
 from eden.auth.base import BaseUser
 from eden.auth.hashers import hash_password, check_password
+from eden.db.context import BaseManager
 
 if TYPE_CHECKING:
     from eden.requests import Request
+    from eden.db.context import EdenDbContext
 
 logger = logging.getLogger(__name__)
+
+
+class AuthActions(BaseManager):
+    """
+    Manager for Authentication and User lifecycle.
+    
+    This class is auto-registered to EdenDbContext as 'auth'.
+    """
+    manager_name = "auth"
+
+    async def authenticate(
+        self,
+        email: str,
+        password: str,
+        user_model: Optional[Type[BaseUser]] = None,
+    ) -> Optional[BaseUser]:
+        """
+        Authenticate a user by email and password using the context session.
+        """
+        if not email or not password:
+            raise ValueError("Email and password required")
+        
+        # Resolve user model
+        user_model = self._get_user_model(user_model)
+        
+        # Find user by email using the session bound to this context
+        user = await user_model.query(session=self.session).filter(email__iexact=email).first()
+        
+        if not user or not user.is_active:
+            logger.warning(f"Login failed for {email}: user not found or inactive")
+            return None
+        
+        # Verify password
+        if not check_password(password, user.password_hash):
+            logger.warning(f"Login failed for {email}: invalid password")
+            return None
+        
+        logger.info(f"User {email} authenticated successfully")
+        return user
+
+    async def create_user(
+        self,
+        email: str,
+        password: str,
+        **kwargs
+    ) -> BaseUser:
+        """
+        Create a new user with email and password using the context session.
+        """
+        from eden.validators import validate_email
+        
+        # Validate email
+        result = validate_email(email)
+        if not result:
+            raise ValueError(f"Invalid email: {result.error}")
+        
+        email = result.value
+        user_model = self._get_user_model()
+        
+        # Check email uniqueness via the context session
+        existing = await user_model.query(session=self.session).filter(email=email.lower()).first()
+        if existing:
+            raise ValueError(f"Email {email} already in use")
+        
+        # Create user via CrudMixin API, explicitly passing the session
+        user = await user_model.create(
+            session=self.session,
+            email=email.lower(),
+            password_hash=hash_password(password),
+            **kwargs
+        )
+        
+        logger.info(f"User created: {email}")
+        return user
+
+    def _get_user_model(self, provided: Optional[Type[BaseUser]] = None) -> Type[BaseUser]:
+        if provided:
+            return provided
+            
+        from eden.db import get_models
+        from eden.auth.models import User as DefaultUser
+        
+        models = get_models()
+        user_model = next(
+            (m for m in models if issubclass(m, BaseUser) and m.__name__ != "User"),
+            None
+        )
+        return user_model or DefaultUser
 
 
 async def authenticate(
@@ -23,48 +113,21 @@ async def authenticate(
 ) -> Optional[BaseUser]:
     """
     Authenticate a user by email and password.
+    
+    Deprecated: Use ctx.auth.authenticate() instead.
     """
-    if not email or not password:
-        raise ValueError("Email and password required")
+    from eden.db import get_db
+    from eden.context import get_request
     
-    # Auto-detect user model if not provided
-    if user_model is None:
-        from eden.db import get_models
-        from eden.auth.models import User as DefaultUser
-            
-        models = get_models()
-        
-        # 1. Find the first model that extends BaseUser (excluding framework default)
-        user_model = next(
-            (m for m in models if issubclass(m, BaseUser) and m.__name__ != "User"),
-            None
-        )
-        
-        # 2. Fall back to framework's default User model
-        if not user_model:
-            user_model = DefaultUser
-            
-        if not user_model:
-            raise ValueError(
-                "No User model found. Ensure your User model inherits from "
-                "eden.auth.BaseUser and is registered."
-            )
+    # Try to resolve context from the current request
+    req = get_request()
+    if req and hasattr(req, "ctx"):
+        return await req.ctx.auth.authenticate(email, password, user_model=user_model)
     
-    # Find user by email (case-insensitive)
-    # Assuming the user model has a `.filter()` or similar from CrudMixin
-    user = await user_model.filter(email__iexact=email).first()
-    
-    if not user or not user.is_active:
-        logger.warning(f"Login failed for {email}: user not found or inactive")
-        return None
-    
-    # Verify password using the unified hasher
-    if not check_password(password, user.password_hash):
-        logger.warning(f"Login failed for {email}: invalid password")
-        return None
-    
-    logger.info(f"User {email} authenticated successfully")
-    return user
+    # Fallback to magic context discovery
+    db = get_db()
+    async with db.context() as ctx:
+        return await ctx.auth.authenticate(email, password, user_model=user_model)
 
 
 async def login(request: "Request", user: BaseUser) -> None:
@@ -81,7 +144,7 @@ async def login(request: "Request", user: BaseUser) -> None:
     set_user(user)
 
     # 3. Persist in session
-    if hasattr(request, "session"):
+    if "session" in request.scope:
         from eden.auth.backends.session import SessionBackend
         request.session[SessionBackend.SESSION_KEY] = str(user.id)
     
@@ -103,7 +166,7 @@ async def logout(request: "Request") -> None:
     set_user(None)
 
     # 3. Clear session
-    if hasattr(request, "session"):
+    if "session" in request.scope:
         from eden.auth.backends.session import SessionBackend
         request.session.pop(SessionBackend.SESSION_KEY, None)
     
@@ -117,50 +180,18 @@ async def create_user(
 ) -> BaseUser:
     """
     Create a new user with email and password.
+    
+    Deprecated: Use ctx.auth.create_user() instead.
     """
-    from eden.db import get_models
-    from eden.validators import validate_email
+    from eden.db import get_db
+    from eden.context import get_request
     
-    # Validate email
-    result = validate_email(email)
-    if not result:
-        raise ValueError(f"Invalid email: {result.error}")
+    # Try to resolve context from the current request
+    req = get_request()
+    if req and hasattr(req, "ctx"):
+        return await req.ctx.auth.create_user(email, password, **kwargs)
     
-    email = result.value
-    
-    # Find user model
-    from eden.db import get_models
-    from eden.auth.models import User as DefaultUser
-    
-    models = get_models()
-    
-    # 1. Find the first model that extends BaseUser (excluding framework default)
-    user_model = next(
-        (m for m in models if issubclass(m, BaseUser) and m.__name__ != "User"),
-        None
-    )
-    
-    # 2. Fall back to framework's default User model
-    if not user_model:
-        user_model = DefaultUser
-        
-    if not user_model:
-        raise ValueError(
-            "No User model found. Ensure your User model inherits from "
-            "eden.auth.BaseUser and is registered."
-        )
-    
-    # Check email uniqueness
-    existing = await user_model.filter(email=email.lower()).first()
-    if existing:
-        raise ValueError(f"Email {email} already in use")
-    
-    # Create user via CrudMixin API
-    user = await user_model.create(
-        email=email.lower(),
-        password_hash=hash_password(password),
-        **kwargs
-    )
-    
-    logger.info(f"User created: {email}")
-    return user
+    # Fallback to magic context discovery (if in a request)
+    db = get_db()
+    async with db.context() as ctx:
+        return await ctx.auth.create_user(email, password, **kwargs)

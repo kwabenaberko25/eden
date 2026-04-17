@@ -3,6 +3,7 @@ Eden — Session Authentication Backend
 """
 
 
+from typing import Any
 from eden.auth.base import AuthBackend
 from eden.auth.models import User
 from eden.requests import Request
@@ -32,11 +33,9 @@ class SessionBackend(AuthBackend[User]):
         session = getattr(request.app.state, "db", None)
         return await User.get(session, user_id)
 
-    async def login(self, request: Request, user: User) -> None:
-        """
-        Store the user ID in the session.
-        """
-        if hasattr(request, "session"):
+    async def login(self, request: Request, user: Any) -> None:
+        """Store user ID in the session."""
+        if "session" in request.scope:
             request.session[self.SESSION_KEY] = str(user.id)
 
     async def logout(self, request: Request) -> None:

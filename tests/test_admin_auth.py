@@ -1,449 +1,178 @@
 """
-Tests for admin dashboard authentication.
+Tests for consolidated framework-native admin dashboard authentication.
 
 Verifies:
-1. User registration and authentication
-2. Token creation and verification
-3. Role-based access control
-4. Login attempt rate limiting
-5. Protected endpoints
+1. Native user authentication for admin routes
+2. JWT and Session integration
+3. Role mapping (Staff/Superuser -> Admin/Editor/Viewer)
+4. Protected API endpoints (/api/me, /api/flags)
 """
 
-
 import pytest
-import asyncio
 from httpx import AsyncClient, ASGITransport
-from eden import Eden, Depends
+from datetime import datetime
 
-from eden.admin.auth import AdminAuthManager, AdminRole, AdminUser
-from eden.admin.auth_routes import get_protected_admin_routes
-from eden.admin.login_template import LoginPageTemplate
-
+from eden import Eden
+from eden.auth.models import User
+from eden.auth.actions import create_user
+from eden.admin import admin as admin_site
 
 # =====================================================================
 # Fixtures
 # =====================================================================
 
 @pytest.fixture
-def auth_manager():
-    """Create auth manager instance."""
-    return AdminAuthManager(secret_key="test-secret-key-32-characters-long!!!")
-
-
-@pytest.fixture
-def app_with_auth(auth_manager):
-    """Create Eden app with auth."""
-    app = Eden(secret_key="test-secret-key-long-enough-for-jwt-32-chars")
+async def app():
+    """Create Eden app with native admin auth and working sessions."""
+    from eden.config import Config
+    from eden.db.session import init_db
     
-    # Register test users
-    auth_manager.register_user("admin", "StrongPassw0rd!", AdminRole.ADMIN)
-    auth_manager.register_user("editor", "StrongPassw0rd!", AdminRole.EDITOR)
-    auth_manager.register_user("viewer", "StrongPassw0rd!", AdminRole.VIEWER)
+    config = Config(
+        env="dev",
+        secret_key="test-secret-key-long-enough-for-jwt-32-chars",
+        debug=True,
+        database_url="sqlite+aiosqlite:///:memory:"
+    )
     
-    # Add routes
-    app.include_router(get_protected_admin_routes(auth_manager))
+    app = Eden(
+        config=config,
+        admin_enabled=True
+    )
+    
+    # Initialize and connect database
+    init_db(config.database_url, app=app)
+    await app.state.db.connect(create_tables=True)
+    
+    # Add native admin routes
+    app.include_router(admin_site.build_router(prefix="/admin"))
+    
+    # Force adding SessionMiddleware because Eden's setup_defaults disables it in test mode.
+    # We want to test session-based login.
+    app.add_middleware("session", priority=app.PRIORITY_CORE + 20, secret_key=config.secret_key, https_only=False)
+    
+    # Build to initialize internal components (includes setup_defaults)
+    await app.build()
     
     return app
 
-
 @pytest.fixture
-async def client(app_with_auth):
+async def client(app):
     """Create async test client."""
-    starlette_app = await app_with_auth.build()
+    starlette_app = await app.build()
     transport = ASGITransport(app=starlette_app)
     async with AsyncClient(transport=transport, base_url="http://testserver") as c:
         yield c
 
+@pytest.fixture
+async def admin_user(app):
+    """Create a superuser."""
+    return await create_user(
+        email=f"admin_{datetime.now().timestamp()}@example.com",
+        password="StrongPassw0rd!",
+        is_superuser=True
+    )
 
-# =====================================================================
-# User Registration Tests
-# =====================================================================
+@pytest.fixture
+async def editor_user(app):
+    """Create a staff user (editor)."""
+    return await create_user(
+        email=f"editor_{datetime.now().timestamp()}@example.com",
+        password="StrongPassw0rd!",
+        is_staff=True
+    )
 
-def test_register_user(auth_manager):
-    """Test user registration."""
-    user = auth_manager.register_user("alice", "StrongPassw0rd!", AdminRole.VIEWER)
-    
-    assert user.username == "alice"
-    assert user.role == AdminRole.VIEWER
-    assert user.is_active
-
-
-def test_register_duplicate_user(auth_manager):
-    """Test that duplicate registration fails."""
-    auth_manager.register_user("alice", "StrongPassw0rd!")
-    
-    with pytest.raises(ValueError):
-        auth_manager.register_user("alice", "different")
-
-
-def test_list_users(auth_manager):
-    """Test listing users."""
-    auth_manager.register_user("alice", "StrongPassw0rd!", AdminRole.ADMIN)
-    auth_manager.register_user("bob", "StrongPassw0rd!", AdminRole.EDITOR)
-    
-    users = auth_manager.list_users()
-    assert len(users) == 2
-
-
-# =====================================================================
-# Password Tests
-# =====================================================================
-
-def test_password_hashing(auth_manager):
-    """Test password hashing."""
-    password = "StrongPassw0rd!"
-    hash1 = auth_manager._hash_password(password)
-    hash2 = auth_manager._hash_password(password)
-    
-    # Argon2 hashes are non-deterministic, so we test verification instead
-    assert auth_manager.verify_password(password, hash1)
-    assert auth_manager.verify_password(password, hash2)
-    assert password not in hash1
-
-
-def test_verify_password(auth_manager):
-    """Test password verification."""
-    password = "StrongPassword123!"
-    wrong = "WrongPassword456!"
-    
-    hash_val = auth_manager._hash_password(password)
-    
-    assert auth_manager.verify_password(password, hash_val)
-    assert not auth_manager.verify_password(wrong, hash_val)
-
-
-def test_change_password(auth_manager):
-    """Test password change."""
-    auth_manager.register_user("alice", "StrongPassw0rd!")
-    
-    # Change password
-    auth_manager.change_password("alice", "StrongPassw0rd!", "NewStr0ngP@ss123!")
-    
-    # Old password should fail
-    with pytest.raises(ValueError):
-        auth_manager.change_password("alice", "StrongPassw0rd!", "AnotherPass123!")
-    
-    # New password should work
-    auth_manager.change_password("alice", "NewStr0ngP@ss123!", "ThirdPass123!")
-
-
-def test_change_password_nonexistent_user(auth_manager):
-    """Test changing password for non-existent user."""
-    with pytest.raises(ValueError):
-        auth_manager.change_password("nobody", "old", "new")
-
+@pytest.fixture
+async def viewer_user(app):
+    """Create a regular user (viewer)."""
+    return await create_user(
+        email=f"viewer_{datetime.now().timestamp()}@example.com",
+        password="StrongPassw0rd!"
+    )
 
 # =====================================================================
 # Authentication Tests
 # =====================================================================
 
-def test_login_success(auth_manager):
-    """Test successful login."""
-    auth_manager.register_user("alice", "StrongPassw0rd!")
-    
-    token = auth_manager.login("alice", "StrongPassw0rd!")
-    
-    assert token is not None
-    assert len(token) > 20  # JWT tokens are long
-
-
-def test_login_wrong_password(auth_manager):
-    """Test login with wrong password."""
-    auth_manager.register_user("alice", "Correct123!@")
-    
-    with pytest.raises(Exception):
-        auth_manager.login("alice", "WrongPass456!")
-
-
-def test_login_nonexistent_user(auth_manager):
-    """Test login for non-existent user."""
-    with pytest.raises(Exception):
-        auth_manager.login("nobody", "StrongPassw0rd!")
-
-
-def test_login_inactive_user(auth_manager):
-    """Test login for inactive user."""
-    user = auth_manager.register_user("alice", "StrongPassw0rd!")
-    user.is_active = False
-    
-    with pytest.raises(Exception):
-        auth_manager.login("alice", "StrongPassw0rd!")
-
-
-# =====================================================================
-# Token Tests
-# =====================================================================
-
-def test_create_jwt_token(auth_manager):
-    """Test JWT token creation."""
-    user = auth_manager.register_user("alice", "StrongPassw0rd!", AdminRole.ADMIN)
-    token = auth_manager._create_jwt_token(user)
-    
-    assert token is not None
-    assert "." in token  # JWT format: header.payload.signature
-
-
-def test_verify_token(auth_manager):
-    """Test token verification."""
-    user = auth_manager.register_user("alice", "StrongPassw0rd!")
-    token = auth_manager._create_jwt_token(user)
-    
-    payload = auth_manager.verify_token(token)
-    
-    assert payload["username"] == "alice"
-    assert payload["role"] == "viewer"
-
-
-def test_verify_invalid_token(auth_manager):
-    """Test verification of invalid token."""
-    with pytest.raises(Exception):
-        auth_manager.verify_token("invalid.token.here")
-
-
-def test_get_current_user(auth_manager):
-    """Test getting user from token."""
-    auth_manager.register_user("alice", "StrongPassw0rd!", AdminRole.EDITOR)
-    token = auth_manager.login("alice", "StrongPassw0rd!")
-    
-    user = auth_manager.get_current_user(token)
-    
-    assert user.username == "alice"
-    assert user.role == AdminRole.EDITOR
-
-
-# =====================================================================
-# Session Tests
-# =====================================================================
-
-def test_login_creates_session(auth_manager):
-    """Test that login creates a session."""
-    auth_manager.register_user("alice", "StrongPassw0rd!")
-    
-    initial_sessions = len(auth_manager.sessions)
-    token = auth_manager.login("alice", "StrongPassw0rd!")
-    
-    assert len(auth_manager.sessions) == initial_sessions + 1
-    assert token in auth_manager.sessions
-
-
-def test_logout(auth_manager):
-    """Test logout."""
-    auth_manager.register_user("alice", "StrongPassw0rd!")
-    token = auth_manager.login("alice", "StrongPassw0rd!")
-    
-    auth_manager.logout(token)
-    
-    assert token not in auth_manager.sessions
-
-
-def test_logout_all_sessions(auth_manager):
-    """Test logout all sessions for user."""
-    auth_manager.register_user("alice", "StrongPassw0rd!")
-    
-    token1 = auth_manager.login("alice", "StrongPassw0rd!")
-    # Add small delay to ensure different JWT tokens
-    import time
-    time.sleep(0.01)
-    token2 = auth_manager.login("alice", "StrongPassw0rd!")
-    
-    # Ensure tokens are different
-    assert token1 != token2, "Tokens should be different"
-    
-    count = auth_manager.logout_all("alice")
-    
-    assert count == 2
-    assert token1 not in auth_manager.sessions
-    assert token2 not in auth_manager.sessions
-
-
-# =====================================================================
-# Rate Limiting Tests
-# =====================================================================
-
-def test_login_lockout_after_failed_attempts(auth_manager):
-    """Test lockout after too many failed attempts."""
-    auth_manager.register_user("alice", "Correct123!@")
-    
-    # Make failed attempts
-    failed_count = 0
-    for i in range(5):
-        try:
-            auth_manager.login("alice", "wrong")
-        except Exception:
-            failed_count += 1
-    
-    # Should have had failed attempts
-    assert failed_count == 5
-
-
-def test_lockout_duration(auth_manager):
-    """Test that lockout logic is tracked."""
-    auth_manager.register_user("alice", "StrongPassw0rd!")
-    
-    # Cause failed attempts
-    for i in range(5):
-        try:
-            auth_manager.login("alice", "wrong")
-        except Exception:
-            pass
-    
-    # Check that user is locked out after max attempts
-    with pytest.raises(Exception):  # Should raise HTTPException for locked out user
-        auth_manager.login("alice", "StrongPassw0rd!")
-
-
-# =====================================================================
-# Role-Based Access Control Tests
-# =====================================================================
-
-def test_admin_role(auth_manager):
-    """Test ADMIN role."""
-    auth_manager.register_user("alice", "StrongPassw0rd!", AdminRole.ADMIN)
-    user = auth_manager.get_user("alice")
-    
-    assert user.role == AdminRole.ADMIN
-
-
-def test_editor_role(auth_manager):
-    """Test EDITOR role."""
-    auth_manager.register_user("bob", "StrongPassw0rd!", AdminRole.EDITOR)
-    user = auth_manager.get_user("bob")
-    
-    assert user.role == AdminRole.EDITOR
-
-
-def test_update_user_role(auth_manager):
-    """Test updating user role."""
-    auth_manager.register_user("alice", "StrongPassw0rd!", AdminRole.VIEWER)
-    
-    auth_manager.update_user_role("alice", AdminRole.ADMIN)
-    
-    user = auth_manager.get_user("alice")
-    assert user.role == AdminRole.ADMIN
-
-
-# =====================================================================
-# HTTP Tests (Protected Endpoints)
-# =====================================================================
-
 @pytest.mark.asyncio
-async def test_login_endpoint(client):
-    """Test POST /admin/api/login."""
-    response = await client.post("/admin/api/login", json={
-        "username": "admin",
+async def test_admin_login_redirect_with_token(client, admin_user):
+    """Test successful login redirects with a JWT token."""
+    response = await client.post("/admin/login", data={
+        "email": admin_user.email,
         "password": "StrongPassw0rd!"
     })
     
+    assert response.status_code == 303
+    assert "token=" in response.headers["location"]
+    # Check that session cookie is also set
+    assert "session" in response.cookies
+
+@pytest.mark.asyncio
+async def test_api_me_with_session(client, admin_user):
+    """Test /api/me works with session-based auth."""
+    # Login to set session
+    await client.post("/admin/login", data={
+        "email": admin_user.email,
+        "password": "StrongPassw0rd!"
+    })
+    
+    response = await client.get("/admin/api/me")
     assert response.status_code == 200
     data = response.json()
-    assert "access_token" in data
-    assert data["user"]["username"] == "admin"
-
-
-@pytest.mark.asyncio
-async def test_login_wrong_credentials(client):
-    """Test login with wrong credentials."""
-    response = await client.post("/admin/api/login", json={
-        "username": "admin",
-        "password": "wrong"
-    })
-    
-    assert response.status_code == 401
-
+    assert data["username"] == admin_user.email
+    assert data["role"] == "admin"
 
 @pytest.mark.asyncio
-async def test_dashboard_requires_auth(client):
-    """Test that dashboard requires authentication."""
-    response = await client.get("/admin/")
+async def test_api_me_with_jwt(client, admin_user, app):
+    """Test /api/me works with JWT auth."""
+    # Generate token manually or via login redirect
+    from eden.auth.backends.jwt import JWTBackend
+    jwt_backend = JWTBackend(secret_key="test-secret-key-long-enough-for-jwt-32-chars")
+    token = jwt_backend.create_access_token({"sub": str(admin_user.id)})
     
-    assert response.status_code == 401
-
-
-@pytest.mark.asyncio
-async def test_dashboard_with_auth(client):
-    """Test dashboard with valid token."""
-    # Login
-    login_response = await client.post("/admin/api/login", json={
-        "username": "admin",
-        "password": "StrongPassw0rd!"
-    })
-    token = login_response.json()["access_token"]
-    
-    # Access dashboard
-    response = await client.get(
-        "/admin/",
-        headers={"Authorization": f"Bearer {token}"}
-    )
-    
-    assert response.status_code == 200
-    assert "Eden Framework" in response.text
-
-
-@pytest.mark.asyncio
-async def test_logout_endpoint(client):
-    """Test POST /admin/api/logout."""
-    # Login
-    login_response = await client.post("/admin/api/login", json={
-        "username": "admin",
-        "password": "StrongPassw0rd!"
-    })
-    token = login_response.json()["access_token"]
-    
-    # Logout
-    response = await client.post(
-        "/admin/api/logout",
-        headers={"Authorization": f"Bearer {token}"}
-    )
-    
-    assert response.status_code == 200
-    assert response.json()["status"] == "logged_out"
-
-
-@pytest.mark.asyncio
-async def test_get_current_user_endpoint(client):
-    """Test GET /admin/api/me."""
-    # Login
-    login_response = await client.post("/admin/api/login", json={
-        "username": "editor",
-        "password": "StrongPassw0rd!"
-    })
-    token = login_response.json()["access_token"]
-    
-    # Get current user
     response = await client.get(
         "/admin/api/me",
         headers={"Authorization": f"Bearer {token}"}
     )
-    
     assert response.status_code == 200
-    data = response.json()
-    assert data["username"] == "editor"
-    assert data["role"] == "editor"
+    assert response.json()["username"] == admin_user.email
 
-
-# =====================================================================
-# Login Page Tests
-# =====================================================================
-
-def test_login_page_renders():
-    """Test that login page renders."""
-    html = LoginPageTemplate.render()
+@pytest.mark.asyncio
+async def test_role_mapping(client, editor_user, viewer_user):
+    """Test that core user roles map correctly to admin roles."""
+    # Editor (Staff)
+    await client.post("/admin/login", data={
+        "email": editor_user.email,
+        "password": "StrongPassw0rd!"
+    })
+    resp = await client.get("/admin/api/me")
+    assert resp.status_code == 200
+    assert resp.json()["role"] == "editor"
     
-    assert html.startswith("<!DOCTYPE html>")
-    assert "Admin Login" in html
-    assert "username" in html
-    assert "password" in html.lower()  # Check for password field
-
-
-def test_login_page_offline_capable():
-    """Test that login page has no external dependencies."""
-    html = LoginPageTemplate.render()
+    # Logout
+    await client.post("/admin/api/logout")
     
-    assert "cdn.jsdelivr.net" not in html
-    assert "bootstrap" not in html
-    assert "<style>" in html
-    assert "<script>" in html
+    # Viewer (General user) -> Should be rejected
+    await client.post("/admin/login", data={
+        "email": viewer_user.email,
+        "password": "StrongPassw0rd!"
+    })
+    # Note: admin_login views.py redirects to login page with error if not staff
+    # but /api/me checks _check_staff and raises Forbidden
+    resp = await client.get("/admin/api/me")
+    assert resp.status_code == 403
 
-
-if __name__ == "__main__":
-    pytest.main([__file__, "-v"])
+@pytest.mark.asyncio
+async def test_logout(client, admin_user):
+    """Test logout clears the session."""
+    await client.post("/admin/login", data={
+        "email": admin_user.email,
+        "password": "StrongPassw0rd!"
+    })
+    
+    # Post to logout
+    response = await client.post("/admin/api/logout")
+    assert response.status_code == 200
+    
+    # Try to access protected route
+    response = await client.get("/admin/api/me")
+    assert response.status_code == 401

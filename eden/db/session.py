@@ -139,11 +139,15 @@ class Database:
 
         # Set safe defaults for connection pooling when not explicitly provided.
         # This helps prevent resource exhaustion in production.
-        poolclass = kwargs.get("poolclass")
-        if poolclass not in (StaticPool, NullPool):
-            kwargs.setdefault("pool_size", 10)
-            kwargs.setdefault("max_overflow", 20)
-            kwargs.setdefault("pool_recycle", 3600)
+        # SQLite dialects do not support these parameters.
+        if not url.startswith("sqlite"):
+            poolclass = kwargs.get("poolclass")
+            if poolclass not in (StaticPool, NullPool):
+                kwargs.setdefault("pool_size", 10)
+                kwargs.setdefault("max_overflow", 20)
+                kwargs.setdefault("pool_recycle", 3600)
+            
+            kwargs.setdefault("pool_timeout", 30)
 
         kwargs.setdefault("pool_pre_ping", True)
         kwargs.setdefault("echo", False)
@@ -194,6 +198,10 @@ class Database:
 
         self._connected = True
         logger.info(f"Database connected to {self.url}")
+        
+        # Discover domain managers/actions automatically
+        from eden.db.discovery import discover_managers
+        discover_managers()
 
     async def disconnect(self) -> None:
         """Close all database connections."""
@@ -319,6 +327,33 @@ class Database:
                 raise
             finally:
                 reset_session(token)
+
+    @contextlib.asynccontextmanager
+    async def db_context(self, session: AsyncSession | None = None) -> AsyncIterator[EdenDbContext]:
+        """
+        Highest level orchestrator for the 'Unified Context' pattern.
+        
+        Creates a session-aware EdenDbContext that provides access to domain actions
+        and handles transaction cleanup.
+        """
+        from eden.db.context import EdenDbContext
+        from eden.context import get_tenant_id, get_user
+        
+        async with self.transaction(session=session) as active_session:
+            # We resolve tenant and user from the general Eden context if available
+            tenant_id = get_tenant_id()
+            user = get_user()
+            
+            ctx = EdenDbContext(
+                session=active_session, 
+                tenant_id=tenant_id, 
+                user_id=user
+            )
+            yield ctx
+
+    def context(self, session: AsyncSession | None = None):
+        """Alias for db_context."""
+        return self.db_context(session=session)
 
     @contextlib.asynccontextmanager
     async def savepoint(
@@ -458,3 +493,17 @@ def init_db(url: str, app: Any = None, **kwargs: Any) -> Database:
     if app:
         app.state.db = db
     return db
+
+@contextlib.asynccontextmanager
+async def db_context(session: AsyncSession | None = None) -> AsyncIterator[EdenDbContext]:
+    """
+    Global standalone access to the Unified Database Context.
+    Uses the currently bound database (via Model._base_model or Model._db).
+    """
+    from eden.db.base import Model
+    db = getattr(Model, "_db", None)
+    if not db:
+        raise RuntimeError("No database bound. Call db.connect() before using db_context().")
+    
+    async with db.context(session=session) as ctx:
+        yield ctx

@@ -15,10 +15,15 @@ class CrudMixin:
     """
 
     @classmethod
-    def query(cls, session: Optional[Any] = None) -> QuerySet:
+    def query(cls, session: Optional[Any] = None, **kwargs) -> QuerySet:
         """Returns a QuerySet for this model."""
         from ..query import QuerySet
-        return QuerySet(cls, session=session)
+        return QuerySet(cls, session=session, **kwargs)
+
+    @classmethod
+    def include_tenantless(cls, session: Optional[Any] = None) -> QuerySet:
+        """Helper to start a query that bypasses tenant isolation."""
+        return cls.query(session=session, include_tenantless=True)
 
     @classmethod
     def accessible_by(cls, user: Any, action: str = "read", session: Optional[Any] = None) -> QuerySet:

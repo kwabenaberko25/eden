@@ -34,10 +34,12 @@ Design Philosophy:
 import contextvars
 import logging
 import uuid
-from typing import TYPE_CHECKING, Any, Optional, Callable, Awaitable
+import contextlib
+from typing import TYPE_CHECKING, Any, Optional, Callable, Awaitable, AsyncIterator
 
 if TYPE_CHECKING:
     from eden.requests import Request
+    from eden.db.context import EdenDbContext
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +50,7 @@ _app_ctx: contextvars.ContextVar[Any] = contextvars.ContextVar("eden_app", defau
 _request_id_ctx: contextvars.ContextVar[str] = contextvars.ContextVar("eden_request_id", default="")
 _tenant_id_ctx: contextvars.ContextVar[Any] = contextvars.ContextVar("eden_tenant_id", default=None)
 _organization_id_ctx: contextvars.ContextVar[Any] = contextvars.ContextVar("eden_organization_id", default=None)
+_db_ctx: contextvars.ContextVar[Any] = contextvars.ContextVar("eden_db_ctx", default=None)
 
 # Per-request token storage: each asyncio task gets its own dict of tokens.
 # This replaces the old instance-level _tokens dict on ContextManager, which
@@ -96,6 +99,29 @@ class ContextManager:
             tokens = {}
             _context_tokens.set(tokens)
         return tokens
+
+    @property
+    def ctx(self) -> Optional[EdenDbContext]:
+        """
+        The Unified Database Context for the current request.
+        
+        Requires `db.connect()` to have been called.
+        """
+        return _db_ctx.get(None)
+
+    @contextlib.asynccontextmanager
+    async def use_context(self) -> AsyncIterator[EdenDbContext]:
+        """
+        Async context manager to safely acquire and set the database context locally.
+        """
+        from eden.db import get_db
+        db = get_db()
+        async with db.context() as ctx:
+            token = _db_ctx.set(ctx)
+            try:
+                yield ctx
+            finally:
+                _db_ctx.reset(token)
 
     async def on_request_start(
         self, request: "Request", app: Any
@@ -169,6 +195,7 @@ class ContextManager:
                     "tenant_id": _tenant_id_ctx,
                     "organization_id": _organization_id_ctx,
                     "tenancy_ctx": _tenant_ctx,  # eden.tenancy.context._tenant_ctx
+                    "db_ctx": _db_ctx,
                 }
                 for key in list(tokens.keys()):
                     token = tokens.pop(key, None)
@@ -189,6 +216,7 @@ class ContextManager:
             _user_ctx.set(None)
             _tenant_id_ctx.set(None)
             _organization_id_ctx.set(None)
+            _db_ctx.set(None)
             try:
                 from eden.tenancy.context import _tenant_ctx
                 _tenant_ctx.set(None)
@@ -214,6 +242,7 @@ class ContextManager:
         _app_ctx.set(None)
         _request_ctx.set(None)
         _request_id_ctx.set("")
+        _db_ctx.set(None)
         # Clear the per-request token storage
         _context_tokens.set(None)
 
@@ -463,6 +492,11 @@ def get_request() -> Optional["Request"]:
 def get_user() -> Any:
     """Get the current user from context."""
     return context_manager.get_user()
+
+
+def get_context() -> Optional[EdenDbContext]:
+    """Get the current database context."""
+    return context_manager.ctx
 
 
 def get_current_user() -> Any:

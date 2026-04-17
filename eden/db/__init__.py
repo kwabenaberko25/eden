@@ -170,7 +170,7 @@ from eden.db.lookups import F, Q, parse_lookups, q
 from eden.db.mixins import SoftDeleteMixin
 from eden.db.pagination import Page, PaginationLinks
 from eden.db.query import QuerySet
-from eden.db.session import Database, get_db, init_db, get_session, set_session, reset_session
+from eden.db.session import Database, get_db, init_db, get_session, set_session, reset_session, db_context
 from eden.db.session import atomic as _session_atomic
 from eden.db.transactions import atomic, read_only, serializable, transaction, savepoint
 from eden.db.cache import QueryCache, InMemoryCache, RedisCache, generate_cache_key
@@ -178,7 +178,8 @@ from eden.db.slugs import SlugMixin, slugify, auto_slugify_field
 from eden.db.migrations import MigrationManager
 from eden.context import request, user
 from eden.db.ai import VectorModel, VectorField
-from eden.db.discovery import discover_models
+from eden.db.discovery import discover_models, discover_managers
+from eden.db.context import EdenDbContext, BaseManager
 from eden.db.access import (
     AccessControl,
     PermissionRule,
@@ -228,6 +229,10 @@ __all__ = [
     "serializable",
     "transaction",
     "savepoint",
+    "db_context",
+    "EdenDbContext",
+    "BaseManager",
+    "discover_managers",
     # Utilities
     "get_models",
     "get_engine",

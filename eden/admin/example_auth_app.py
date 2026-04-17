@@ -20,8 +20,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
-from eden.admin.auth import AdminAuthManager, AdminRole
-from eden.admin.auth_routes import get_protected_admin_routes
+from eden.admin import admin as admin_site
 
 
 # ============================================================
@@ -65,25 +64,19 @@ app.add_middleware(
 
 
 # ============================================================
-# Authentication Setup
+# Authentication & Admin Setup
 # ============================================================
 
-# Create auth manager with a strong secret key
-# In production, load from environment variable
-SECRET_KEY = "super-secret-key-change-in-production"
-auth = AdminAuthManager(
-    secret_key=SECRET_KEY,
-    token_expiry_hours=24,
-    max_login_attempts=5,
-)
+from eden.admin import admin as admin_site
+from eden.auth.models import User
+from eden.db import Model
 
-# Register default users
-auth.register_user("admin", "admin", AdminRole.ADMIN)
-auth.register_user("editor", "editor", AdminRole.EDITOR)
-auth.register_user("viewer", "viewer", AdminRole.VIEWER)
+# Register example models if any
+# admin_site.register(MyModel)
 
-# Add protected admin routes
-app.include_router(get_protected_admin_routes(auth))
+# The AdminSite.build_router() now includes all native auth routes
+admin_router = admin_site.build_router(prefix="/admin")
+app.include_router(admin_router)
 
 
 # ============================================================
@@ -113,8 +106,7 @@ async def health():
     """Health check."""
     return {
         "status": "healthy",
-        "authenticated_users": len([u for u in auth.list_users() if u.is_active]),
-        "active_sessions": sum(1 for s in auth.sessions.values() if not s.is_expired()),
+        "admin_prefix": "/admin"
     }
 
 

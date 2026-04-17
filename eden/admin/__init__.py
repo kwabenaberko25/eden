@@ -444,9 +444,9 @@ class AdminSite:
                 return await views.admin_api_list(request, model_class, admin_class)
             return api_list
 
-        def make_api_get(model_class):
+        def make_api_get(model_class, admin_class):
             async def api_get(request: Request, id: str):
-                return await views.admin_api_get(request, model_class, id)
+                return await views.admin_api_get(request, model_class, admin_class, id)
             return api_get
 
         def make_api_create(model_class, admin_class):
@@ -473,16 +473,20 @@ class AdminSite:
             table = str(getattr(model, "__tablename__", model.__name__.lower()))
             
             router.get(f"/api/{table}/list", name=f"admin_api_{table}_list")(make_api_list(model, model_admin))
-            router.get(f"/api/{table}/get/{{id}}", name=f"admin_api_{table}_get")(make_api_get(model))
+            router.get(f"/api/{table}/get/{{id}}", name=f"admin_api_{table}_get")(make_api_get(model, model_admin))
             router.post(f"/api/{table}/create", name=f"admin_api_{table}_create")(make_api_create(model, model_admin))
             router.patch(f"/api/{table}/update/{{id}}", name=f"admin_api_{table}_update")(make_api_update(model, model_admin))
             router.delete(f"/api/{table}/delete/{{id}}", name=f"admin_api_{table}_delete")(make_api_delete(model, model_admin))
             router.post(f"/api/{table}/action", name=f"admin_api_{table}_action")(make_api_action(model, model_admin))
 
         # ── Dashboard API ───────────────────────────────────────────
-        router.get("/api/dashboard", name="admin_api_dashboard")(
-            lambda req: views.admin_api_dashboard(req, self)
-        )
+        async def api_dashboard(request: Request):
+            return await views.admin_api_dashboard(request, self)
+
+        router.get("/api/dashboard", name="admin_api_dashboard")(api_dashboard)
+        
+        router.get("/api/me", name="admin_api_me")(views.admin_api_me)
+        router.post("/api/logout", name="admin_api_logout")(views.admin_api_logout)
 
         # ── Feature Flags API (Virtual Model) ────────────────────────
         # Include the flags panel router with the flags API endpoints
@@ -496,15 +500,8 @@ class AdminSite:
 
         @router.get("/")
         async def dashboard(request: Request):
-            # Check staff permission
-            from .views import _check_staff
-            try:
-                await _check_staff(request)
-            except Exception as e:
-                # Redirect to login with return path
-                login_url = f"{prefix}/login?next={prefix}/"
-                return RedirectResponse(url=login_url)
-                
+            # The PremiumAdminTemplate SPA does its own auth checking via API.
+            # We don't check staff here to allow the SPA to catch ?token= URL parameters.
             admin_url = str(request.url.path).rstrip("/")
             return HtmlResponse(PremiumAdminTemplate.render(api_base=f"{admin_url}/api"))
 

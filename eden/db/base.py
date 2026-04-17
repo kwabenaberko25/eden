@@ -145,6 +145,23 @@ class Model(Base, AccessControl, ValidatorMixin, LifecycleMixin, SerializationMi
 
     __tenant_isolated__: bool = True
 
+    @property
+    def ctx(self) -> "EdenDbContext":
+        """
+        Return the current active Unified Database Context.
+        
+        Requires being within an active database context (e.g. web request 
+        or `async with db.context()`).
+        """
+        from eden.context import get_context
+        ctx = get_context()
+        if not ctx:
+            raise RuntimeError(
+                f"Model {self.__class__.__name__}.ctx accessed outside of an active database context. "
+                "Ensure you are in a web request or use `async with db.context() as ctx:`"
+            )
+        return ctx
+
     def __init__(self, **kwargs: Any) -> None:
         """Initialize the model with keyword arguments."""
         # SQLAlchemy's DeclarativeBase usually provides this, but we define it explicitly

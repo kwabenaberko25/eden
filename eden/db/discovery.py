@@ -1,7 +1,9 @@
 import sys
 import importlib
 import logging
+import inspect
 from pathlib import Path
+from typing import Type, Any
 
 logger = logging.getLogger("eden.db.discovery")
 
@@ -90,4 +92,74 @@ def discover_models() -> None:
                 logger.debug(f"Automatically imported models module: {module_name}")
         except Exception as e:
             logger.warning(f"Failed to import {path}: {e}")
+
+
+def discover_managers() -> None:
+    """
+    Dynamically discover and register all managers/actions within the project.
+    
+    Scans for classes inheriting from BaseManager in files named:
+    - actions.py
+    - managers.py
+    - service.py
+    - services.py
+    """
+    from eden.db.context import BaseManager, EdenDbContext
+    
+    cwd = Path.cwd()
+    
+    # 1. Framework default actions
+    framework_actions = [
+        "eden.auth.actions",
+        "eden.admin.actions",
+    ]
+    for module in framework_actions:
+        try:
+            mod = importlib.import_module(module)
+            _register_from_module(mod, BaseManager, EdenDbContext)
+        except ImportError:
+            pass
+
+    # 2. Scan project for managers.py or actions.py
+    patterns = ["managers.py", "actions.py", "services.py", "service.py"]
+    discovery_targets = []
+    for pattern in patterns:
+        discovery_targets.extend(list(cwd.rglob(pattern)))
+
+    for path in discovery_targets:
+        parts = path.relative_to(cwd).parts
+        if any(p.startswith(".") or p in _SKIP_DIRS for p in parts):
+            continue
+            
+        try:
+            rel_path = path.relative_to(cwd)
+            module_name = ".".join(rel_path.with_suffix("").parts)
+            
+            if module_name:
+                mod = importlib.import_module(module_name)
+                _register_from_module(mod, BaseManager, EdenDbContext)
+        except Exception as e:
+            logger.warning(f"Failed to import managers from {path}: {e}")
+
+
+def _register_from_module(module: Any, base_cls: Type, ctx_cls: Type) -> None:
+    """Helper to inspect a module and register any found managers."""
+    for name, obj in inspect.getmembers(module):
+        if (
+            inspect.isclass(obj) and 
+            issubclass(obj, base_cls) and 
+            obj is not base_cls
+        ):
+            # Resolve name: explicitly set or derived
+            manager_name = getattr(obj, "manager_name", None)
+            if not manager_name:
+                # e.g. UserManager -> users, AuthActions -> auth
+                manager_name = obj.__name__.lower()
+                for suffix in ["manager", "actions", "service"]:
+                    if manager_name.endswith(suffix):
+                        manager_name = manager_name.removesuffix(suffix)
+                        break
+            
+            if manager_name:
+                ctx_cls.register_manager(manager_name, obj)
 

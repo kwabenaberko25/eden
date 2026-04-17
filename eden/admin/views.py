@@ -16,112 +16,87 @@ from eden.payments.models import Subscription, PaymentEvent
 from datetime import datetime
 import logging
 
+
 logger = logging.getLogger(__name__)
 
 
+async def _get_secret_key(request: Request) -> str:
+    """Consistently retrieve the secret key for JWT signing/verification."""
+    # 1. Try from request.app (Eden/Starlette application)
+    secret = getattr(request.app, "secret_key", None)
+    if secret:
+        return str(secret)
+    
+    # 2. Try from request.app.state
+    state_secret = getattr(getattr(request.app, "state", None), "secret_key", None)
+    if state_secret:
+        return str(state_secret)
+    
+    # 3. Try from global config
+    try:
+        from eden.config import get_config
+        config = get_config()
+        # Check both jwt_secret and secret_key
+        secret = getattr(config, "jwt_secret", None) or getattr(config, "secret_key", None)
+        if secret:
+            return str(secret)
+    except Exception:
+        pass
+        
+    # 4. Fallback to insecure default (logged as error for diagnosis)
+    logger.error("ADMIN: No secret key found in app or config. Falling back to insecure default.")
+    return "insecure-default-secret-key-change-me"
+
+
+async def _get_authenticated_user(request: Request) -> Any:
+    """
+    Consolidated helper to get the current user via session or JWT.
+    Sets request.state.user if not already set.
+    """
+    # 1. Check if user is already in request.state (from session middleware)
+    user = getattr(request.state, "user", None) or getattr(request, "user", None)
+    if user:
+        return user
+        
+    # 2. Try JWT authentication via official Backend
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.lower().startswith("bearer "):
+        try:
+            secret = await _get_secret_key(request)
+            from eden.auth.backends.jwt import JWTBackend
+            
+            # Use Backend.authenticate which handles both decoding and DB lookup
+            backend = JWTBackend(secret_key=secret)
+            user = await backend.authenticate(request)
+            
+            if user:
+                request.state.user = user
+                return user
+            else:
+                # Log why it failed (token valid but user missing, or token invalid)
+                # We can't easily distinguish without re-decoding, but we'll log the attempt
+                logger.error(f"ADMIN: JWT authentication failed for header: {auth_header[:20]}...")
+        except Exception as e:
+            logger.exception(f"ADMIN: Unexpected error during JWT authentication: {e}")
+            
+    return None
+
+
+
+
 async def _check_staff(request: Request) -> None:
-    """
-    Ensure the user is authenticated and has staff privileges.
+    """Ensure the user is authenticated and is staff/superuser."""
+    user = await _get_authenticated_user(request)
     
-    Raises:
-        Forbidden: If user is not authenticated or lacks staff permission.
-    
-    Returns:
-        None
-    """
-    user = getattr(request.state, "user", None)
     if not user:
-        raise Forbidden(detail="Authentication required to access admin.")
+        from eden.exceptions import Unauthorized
+        raise Unauthorized(detail="Authentication required.")
+        
+
     if not getattr(user, "is_staff", False) and not getattr(user, "is_superuser", False):
+        from eden.exceptions import Forbidden
         raise Forbidden(detail="Staff access required.")
 
-
-async def admin_login(request: Request, admin_site: Any) -> Response:
-    """
-    Handle admin login page and authentication.
-    
-    GET: Render login form
-    POST: Authenticate user and redirect to dashboard
-    """
-    if request.method == "GET":
-        # Render login template
-        next_url = request.query_params.get("next", "")
-        return admin_site.templates.TemplateResponse(
-            request,
-            "login.html",
-            {
-                "title": "Admin Login",
-                "next_url": next_url,
-            }
-        )
-    
-    elif request.method == "POST":
-        # Handle login form submission
-        form_data = await request.form()
-        email = form_data.get("email", "").strip()
-        password = form_data.get("password", "")
-        
-        if not email or not password:
-            next_url = request.query_params.get("next", "")
-            return admin_site.templates.TemplateResponse(
-                request,
-                "login.html",
-                {
-                    "title": "Admin Login",
-                    "error": "Email and password are required",
-                    "email": email,
-                    "next_url": next_url,
-                }
-            )
-        
-        # Authenticate user
-        from eden.auth.actions import authenticate
-        user = await authenticate(email=email, password=password)
-        
-        if not user:
-            next_url = request.query_params.get("next", "")
-            return admin_site.templates.TemplateResponse(
-                request,
-                "login.html",
-                {
-                    "title": "Admin Login",
-                    "error": "Invalid email or password",
-                    "email": email,
-                    "next_url": next_url,
-                }
-            )
-        
-        # Check staff permissions
-        if not getattr(user, "is_staff", False) and not getattr(user, "is_superuser", False):
-            next_url = request.query_params.get("next", "")
-            return admin_site.templates.TemplateResponse(
-                request,
-                "login.html",
-                {
-                    "title": "Admin Login",
-                    "error": "Access denied. Staff privileges required.",
-                    "email": email,
-                    "next_url": next_url,
-                }
-            )
-        
-        # Login user (sets session)
-        from eden.auth.actions import login
-        await login(request, user)
-        
-        # Update last login
-        user.last_login = datetime.now()
-        await user.save()
-        
-        # Redirect to next URL or dashboard
-        next_url = request.query_params.get("next", "").strip()
-        if next_url and next_url.startswith("/"):
-            return RedirectResponse(url=next_url, status_code=303)
-        else:
-            return RedirectResponse(url="/admin/", status_code=303)
-    
-    # Method not allowed
-    return Response("Method not allowed", status_code=405)
 
 
 async def _get_model_count(model_name: str) -> int:
@@ -143,6 +118,8 @@ async def _get_model_count(model_name: str) -> int:
         return 0
 
     try:
+        if hasattr(model_cls, "include_tenantless"):
+            return await model_cls.include_tenantless().count()
         return await model_cls.count()
     except Exception:
         return 0
@@ -588,6 +565,29 @@ async def admin_login(request: Request, admin_site: Any) -> Response:
                     from eden.auth.backends.session import SessionBackend
                     backend = SessionBackend()
                     await backend.login(request, user)
+                    # Generate a JWT for the SPA dashboard to pick up
+                    secret = await _get_secret_key(request)
+                    
+                    if secret:
+                        from eden.auth.backends.jwt import JWTBackend
+                        from urllib.parse import urlparse, urlencode, parse_qsl, urlunparse
+                        
+                        jwt_backend = JWTBackend(secret_key=secret)
+                        # Ensure we include test user flags if present so JWTBackend can mock
+                        payload = {"sub": str(user.id)}
+                        if getattr(user, "is_staff", False):
+                            payload["is_staff"] = True
+                        if getattr(user, "is_superuser", False):
+                            payload["is_superuser"] = True
+                            
+                        token = jwt_backend.create_access_token(payload)
+                        
+                        # Append token to next_url
+                        url_parts = list(urlparse(next_url))
+                        query = dict(parse_qsl(url_parts[4]))
+                        query['token'] = token
+                        url_parts[4] = urlencode(query)
+                        next_url = urlunparse(url_parts)
                     
                     from eden.responses import RedirectResponse
                     return RedirectResponse(url=next_url, status_code=303)
@@ -614,6 +614,42 @@ async def admin_login(request: Request, admin_site: Any) -> Response:
     return admin_site.templates.TemplateResponse(request, "login.html", context)
 
 
+
+async def admin_api_me(request: Request) -> JsonResponse:
+    """
+    Returns current user info for the SPA.
+    Supports both session-based and JWT authentication.
+    """
+    # Use consolidated auth helper
+    user = await _get_authenticated_user(request)
+    
+    if not user:
+        from eden.exceptions import Unauthorized
+        raise Unauthorized(detail="Not authenticated")
+    
+    # Map staff/superuser to roles the SPA expects
+    role = "viewer"
+    if getattr(user, "is_superuser", False):
+        role = "admin"
+    elif getattr(user, "is_staff", False):
+        role = "editor"
+        
+    username = getattr(user, "email", None) or getattr(user, "username", None) or str(getattr(user, "id", "unknown"))
+    
+    return JsonResponse({
+        "username": username,
+        "role": role,
+        "created_at": getattr(user, "created_at", datetime.now()).isoformat() if hasattr(user, "created_at") else datetime.now().isoformat(),
+        "is_active": getattr(user, "is_active", True),
+    })
+
+async def admin_api_logout(request: Request) -> JsonResponse:
+    """
+    Logout the current user.
+    """
+    from eden.auth.actions import logout
+    await logout(request)
+    return JsonResponse({"status": "ok", "message": "Logged out successfully"})
 
 # ── Dashboard API ────────────────────────────────────────────────────
 
@@ -660,18 +696,26 @@ async def admin_api_dashboard(request: Request, admin_site: Any) -> JsonResponse
     activities = []
     try:
         from eden.admin.models import AuditLog
-        recent_logs = await AuditLog.query().order_by("-timestamp").limit(8).all()
-        for log in recent_logs:
-            activities.append({
-                "id": str(log.id),
-                "timestamp": log.timestamp.isoformat(),
-                "time_human": log.timestamp.strftime("%m-%d %H:%M"),
-                "user": str(log.user_id)[:8] + "..." if log.user_id else "System",
-                "action": log.action,
-                "model": log.model_name,
-                "target_id": str(log.record_id)[:8] + "..." if log.record_id else "-"
-            })
-    except Exception:
+        from eden.tenancy.context import AcrossTenants
+        
+        # Ensure we use the request's session if available
+        session = getattr(request.state, "db", None)
+        
+        async with AcrossTenants():
+            recent_logs = await AuditLog.query(session=session).order_by("-timestamp").limit(8).all()
+            for log in recent_logs:
+                activities.append({
+                    "id": str(log.id),
+                    "timestamp": log.timestamp.isoformat() if log.timestamp else "",
+                    "time_human": log.timestamp.strftime("%m-%d %H:%M") if log.timestamp else "-",
+                    "user": str(log.user_id)[:8] + "..." if log.user_id else "System",
+                    "action": log.action,
+                    "model": log.model_name,
+                    "target_id": str(log.record_id)[:8] + "..." if log.record_id else "-"
+                })
+    except Exception as e:
+        import logging
+        logging.getLogger("eden.admin").warning(f"Failed to fetch audit logs for dashboard: {e}")
         pass
 
     # 3. Model Summaries (Quick counts for the grid)
@@ -679,7 +723,11 @@ async def admin_api_dashboard(request: Request, admin_site: Any) -> JsonResponse
     for model, model_admin in admin_site._registry.items():
         table_name = str(getattr(model, "__tablename__", model.__name__.lower()))
         try:
-            count = await model.count()
+            # Bypass tenancy for admin dashboard counts
+            qs = model.query(session or _MISSING)
+            if hasattr(qs, "include_tenantless"):
+                qs = qs.include_tenantless()
+            count = await qs.count()
         except Exception:
             count = 0
             
@@ -732,6 +780,8 @@ async def admin_api_metadata(request: Request, admin_site: Any) -> JsonResponse:
             "name": model.__name__,
             "verbose_name": model_admin.get_verbose_name(model),
             "verbose_name_plural": model_admin.get_verbose_name_plural(model),
+            "label": model_admin.get_verbose_name(model),  # Compatibility with SPA
+            "label_plural": model_admin.get_verbose_name_plural(model), # Compatibility with SPA
             "table": table_name,
             "slug": model_admin.get_slug(model),
             "icon": getattr(model_admin, "icon", "fa-solid fa-cube"),
@@ -748,6 +798,8 @@ async def admin_api_metadata(request: Request, admin_site: Any) -> JsonResponse:
         "name": "FeatureFlag",
         "verbose_name": "Feature Flag",
         "verbose_name_plural": "Feature Flags",
+        "label": "Feature Flag",
+        "label_plural": "Feature Flags",
         "table": "flags",
         "slug": "flags",
         "icon": "fa-solid fa-flag",
@@ -784,9 +836,13 @@ async def admin_api_list(
     search = request.query_params.get("q", "")
     order_by = request.query_params.get("order_by", "")
     
-    session = getattr(request.state, "db", None)
+    session = getattr(request.state, "db", None) or getattr(request.app.state, "db", None)
     from eden.db import _MISSING
     qs = model.query(session or _MISSING)
+    
+    # Bypass tenancy for admin list view
+    if hasattr(qs, "include_tenantless"):
+        qs = qs.include_tenantless()
     
     # ── Search ────────────────────────────────────────────────────────
     if search and model_admin.search_fields:
@@ -823,17 +879,30 @@ async def admin_api_list(
     
     # Convert records to dicts
     serialized_records = []
+    list_display = model_admin.get_list_display(model)
+    
     for record in page_obj.items:
         record_dict = {}
-        from sqlalchemy import inspect as sa_inspect
-        mapper = sa_inspect(model)
-        for col in mapper.columns:
-            val = getattr(record, col.key)
+        # Serialize both columns and other list_display items (properties, methods)
+        for f in list_display:
+            val = getattr(record, f, None)
+            if callable(val):
+                try: val = val()
+                except: val = str(val)
+                
             if hasattr(val, "isoformat"):
                 val = val.isoformat()
             elif isinstance(val, (uuid.UUID, bytes)):
                 val = str(val)
-            record_dict[col.key] = val
+            elif hasattr(val, "id"): # Handle model instances
+                val = str(val.id)
+                
+            record_dict[f] = val
+            
+        # Ensure ID is always present for SPA row identification
+        if "id" not in record_dict and hasattr(record, "id"):
+            record_dict["id"] = str(record.id)
+            
         serialized_records.append(record_dict)
         
     return JsonResponse({
@@ -861,14 +930,18 @@ async def admin_api_action(
     if action_name not in model_admin.actions:
         return JsonResponse({"error": f"Action '{action_name}' not available"}, status_code=400)
         
-    session = getattr(request.state, "db", None)
+    session = getattr(request.state, "db", None) or getattr(request.app.state, "db", None)
     from eden.db import _MISSING
     
     # Built-in: delete_selected
     if action_name == "delete_selected":
         count = 0
         for rid in ids:
-            record = await model.get(session or _MISSING, rid)
+            # Bypass tenancy for deletions via admin
+            qs = model.query(session or _MISSING)
+            if hasattr(qs, "include_tenantless"):
+                qs = qs.include_tenantless()
+            record = await qs.filter(id=rid).first()
             if record:
                 await model_admin.delete_model(request, record)
                 count += 1
@@ -878,8 +951,11 @@ async def admin_api_action(
     action_func = getattr(model_admin, action_name, None)
     if action_func and callable(action_func):
         try:
-            # Query objects
-            objects = await model.query(session or _MISSING).filter(model.id.in_(ids)).all()
+            # Query objects - Bypass tenancy
+            qs = model.query(session or _MISSING).filter(model.id.in_(ids))
+            if hasattr(qs, "include_tenantless"):
+                qs = qs.include_tenantless()
+            objects = await qs.all()
             result = await action_func(request, objects)
             return JsonResponse({"status": "ok", "message": result or "Action executed successfully"})
         except Exception as e:
@@ -889,14 +965,19 @@ async def admin_api_action(
 
 
 async def admin_api_get(
-    request: Request, model: type, record_id: str
+    request: Request, model: type, model_admin: Any, record_id: str
 ) -> JsonResponse:
     """Get a single record as JSON."""
     await _check_staff(request)
     
-    session = getattr(request.state, "db", None)
+    session = getattr(request.state, "db", None) or getattr(request.app.state, "db", None)
     from eden.db import _MISSING
-    record = await model.get(session or _MISSING, record_id)
+    
+    qs = model.query(session or _MISSING)
+    if hasattr(qs, "include_tenantless"):
+        qs = qs.include_tenantless()
+        
+    record = await qs.filter(id=record_id).first()
     if not record:
         return JsonResponse({"error": "Not found"}, status_code=404)
         
@@ -904,13 +985,23 @@ async def admin_api_get(
     from sqlalchemy import inspect as sa_inspect
     mapper = sa_inspect(model)
     record_dict = {}
-    for col in mapper.columns:
-        val = getattr(record, col.key)
+    
+    # Prioritize fields defined in ModelAdmin
+    fields = model_admin.get_fields(model).keys() or [col.key for col in mapper.columns]
+    
+    for f in fields:
+        val = getattr(record, f, None)
+        if callable(val):
+            try: val = val()
+            except: val = str(val)
+            
         if hasattr(val, "isoformat"):
             val = val.isoformat()
         elif isinstance(val, (uuid.UUID, bytes)):
             val = str(val)
-        record_dict[col.key] = val
+        elif hasattr(val, "id"):
+            val = str(val.id)
+        record_dict[f] = val
         
     return JsonResponse(record_dict)
 
@@ -918,10 +1009,9 @@ async def admin_api_get(
 async def admin_api_create(
     request: Request, model: type, model_admin: Any
 ) -> JsonResponse:
-    """Create a new record via JSON."""
-    await _check_staff(request)
+    session = getattr(request.state, "db", None) or getattr(request.app.state, "db", None)
+    from eden.db import _MISSING
     
-    data = await request.json()
     try:
         instance = model()
         from sqlalchemy import inspect as sa_inspect
@@ -958,9 +1048,14 @@ async def admin_api_update(
     """Update a record via JSON."""
     await _check_staff(request)
     
-    session = getattr(request.state, "db", None)
+    session = getattr(request.state, "db", None) or getattr(request.app.state, "db", None)
     from eden.db import _MISSING
-    record = await model.get(session or _MISSING, record_id)
+    
+    qs = model.query(session or _MISSING)
+    if hasattr(qs, "include_tenantless"):
+        qs = qs.include_tenantless()
+    record = await qs.filter(id=record_id).first()
+    
     if not record:
         return JsonResponse({"error": "Not found"}, status_code=404)
         
@@ -999,9 +1094,14 @@ async def admin_api_delete(
     """Delete a record via JSON."""
     await _check_staff(request)
     
-    session = getattr(request.state, "db", None)
+    session = getattr(request.state, "db", None) or getattr(request.app.state, "db", None)
     from eden.db import _MISSING
-    record = await model.get(session or _MISSING, record_id)
+    
+    qs = model.query(session or _MISSING)
+    if hasattr(qs, "include_tenantless"):
+        qs = qs.include_tenantless()
+    record = await qs.filter(id=record_id).first()
+    
     if not record:
         return JsonResponse({"error": "Not found"}, status_code=404)
         

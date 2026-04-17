@@ -391,13 +391,20 @@ class Config(BaseModel):
         }
         
         url = self.get_database_url()
-        # Pool size settings only apply to non-SQLite engines.
-        # SQLite uses StaticPool or NullPool depending on context.
+        # Set safe defaults for connection pooling when not explicitly provided.
+        # This helps prevent resource exhaustion in production.
+        # SQLite dialects do not support these parameters.
         if not url.startswith("sqlite"):
-            kwargs["pool_size"] = self.db_pool_size
-            kwargs["max_overflow"] = self.db_max_overflow
-            kwargs["pool_recycle"] = self.db_pool_recycle
-            kwargs["pool_timeout"] = self.db_pool_timeout
+            poolclass = kwargs.get("poolclass")
+            if poolclass not in (StaticPool, NullPool):
+                kwargs.setdefault("pool_size", 10)
+                kwargs.setdefault("max_overflow", 20)
+                kwargs.setdefault("pool_recycle", 3600)
+            
+            kwargs.setdefault("pool_timeout", 30)
+
+        kwargs.setdefault("pool_pre_ping", True)
+        kwargs.setdefault("echo", False)
         
         return kwargs
     

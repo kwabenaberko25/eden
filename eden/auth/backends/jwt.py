@@ -87,7 +87,7 @@ class JWTBackend(AuthBackend[User]):
             # Fall back to app-level database
             session = getattr(request.state, "db", None) or getattr(request.app.state, "db", None)
             
-            return await User.get(session, user_id)
+            return await User.get(id=user_id, session=session)
 
         except (jwt.PyJWTError, ValueError):
             return None

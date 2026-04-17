@@ -97,9 +97,17 @@ class ContextMiddleware(BaseHTTPMiddleware):
             # app is accessible via request.app
             await context_manager.on_request_start(request, request.app)
 
-            # Call next middleware/handler
-            # This is where route handlers run and can access context
-            response = await call_next(request)
+            # 🛠️ Unified Context Injection
+            # We wrap the downstream call in use_context() to ensure there is 
+            # always a valid database session and context available for domain managers.
+            async with context_manager.use_context() as ctx:
+                # Add it to the request for easy access (request.ctx)
+                # Note: We must use __dict__ or setattr because Request might be read-only
+                setattr(request, "ctx", ctx)
+                
+                # Call next middleware/handler
+                # This is where route handlers run and can access context
+                response = await call_next(request)
 
             return response
 

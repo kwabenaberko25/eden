@@ -43,7 +43,7 @@ def cli() -> None:
 
 @cli.command()
 @click.option("--host", default="127.0.0.1", help="Bind address.")
-@click.option("--port", default=8000, type=int, help="Bind port.")
+@click.option("--port", default=8123, type=int, help="Bind port.")
 @click.option("--reload/--no-reload", default=True, help="Enable auto-reload.")
 @click.option("--no-browser-reload", is_flag=True, help="Disable browser auto-reload.")
 @click.option("--workers", default=1, type=int, help="Number of workers.")

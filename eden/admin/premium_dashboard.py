@@ -351,13 +351,14 @@ class PremiumAdminTemplate:
         let currentTable = null;
         let currentRecordId = null;
         let records = [];
+        let currentUser = null;
 
         // Simple client-side auth guard for SPA shell
-        function checkAuth() {{
-            // 1. Check if token is in URL (magic redirect)
+        async function checkAuth() {{
             const urlParams = new URLSearchParams(window.location.search);
             const urlToken = urlParams.get('token');
             if (urlToken) {{
+                console.log("Found token in URL, saving to localStorage");
                 localStorage.setItem('admin_token', urlToken);
                 // Clean the URL without reloading
                 const newUrl = window.location.pathname + window.location.search.replace(/[?&]token=[^&]+/, '').replace(/^&/, '?');
@@ -365,46 +366,53 @@ class PremiumAdminTemplate:
             }}
 
             const token = localStorage.getItem('admin_token');
-            // If neither token nor session
-            if (!token && !document.cookie.includes('session=')) {{
-                // Find the login URL relative to current path
-                const basePath = window.location.pathname.replace(/\/login\/?$/, "").replace(/\/+$/, "");
-                const loginUrl = basePath + "/login";
-                
-                // Add next parameter for redirect after login
-                const nextPath = encodeURIComponent(window.location.pathname + window.location.search);
-                window.location.href = loginUrl + "?next=" + nextPath;
-                return false;
-            }}
             return true;
         }}
 
         async function apiCall(endpoint, options = {{}}) {{
             const token = localStorage.getItem('admin_token');
             const headers = {{ 
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
             }};
             
             if (token) {{
                 headers['Authorization'] = `Bearer ${{token}}`;
             }}
 
-            const response = await fetch(API_BASE + endpoint, {{
-                headers: headers,
-                credentials: 'omit', // Explicit omit by default
-                ...options,
-                credentials: 'include' // Override to support session fallback
-            }});
+            try {{
+                const response = await fetch(API_BASE + endpoint, {{
+                    headers: headers,
+                    ...options,
+                    credentials: 'include' 
+                }});
 
-            if (response.status === 401) {{
-                localStorage.removeItem('admin_token');
-                checkAuth();
-                return;
+                if (response.status === 401) {{
+                    console.warn("API 401: Unauthorized. Clearing token and redirecting to login.");
+                    localStorage.removeItem('admin_token');
+                    // Force redirect to login
+                    const basePath = window.location.pathname.replace(/\/login\/?$/, "").replace(/\/+$/, "");
+                    window.location.href = basePath + "/login?next=" + encodeURIComponent(window.location.pathname);
+                    return;
+                }}
+
+                if (response.status === 403) {{
+                    const data = await response.json().catch(() => ({{ detail: "Access denied (Forbidden)." }}));
+                    showError(data.detail || "You do not have permission to perform this action.");
+                    throw new Error("Forbidden");
+                }}
+
+                if (!response.ok) {{
+                    const data = await response.json().catch(() => ({{ detail: "Server Error" }}));
+                    throw new Error(data.detail || `HTTP ${{response.status}}`);
+                }}
+
+                return await response.json();
+            }} catch (err) {{
+                if (err.message === "Forbidden") throw err;
+                console.error(`API Call failed: ${{endpoint}}`, err);
+                throw err;
             }}
-
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.detail || "API Error");
-            return data;
         }}
 
         async function switchModel(table) {{
@@ -623,7 +631,7 @@ class PremiumAdminTemplate:
         }}
 
         document.addEventListener('DOMContentLoaded', async () => {{
-            if (!checkAuth()) return;
+            if (!await checkAuth()) return;
             
             try {{
                 // Load metadata and profile in parallel

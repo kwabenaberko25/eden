@@ -12,7 +12,6 @@ Run this example to see all features working together.
 """
 
 from eden import Eden, Model, StringField, Request, render_template
-from eden.panel import ControlPanel, PanelConfig
 from eden.schemas import ModelSchema
 from eden.querysets import Manager
 from eden.enums import ChoiceField, ChoiceEnum
@@ -172,34 +171,19 @@ class ArticleSchema(ModelSchema):
 
 
 # ────────────────────────────────────────────────────────────────────────
-# 5. ControlPanel Admin Interface
+# 5. Admin Interface
 # ────────────────────────────────────────────────────────────────────────
 
-# Configure the admin panel
-panel_config = PanelConfig(
-    title="Article Management",
-    theme="light",  # or "dark"
-    auth_required=False,  # For demo purposes
-    items_per_page=20,
-    enable_realtime=True,
-    enable_export=True,
-    enable_bulk_actions=True,
-    custom_css=None,
-    custom_js=None
-)
+from eden.admin import admin, ModelAdmin
 
-# Create and configure the panel
-panel = ControlPanel(panel_config)
-
-# Register the Article model with the panel
-@panel.register(Article)
-class ArticlePanel:
-    """Custom panel configuration for articles."""
+# Register the Article model with the admin
+class ArticleAdmin(ModelAdmin):
+    """Custom admin configuration for articles."""
 
     # Display configuration
-    display_fields = ["title", "status", "author_name", "created_at"]
+    list_display = ["title", "status", "author_name", "created_at"]
     search_fields = ["title", "content", "author_name", "tags"]
-    filter_fields = ["status", "author_name"]
+    list_filter = ["status", "author_name"]
 
     # Pagination
     list_per_page = 25
@@ -210,10 +194,7 @@ class ArticlePanel:
         "created_at": "Published Date"
     }
 
-    async def get_queryset(self, request: Request):
-        """Custom queryset method - can add permissions, filtering, etc."""
-        # In a real app, you'd check user permissions here
-        return Article.objects.all()
+admin.register(Article, ArticleAdmin)
 
 
 # ────────────────────────────────────────────────────────────────────────
@@ -332,7 +313,7 @@ async def popular_tags():
 # ────────────────────────────────────────────────────────────────────────
 
 # Mount the admin panel
-app.mount("/admin", panel.app)
+app.mount_admin("/admin")
 
 
 # ────────────────────────────────────────────────────────────────────────

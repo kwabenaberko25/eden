@@ -61,7 +61,7 @@ class QuerySet(Generic[T]):
         qs = User.query(session=test_session)
     """
 
-    def __init__(self, model_cls: type[T], session: Any | None = _MISSING):
+    def __init__(self, model_cls: type[T], session: Any | None = _MISSING, **kwargs):
         self._model_cls = model_cls
         
         # Internal check for Database vs Session
@@ -71,8 +71,9 @@ class QuerySet(Generic[T]):
             self._session = _MISSING
         else:
             self._session = session
-        # Start with the model's base select (respects SoftDeleteMixin if present)
-        self._stmt = model_cls._base_select()
+        # Start with the model's base select (respects SoftDeleteMixin, TenantMixin etc.)
+        self._stmt = model_cls._base_select(**kwargs)
+        self._include_tenantless = kwargs.get("include_tenantless", False)
         self._prefetch_paths: list[str] = []
         self._select_related_paths: list[str] = []
         self._joined_models: set[type[Any]] = set()
@@ -120,8 +121,18 @@ class QuerySet(Generic[T]):
         clone._return_flat = self._return_flat
         clone._annotations = self._annotations.copy()
         clone._rbac_applied = self._rbac_applied
+        clone._include_tenantless = self._include_tenantless
         clone._cache_ttl = self._cache_ttl
         return clone
+
+    def include_tenantless(self) -> QuerySet[T]:
+        """
+        Disable tenant isolation for this query.
+        Note: This re-initializes the base selection, so call it early in the chain.
+        """
+        self._stmt = self._model_cls._base_select(include_tenantless=True)
+        self._include_tenantless = True
+        return self
 
     @property
     def statement(self) -> Any:
