@@ -23,29 +23,37 @@ import contextvars
 async def broadcast_update(target: Any, event: str = "updated") -> None:
     """
     Manually trigger a reactive broadcast for a model instance.
-    Aligned with the @reactive decorator logic.
+    
+    Routes through the session's pending_broadcasts queue so the broadcast
+    only fires after the current transaction commits.
     """
     if target is None:
         return
-        
-    channels = get_reactive_channels(target)
-    if not channels:
-        return
-        
-    data = extract_reactive_data(target)
-    
-    # Import here to avoid circular dependencies
-    from eden.db.listeners import _async_broadcast
     
     try:
-        loop = asyncio.get_running_loop()
-        if loop.is_running():
-            ctx = contextvars.copy_context()
-            # We still use create_task to keep it non-blocking for the caller if desired,
-            # but making the function async allows 'await' without TypeError.
-            loop.create_task(ctx.run(_async_broadcast, channels, event, data))
-    except (RuntimeError, NameError):
-        pass
+        from sqlalchemy.orm.session import object_session
+        session = object_session(target)
+    except Exception:
+        session = None
+    
+    if session is not None:
+        # Queue it — will be emitted by handle_after_commit
+        from eden.db.listeners import _queue_broadcast
+        _queue_broadcast(target, event)
+    else:
+        # No session context (manual call outside ORM) — broadcast immediately
+        channels = get_reactive_channels(target)
+        if not channels:
+            return
+        data = extract_reactive_data(target)
+        from eden.db.listeners import _async_broadcast
+        try:
+            loop = asyncio.get_running_loop()
+            if loop.is_running():
+                ctx = contextvars.copy_context()
+                loop.create_task(ctx.run(_async_broadcast, channels, event, data))
+        except (RuntimeError, NameError):
+            pass
 
 def get_reactive_channels(target: Any) -> List[str]:
     """
@@ -123,13 +131,26 @@ def get_reactive_channels(target: Any) -> List[str]:
     return channels
 
 def extract_reactive_data(target: Any) -> dict:
-    """Extract serializable data for broadcast."""
+    """Extract serializable data for broadcast, respecting field whitelists."""
+    # Check for field whitelist
+    fields = getattr(target, '__reactive_fields__', None)
+    
     if hasattr(target, "model_dump"):
+        if fields:
+            return target.model_dump(include=set(fields))
         return target.model_dump()
+        
     if hasattr(target, "to_dict"):
-        return target.to_dict()
+        data = target.to_dict()
+        if fields:
+            return {k: v for k, v in data.items() if k in fields}
+        return data
+        
     # Fallback to __dict__ for SQLAlchemy objects
-    return {
+    data = {
         k: v for k, v in getattr(target, "__dict__", {}).items()
         if not k.startswith('_') and isinstance(v, (str, int, float, bool, type(None)))
     }
+    if fields:
+        return {k: v for k, v in data.items() if k in fields}
+    return data

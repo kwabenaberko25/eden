@@ -6,10 +6,12 @@ import json as _json
 from typing import Any
 from markupsafe import Markup
 
-def format_time_ago(value: datetime.datetime) -> str:
+from markupsafe import escape
+
+def format_time_ago(value: datetime.datetime) -> Markup:
     """Format a datetime as a human-readable \"time ago\" string."""
     if not value:
-        return ""
+        return escape("")
 
     now = datetime.datetime.now()
     if value.tzinfo:
@@ -18,30 +20,30 @@ def format_time_ago(value: datetime.datetime) -> str:
     diff = now - value
 
     if diff.days > 365:
-        return f"{diff.days // 365} years ago"
+        return escape(f"{diff.days // 365} years ago")
     if diff.days > 30:
-        return f"{diff.days // 30} months ago"
+        return escape(f"{diff.days // 30} months ago")
     if diff.days > 0:
-        return f"{diff.days} days ago"
+        return escape(f"{diff.days} days ago")
     if diff.seconds >= 3600:
-        return f"{diff.seconds // 3600} {'hour' if diff.seconds // 3600 == 1 else 'hours'} ago"
+        return escape(f"{diff.seconds // 3600} {'hour' if diff.seconds // 3600 == 1 else 'hours'} ago")
     if diff.seconds >= 60:
-        return f"{diff.seconds // 60} {'minute' if diff.seconds // 60 == 1 else 'minutes'} ago"
-    return "just now"
+        return escape(f"{diff.seconds // 60} {'minute' if diff.seconds // 60 == 1 else 'minutes'} ago")
+    return escape("just now")
 
-def format_money(value: int | float | None, currency: str = "$") -> str:
+def format_money(value: int | float | None, currency: str = "$") -> Markup:
     """Format a value as currency."""
     if value is None:
-        return ""
-    return f"{currency}{value:,.2f}"
+        return escape("")
+    return escape(f"{currency}{value:,.2f}")
 
-def class_names(base: str, conditions: dict[str, bool]) -> str:
+def class_names(base: str, conditions: dict[str, bool]) -> Markup:
     """Angular-style class names helper."""
     classes = [base]
     for cls, cond in conditions.items():
         if cond:
             classes.append(cls)
-    return " ".join(classes)
+    return escape(" ".join(classes))
 
 def add_class(field: Any, css_class: str) -> Any:
     if hasattr(field, "add_class"):
@@ -93,18 +95,18 @@ def widget_type(field: Any) -> str:
         return field.widget_type
     return ""
 
-def truncate_filter(value: Any, length: int = 50, end: str = "…") -> str:
+def truncate_filter(value: Any, length: int = 50, end: str = "…") -> Markup:
     """Truncate a string to *length* characters, appending *end* if truncated."""
     s = str(value)
     if len(s) <= length:
-        return s
-    return s[:length].rstrip() + end
+        return escape(s)
+    return escape(s[:length].rstrip() + end)
 
-def slugify_filter(value: Any) -> str:
+def slugify_filter(value: Any) -> Markup:
     """Convert text to a URL-friendly slug."""
     s = str(value).lower().strip()
     s = re.sub(r'[^\w\s-]', '', s)
-    return re.sub(r'[\s_]+', '-', s).strip('-')
+    return escape(re.sub(r'[\s_]+', '-', s).strip('-'))
 
 def json_encode(value: Any) -> str:
     """Serialize value to JSON (safe for ``x-data`` attributes)."""
@@ -122,42 +124,42 @@ def pluralize_filter(count: Any, singular: str = "", plural: str = "s") -> str:
         n = 0
     return singular if n == 1 else plural
 
-def title_case(value: Any) -> str:
+def title_case(value: Any) -> Markup:
     """Convert text to Title Case."""
-    return str(value).title()
+    return escape(str(value).title())
 
-def format_date(value: Any, fmt: str = "%Y-%m-%d") -> str:
+def format_date(value: Any, fmt: str = "%Y-%m-%d") -> Markup:
     """Format a date object or ISO string."""
-    if not value: return ""
+    if not value: return escape("")
     if isinstance(value, str):
         try:
             value = datetime.datetime.fromisoformat(value)
         except ValueError:
-            return value
+            return escape(value)
     if hasattr(value, "strftime"):
-        return value.strftime(fmt)
-    return str(value)
+        return escape(value.strftime(fmt))
+    return escape(str(value))
 
-def format_time(value: Any, fmt: str = "%H:%M") -> str:
+def format_time(value: Any, fmt: str = "%H:%M") -> Markup:
     """Format a time/datetime object or ISO string."""
-    if not value: return ""
+    if not value: return escape("")
     if isinstance(value, str):
         try:
             value = datetime.datetime.fromisoformat(value)
         except ValueError:
-            return value
+            return escape(value)
     if hasattr(value, "strftime"):
-        return value.strftime(fmt)
-    return str(value)
+        return escape(value.strftime(fmt))
+    return escape(str(value))
 
-def format_number(value: Any) -> str:
+def format_number(value: Any) -> Markup:
     """Format a number with thousand separators."""
     try:
-        return "{:,}".format(float(value))
+        return escape("{:,}".format(float(value)))
     except (TypeError, ValueError):
-        return str(value)
+        return escape(str(value))
 
-def mask_filter(value: Any, visible: int = 1) -> str:
+def mask_filter(value: Any, visible: int = 1) -> Markup:
     """Mask a string, showing first and last 'visible' characters.
     
     For non-email strings:
@@ -175,54 +177,56 @@ def mask_filter(value: Any, visible: int = 1) -> str:
         visible: Number of characters to show at each end (default: 1).
     
     Returns:
-        The masked string.
+        The masked string as a Markup-safe object.
     
     Examples:
         >>> mask_filter("secret123")       # "s*******3"
         >>> mask_filter("ab")              # "**"
         >>> mask_filter("user@example.com") # "u***@example.com"
     """
+    from markupsafe import escape
+    
     s = str(value)
     if not s:
-        return ""
+        return escape("")
     if "@" in s:
         local, domain = s.split("@", 1)
         # For emails, show start of local part by default
         visible_local = local[:visible]
-        return f"{visible_local}***@{domain}"
+        return escape(f"{visible_local}***@{domain}")
     
     # Too short to show first+last — fully mask
     if len(s) <= visible * 2:
-        return "*" * len(s)
+        return escape("*" * len(s))
     
     # Show first `visible` and last `visible`, mask the middle
-    return s[:visible] + "*" * (len(s) - visible * 2) + s[-visible:]
+    return escape(s[:visible] + "*" * (len(s) - visible * 2) + s[-visible:])
 
-def file_size_filter(value: Any) -> str:
+def file_size_filter(value: Any) -> Markup:
     """Format a byte count as a human-readable file size."""
     try:
         size = float(value)
     except (TypeError, ValueError):
-        return "0 B"
+        return escape("0 B")
     for unit in ("B", "KB", "MB", "GB", "TB"):
         if abs(size) < 1024:
             if unit == "B":
-                return f"{int(size)} {unit}"
-            return f"{size:.1f} {unit}"
+                return escape(f"{int(size)} {unit}")
+            return escape(f"{size:.1f} {unit}")
         size /= 1024
-    return f"{size:.1f} PB"
+    return escape(f"{size:.1f} PB")
     
-def repeat_filter(value: Any, count: int = 1) -> str:
+def repeat_filter(value: Any, count: int = 1) -> Markup:
     """Repeat a string *count* times."""
-    return str(value) * count
+    return escape(str(value) * count)
 
-def phone_filter(value: Any, country_code: str = "US") -> str:
+def phone_filter(value: Any, country_code: str = "US") -> Markup:
     """Format a string as a phone number."""
     s = str(value)
     digits = re.sub(r'\D', '', s)
     if country_code == "US" and len(digits) == 10:
-        return f"({digits[:3]}) {digits[3:6]}-{digits[6:]}"
-    return s
+        return escape(f"({digits[:3]}) {digits[3:6]}-{digits[6:]}")
+    return escape(s)
 
 def unique_filter(value: Any) -> list:
     """Remove duplicates from a list while preserving order."""

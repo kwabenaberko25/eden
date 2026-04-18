@@ -112,26 +112,45 @@ class TemplateLexer:
 
     def read_until_tag(self, tag_name: str) -> str:
         """Reads until </tag_name>. Case-insensitive tag matching."""
-        # FIXED: Convert tag_name to lowercase for case-insensitive matching
-        tag_name_lower = tag_name.lower()
-        closer = f"</{tag_name_lower}>"
-        found_pos = self.source.lower().find(closer, self.pos)
-        if found_pos == -1:
+        # Use regex to avoid MemoryError/ReDoS from full .lower() copies on giant templates
+        pattern = re.compile(rf"</{re.escape(tag_name)}>", re.IGNORECASE)
+        match = pattern.search(self.source, self.pos)
+        
+        if not match:
             return self.advance(len(self.source) - self.pos)
-        return self.advance(found_pos - self.pos + len(closer))
+            
+        return self.advance(match.end() - self.pos)
 
     def read_balanced(self, open_char: str, close_char: str) -> str:
-        """Reads a balanced segment, e.g. for parentheses."""
+        """Reads a balanced segment, e.g. for parentheses, respecting string boundaries."""
         start_pos = self.pos
         self.advance() # consume open_char
         count = 1
+        in_string = False
+        string_char = None
+        escape = False
+
         while self.pos < len(self.source) and count > 0:
             char = self.peek()
-            if char == open_char:
-                count += 1
-            elif char == close_char:
-                count -= 1
+            
+            if escape:
+                escape = False
+            elif char == '\\':
+                escape = True
+            elif in_string:
+                if char == string_char:
+                    in_string = False
+            elif char in ('"', "'", "`"):
+                in_string = True
+                string_char = char
+            else:
+                if char == open_char:
+                    count += 1
+                elif char == close_char:
+                    count -= 1
+                    
             self.advance()
+            
         return self.source[start_pos:self.pos]
 
     def tokenize(self) -> list[Token]:

@@ -26,6 +26,14 @@ class CrudMixin:
         return cls.query(session=session, include_tenantless=True)
 
     @classmethod
+    def without_rbac(cls, session: Optional[Any] = None) -> QuerySet:
+        """
+        Helper to start a query that explicitly bypasses RBAC security filters.
+        Use with caution - intended for admin-level operations or background tasks.
+        """
+        return cls.query(session=session).bypass_rbac()
+
+    @classmethod
     def accessible_by(cls, user: Any, action: str = "read", session: Optional[Any] = None) -> QuerySet:
         """
         Returns a QuerySet pre-filtered for the given user and action.

@@ -131,7 +131,7 @@ class BaseUser(AuthBaseUser):
     # Track linked social accounts for multi-provider login
     @declared_attr
     def social_accounts(self) -> Mapped[list["SocialAccount"]]:
-        return relationship("SocialAccount", back_populates="user", cascade="all, delete-orphan", overlaps="social_account")
+        return relationship("SocialAccount", back_populates="user", cascade="all, delete-orphan", overlaps="social_account", lazy="selectin")
 
     def set_password(self, password: str) -> None:
         """Hash and set the user's password."""

@@ -125,14 +125,6 @@ class QuerySet(Generic[T]):
         clone._cache_ttl = self._cache_ttl
         return clone
 
-    def include_tenantless(self) -> QuerySet[T]:
-        """
-        Disable tenant isolation for this query.
-        Note: This re-initializes the base selection, so call it early in the chain.
-        """
-        self._stmt = self._model_cls._base_select(include_tenantless=True)
-        self._include_tenantless = True
-        return self
 
     @property
     def statement(self) -> Any:

@@ -574,7 +574,7 @@ def Relationship(
     target_model: Any = None,
     *,
     back_populates: str | None = None,
-    lazy: str = "selectin",
+    lazy: str = "raise",
     **kwargs: Any,
 ) -> Any:
     """
@@ -627,7 +627,7 @@ def ManyToManyField(
     through: str | Any | None = None,
     *,
     back_populates: str | None = None,
-    lazy: str = "selectin",
+    lazy: str = "raise",
     **kwargs: Any,
 ) -> Any:
     """

@@ -107,6 +107,9 @@ class Model(Base, AccessControl, ValidatorMixin, LifecycleMixin, SerializationMi
     __abstract__ = True
     __allow_unmapped__ = True
     __reactive__: bool = False
+    
+    # Security: Require explicit opt-in for admin panel exposure
+    __admin_enabled__: ClassVar[bool] = False
 
     # Default RBAC rules: Deny by default.
     # Models should explicitly define their own __rbac__ dictionary.

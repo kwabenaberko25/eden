@@ -140,6 +140,7 @@ class TemplateCompiler:
         Processes @props directive to set default variable values.
         Supports both list ['a', 'b'] and dict ['a' => 'default'] syntax.
         """
+        import re
         try:
             props_val = props_val.strip()
             # Remove outer brackets if present
@@ -153,7 +154,6 @@ class TemplateCompiler:
 
             res_lines = []
             # Split by comma but respect nested structures (simplified for now)
-            # A more robust regex might be needed for complex nested defaults
             parts = []
             current = []
             depth = 0
@@ -173,23 +173,30 @@ class TemplateCompiler:
             for part in parts:
                 if "=>" in part:
                     k, v = part.split("=>", 1)
-                    k = k.strip().strip("\"'")
-                    v = v.strip().replace("$", "")
-                    res_lines.append(f"{{% set {k} = {k} if {k} is defined else {v} %}}")
                 elif ":" in part:
                     k, v = part.split(":", 1)
-                    k = k.strip().strip("\"'")
-                    v = v.strip().replace("$", "")
-                    res_lines.append(f"{{% set {k} = {k} if {k} is defined else {v} %}}")
                 else:
-                    k = part.strip().strip("\"'")
-                    res_lines.append(f"{{% set {k} = {k} if {k} is defined else None %}}")
+                    k = part
+                    v = "None"
+                    
+                k = k.strip().strip("\"'")
+                v = v.strip().replace("$", "")
+                
+                # VALIDATION: Prevent SSTI / RCE by ensuring k is a valid Python identifier
+                if not re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*$", k):
+                    res_lines.append(f"<!-- @props error: Invalid property name '{k}' -->")
+                    continue
+                    
+                res_lines.append(f"{{% set {k} = {k} if {k} is defined else {v} %}}")
 
             return "".join(res_lines)
         except Exception as e:
-            return f"<!-- @props error: {str(e)} -->"
+            from markupsafe import escape
+            error_msg = escape(str(e))
+            return f"<!-- @props error: {error_msg} -->"
 
     def handle_class(self, val: str) -> str:
+        import re
         try:
             content = val.strip(" []{}")
             if not content:
@@ -199,16 +206,22 @@ class TemplateCompiler:
                 part = part.strip()
                 if "=>" in part:
                     k, v = part.split("=>", 1)
-                    k = k.strip().strip("\"'")
-                    v = v.strip().replace("$", "")
-                    parts.append(f'("{k}" if {v} else "")')
                 elif ":" in part:
                     k, v = part.split(":", 1)
-                    k = k.strip().strip("\"'")
+                else:
+                    k = part
+                    v = None
+                    
+                k = k.strip().strip("\"'")
+                
+                # VALIDATION: Prevent SSTI / RCE by ensuring k is a valid CSS class name
+                if not re.match(r"^[a-zA-Z0-9_\-]+$", k):
+                    return f'class="<!-- @class error: Invalid class name \'{k}\' -->"'
+                    
+                if v is not None:
                     v = v.strip().replace("$", "")
                     parts.append(f'("{k}" if {v} else "")')
                 else:
-                    k = part.strip().strip("\"'")
                     parts.append(f'"{k}"')
             res = ' + " " + '.join(parts)
             return f'class="{{{{ ({res}).strip() }}}}"'

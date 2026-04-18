@@ -622,38 +622,20 @@ class EdenBroker:
         """Wrap a task function to add DI and retry support."""
 
         @functools.wraps(func)
-        async def task_handler(*args: Any, **kwargs: Any) -> Any:
+        async def task_handler(*args: Any, context: Any = None, **kwargs: Any) -> Any:
             from eden.dependencies import DependencyResolver
             from eden.context import context_manager, set_request_id, reset_request_id
             import uuid
 
-            # 1. Propagation: Try to find task_id or request_id from Taskiq context
+            # 1. Propagation: Extraction from Taskiq context
             task_id = str(uuid.uuid4())
-            correlation_id = str(uuid.uuid4())
-            
-            tiq_ctx = kwargs.pop("context", None)
-            correlation_id = str(uuid.uuid4())
-            user_id = None
-            tenant_id = None
+            tiq_ctx = context or kwargs.pop("context", None)
+            snapshot = {}
 
             if tiq_ctx:
-                # Taskiq passes context if requested
                 task_id = getattr(tiq_ctx, "task_id", task_id)
-                # Labels carry the propagated context
-                labels = getattr(tiq_ctx, "labels", {})
-                correlation_id = labels.get("correlation_id", correlation_id)
-                user_id = labels.get("user_id")
-                tenant_id = labels.get("tenant_id")
-
-            # 2. Restoration: Set restored context back into ContextVars
-            token = set_request_id(correlation_id)
-            if tenant_id:
-                context_manager.set_tenant(tenant_id)
-            if user_id:
-                # We keep the raw ID in context for now as the 'user'
-                # Code requiring the full Model will have to fetch it,
-                # but many audit/RLS hooks only need the ID.
-                context_manager.set_user(user_id)
+                # Labels carry the whole propagated context snapshot
+                snapshot = getattr(tiq_ctx, "labels", {})
 
 
             # Use DependencyResolver with current app instance
@@ -677,55 +659,58 @@ class EdenBroker:
             
             while True:
                 try:
-                    # Record start for this attempt if first attempt
-                    logger.debug("Executing task '%s' (attempt %d, ID %s)", func.__name__, attempt, task_id)
-                    logger.debug("Executing task '%s' attempt %d", func.__name__, attempt)
+                    with context_manager.baked_context(snapshot):
+                        correlation_id = context_manager.get_request_id()
+                        user = context_manager.get_user()
+                        # Record start for this attempt with identity info
+                        logger.info("Executing task '%s' (attempt %d, ID %s, user=%s)", 
+                                     func.__name__, attempt, task_id, user)
 
-                    from eden.tasks.context import _CURRENT_TASK_ID, _CURRENT_BROKER
-                    _CURRENT_TASK_ID.set(task_id)
-                    _CURRENT_BROKER.set(self)
+                        from eden.tasks.context import _CURRENT_TASK_ID, _CURRENT_BROKER
+                        _CURRENT_TASK_ID.set(task_id)
+                        _CURRENT_BROKER.set(self)
 
-                    # Initial recording as 'running'
-                    start_info = TaskResult(
-                        task_id=task_id,
-                        task_name=func.__name__,
-                        status="running",
-                        correlation_id=correlation_id,
-                        started_at=start_time,
-                    )
-                    if self._result_backend:
-                        await self._result_backend.store_result(task_id, start_info)
+                        # Initial recording as 'running'
+                        start_info = TaskResult(
+                            task_id=task_id,
+                            task_name=func.__name__,
+                            status="running",
+                            correlation_id=correlation_id,
+                            started_at=start_time,
+                        )
+                        if self._result_backend:
+                            await self._result_backend.store_result(task_id, start_info)
 
-                    if inspect.iscoroutinefunction(func):
-                        res = await func(*args, **final_kwargs)
-                    else:
-                        res = func(*args, **final_kwargs)
-                        
-                    # Success recording
-                    success_info = TaskResult(
-                        task_id=task_id,
-                        task_name=func.__name__,
-                        status="success",
-                        result=res,
-                        progress=100.0,
-                        status_message="Completed",
-                        retries=attempt,
-                        correlation_id=correlation_id,
-                        started_at=start_time,
-                        completed_at=datetime.now(),
-                    )
-                    if self._result_backend:
-                        await self._result_backend.store_result(task_id, success_info)
-                    reset_request_id(token)
-                    return res
+                        if inspect.iscoroutinefunction(func):
+                            res = await func(*args, **final_kwargs)
+                        else:
+                            res = func(*args, **final_kwargs)
+                            
+                        # Success recording
+                        success_info = TaskResult(
+                            task_id=task_id,
+                            task_name=func.__name__,
+                            status="success",
+                            result=res,
+                            progress=100.0,
+                            status_message="Completed",
+                            retries=attempt,
+                            correlation_id=correlation_id,
+                            started_at=start_time,
+                            completed_at=datetime.now(),
+                        )
+                        if self._result_backend:
+                            await self._result_backend.store_result(task_id, success_info)
+                        return res
 
                 except Exception as e:
                     logger.debug("Task '%s' attempt %d error: %s", func.__name__, attempt, e)
                     attempt += 1
                     if attempt > max_retries:
                         logger.error(
-                            "Task '%s' (%s) failed after %d retries.", 
-                            func.__name__, task_id, max_retries
+                            "Task '%s' (%s) failed after %d retries: %s", 
+                            func.__name__, task_id, max_retries, str(e),
+                            exc_info=True
                         )
 
                         # Record result as dead_letter
@@ -742,7 +727,6 @@ class EdenBroker:
                         )
                         if self._result_backend:
                             await self._result_backend.store_result(task_id, error_info)
-                        reset_request_id(token)
                         raise MaxRetriesExceeded(
                             f"Task {func.__name__} failed after {max_retries} retries"
                         ) from e

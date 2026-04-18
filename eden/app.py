@@ -192,11 +192,11 @@ class Eden:
         # Register broker diagnostics
         broker_type = type(self._raw_broker).__name__
         if broker_type == "InMemoryBroker" or not redis_url:
-            self._diagnostics.register(
-                "Task Broker", "degraded",
-                f"Using {broker_type} — tasks will not survive restarts. "
-                "Set REDIS_URL for production."
-            )
+            msg = f"Using {broker_type} — tasks will not survive restarts. Set REDIS_URL for production."
+            self._diagnostics.register("Task Broker", "degraded", msg)
+            if not self.debug and not self.is_test():
+                from eden.logging import get_logger
+                get_logger("eden.tasks").warning(f"PRODUCTION WARNING: {msg}")
         else:
             self._diagnostics.register("Task Broker", "ok", f"{broker_type} (Redis-backed)")
         
@@ -847,8 +847,8 @@ class Eden:
             return
 
         # 1. Traceability & Context (Outermost)
-        self.add_middleware("request_id", priority=self.PRIORITY_CORE - 10)
-        
+        self.add_middleware("request_id", priority=self.PRIORITY_CORE - 15)
+        self.add_middleware("logging", priority=self.PRIORITY_CORE - 10)
         # 2. Security & Session Protection
         self.add_middleware("security", priority=self.PRIORITY_CORE + 10)
         

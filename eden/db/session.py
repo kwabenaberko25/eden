@@ -329,7 +329,7 @@ class Database:
                 reset_session(token)
 
     @contextlib.asynccontextmanager
-    async def db_context(self, session: AsyncSession | None = None) -> AsyncIterator[EdenDbContext]:
+    async def db_context(self, session: AsyncSession | None = None) -> AsyncIterator["EdenDbContext"]:
         """
         Highest level orchestrator for the 'Unified Context' pattern.
         
@@ -495,7 +495,7 @@ def init_db(url: str, app: Any = None, **kwargs: Any) -> Database:
     return db
 
 @contextlib.asynccontextmanager
-async def db_context(session: AsyncSession | None = None) -> AsyncIterator[EdenDbContext]:
+async def db_context(session: AsyncSession | None = None) -> AsyncIterator["EdenDbContext"]:
     """
     Global standalone access to the Unified Database Context.
     Uses the currently bound database (via Model._base_model or Model._db).

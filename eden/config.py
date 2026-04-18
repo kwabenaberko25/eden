@@ -60,6 +60,7 @@ import os
 from enum import Enum
 from typing import Optional, Any, Dict
 from pathlib import Path
+from functools import cached_property
 
 try:
     from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -347,6 +348,15 @@ class Config(BaseModel):
         
         return self
     
+    @cached_property
+    def expensive_setting_example(self) -> Any:
+        """
+        Example of a lazy-loaded setting.
+        Use cached_property for settings that are expensive to compute 
+        (e.g., loading an SSL certificate) to improve performance on subsequent accesses.
+        """
+        return None
+        
     def get_database_url(self) -> str:
         """
         Get database URL with environment-specific defaults.
@@ -468,7 +478,12 @@ class ConfigManager:
         current_env = os.getenv("EDEN_ENV", "dev").lower()
         
         # Determine files to load
-        env_file = env_file or Path.cwd() / ".env"
+        if not env_file:
+            # Use the project root directory, not just the working directory. 
+            # This prevents issues when running from different locations.
+            project_root = Path(__file__).resolve().parent.parent
+            env_file = project_root / ".env"
+            
         if isinstance(env_file, str):
             env_file = Path(env_file)
             

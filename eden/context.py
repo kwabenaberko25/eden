@@ -413,16 +413,22 @@ class ContextManager:
         Capture a snapshot of the current context for propagation.
         
         Returns:
-            Dictionary containing user_id, tenant_id, and correlation_id.
+            Dictionary containing user, tenant_id, organization_id, and correlation_id.
+            Includes any other metadata currently present in context.
         """
         user = self.get_user()
+        # Capture raw user if it's a simple ID or the object itself if serializable
+        # Most brokers require JSON-serializable labels, so we prefer IDs
+        u_id = getattr(user, "id", None) if hasattr(user, "id") else (user if isinstance(user, (str, int)) else None)
+        
         return {
-            "user_id": getattr(user, "id", None) if hasattr(user, "id") else (user if isinstance(user, (str, int)) else None),
+            "user_id": u_id,
             "tenant_id": self.get_tenant_id(),
+            "organization_id": self.get_organization_id(),
             "correlation_id": self.get_request_id(),
         }
 
-    def restore_context(self, snapshot: dict[str, Any]) -> list[contextvars.Token]:
+    def restore_context(self, snapshot: dict[str, Any]) -> list[tuple[contextvars.ContextVar, contextvars.Token]]:
         """
         Restore context from a previously captured snapshot.
         
@@ -430,22 +436,65 @@ class ContextManager:
             snapshot: Context data to restore.
             
         Returns:
-            List of tokens for resetting the context later.
+            List of (ContextVar, Token) tuples for resetting the context later.
         """
         tokens = []
         if snapshot.get("correlation_id"):
-            tokens.append(_request_id_ctx.set(snapshot["correlation_id"]))
+            tokens.append((_request_id_ctx, _request_id_ctx.set(snapshot["correlation_id"])))
         
         if snapshot.get("tenant_id"):
-            # This also syncs with tenancy context
-            self.set_tenant(snapshot["tenant_id"])
-            # Note: set_tenant doesn't return a token we can reset easily here 
-            # as it affects multiple vars.
+            tokens.append((_tenant_id_ctx, _tenant_id_ctx.set(snapshot["tenant_id"])))
+            # Also sync internal tenancy context if possible
+            try:
+                from eden.tenancy.context import _tenant_ctx
+                tokens.append((_tenant_ctx, _tenant_ctx.set(snapshot["tenant_id"])))
+            except ImportError:
+                pass
+            
+        if snapshot.get("organization_id"):
+            tokens.append((_organization_id_ctx, _organization_id_ctx.set(snapshot["organization_id"])))
             
         if snapshot.get("user_id"):
-            tokens.append(_user_ctx.set(snapshot["user_id"]))
+            tokens.append((_user_ctx, _user_ctx.set(snapshot["user_id"])))
             
         return tokens
+
+    @contextlib.contextmanager
+    def baked_context(self, snapshot: dict[str, Any]) -> Any:
+        """
+        A context manager that restores a context for the duration of the block
+        and cleans it up afterward, even if it was modified inside the block.
+        """
+        # Save 'before' state for robust revert
+        before = {
+            "user": self.get_user(),
+            "tenant_id": self.get_tenant_id(),
+            "org_id": self.get_organization_id(),
+            "req_id": self.get_request_id(),
+        }
+        
+        tokens = self.restore_context(snapshot)
+        try:
+            yield
+        finally:
+            # 1. Try standard reset (reverse order)
+            for ctx_var, token in reversed(tokens):
+                try:
+                    ctx_var.reset(token)
+                except (ValueError, LookupError):
+                    # Dirtied context - will be handled by force revert below
+                    pass
+            
+            # 2. Robust Revert: Ensure core values are restored even if dirtied
+            # This prevents leakage between task retries
+            if _user_ctx.get(None) != before["user"]:
+                _user_ctx.set(before["user"])
+            if _tenant_id_ctx.get(None) != before["tenant_id"]:
+                _tenant_id_ctx.set(before["tenant_id"])
+            if _organization_id_ctx.get(None) != before["org_id"]:
+                _organization_id_ctx.set(before["org_id"])
+            if _request_id_ctx.get(None) != before["req_id"]:
+                _request_id_ctx.set(before["req_id"])
 
 
 # Global singleton instance

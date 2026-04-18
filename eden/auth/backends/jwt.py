@@ -3,12 +3,14 @@ Eden — JWT Authentication Backend
 """
 
 import datetime
+import uuid
 from typing import Any
 
 import jwt
 
 from eden.auth.base import AuthBackend
 from eden.auth.models import User
+from eden.auth.token_denylist import denylist
 from eden.requests import Request
 
 
@@ -65,7 +67,13 @@ class JWTBackend(AuthBackend[User]):
         try:
             payload = self.decode_token(token)
             user_id = payload.get("sub")
-            if not user_id:
+            jti = payload.get("jti")
+            if not user_id or not jti:
+                return None
+
+            # Check if token is revoked
+            is_revoked = await denylist.is_revoked(jti)
+            if is_revoked:
                 return None
 
             # Use the ORM to fetch the user
@@ -98,7 +106,7 @@ class JWTBackend(AuthBackend[User]):
         expire = datetime.datetime.now(datetime.UTC) + datetime.timedelta(
             minutes=self.access_token_expire_minutes
         )
-        to_encode.update({"exp": expire, "type": "access"})
+        to_encode.update({"exp": expire, "type": "access", "jti": str(uuid.uuid4())})
         return jwt.encode(to_encode, self.secret_key, algorithm=self.algorithm)
 
     def create_refresh_token(self, data: dict[str, Any]) -> str:
@@ -107,12 +115,24 @@ class JWTBackend(AuthBackend[User]):
         expire = datetime.datetime.now(datetime.UTC) + datetime.timedelta(
             days=self.refresh_token_expire_days
         )
-        to_encode.update({"exp": expire, "type": "refresh"})
+        to_encode.update({"exp": expire, "type": "refresh", "jti": str(uuid.uuid4())})
         return jwt.encode(to_encode, self.secret_key, algorithm=self.algorithm)
 
     def decode_token(self, token: str) -> dict[str, Any]:
         """Decode and verify a JWT."""
         return jwt.decode(token, self.secret_key, algorithms=[self.algorithm])
+
+    async def revoke_token(self, token: str) -> None:
+        """Revoke a token by adding its jti to the denylist."""
+        try:
+            payload = self.decode_token(token)
+            jti = payload.get("jti")
+            exp = payload.get("exp")
+            if jti and exp:
+                dt_exp = datetime.datetime.fromtimestamp(exp, tz=datetime.UTC)
+                await denylist.revoke(jti, dt_exp)
+        except (jwt.PyJWTError, ValueError):
+            pass
 
     # ── Documented Aliases ────────────────────────────────────────────────
 

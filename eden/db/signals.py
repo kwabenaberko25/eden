@@ -122,12 +122,20 @@ class Signal:
                 to_remove.append(i)
                 continue
 
+            from eden.context import context_manager
+            snapshot = context_manager.get_context_snapshot()
+
             try:
-                if inspect.iscoroutinefunction(receiver):
-                    res = await receiver(sender=sender, instance=instance, **kwargs)
-                else:
-                    res = receiver(sender=sender, instance=instance, **kwargs)
-                responses.append((receiver, res))
+                with context_manager.baked_context(snapshot):
+                    u_id = snapshot.get("user_id", "anonymous")
+                    logger.debug("Dispatching signal '%s' to receiver %s (identity: %s)", 
+                                 self.name, receiver.__name__, u_id)
+                    
+                    if inspect.iscoroutinefunction(receiver):
+                        res = await receiver(sender=sender, instance=instance, **kwargs)
+                    else:
+                        res = receiver(sender=sender, instance=instance, **kwargs)
+                    responses.append((receiver, res))
             except Exception as e:
                 logger.error(f"Error in signal receiver {receiver}: {e}", exc_info=True)
                 responses.append((receiver, e))

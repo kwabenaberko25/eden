@@ -196,6 +196,7 @@ class Router:
         self.tags = tags or []
         self.middleware = middleware or []
         self.routes: list[Route | WebSocketRoute] = []
+        self._route_index: dict[str, Route | WebSocketRoute] = {}
         if model:
             self._generate_crud_routes(model)
 
@@ -322,6 +323,7 @@ class Router:
             extras=kwargs,
         )
         self.routes.append(route)
+        self._route_index[route_name] = route
 
     def route(
         self,
@@ -614,13 +616,17 @@ class Router:
                 middleware=(self.middleware + (middleware or [])),
             )
             self.routes.append(route)
+            if route.name:
+                self._route_index[route.name] = route
             return func
 
         return decorator
 
-    def include_router(self, router: "Router", prefix: str = "") -> None:
-        """Merge another router's routes into this one."""
+    def include_router(self, router: "Router", prefix: str = "", namespace: str = "") -> None:
+        """Merge another router's routes into this one, with optional prefix and namespace."""
         combined_prefix = (self.prefix + prefix).rstrip("/")
+        router_namespace = namespace or router.name
+        
         for route in router.routes:
             # Join prefixes and ensure no double slashes
             new_path = combined_prefix + route.path
@@ -629,9 +635,9 @@ class Router:
                 
             route.path = new_path
             
-            # Prepend router name to route name if present
-            if router.name and route.name:
-                route.name = f"{router.name}:{route.name}"
+            # Prepend router namespace to route name if present
+            if router_namespace and route.name:
+                route.name = f"{router_namespace}:{route.name}"
             
             # Merge middleware
             for m in self.middleware:
@@ -639,6 +645,8 @@ class Router:
                     route.middleware.insert(0, m)
                     
             self.routes.append(route)
+            if route.name:
+                self._route_index[route.name] = route
 
 
     def to_starlette_routes(self) -> list[Any]:
@@ -709,55 +717,35 @@ class Router:
             )
         return starlette_routes
 
-
-
     def url_for(self, name: str, **path_params: Any) -> str:
         """
-        Generate a URL for a given route name.
+        Generate a URL path for a given route name.
+        Uses O(1) dictionary lookup and delegates to robust Starlette path parsing.
 
         Args:
-            name: The registered route name, or a sub-router name using
-                  the ``router:name`` convention.
+            name: The explicitly registered route name (including namespaces, e.g. "admin:index").
             **path_params: Values to substitute into the path template.
 
         Returns:
-            The fully-interpolated path string.
+            The fully-interpolated path string (e.g. "/items/42").
 
         Raises:
             ValueError: If a required path parameter was not provided,
                 or if no route matches *name*.
-
-        Example:
-            >>> router.url_for("show", id=42)
-            '/items/42'
         """
-        for route in self.routes:
-            if route.name == name:
-                path = route.path
-                # Handle path parameters like {name} or {name:type}
-                for param, value in path_params.items():
-                    # Simple {param}
-                    path = path.replace(f"{{{param}}}", str(value))
-                    # {param:type} — escape the parameter name so regex
-                    # special characters don't cause silent mismatches.
-                    path = re.sub(rf"{{{re.escape(param)}:.*?}}", str(value), path)
-
-                # Raise on un-substituted parameters instead of silently
-                # returning a broken URL.
-                if "{" in path:
-                    remaining = re.findall(r"\{(.*?)\}", path)
-                    missing = [r.split(":")[0] for r in remaining]
-                    raise ValueError(
-                        f"Missing path parameters for route '{name}': {missing}"
-                    )
-                return path
-
-        # Search in sub-router naming convention (router:name)
-        if ":" not in name:
-            for route in self.routes:
-                if route.name and route.name.split(":")[-1] == name:
-                    return self.url_for(route.name, **path_params)
-
-        raise ValueError(f"Route with name '{name}' not found")
+        route = self._route_index.get(name)
+        if not route:
+            raise ValueError(f"No route matching name '{name}' was found.")
+            
+        from starlette.routing import Route as StarletteRoute, WebSocketRoute as StarletteWSRoute
+        try:
+            if isinstance(route, WebSocketRoute):
+                sr = StarletteWSRoute(path=route.path, endpoint=lambda: None, name=name)
+            else:
+                sr = StarletteRoute(path=route.path, endpoint=lambda: None, name=name)
+            return str(sr.url_path_for(name, **path_params))
+        except Exception as e:
+            # Starlette raises NoMatchFound or similar if URL interpolation fails
+            raise ValueError(f"Failed to generate URL for route '{name}': {e}")
 
 # RouteResolver removed in favor of native Starlette routing.

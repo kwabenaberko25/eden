@@ -117,8 +117,13 @@ async def before_save(sender, instance, is_new, session):
 async def after_save(sender, instance, is_new, session):
     # Runs after successful save
     if is_new:
-        await send_welcome_email(instance)
+        # Note: Do NOT perform blocking network I/O here directly! 
+        # Defer heavy background work to the task queue.
+        await send_welcome_email_task.delay(instance.id)
 ```
+
+> [!WARNING]
+> **Avoid Blocking I/O in Hooks:** Lifecycle signals and method hooks run within the active database transaction scope. If you perform I/O-bound operations (such as making HTTP API calls, sending emails, or contacting external services) directly inside a hook, you will block the event loop and hold the database connection open for the duration of the request. Over time, this leads to connection pool exhaustion and performance degradation. Always defer these operations to a background task broker (e.g., using Eden's `tasks` module).
 
 **Available Signals:**
 - `pre_save(sender, instance, is_new, session)` - Before save (create/update)
@@ -128,7 +133,12 @@ async def after_save(sender, instance, is_new, session):
 
 ### 5. Access Control (RBAC)
 
-Row-level security via the `__rbac__` dictionary:
+Row-level security via the `__rbac__` dictionary safely limits data access at the ORM baseline.
+
+> [!TIP]
+> **Performance by Design:** Eden's RBAC system avoids expensive SQL JOINs or nested subqueries. Rules like `AllowOwner(field="user_id")` simply append efficient `WHERE user_id = X` clauses to queries. When querying, ensure columns used in RBAC rules (like `user_id` or `tenant_id`) are properly indexed in your database to maintain blazing-fast lookups. 
+> 
+> **Admin Escape Hatch:** If you are running an admin script, background job, or absolutely must query data ignoring RBAC logic, use the explicit escape hatch: `await Model.without_rbac().all()`.
 
 ```python
 from eden.db.access import AllowOwner, AllowRoles, AllowAuthenticated

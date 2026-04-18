@@ -9,7 +9,7 @@ from eden.exceptions import EdenTemplateRecursionError
 logger = logging.getLogger("eden.templating.parser")
 
 MAX_PARSE_DEPTH = 100  # Prevent stack overflows from maliciously nested templates
-
+MAX_PARSE_NODES = 10000  # Prevent Billion Laughs / resource exhaustion
 
 class TemplateSyntaxError(JinjaTemplateSyntaxError):
     def __init__(
@@ -25,6 +25,11 @@ class TemplateSyntaxError(JinjaTemplateSyntaxError):
         self.column = column
         self.line = line
         self.source = source
+
+
+class TemplateLimitExceeded(TemplateSyntaxError):
+    """Raised when parser hits maximum node threshold during execution."""
+    pass
 
 
 class Node:
@@ -80,6 +85,7 @@ class TemplateParser:
         self.name = name
         self.filename = filename
         self.source = source
+        self.node_count = 0
         # Multi-error recovery: collect errors instead of aborting immediately
         self.errors: list[dict] = []
 
@@ -136,6 +142,14 @@ class TemplateParser:
                 node = self.parse_node(current_depth=1)
                 if node:
                     nodes.append(node)
+            except TemplateLimitExceeded as err:
+                self.errors.append({
+                    "line": getattr(err, "line", 0) or 0,
+                    "column": getattr(err, "column", 0) or 0,
+                    "message": str(err),
+                })
+                logger.error("Template node limit exceeded. Aborting AST parse.")
+                break # Abort parsing to prevent CPU spin
             except TemplateSyntaxError as err:
                 # Record the error with location info
                 self.errors.append({
@@ -233,6 +247,19 @@ class TemplateParser:
         return new_nodes
 
     def parse_node(self, current_depth: int = 0) -> Node | None:
+        self.node_count += 1
+        if self.node_count > MAX_PARSE_NODES:
+            token = self.peek()
+            raise TemplateLimitExceeded(
+                f"Maximum template node limit exceeded (max {MAX_PARSE_NODES}). "
+                f"The template structure is suspiciously large or generated maliciously.",
+                line=token.line if hasattr(token, "line") else 0,
+                column=token.column if hasattr(token, "column") else 0,
+                name=self.name,
+                filename=self.filename,
+                source=self.source,
+            )
+
         if current_depth > MAX_PARSE_DEPTH:
             token = self.peek()
             raise EdenTemplateRecursionError(

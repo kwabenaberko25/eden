@@ -213,8 +213,16 @@ class AdminSite:
         # Discover and register all models that haven't been manually registered
         for model in get_models():
             if not self.is_registered(model):
-                # We use the base ModelAdmin which has auto-detection for fields/titles
-                self.register(model, ModelAdmin)
+                # Only auto-register if explicitly opted-in
+                if getattr(model, '__admin_enabled__', False):
+                    # We use the base ModelAdmin which has auto-detection for fields/titles
+                    self.register(model, ModelAdmin)
+                else:
+                    from eden.logging import get_logger
+                    get_logger(__name__).debug(
+                        "Model '%s' skipped by auto_discover (set __admin_enabled__ = True to enable).",
+                        model.__name__
+                    )
 
     def register_defaults(self):
         """Register core models (User, AuditLog, etc.) if they are available."""
@@ -349,7 +357,7 @@ class AdminSite:
 
         router = Router(prefix=prefix)
         
-        def admin_required(func: Callable) -> Callable:
+        def require_admin(func: Callable) -> Callable:
             @functools.wraps(func)
             async def wrapper(request, *args, **kwargs) -> Any:
                 user = getattr(request.state, "user", None)
@@ -392,27 +400,27 @@ class AdminSite:
                 t = m.__tablename__
                 
                 @router.get(f"/{t}/", name=f"admin_{t}_list")
-                @admin_required
+                @require_admin
                 async def list_view(request: Request) -> Response:
                     return await admin_list_view(request, m, ma, site_instance)
 
                 @router.route(f"/{t}/add", methods=["GET", "POST"], name=f"admin_{t}_add")
-                @admin_required
+                @require_admin
                 async def add_view(request: Request) -> Response:
                     return await admin_add_view(request, m, ma, site_instance)
 
                 @router.get(f"/{t}/{{record_id}}", name=f"admin_{t}_detail")
-                @admin_required
+                @require_admin
                 async def detail_view(request: Request, record_id: str) -> Response:
                     return await admin_detail_view(request, m, ma, record_id, site_instance)
 
                 @router.route(f"/{t}/{{record_id}}/edit", methods=["GET", "POST"], name=f"admin_{t}_edit")
-                @admin_required
+                @require_admin
                 async def edit_view(request: Request, record_id: str) -> Response:
                     return await admin_edit_view(request, m, ma, record_id, site_instance)
 
                 @router.post(f"/{t}/action", name=f"admin_{t}_action")
-                @admin_required
+                @require_admin
                 async def action_view(request: Request) -> JsonResponse:
                     data = await request.json()
                     action_name = data.get("action")
@@ -427,7 +435,7 @@ class AdminSite:
                     return JsonResponse({"message": f"Action {action_name} not found"}, status_code=404)
 
                 @router.post(f"/{t}/{{record_id}}/delete", name=f"admin_{t}_delete")
-                @admin_required
+                @require_admin
                 async def delete_view(request: Request, record_id: str) -> Response:
                     return await admin_delete_view(request, m, ma, record_id, site_instance)
 
@@ -436,35 +444,42 @@ class AdminSite:
         # ── Generic API Endpoints ─────────────────────────────────────
         
         @router.get("/api/metadata")
+        @require_admin
         async def api_metadata(request: Request):
             return await views.admin_api_metadata(request, self)
 
         def make_api_list(model_class, admin_class):
+            @require_admin
             async def api_list(request: Request):
                 return await views.admin_api_list(request, model_class, admin_class)
             return api_list
 
         def make_api_get(model_class, admin_class):
+            @require_admin
             async def api_get(request: Request, id: str):
                 return await views.admin_api_get(request, model_class, admin_class, id)
             return api_get
 
         def make_api_create(model_class, admin_class):
+            @require_admin
             async def api_create(request: Request):
                 return await views.admin_api_create(request, model_class, admin_class)
             return api_create
 
         def make_api_update(model_class, admin_class):
+            @require_admin
             async def api_update(request: Request, id: str):
                 return await views.admin_api_update(request, model_class, admin_class, id)
             return api_update
 
         def make_api_delete(model_class, admin_class):
+            @require_admin
             async def api_delete(request: Request, id: str):
                 return await views.admin_api_delete(request, model_class, admin_class, id)
             return api_delete
 
         def make_api_action(model_class, admin_class):
+            @require_admin
             async def api_action(request: Request):
                 return await views.admin_api_action(request, model_class, admin_class)
             return api_action

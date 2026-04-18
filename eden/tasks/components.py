@@ -42,7 +42,7 @@ class TaskProgress(Component):
         <div id="task-progress-{self.task_id}" 
              class="eden-task-progress p-6 bg-slate-900/50 backdrop-blur-md border border-slate-700/50 rounded-2xl shadow-2xl overflow-hidden"
              hx-get="{status_url}" 
-             hx-trigger="every {self.poll_interval}s" 
+             hx-trigger="load, every {self.poll_interval}s" 
              hx-swap="outerHTML"
              hx-target="this">
             

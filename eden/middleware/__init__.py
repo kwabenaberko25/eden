@@ -108,6 +108,13 @@ class SessionMiddleware(StarletteSession):
         https_only: bool = True,  # Default to True for production safety
     ) -> None:
         if not secret_key:
+            import os
+            # Prevent random keys in production which breaks multi-worker deployments
+            if os.getenv("EDEN_ENV", "dev").lower() == "prod":
+                raise ValueError(
+                    "SessionMiddleware requires a 'secret_key' in production. "
+                    "Auto-generating a random key will cause session invalidation across multiple workers."
+                )
             secret_key = secrets.token_hex(32)
         super().__init__(
             app,
@@ -751,33 +758,46 @@ CRITICAL MIDDLEWARE ORDERING GUIDE
 Middleware is executed in REVERSE registration order (outer to inner).
 The order matters greatly for security and functionality.
 
+VISUAL EXECUTION STACK (Outermost to Innermost request flow):
+──────────────────────────────────────────────────────────────
+Request ──> [RequestContext] (PRIORITY_CORE - 20)
+       ├──> [Correlation ID] (PRIORITY_CORE - 15)
+       ├──> [Logging]        (PRIORITY_CORE - 10)
+       ├──> [Telemetry]      (PRIORITY_CORE - 5)
+       ├──> [Security API]   (PRIORITY_CORE + 10)
+       ├──> [Session]        (PRIORITY_CORE + 20)
+       ├──> [CSRF]           (PRIORITY_CORE + 30)
+       ├──> [Messages]       (PRIORITY_CORE + 40)
+       ├──> [Route Auth]     (PRIORITY_HIGH)
+       ├──> [CORS]           (PRIORITY_STANDARD)
+       ├──> [GZip]           (PRIORITY_LOW)
+       └──> Application Route Logic
+
 RECOMMENDED ORDER (from setup_defaults):
 ────────────────────────────────────────
-1. SecurityHeadersMiddleware     (Inject security HTTP headers first)
-   - X-Content-Type-Options, X-Frame-Options, CSP headers
+1. RequestContext, Correlation & Logging
+   - Generates trace IDs and logs all requests.
    - Position: FIRST (outermost)
 
-2. SessionMiddleware             (Enable session before dependent middleware)
+2. SecurityHeadersMiddleware     (Inject security HTTP headers first)
+   - X-Content-Type-Options, X-Frame-Options, CSP headers
+
+3. SessionMiddleware             (Enable session before dependent middleware)
    - Cookies, session storage
    - MUST be before CSRF and Messages
-   - Position: SECOND
 
-3. CSRFMiddleware                (CSRF depends on session)
+4. CSRFMiddleware                (CSRF depends on session)
    - Token generation and validation
    - MUST be after Session, before Auth
-   - Position: THIRD
 
-4. GZipMiddleware                (Compression is neutral to most middleware)
+5. GZipMiddleware                (Compression is neutral to most middleware)
    - Response compression
-   - Position: FOURTH
 
-5. CORSMiddleware                (CORS allows cross-origin requests)
+6. CORSMiddleware                (CORS allows cross-origin requests)
    - Allow/check cross-origin headers
-   - Position: FIFTH
 
-6. Other middleware (Auth, Telemetry, etc.)
+7. Other middleware (Auth, Telemetry, etc.)
    - Application-specific concerns
-   - Position: SIXTH+
 
 DEPENDENCY CHAIN:
 ─────────────────

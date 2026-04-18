@@ -14,6 +14,14 @@ logger = logging.getLogger("eden.db.lifecycle")
 class LifecycleMixin:
     """
     Mixin that provides lifecycle management (save, delete) and hook execution.
+    
+    WARNING:
+    Lifecycle hooks (e.g., `before_save`, `after_save`) execute within the active database 
+    transaction scope. If you need to perform I/O-bound operations (such as making API calls
+    or sending emails) in response to lifecycle events, DO NOT execute them directly inside 
+    the hook. Blocking the event loop here will hold the database connection open and may
+    cause performance degradation or timeouts. Instead, defer these operations to a background 
+    task broker (e.g., using Eden's `tasks` module).
     """
 
     async def save(
@@ -175,7 +183,13 @@ class LifecycleMixin:
         await self.delete(session=session, hard=True, commit=commit)
 
     async def _call_hook(self, hook_name: str, session: AsyncSession) -> None:
-        """Call a lifecycle hook."""
+        """
+        Call a lifecycle hook.
+        
+        Hooks can be either synchronous or asynchronous.
+        WARNING: Avoid blocking I/O in these hooks. Heavy background work should be 
+        delegated to the task queue.
+        """
         hook = getattr(self, hook_name, None)
         if hook and callable(hook):
             res = hook(session)
