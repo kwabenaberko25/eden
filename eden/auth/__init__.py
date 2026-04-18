@@ -60,6 +60,14 @@ from eden.auth.password_reset import (
 )
 from eden.auth.password_reset_routes import router as password_reset_router
 
+# ── Built-in Auth Routes ─────────────────────────────────────────────────
+
+from eden.auth.routes import auth_router
+
+# ── Session Tracking ─────────────────────────────────────────────────────
+
+from eden.auth.session_tracker import SessionTracker, InMemorySessionTrackerStore
+
 # ── OAuth ────────────────────────────────────────────────────────────────
 
 from eden.auth.oauth import OAuthManager, OAuthProvider, GoogleProvider, GitHubProvider
@@ -137,8 +145,11 @@ from eden.auth.actions import (
     authenticate,
     login,
     logout,
+    logout_all,
     create_user,
 )
+
+from eden.auth.audit import auth_audit
 
 from eden.auth.access import (
     RoleManager,
@@ -176,6 +187,13 @@ __all__ = [
     "PasswordResetService",
     "PasswordResetEmail",
     "password_reset_router",
+    
+    # Built-in Auth Routes
+    "auth_router",
+    
+    # Session Tracking
+    "SessionTracker",
+    "InMemorySessionTrackerStore",
     
     # OAuth
     "OAuthManager",
@@ -217,7 +235,12 @@ __all__ = [
     "authenticate",
     "login",
     "logout",
+    "logout_all",
     "create_user",
+    
+    # Audit logging
+    "auth_audit",
+    
     "check_permission",
     "RoleManager",
     "require_auth",

@@ -49,6 +49,24 @@ class TokenDenylist:
     async def is_revoked(self, jti: str) -> bool:
         """Check if a token has been revoked."""
         return await self.store.is_revoked(jti)
+    
+    async def revoke_all_for_user(self, user_id: str, issued_before: datetime.datetime) -> None:
+        """
+        Mark all tokens for a user issued before a given timestamp as revoked.
+        
+        This is used for "logout everywhere" functionality. The check is performed
+        in JWTBackend.authenticate() by comparing token 'iat' against the user's
+        last global-logout timestamp.
+        
+        Args:
+            user_id: The user's ID.
+            issued_before: Tokens issued before this datetime are considered revoked.
+        """
+        # Store as a special key: "user_revoke:{user_id}" -> issued_before
+        key = f"user_revoke:{user_id}"
+        # Use a far-future expiry for user-level revocations (e.g., 30 days)
+        far_future = datetime.datetime.now(datetime.UTC) + datetime.timedelta(days=30)
+        await self.store.set(key, far_future)
 
 # Global singleton for default usage
 denylist = TokenDenylist()

@@ -51,19 +51,23 @@ class JWTBackend(AuthBackend[User]):
 
     async def authenticate(self, request: Request) -> User | None:
         """
-        Extract and verify the JWT from the Authorization header.
-        Expected format: `Authorization: Bearer <token>`
+        Extract and verify the JWT from the Authorization header or cookies.
         """
+        token = None
+
+        # 1. Try Authorization header (standard API approach)
         auth_header = request.headers.get("Authorization")
-        if not auth_header:
-            return None
+        if auth_header:
+            token_parts = auth_header.split()
+            if len(token_parts) >= 2 and token_parts[0].lower() == "bearer":
+                token = token_parts[1]
 
-        # Robustly extract the token (handling potential whitespace variations)
-        token_parts = auth_header.split()
-        if len(token_parts) < 2 or token_parts[0].lower() != "bearer":
-            return None
+        # 2. Try cookies (browser/SPA approach)
+        if not token:
+            token = request.cookies.get("access_token")
 
-        token = token_parts[1]
+        if not token:
+            return None
         try:
             payload = self.decode_token(token)
             user_id = payload.get("sub")

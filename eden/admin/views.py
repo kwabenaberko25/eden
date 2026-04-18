@@ -582,15 +582,24 @@ async def admin_login(request: Request, admin_site: Any) -> Response:
                             
                         token = jwt_backend.create_access_token(payload)
                         
-                        # Append token to next_url
-                        url_parts = list(urlparse(next_url))
-                        query = dict(parse_qsl(url_parts[4]))
-                        query['token'] = token
-                        url_parts[4] = urlencode(query)
-                        next_url = urlunparse(url_parts)
-                    
-                    from eden.responses import RedirectResponse
-                    return RedirectResponse(url=next_url, status_code=303)
+                        from eden.security.urls import is_safe_url
+                        if not is_safe_url(next_url, request):
+                            next_url = "/admin/"
+
+                        from eden.responses import RedirectResponse
+                        response = RedirectResponse(url=next_url, status_code=303)
+                        
+                        # Set access_token cookie
+                        # Use Secure=True if the request is HTTPS
+                        response.set_cookie(
+                            "access_token",
+                            token,
+                            httponly=True,
+                            secure=request.url.scheme == "https",
+                            samesite="lax",
+                            max_age=3600 * 24  # 24 hours
+                        )
+                        return response
                 elif user:
                     # User exists but is not staff
                     error = "Your account does not have administrator privileges."
@@ -1013,14 +1022,26 @@ async def admin_api_create(
     from eden.db import _MISSING
     
     try:
+        data = await request.json()
         instance = model()
-        from sqlalchemy import inspect as sa_inspect
-        mapper = sa_inspect(model)
-        for col in mapper.columns:
-            if col.key in data and col.key not in model_admin.exclude_fields:
-                val = data[col.key]
-                # Type conversions if necessary
-                setattr(instance, col.key, val)
+        
+        # Use BaseForm for validation if available
+        from eden.forms import BaseForm
+        try:
+            form = BaseForm.from_model(instance)
+            form.data = data
+            if not form.is_valid():
+                return JsonResponse({"error": "Validation failed", "fields": form.errors}, status_code=400)
+            # Update instance with validated data
+            for key, val in form.model_instance.model_dump(exclude_unset=True).items():
+                setattr(instance, key, val)
+        except Exception as e:
+            # Fallback to direct mapping if form logic fails
+            from sqlalchemy import inspect as sa_inspect
+            mapper = sa_inspect(model)
+            for col in mapper.columns:
+                if col.key in data and col.key not in model_admin.exclude_fields:
+                    setattr(instance, col.key, data[col.key])
                 
         await model_admin.save_model(request, instance, data, change=False)
         
@@ -1061,12 +1082,24 @@ async def admin_api_update(
         
     data = await request.json()
     try:
-        from sqlalchemy import inspect as sa_inspect
-        mapper = sa_inspect(model)
-        for col in mapper.columns:
-            if col.key in data and col.key not in model_admin.exclude_fields:
-                val = data[col.key]
-                setattr(record, col.key, val)
+        # Use BaseForm for validation if available
+        from eden.forms import BaseForm
+        try:
+            form = BaseForm.from_model(record)
+            form.data = data
+            if not form.is_valid():
+                return JsonResponse({"error": "Validation failed", "fields": form.errors}, status_code=400)
+            # Update record with validated data
+            for key, val in form.model_instance.model_dump(exclude_unset=True).items():
+                if key not in model_admin.exclude_fields:
+                    setattr(record, key, val)
+        except Exception:
+            # Fallback to direct mapping
+            from sqlalchemy import inspect as sa_inspect
+            mapper = sa_inspect(model)
+            for col in mapper.columns:
+                if col.key in data and col.key not in model_admin.exclude_fields:
+                    setattr(record, col.key, data[col.key])
                 
         await model_admin.save_model(request, record, data, change=True)
         
@@ -1139,20 +1172,37 @@ async def _get_fields_data(model: type, model_admin: Any, instance: Any | None =
             continue
             
         value = getattr(instance, col.key, "") if instance else ""
+        
+        # Serialization for JSON/UUID/Date
+        if value is not None:
+            if hasattr(value, "isoformat"):
+                value = value.isoformat()
+            elif isinstance(value, (uuid.UUID, bytes)):
+                value = str(value)
+            elif hasattr(value, "id"):
+                value = str(value.id)
+
         field_info = {}
         if hasattr(model, col.key):
             attr = getattr(model, col.key)
             if hasattr(attr, "info"):
                 field_info = attr.info
         
+        # Detect encrypted fields
+        is_encrypted = field_info.get("encrypted", False)
+        widget = field_info.get("widget")
+        if is_encrypted and not widget:
+            widget = "password"
+
         fields_data.append({
             "key": col.key,
             "label": field_info.get("label", col.key.replace("_", " ").title()),
-            "value": value,
-            "widget": field_info.get("widget"),
+            "value": value if not is_encrypted else "********",
+            "widget": widget,
             "required": not getattr(col, "nullable", True),
             "readonly": col.key in model_admin.readonly_fields or col.key == "id",
-            "type": str(col.type)
+            "type": str(col.type).split("(")[0].lower(), # simplify type (e.g. varchar, integer)
+            "is_encrypted": is_encrypted
         })
     return fields_data
 

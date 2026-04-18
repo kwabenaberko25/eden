@@ -409,6 +409,7 @@ def rate_limit(limit: str, key: Optional[Callable] = None):
         # Store limit config in function metadata
         func._rate_limit = limit
         func._rate_limit_key = key
+        func.__wrapped__ = func  # Mark as decorated for verification
         return func
     
     return decorator

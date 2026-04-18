@@ -91,10 +91,15 @@ class GZipMiddleware(StarletteGZip):
 
 class SessionMiddleware(StarletteSession):
     """
-    Cookie-based session middleware.
+    Cookie-based session middleware with auto-detected HTTPS requirement.
 
     Usage:
         app.add_middleware("session", secret_key="your-secret")
+    
+    Note:
+        ``https_only`` defaults to ``True`` in production (EDEN_ENV=prod) and
+        ``False`` in development/test. This ensures cookies are sent securely
+        in production while allowing local HTTP development.
     """
 
     def __init__(
@@ -105,7 +110,7 @@ class SessionMiddleware(StarletteSession):
         max_age: int = 14 * 24 * 60 * 60,  # 14 days
         path: str = "/",
         same_site: str = "lax",
-        https_only: bool = True,  # Default to True for production safety
+        https_only: bool | None = None,  # Auto-detect from EDEN_ENV
     ) -> None:
         if not secret_key:
             import os
@@ -116,6 +121,12 @@ class SessionMiddleware(StarletteSession):
                     "Auto-generating a random key will cause session invalidation across multiple workers."
                 )
             secret_key = secrets.token_hex(32)
+        
+        # Auto-detect HTTPS requirement based on environment
+        if https_only is None:
+            import os
+            https_only = os.getenv("EDEN_ENV", "dev").lower() == "prod"
+        
         super().__init__(
             app,
             secret_key=secret_key,

@@ -379,6 +379,12 @@ class AdminSite:
                     from eden.exceptions import Forbidden
                     raise Forbidden(detail="Staff access required.")
                 
+                # Global tenancy for superusers
+                if getattr(user, "is_superuser", False):
+                    from eden.tenancy.context import AcrossTenants
+                    async with AcrossTenants():
+                        return await func(request, *args, **kwargs)
+                
                 return await func(request, *args, **kwargs)
             return wrapper
 

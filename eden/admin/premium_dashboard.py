@@ -355,17 +355,9 @@ class PremiumAdminTemplate:
 
         // Simple client-side auth guard for SPA shell
         async function checkAuth() {{
-            const urlParams = new URLSearchParams(window.location.search);
-            const urlToken = urlParams.get('token');
-            if (urlToken) {{
-                console.log("Found token in URL, saving to localStorage");
-                localStorage.setItem('admin_token', urlToken);
-                // Clean the URL without reloading
-                const newUrl = window.location.pathname + window.location.search.replace(/[?&]token=[^&]+/, '').replace(/^&/, '?');
-                window.history.replaceState({{}}, document.title, newUrl || window.location.pathname);
-            }}
-
-            const token = localStorage.getItem('admin_token');
+            // Token is now managed via secure HTTP-only cookies.
+            // localStorage is kept for backward compatibility with 
+            // any non-cookie based authentication if needed.
             return true;
         }}
 

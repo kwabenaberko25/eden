@@ -53,14 +53,45 @@ class AuthenticationMiddleware:
 
             # 2. Set user in context and request state
             if user:
-                user_token = set_user(user)
-                # Ensure user is available in both scope and request
-                request.scope["user"] = user
-                request.user = user
-                # Stay compatible with Starlette state if used
-                if "state" not in request.scope:
-                    request.scope["state"] = {}
-                request.scope["state"]["user"] = user
+                # Check absolute session expiry
+                if hasattr(request, "session"):
+                    import datetime
+                    auth_at_str = request.session.get("_auth_authenticated_at")
+                    if auth_at_str:
+                        try:
+                            auth_at = datetime.datetime.fromisoformat(auth_at_str)
+                            now = datetime.datetime.now(datetime.UTC)
+                            # Get max age from app config, default 30 days
+                            max_age = 30 * 24 * 60 * 60
+                            try:
+                                from eden.config import get_config
+                                max_age = get_config().session_absolute_max_age
+                            except Exception:
+                                pass
+                            
+                            if (now - auth_at).total_seconds() > max_age:
+                                logger.info("Session expired (absolute expiry). Forcing re-login.")
+                                user = None
+                                # Clear the expired session
+                                request.session.pop("_auth_user_id", None)
+                                request.session.pop("_auth_authenticated_at", None)
+                        except (ValueError, TypeError):
+                            pass
+                
+                if user:
+                    user_token = set_user(user)
+                    # Ensure user is available in both scope and request
+                    request.scope["user"] = user
+                    request.user = user
+                    # Stay compatible with Starlette state if used
+                    if "state" not in request.scope:
+                        request.scope["state"] = {}
+                    request.scope["state"]["user"] = user
+                else:
+                    request.scope["user"] = None
+                    request.user = None
+                    if "state" in request.scope:
+                        request.scope["state"]["user"] = None
             else:
                 request.scope["user"] = None
                 request.user = None
@@ -103,14 +134,45 @@ class AuthenticationMiddleware:
 
             # 2. Set user in context and request state
             if user:
-                user_token = set_user(user)
-                # Ensure user is available in both scope and request
-                scope["user"] = user
-                request.user = user
-                # Stay compatible with Starlette state if used
-                if "state" not in scope:
-                    scope["state"] = {}
-                scope["state"]["user"] = user
+                # Check absolute session expiry
+                if hasattr(request, "session"):
+                    import datetime
+                    auth_at_str = request.session.get("_auth_authenticated_at")
+                    if auth_at_str:
+                        try:
+                            auth_at = datetime.datetime.fromisoformat(auth_at_str)
+                            now = datetime.datetime.now(datetime.UTC)
+                            # Get max age from app config, default 30 days
+                            max_age = 30 * 24 * 60 * 60
+                            try:
+                                from eden.config import get_config
+                                max_age = get_config().session_absolute_max_age
+                            except Exception:
+                                pass
+                            
+                            if (now - auth_at).total_seconds() > max_age:
+                                logger.info("Session expired (absolute expiry). Forcing re-login.")
+                                user = None
+                                # Clear the expired session
+                                request.session.pop("_auth_user_id", None)
+                                request.session.pop("_auth_authenticated_at", None)
+                        except (ValueError, TypeError):
+                            pass
+                
+                if user:
+                    user_token = set_user(user)
+                    # Ensure user is available in both scope and request
+                    scope["user"] = user
+                    request.user = user
+                    # Stay compatible with Starlette state if used
+                    if "state" not in scope:
+                        scope["state"] = {}
+                    scope["state"]["user"] = user
+                else:
+                    scope["user"] = None
+                    request.user = None
+                    if "state" in scope:
+                        scope["state"]["user"] = None
             else:
                 scope["user"] = None
                 request.user = None

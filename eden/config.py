@@ -268,6 +268,22 @@ class Config(BaseModel):
         description="CSRF cookie httponly flag"
     )
     
+    # Auth Session Settings
+    session_remember_me_max_age: int = Field(
+        default=30 * 24 * 60 * 60,  # 30 days
+        description="Max age in seconds for 'remember me' sessions"
+    )
+    session_absolute_max_age: int = Field(
+        default=30 * 24 * 60 * 60,  # 30 days
+        description="Absolute maximum session lifetime in seconds, regardless of activity. "
+                    "After this period, user MUST re-authenticate."
+    )
+    max_concurrent_sessions: int = Field(
+        default=0,
+        description="Maximum concurrent sessions per user. 0 = unlimited.",
+        ge=0,
+    )
+    
     # Pagination
     page_size: int = Field(
         default=20,

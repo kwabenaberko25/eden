@@ -34,8 +34,13 @@ class SessionBackend(AuthBackend[User]):
         return await User.get(session, user_id)
 
     async def login(self, request: Request, user: Any) -> None:
-        """Store user ID in the session."""
+        """Store user ID in the session and rotate session key to prevent fixation attacks."""
         if "session" in request.scope:
+            # Rotate session to prevent fixation attacks
+            old_data = dict(request.session)
+            request.session.clear()
+            request.session.update(old_data)
+            # Set user ID in the fresh session
             request.session[self.SESSION_KEY] = str(user.id)
 
     async def logout(self, request: Request) -> None:
