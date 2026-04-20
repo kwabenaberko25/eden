@@ -352,7 +352,7 @@ class LoginPageTemplate:
         const LOGIN_URL = "{login_url}";
         const urlParams = new URLSearchParams(window.location.search);
         const nextParam = urlParams.get('next');
-        const defaultRedirect = window.location.pathname.replace(/\/login\/?$/, "") || "/admin";
+        const defaultRedirect = window.location.pathname.replace(/\\\\/login\\\\/?$/, "") || "/admin";
         const REDIRECT_URL = nextParam ? decodeURIComponent(nextParam) : defaultRedirect;
         
         // Load saved username if remember me was checked

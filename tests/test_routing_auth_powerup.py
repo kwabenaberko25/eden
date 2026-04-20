@@ -236,7 +236,7 @@ class TestURLReversal:
     async def test_redirect_to_named_route(self, client):
         """redirect_to generates a redirect response to a named route."""
         resp = await client.get("/goto-profile/42")
-        assert resp.status_code == 307
+        assert resp.status_code == 303
         assert "/user/42" in resp.headers["location"]
 
     @pytest.mark.asyncio

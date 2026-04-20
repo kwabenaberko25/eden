@@ -20,8 +20,8 @@ def create_app() -> Eden:
     app.add_middleware("ratelimit", max_requests=200, window_seconds=60)
     app.add_middleware("logging")
 
-    # Health checks
-    app.enable_health_checks()
+    # Health checks (Handled by main_router)
+    # app.enable_health_checks()
 
     return app
 

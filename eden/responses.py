@@ -101,7 +101,7 @@ class SafeRedirectResponse(RedirectResponse):
     def __init__(
         self,
         url: str,
-        status_code: int = 307,
+        status_code: int = 303,
         headers: dict[str, str] | None = None,
         allowed_hosts: set[str] | None = None,
         **kwargs: Any,
@@ -160,7 +160,7 @@ def html(
 
 def redirect(
     url: str,
-    status_code: int = 307,
+    status_code: int = 303,
     headers: dict[str, str] | None = None,
     safe: bool = False,
     allowed_hosts: set[str] | None = None,
@@ -173,7 +173,7 @@ def redirect(
 
 def redirect_to(
     name: str,
-    status_code: int = 307,
+    status_code: int = 303,
     headers: dict[str, str] | None = None,
     **path_params: Any
 ) -> RedirectResponse:

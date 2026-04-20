@@ -191,12 +191,22 @@ class TaskResultBackend:
             await self._distributed.set(self._prefix + task_id, result.to_dict(), ttl=result.ttl_seconds)
             # If failed, add to a set of dead-letter tasks for easy retrieval
             if result.status == "dead_letter":
-                # We store the ID in a dead_letter set
                 dl_key = "eden:tasks:dead_letter"
-                current_dl = await self._distributed.get(dl_key) or []
-                if task_id not in current_dl:
-                    current_dl.append(task_id)
-                    await self._distributed.set(dl_key, current_dl)
+                lock_key = "eden:tasks:locks:dead_letter"
+                
+                import uuid
+                identifier = str(uuid.uuid4())
+                
+                # Acquire lock for DLQ read-modify-write
+                lock_acquired = await self._distributed.acquire_lock(lock_key, timeout=5.0, identifier=identifier)
+                try:
+                    current_dl = await self._distributed.get(dl_key) or []
+                    if task_id not in current_dl:
+                        current_dl.append(task_id)
+                        await self._distributed.set(dl_key, current_dl)
+                finally:
+                    if lock_acquired:
+                        await self._distributed.release_lock(lock_key, identifier)
         
         self._local_results[task_id] = result
         logger.debug("Stored task result: %s (status=%s)", task_id, result.status)
@@ -306,11 +316,12 @@ class PeriodicTask:
             self.cron if self.cron else f"{self._interval_seconds}s interval",
         )
 
+        next_run = datetime.now()
         while True:
             try:
+                now = datetime.now()
                 # Calculate next wait time
                 if self.cron and croniter:
-                    now = datetime.now()
                     it = croniter(self.cron, now)
                     next_run = it.get_next(datetime)
                     wait_seconds = (next_run - now).total_seconds()
@@ -318,7 +329,12 @@ class PeriodicTask:
                     if wait_seconds > 0:
                         await asyncio.sleep(wait_seconds + 0.1)
                 elif self._interval_seconds > 0:
-                    await asyncio.sleep(self._interval_seconds)
+                    next_run += timedelta(seconds=self._interval_seconds)
+                    wait_seconds = (next_run - datetime.now()).total_seconds()
+                    if wait_seconds > 0:
+                        await asyncio.sleep(wait_seconds)
+                    else:
+                        next_run = datetime.now()
                 else:
                     logger.error("Periodic task '%s' has no valid schedule.", self.func.__name__)
                     break
@@ -367,29 +383,45 @@ class PeriodicTask:
                     logger.debug("Executing periodic task: %s", self.func.__name__)
                     start_time = datetime.now()
                     
-                    # Periodic tasks also get recorded in the result backend
-                    task_id = f"periodic-{self.func.__name__}-{int(start_time.timestamp())}"
+                    # Periodic tasks act as the initiator correlation ID
+                    correlation_id = f"periodic-{self.func.__name__}-{int(start_time.timestamp())}"
+                    real_task_id = None
                     
                     # Execute via kiq to use the broker's execution logic (including DI)
                     if hasattr(self.func, "kiq"):
-                        await self.func.kiq()
+                        from eden.context import set_request_id, reset_request_id
+                        token = set_request_id(correlation_id)
+                        try:
+                            # Capture Taskiq's native ID if available
+                            kicked = await self.func.kiq()
+                            if hasattr(kicked, "task_id"):
+                                real_task_id = kicked.task_id
+                        finally:
+                            reset_request_id(token)
+                            
+                        status_val = "dispatched"
+                        status_msg = f"Task successfully dispatched to broker queue. (Broker ID: {real_task_id or 'unknown'})"
                     else:
                         result = self.func()
                         if asyncio.iscoroutine(result):
                             await result
+                        status_val = "success"
+                        status_msg = None
 
                     self._execution_count += 1
                     self._last_error = None
                     
                     # Record success
                     success_info = TaskResult(
-                        task_id=task_id,
+                        task_id=correlation_id,
                         task_name=self.func.__name__,
-                        status="success",
+                        status=status_val,
                         started_at=start_time,
                         completed_at=datetime.now(),
+                        status_message=status_msg,
+                        metadata={"broker_task_id": real_task_id} if real_task_id else None
                     )
-                    await self.broker._result_backend.store_result(task_id, success_info)
+                    await self.broker._result_backend.store_result(correlation_id, success_info)
 
                 except Exception as exc:
                     self._last_error = exc
@@ -403,7 +435,7 @@ class PeriodicTask:
                     
                     # Record failure
                     error_info = TaskResult(
-                        task_id=f"periodic-{self.func.__name__}-{int(datetime.now().timestamp())}",
+                        task_id=correlation_id if 'correlation_id' in locals() else f"periodic-{self.func.__name__}-{int(datetime.now().timestamp())}",
                         task_name=self.func.__name__,
                         status="failed",
                         error=str(exc),
@@ -648,7 +680,6 @@ class EdenBroker:
                     "Failed to resolve dependencies for task '%s' (%s): %s", 
                     func.__name__, task_id, e
                 )
-                reset_request_id(token)
                 raise TaskExecutionError(f"DI failure in task {func.__name__}") from e
 
             final_kwargs = {**dep_kwargs, **kwargs}
@@ -744,13 +775,17 @@ class EdenBroker:
                     if self._result_backend:
                         await self._result_backend.store_result(task_id, retry_info)
 
-                    # Exponential backoff logic
-                    idx = min(attempt - 1, len(retry_delays) - 1)
-                    base_delay = retry_delays[idx]
-                    if exponential_backoff:
-                        delay = base_delay * (2 ** (attempt - 1))
+                    # Revised Exponential backoff logic
+                    idx = attempt - 1
+                    if idx < len(retry_delays):
+                        delay = retry_delays[idx]
                     else:
-                        delay = base_delay
+                        last_delay = retry_delays[-1] if retry_delays else 1
+                        if exponential_backoff:
+                            growth = idx - len(retry_delays) + 1
+                            delay = last_delay * (2 ** growth)
+                        else:
+                            delay = last_delay
 
                     logger.warning(
                         "Task '%s' (%s) failed (attempt %d). Retrying in %ds... (Correlation: %s)",

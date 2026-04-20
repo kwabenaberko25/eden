@@ -58,7 +58,7 @@ class TestPhase3Reliability:
             raise ValueError("Intentional failure")
 
         # Defining and getting function to test
-        handler = broker._wrap_task_function(failing_task, 2, [1, 1], exponential_backoff=True)
+        handler = broker._wrap_task_function(failing_task, 2, [1.0], exponential_backoff=True)
         
         with patch("asyncio.sleep", AsyncMock()) as mock_sleep:
             with pytest.raises(Exception):

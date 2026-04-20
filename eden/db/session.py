@@ -146,8 +146,7 @@ class Database:
                 kwargs.setdefault("pool_size", 10)
                 kwargs.setdefault("max_overflow", 20)
                 kwargs.setdefault("pool_recycle", 3600)
-            
-            kwargs.setdefault("pool_timeout", 30)
+                kwargs.setdefault("pool_timeout", 30)
 
         kwargs.setdefault("pool_pre_ping", True)
         kwargs.setdefault("echo", False)
@@ -473,9 +472,28 @@ def __inspect_signature(func: Callable[..., Any]) -> Any:
             parameters = {}
         return AnySignature()
 
-def get_db(request: Any) -> Database:
-    """Dependency helper for route handlers."""
-    return request.app.state.db
+def get_db(request: Any = None) -> Database:
+    """
+    Resolve the Database instance.
+    
+    When called with a request (from route handlers), uses request.app.state.db.
+    When called without arguments (from context/background tasks), falls back
+    to the globally bound Model._db.
+    """
+    if request is not None:
+        db = getattr(getattr(request, 'app', None), 'state', None)
+        if db is not None and hasattr(db, 'db'):
+            return db.db
+    
+    # Fallback to globally bound database
+    from eden.db.base import Model
+    db = getattr(Model, '_db', None)
+    if db is not None:
+        return db
+    
+    raise RuntimeError(
+        "No database available. Either pass a request object or call db.connect() first."
+    )
 
 def init_db(url: str, app: Any = None, **kwargs: Any) -> Database:
     """Helper to initialize database and optionally attach to app state."""

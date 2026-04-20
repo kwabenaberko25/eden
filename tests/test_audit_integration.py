@@ -521,7 +521,7 @@ class TestResponses:
     def test_redirect_response(self):
         from eden.responses import redirect
         resp = redirect("/login")
-        assert resp.status_code == 307
+        assert resp.status_code == 303
 
     def test_safe_redirect_blocks_external(self):
         from eden.responses import SafeRedirectResponse

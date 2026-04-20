@@ -54,7 +54,7 @@ class AuthenticationMiddleware:
             # 2. Set user in context and request state
             if user:
                 # Check absolute session expiry
-                if hasattr(request, "session"):
+                if "session" in request.scope:
                     import datetime
                     auth_at_str = request.session.get("_auth_authenticated_at")
                     if auth_at_str:
@@ -135,7 +135,7 @@ class AuthenticationMiddleware:
             # 2. Set user in context and request state
             if user:
                 # Check absolute session expiry
-                if hasattr(request, "session"):
+                if "session" in request.scope:
                     import datetime
                     auth_at_str = request.session.get("_auth_authenticated_at")
                     if auth_at_str:

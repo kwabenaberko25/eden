@@ -113,5 +113,5 @@ class TestResponses:
 
     async def test_redirect_response(self, client: AsyncClient):
         resp = await client.get("/redirect", follow_redirects=False)
-        assert resp.status_code == 307
+        assert resp.status_code == 303
         assert resp.headers["location"] == "/destination"

@@ -7,7 +7,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy import String, Uuid
 
 from eden.db.base import Model, reactive
-from eden.db.listeners import _trigger_broadcast
+from eden.db.listeners import _queue_broadcast
 from eden.context import context_manager
 
 # Define test models
@@ -32,7 +32,7 @@ async def test_reactive_channels_standard():
     # Mock connection_manager.broadcast
     # We patch inside the async loop to ensure it's picked up by the background task
     with patch("eden.websocket.connection_manager.broadcast", new_callable=AsyncMock) as mock_broadcast:
-        _trigger_broadcast(None, None, task, "updated")
+        _queue_broadcast(task, "updated")
         
         # Wait a bit for the background task (asyncio.create_task) to execute
         await asyncio.sleep(0.1)
@@ -59,7 +59,7 @@ async def test_reactive_channels_tenant_isolated():
         # Set tenant context
         context_manager.set_tenant(str(tenant_id))
         
-        _trigger_broadcast(None, None, task, "created")
+        _queue_broadcast(task, "created")
         
         # Wait for background task
         await asyncio.sleep(0.1)
@@ -91,7 +91,7 @@ async def test_context_persistence_in_broadcast():
     with patch("eden.websocket.connection_manager.broadcast", side_effect=mock_broadcast_impl) as mock_broadcast:
         context_manager.set_tenant(str(tenant_id))
         
-        _trigger_broadcast(None, None, task, "updated")
+        _queue_broadcast(task, "updated")
         
         # Clear context immediately in the "main thread"
         context_manager.set_tenant(None)

@@ -648,17 +648,29 @@ async def admin_api_me(request: Request) -> JsonResponse:
     return JsonResponse({
         "username": username,
         "role": role,
-        "created_at": getattr(user, "created_at", datetime.now()).isoformat() if hasattr(user, "created_at") else datetime.now().isoformat(),
-        "is_active": getattr(user, "is_active", True),
+        "id": str(getattr(user, "id", "")),
+        "is_superuser": getattr(user, "is_superuser", False)
     })
+
 
 async def admin_api_logout(request: Request) -> JsonResponse:
     """
-    Logout the current user.
+    Logout the current user and clear the JWT cookie.
     """
     from eden.auth.actions import logout
-    await logout(request)
-    return JsonResponse({"status": "ok", "message": "Logged out successfully"})
+    try:
+        await logout(request)
+    except Exception:
+        pass
+        
+    response = JsonResponse({"status": "ok", "message": "Logged out successfully"})
+    response.delete_cookie(
+        "access_token",
+        path="/",
+        httponly=True,
+        samesite="lax"
+    )
+    return response
 
 # ── Dashboard API ────────────────────────────────────────────────────
 
@@ -668,36 +680,48 @@ async def admin_api_dashboard(request: Request, admin_site: Any) -> JsonResponse
     and model summaries. Optimized for the PremiumAdmin SPA.
     """
     await _check_staff(request)
-    
-    # 1. Fetch Stats (Real counts where possible)
+    session = getattr(request.state, "db", None)
+
+    async def _count_model(name: str) -> str:
+        for m in admin_site._registry:
+            if m.__name__ == name:
+                try:
+                    qs = m.query(session)
+                    if hasattr(qs, "include_tenantless"):
+                        qs = qs.include_tenantless()
+                    return str(await qs.count())
+                except: break
+        return "0"
+
+    # 1. Fetch Stats
     stats = [
         {
             "label": "Total Tenants",
-            "value": await _get_model_count("Tenant"),
+            "value": await _count_model("Tenant"),
             "icon": "fa-solid fa-building",
             "color": "var(--primary)",
-            "trend": "+12%" # Mock trend for aesthetic
+            "trend": "+12%"
         },
         {
-            "label": "Active Subscriptions",
-            "value": await _get_model_count("Subscription"),
-            "icon": "fa-solid fa-credit-card",
+            "label": "Active Users",
+            "value": await _count_model("User"),
+            "icon": "fa-solid fa-users",
             "color": "#10b981",
             "trend": "+5%"
         },
         {
-            "label": "Support Tickets",
-            "value": await _get_model_count("SupportTicket"),
-            "icon": "fa-solid fa-headset",
+            "label": "Audit Entries",
+            "value": await _count_model("AuditLog"),
+            "icon": "fa-solid fa-clipboard-list",
             "color": "#f59e0b",
-            "trend": "-2%"
+            "trend": "+8%"
         },
         {
-            "label": "Revenue (MTD)",
-            "value": "$12,540.50", # Still placeholder for now, but formatted nicely
-            "icon": "fa-solid fa-money-bill-trend-up",
+            "label": "Feature Flags",
+            "value": "8", # Hardcoded for now if not in registry
+            "icon": "fa-solid fa-flag",
             "color": "#6366f1",
-            "trend": "+8%"
+            "trend": "Stable"
         }
     ]
     
@@ -706,9 +730,6 @@ async def admin_api_dashboard(request: Request, admin_site: Any) -> JsonResponse
     try:
         from eden.admin.models import AuditLog
         from eden.tenancy.context import AcrossTenants
-        
-        # Ensure we use the request's session if available
-        session = getattr(request.state, "db", None)
         
         async with AcrossTenants():
             recent_logs = await AuditLog.query(session=session).order_by("-timestamp").limit(8).all()
@@ -733,7 +754,7 @@ async def admin_api_dashboard(request: Request, admin_site: Any) -> JsonResponse
         table_name = str(getattr(model, "__tablename__", model.__name__.lower()))
         try:
             # Bypass tenancy for admin dashboard counts
-            qs = model.query(session or _MISSING)
+            qs = model.query(session)
             if hasattr(qs, "include_tenantless"):
                 qs = qs.include_tenantless()
             count = await qs.count()
@@ -744,6 +765,7 @@ async def admin_api_dashboard(request: Request, admin_site: Any) -> JsonResponse
             "name": model.__name__,
             "table": table_name,
             "label": model_admin.get_verbose_name_plural(model),
+            "label_plural": model_admin.get_verbose_name_plural(model),
             "count": count,
             "icon": getattr(model_admin, "icon", "fa-solid fa-cube"),
             "color": "var(--primary)"
@@ -751,8 +773,8 @@ async def admin_api_dashboard(request: Request, admin_site: Any) -> JsonResponse
 
     return JsonResponse({
         "stats": stats,
-        "activities": activities,
         "models": models_summary,
+        "activities": activities,
         "server_time": datetime.now().isoformat()
     })
 
@@ -798,7 +820,7 @@ async def admin_api_metadata(request: Request, admin_site: Any) -> JsonResponse:
             "list_display": model_admin.get_list_display(model),
             "search_fields": model_admin.search_fields,
             "list_filter": model_admin.list_filter,
-            "actions": model_admin.actions,
+            "actions": [a.name if hasattr(a, 'name') else str(a) for a in model_admin.actions],
             "inlines": inlines
         }
     
@@ -1194,6 +1216,11 @@ async def _get_fields_data(model: type, model_admin: Any, instance: Any | None =
         if is_encrypted and not widget:
             widget = "password"
 
+        # Detect choices
+        choices = field_info.get("choices")
+        if not choices and hasattr(col.type, "enums"): # For Enum types
+            choices = list(col.type.enums)
+
         fields_data.append({
             "key": col.key,
             "label": field_info.get("label", col.key.replace("_", " ").title()),
@@ -1202,7 +1229,8 @@ async def _get_fields_data(model: type, model_admin: Any, instance: Any | None =
             "required": not getattr(col, "nullable", True),
             "readonly": col.key in model_admin.readonly_fields or col.key == "id",
             "type": str(col.type).split("(")[0].lower(), # simplify type (e.g. varchar, integer)
-            "is_encrypted": is_encrypted
+            "is_encrypted": is_encrypted,
+            "choices": choices
         })
     return fields_data
 

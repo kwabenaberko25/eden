@@ -21,7 +21,7 @@ class SessionBackend(AuthBackend[User]):
         """
         Check for a user ID in the session.
         """
-        if not hasattr(request, "session"):
+        if "session" not in request.scope:
             # SessionMiddleware might not be installed or configured
             return None
 
@@ -47,5 +47,5 @@ class SessionBackend(AuthBackend[User]):
         """
         Remove the user ID from the session.
         """
-        if hasattr(request, "session"):
+        if "session" in request.scope:
             request.session.pop(self.SESSION_KEY, None)

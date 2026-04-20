@@ -12,10 +12,69 @@ logger = logging.getLogger("eden.templating")
 
 class TemplateCompiler:
     def compile(self, nodes: List[Node]) -> str:
+        # Pre-process: Lift headless directives in extended templates
+        nodes = self._lift_nodes(nodes)
+        
         parts = []
         for node in nodes:
             parts.append(self.visit(node))
         return "".join(parts)
+
+    def _lift_nodes(self, nodes: List[Node]) -> List[Node]:
+        """
+        Lifts top-level directives (like @push, @set) into the first available @section 
+        in a template that uses @extends. Without this, Jinja2 ignores them.
+        """
+        from .parser import DirectiveNode, TextNode
+        
+        # Check if this template explicitly extends another
+        has_extends = any(isinstance(n, DirectiveNode) and n.name == "extends" for n in nodes)
+        if not has_extends:
+            return nodes
+
+        # Find all available blocks/sections in this template
+        sections = [n for n in nodes if isinstance(n, DirectiveNode) and n.name in ("section", "block")]
+        if not sections:
+            # If there are no sections to lift into, we can't do much.
+            # The template is essentially broken for Jinja2 anyway.
+            return nodes
+
+        # Identify nodes to lift: those that aren't extends or section, 
+        # and aren't just whitespace TextNodes.
+        liftable = []
+        keep = []
+        for node in nodes:
+            is_extends = isinstance(node, DirectiveNode) and node.name == "extends"
+            is_section = isinstance(node, DirectiveNode) and node.name in ("section", "block")
+            
+            if is_extends or is_section:
+                keep.append(node)
+                continue
+            
+            # Substantive content? (directives or non-whitespace text)
+            is_substantive = True
+            if isinstance(node, TextNode):
+                if not node.content.strip():
+                    is_substantive = False
+            
+            if is_substantive:
+                liftable.append(node)
+            else:
+                # Keep whitespace in its original relative position
+                keep.append(node)
+
+        if not liftable:
+            return nodes
+
+        # Inject liftable nodes into the start of the first section's body.
+        # This ensures they are executed by Jinja2 during the block render cycle.
+        first_section = sections[0]
+        if first_section.body is None:
+            first_section.body = []
+        
+        first_section.body = liftable + first_section.body
+        
+        return keep
 
     def visit(self, node: Node) -> str:
         if isinstance(node, TextNode):

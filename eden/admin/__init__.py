@@ -520,10 +520,11 @@ class AdminSite:
         # ── Dashboard Root ───────────────────────────────────────────
 
         @router.get("/")
+        @router.get("/dashboard", name="admin_dashboard_alias")
         async def dashboard(request: Request):
             # The PremiumAdminTemplate SPA does its own auth checking via API.
             # We don't check staff here to allow the SPA to catch ?token= URL parameters.
-            admin_url = str(request.url.path).rstrip("/")
+            admin_url = str(request.url.path).replace("/dashboard", "").rstrip("/")
             return HtmlResponse(PremiumAdminTemplate.render(api_base=f"{admin_url}/api"))
 
         # Legacy routes (kept for compatibility during transition if needed)

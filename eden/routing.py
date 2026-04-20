@@ -735,7 +735,7 @@ class Router:
         """
         route = self._route_index.get(name)
         if not route:
-            raise ValueError(f"No route matching name '{name}' was found.")
+            raise ValueError(f"Route named '{name}' not found.")
             
         from starlette.routing import Route as StarletteRoute, WebSocketRoute as StarletteWSRoute
         try:
