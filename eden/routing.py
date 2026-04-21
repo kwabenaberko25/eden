@@ -735,6 +735,12 @@ class Router:
         """
         route = self._route_index.get(name)
         if not route:
+            for k, v in self._route_index.items():
+                if k.endswith(f":{name}"):
+                    route = v
+                    name = k
+                    break
+        if not route:
             raise ValueError(f"Route named '{name}' not found.")
             
         from starlette.routing import Route as StarletteRoute, WebSocketRoute as StarletteWSRoute
@@ -746,6 +752,8 @@ class Router:
             return str(sr.url_path_for(name, **path_params))
         except Exception as e:
             # Starlette raises NoMatchFound or similar if URL interpolation fails
+            if "No route exists" in str(e):
+                raise ValueError(f"Missing path parameters for route '{name}': {e}")
             raise ValueError(f"Failed to generate URL for route '{name}': {e}")
 
 # RouteResolver removed in favor of native Starlette routing.

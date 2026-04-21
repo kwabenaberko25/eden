@@ -40,11 +40,19 @@ Provides an alternative to croniter-based scheduling with:
 """
 
 import logging
+import warnings
 from typing import Any, Dict, Optional, Callable, List
 from dataclasses import dataclass
 from enum import Enum
 from datetime import datetime, timedelta
 import asyncio
+
+warnings.warn(
+    "eden.apscheduler_backend is deprecated and will be removed in Eden 2.0. "
+    "Please use the unified EdenBroker scheduled tasks instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -178,8 +186,8 @@ class APSchedulerBackend:
             config: SchedulerConfig instance
         """
         self.config = config or SchedulerConfig()
-        self.job_store = MemoryJobStore() if config.job_store == "memory" else MemoryJobStore()
-        self.executor = Executor(max_workers=config.max_workers)
+        self.job_store = MemoryJobStore() if self.config.job_store == "memory" else MemoryJobStore()
+        self.executor = Executor(max_workers=self.config.max_workers)
         self.running = False
         self._scheduler_task = None
     

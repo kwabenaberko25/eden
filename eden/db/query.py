@@ -74,6 +74,7 @@ class QuerySet(Generic[T]):
         # Start with the model's base select (respects SoftDeleteMixin, TenantMixin etc.)
         self._stmt = model_cls._base_select(**kwargs)
         self._include_tenantless = kwargs.get("include_tenantless", False)
+        self._include_deleted = kwargs.get("include_deleted", False)
         self._prefetch_paths: list[str] = []
         self._select_related_paths: list[str] = []
         self._joined_models: set[type[Any]] = set()
@@ -82,6 +83,10 @@ class QuerySet(Generic[T]):
         self._annotations: dict[str, Any] = {}
         self._rbac_applied: bool = False
         self._cache_ttl: int | None = None
+
+        def _str_expr(e):
+            return str(e.compile(compile_kwargs={"literal_binds": True}))
+        self._base_criteria_strs = { _str_expr(e) for e in self._stmt._where_criteria } if self._stmt._where_criteria else set()
 
     def __await__(self):
         """Allows awaiting the QuerySet directly to call .all()"""
@@ -122,7 +127,9 @@ class QuerySet(Generic[T]):
         clone._annotations = self._annotations.copy()
         clone._rbac_applied = self._rbac_applied
         clone._include_tenantless = self._include_tenantless
+        clone._include_deleted = self._include_deleted
         clone._cache_ttl = self._cache_ttl
+        clone._base_criteria_strs = self._base_criteria_strs.copy()
         return clone
 
 
@@ -315,12 +322,53 @@ class QuerySet(Generic[T]):
         clone._return_dicts = False
         return clone
 
+    def _rebuild_base_select(self, **kwargs) -> Any:
+        """Helper to rebuild the base select statement with new kwargs, preserving existing clauses."""
+        def _str_expr(e):
+            return str(e.compile(compile_kwargs={"literal_binds": True}))
+        
+        # 1. Identify user-added criteria by subtracting original base criteria
+        user_criteria = []
+        if self._stmt._where_criteria:
+            for expr in self._stmt._where_criteria:
+                if _str_expr(expr) not in self._base_criteria_strs:
+                    user_criteria.append(expr)
+
+        # 2. Build the new statement without the auto-applied filter
+        # Pass both include_tenantless and include_deleted from the current state (updated via kwargs)
+        current_flags = {
+            "include_tenantless": self._include_tenantless,
+            "include_deleted": self._include_deleted,
+        }
+        current_flags.update(kwargs)
+        new_stmt = self._model_cls._base_select(**current_flags)
+        
+        # 3. Update the tracked base criteria for this clone
+        new_base_criteria_strs = { _str_expr(e) for e in new_stmt._where_criteria } if new_stmt._where_criteria else set()
+        
+        # 4. Re-apply the user criteria
+        if user_criteria:
+            new_stmt = new_stmt.where(*user_criteria)
+            
+        # 5. Re-apply ordering, limits, groups
+        if hasattr(self._stmt, '_order_by_clauses') and self._stmt._order_by_clauses:
+            new_stmt = new_stmt.order_by(*self._stmt._order_by_clauses)
+        if self._stmt._limit_clause is not None:
+            new_stmt = new_stmt.limit(self._stmt._limit_clause)
+        if self._stmt._offset_clause is not None:
+            new_stmt = new_stmt.offset(self._stmt._offset_clause)
+        if hasattr(self._stmt, '_group_by_clauses') and self._stmt._group_by_clauses:
+            new_stmt = new_stmt.group_by(*self._stmt._group_by_clauses)
+            
+        return new_stmt, new_base_criteria_strs
+
     def include_tenantless(self) -> QuerySet[T]:
         """
         Bypass tenancy isolation for this query.
         """
         clone = self._clone()
-        clone._stmt = self._model_cls._base_select(include_tenantless=True)
+        clone._include_tenantless = True
+        clone._stmt, clone._base_criteria_strs = self._rebuild_base_select(include_tenantless=True)
         return clone
 
     def include_deleted(self) -> QuerySet[T]:
@@ -328,7 +376,8 @@ class QuerySet(Generic[T]):
         Include soft-deleted records in the query.
         """
         clone = self._clone()
-        clone._stmt = self._model_cls._base_select(include_deleted=True)
+        clone._include_deleted = True
+        clone._stmt, clone._base_criteria_strs = self._rebuild_base_select(include_deleted=True)
         return clone
 
     def limit(self, n: int) -> QuerySet[T]:

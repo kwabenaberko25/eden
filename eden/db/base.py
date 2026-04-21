@@ -469,6 +469,13 @@ class Model(Base, AccessControl, ValidatorMixin, LifecycleMixin, SerializationMi
             if whens:
                 set_values[field] = case(*whens, else_=getattr(cls, field))
         stmt = update(cls).where(id_col.in_(ids)).values(set_values)
+        
+        # ── Tenant Isolation Guard ──────────────────────────────────
+        from eden.tenancy.registry import tenancy_registry
+        if tenancy_registry.is_isolated(cls):
+            from eden.tenancy.mixins import TenantMixin
+            stmt = TenantMixin._apply_tenant_filter(cls, stmt)
+            
         db = cls._get_db()
         try:
             async with db.transaction(session=session) as sess:

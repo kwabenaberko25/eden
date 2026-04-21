@@ -33,9 +33,9 @@ def tasks() -> None:
 
 @tasks.command()
 @click.option("--app", "app_path", default="app:app", help="App import path (module:variable).")
-@click.option("--workers", default=2, type=int, help="Number of worker processes.")
+@click.option("--workers", default=None, type=int, help="Number of worker processes. Defaults to config.task_worker_concurrency.")
 @click.option("--log-level", default="INFO", help="Logging level.")
-def worker(app_path: str, workers: int, log_level: str) -> None:
+def worker(app_path: str, workers: Optional[int], log_level: str) -> None:
     """
     Start taskiq worker processes for background job execution.
     
@@ -51,6 +51,10 @@ def worker(app_path: str, workers: int, log_level: str) -> None:
     module_name, obj_name = app_path.split(":")
     module = importlib.import_module(module_name)
     app = getattr(module, obj_name)
+    
+    # Use config worker count if not specified
+    if workers is None:
+        workers = getattr(app.config, "task_worker_concurrency", 4)
 
     # Get the broker path for taskiq CLI
     broker_path = f"{module_name}:{obj_name}.broker"
@@ -74,6 +78,21 @@ def worker(app_path: str, workers: int, log_level: str) -> None:
     except ImportError:
         click.echo("  ✗ Taskiq worker CLI not available. Install taskiq with: pip install taskiq", err=True)
         raise click.ClickException("Taskiq not properly installed")
+
+@tasks.command()
+@click.option("--app", "app_path", default="app:app", help="App import path.")
+@click.argument("task_id")
+def revoke(app_path: str, task_id: str) -> None:
+    """Revoke a pending/running task by ID."""
+    module_name, obj_name = app_path.split(":")
+    module = importlib.import_module(module_name)
+    app = getattr(module, obj_name)
+    
+    async def _revoke():
+        await app.broker.revoke(task_id)
+        click.echo(f"  ✓ Task {task_id} revoked.")
+        
+    asyncio.run(_revoke())
 
 
 @tasks.command()
@@ -211,20 +230,31 @@ def dead_letter(app_path: str) -> None:
     app = getattr(module, obj_name)
 
     async def get_dead_letter():
-        tasks = await app.broker.get_dead_letter_tasks()
-        return tasks
+        backend = app.broker._result_backend
+        dl_tasks = []
+        if backend._distributed:
+            dl_ids = await backend._distributed.get("eden:tasks:dead_letter") or []
+            for dl_id in dl_ids[-100:]:
+                res = await backend.get_result(dl_id)
+                if res:
+                    dl_tasks.append(res)
+        else:
+            for task_id, res in backend._local_results.items():
+                if res.status == "dead_letter":
+                    dl_tasks.append(res)
+        return dl_tasks
 
     try:
-        tasks = asyncio.run(get_dead_letter())
+        tasks_list = asyncio.run(get_dead_letter())
         
-        if not tasks:
+        if not tasks_list:
             click.echo("  ✓ No dead-letter tasks (all good!)")
             return
 
-        click.echo(f"  ⚠ Dead-Letter Tasks: {len(tasks)}")
+        click.echo(f"  ⚠ Dead-Letter Tasks: {len(tasks_list)}")
         click.echo()
 
-        for result in tasks:
+        for result in tasks_list:
             click.echo(f"    {result.task_id}: {result.task_name}")
             click.echo(f"      Status: {result.status}")
             click.echo(f"      Retries: {result.retries}")
@@ -233,6 +263,38 @@ def dead_letter(app_path: str) -> None:
 
     except Exception as e:
         click.echo(f"  ✗ Error retrieving dead-letter tasks: {e}", err=True)
+
+
+@tasks.command()
+@click.option("--app", "app_path", default="app:app", help="App import path (module:variable).")
+@click.argument("task_id")
+def retry(app_path: str, task_id: str) -> None:
+    """
+    Retry a failed or dead-letter task manually.
+    
+    Note: Can only retry if the original arguments are known.
+    Since Eden doesn't store arguments by default, this will only
+    reset the task status to pending. Full execution requires
+    dispatching a new task.
+    
+    Example::
+    
+        eden tasks retry 1234-abcd
+    """
+    module_name, obj_name = app_path.split(":")
+    module = importlib.import_module(module_name)
+    app = getattr(module, obj_name)
+
+    async def _retry():
+        backend = app.broker._result_backend
+        result = await backend.get_result(task_id)
+        if not result:
+            click.echo(f"  ✗ Task {task_id} not found.", err=True)
+            return
+
+        click.echo(f"  ℹ Cannot execute task {task_id} without arguments. Please manually dispatch {result.task_name}.")
+        
+    asyncio.run(_retry())
 
 
 __all__ = ["tasks"]

@@ -21,8 +21,8 @@ import logging
 import traceback
 import uuid
 from collections.abc import Callable
-from dataclasses import dataclass, asdict
-from datetime import datetime, timedelta
+from dataclasses import dataclass, asdict, field
+from datetime import datetime, timedelta, timezone
 from typing import Any, TypeVar, Optional, List, Union, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -144,13 +144,14 @@ class TaskResult:
     error_traceback: str | None = None
     retries: int = 0
     correlation_id: str | None = None
-    created_at: datetime = datetime.now()
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     started_at: datetime | None = None
     completed_at: datetime | None = None
     progress: float = 0.0
     status_message: str | None = None
     metadata: dict[str, Any] | None = None
     ttl_seconds: int = 604800  # 7 days default
+    _version: int = 1  # Schema version for forward-compatible deserialization
 
     def to_dict(self) -> dict[str, Any]:
         """Convert result to JSON-serializable dictionary."""
@@ -168,11 +169,22 @@ class TaskResult:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> TaskResult:
-        """Reconstruct result from dictionary."""
+        """Reconstruct result from dictionary.
+        
+        Tolerant of extra/missing keys for forward-compatible deserialization
+        across framework upgrades.
+        """
         for key in ["created_at", "started_at", "completed_at"]:
             if data.get(key) and isinstance(data[key], str):
-                data[key] = datetime.fromisoformat(data[key])
-        return cls(**data)
+                try:
+                    data[key] = datetime.fromisoformat(data[key])
+                except (ValueError, TypeError):
+                    data[key] = None
+        # Filter to only fields the dataclass actually accepts
+        import dataclasses
+        valid_fields = {f.name for f in dataclasses.fields(cls)}
+        filtered = {k: v for k, v in data.items() if k in valid_fields}
+        return cls(**filtered)
 
 
 class TaskResultBackend:
@@ -203,7 +215,11 @@ class TaskResultBackend:
                     current_dl = await self._distributed.get(dl_key) or []
                     if task_id not in current_dl:
                         current_dl.append(task_id)
-                        await self._distributed.set(dl_key, current_dl)
+                        # Prune DLQ: keep only last 1000 entries to prevent unbounded growth
+                        if len(current_dl) > 1000:
+                            current_dl = current_dl[-1000:]
+                        # Store with TTL matching result TTL (default 7 days)
+                        await self._distributed.set(dl_key, current_dl, ttl=result.ttl_seconds)
                 finally:
                     if lock_acquired:
                         await self._distributed.release_lock(lock_key, identifier)
@@ -231,7 +247,7 @@ class TaskResultBackend:
 
     async def cleanup_expired(self) -> int:
         """Remove expired results (local only). Redis handles TTL automatically."""
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         expired_ids = []
         for task_id, result in self._local_results.items():
             completed_at = result.completed_at
@@ -316,10 +332,10 @@ class PeriodicTask:
             self.cron if self.cron else f"{self._interval_seconds}s interval",
         )
 
-        next_run = datetime.now()
+        next_run = datetime.now(timezone.utc)
         while True:
             try:
-                now = datetime.now()
+                now = datetime.now(timezone.utc)
                 # Calculate next wait time
                 if self.cron and croniter:
                     it = croniter(self.cron, now)
@@ -330,11 +346,20 @@ class PeriodicTask:
                         await asyncio.sleep(wait_seconds + 0.1)
                 elif self._interval_seconds > 0:
                     next_run += timedelta(seconds=self._interval_seconds)
-                    wait_seconds = (next_run - datetime.now()).total_seconds()
+                    # Coalesce: if next_run fell behind, snap to now + interval
+                    # This prevents burst catch-up execution when tasks are slow
+                    if next_run < now:
+                        logger.debug(
+                            "Periodic task '%s' missed schedule (coalesced). "
+                            "Snapping to now + interval.",
+                            self.func.__name__,
+                        )
+                        next_run = now + timedelta(seconds=self._interval_seconds)
+                    wait_seconds = (next_run - datetime.now(timezone.utc)).total_seconds()
                     if wait_seconds > 0:
                         await asyncio.sleep(wait_seconds)
                     else:
-                        next_run = datetime.now()
+                        next_run = datetime.now(timezone.utc)
                 else:
                     logger.error("Periodic task '%s' has no valid schedule.", self.func.__name__)
                     break
@@ -350,7 +375,7 @@ class PeriodicTask:
                         # 1. Check last run time to prevent double-execution in same interval
                         last_run_key = f"eden:task_last_run:{self.func.__name__}"
                         last_run = await backend.get(last_run_key)
-                        now_ts = datetime.now().timestamp()
+                        now_ts = datetime.now(timezone.utc).timestamp()
                         
                         if last_run:
                             try:
@@ -375,13 +400,13 @@ class PeriodicTask:
                         logger.debug("periodic task %s coordination success", self.func.__name__)
                         
                     except Exception as e:
-                        logger.error("Coordilation error for periodic task '%s': %s", self.func.__name__, e)
+                        logger.error("Coordination error for periodic task '%s': %s", self.func.__name__, e)
                         if backend and not lock_acquired:
                             continue
 
                 try:
                     logger.debug("Executing periodic task: %s", self.func.__name__)
-                    start_time = datetime.now()
+                    start_time = datetime.now(timezone.utc)
                     
                     # Periodic tasks act as the initiator correlation ID
                     correlation_id = f"periodic-{self.func.__name__}-{int(start_time.timestamp())}"
@@ -417,7 +442,7 @@ class PeriodicTask:
                         task_name=self.func.__name__,
                         status=status_val,
                         started_at=start_time,
-                        completed_at=datetime.now(),
+                        completed_at=datetime.now(timezone.utc),
                         status_message=status_msg,
                         metadata={"broker_task_id": real_task_id} if real_task_id else None
                     )
@@ -435,12 +460,12 @@ class PeriodicTask:
                     
                     # Record failure
                     error_info = TaskResult(
-                        task_id=correlation_id if 'correlation_id' in locals() else f"periodic-{self.func.__name__}-{int(datetime.now().timestamp())}",
+                        task_id=correlation_id if 'correlation_id' in locals() else f"periodic-{self.func.__name__}-{int(datetime.now(timezone.utc).timestamp())}",
                         task_name=self.func.__name__,
                         status="failed",
                         error=str(exc),
                         error_traceback=traceback.format_exc(),
-                        completed_at=datetime.now(),
+                        completed_at=datetime.now(timezone.utc),
                     )
                     await self.broker._result_backend.store_result(error_info.task_id, error_info)
 
@@ -491,8 +516,16 @@ class EdenBroker:
         broker: AsyncBroker,
         max_retries: int = DEFAULT_MAX_RETRIES,
         retry_delays: list[int] | None = None,
+        default_timeout: int = 0,
     ) -> None:
-        """Initialize the Eden task broker."""
+        """Initialize the Eden task broker.
+        
+        Args:
+            broker: The underlying Taskiq broker (InMemoryBroker or RedisBroker)
+            max_retries: Default max retries for tasks
+            retry_delays: Default retry delay schedule (seconds per attempt)
+            default_timeout: Default task execution timeout in seconds (0=no timeout)
+        """
         self.broker = broker
         self.app: Any = None  # Set by Eden app
         self._periodic: list[PeriodicTask] = []
@@ -502,6 +535,20 @@ class EdenBroker:
 
         self.max_retries = max_retries
         self.retry_delays = retry_delays or DEFAULT_RETRY_DELAYS
+        self.default_timeout = default_timeout
+
+        # Signal hooks — lists of async callables
+        # Called with (task_name: str, task_id: str, args, kwargs)
+        self._on_task_prerun: list[Callable] = []
+        self._on_task_postrun: list[Callable] = []
+        # Called with (task_name: str, task_id: str, result)
+        self._on_task_success: list[Callable] = []
+        # Called with (task_name: str, task_id: str, exception)
+        self._on_task_failure: list[Callable] = []
+
+        # Revocation tracking
+        self._revocation_prefix = "eden:tasks:revoked:"
+        self._local_revoked: set[str] = set()
 
         # Distributed coordination
         self._distributed_backend: DistributedBackend | None = None
@@ -557,6 +604,82 @@ class EdenBroker:
         # Re-initialize result backend with the distributed backend
         self._result_backend = TaskResultBackend(backend)
 
+    # ── Signal Hook Registration ──────────────────────────────────────────
+
+    def on_task_prerun(self, func: Callable) -> Callable:
+        """Register a callback invoked before a task executes.
+        
+        The callback receives (task_name: str, task_id: str).
+        
+        Example::
+        
+            @app.task.on_task_prerun
+            async def log_start(task_name, task_id):
+                print(f"Starting {task_name} ({task_id})")
+        """
+        self._on_task_prerun.append(func)
+        return func
+
+    def on_task_postrun(self, func: Callable) -> Callable:
+        """Register a callback invoked after a task completes (success or failure).
+        
+        The callback receives (task_name: str, task_id: str, status: str).
+        """
+        self._on_task_postrun.append(func)
+        return func
+
+    def on_task_success(self, func: Callable) -> Callable:
+        """Register a callback invoked after a task succeeds.
+        
+        The callback receives (task_name: str, task_id: str, result: Any).
+        """
+        self._on_task_success.append(func)
+        return func
+
+    def on_task_failure(self, func: Callable) -> Callable:
+        """Register a callback invoked after a task permanently fails (exhausts retries).
+        
+        The callback receives (task_name: str, task_id: str, exception: Exception).
+        """
+        self._on_task_failure.append(func)
+        return func
+
+    async def _fire_signal(self, signal_list: list[Callable], *args: Any) -> None:
+        """Fire all callbacks in a signal list, swallowing individual errors."""
+        for cb in signal_list:
+            try:
+                if inspect.iscoroutinefunction(cb):
+                    await cb(*args)
+                else:
+                    cb(*args)
+            except Exception as e:
+                logger.error("Error in task signal callback %s: %s", cb.__name__, e)
+
+    # ── Task Revocation ───────────────────────────────────────────────────
+
+    async def revoke(self, task_id: str, ttl: int = 3600) -> None:
+        """Mark a task as revoked. It will be skipped when a worker picks it up.
+        
+        Args:
+            task_id: The ID of the task to revoke
+            ttl: How long to keep the revocation flag (seconds, default 1 hour)
+        """
+        self._local_revoked.add(task_id)
+        if self._distributed_backend:
+            await self._distributed_backend.set(
+                self._revocation_prefix + task_id, "1", ttl=ttl
+            )
+        logger.info("Task %s revoked", task_id)
+
+    async def is_revoked(self, task_id: str) -> bool:
+        """Check if a task has been revoked."""
+        if task_id in self._local_revoked:
+            return True
+        if self._distributed_backend:
+            result = await self._distributed_backend.get(self._revocation_prefix + task_id)
+            return result is not None
+        return False
+
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
         """Alias so @app.task() works like @app.task.task()."""
         return self.task(*args, **kwargs)
@@ -567,8 +690,29 @@ class EdenBroker:
         max_retries: int | None = None,
         retry_delays: list[int] | None = None,
         exponential_backoff: bool = True,
+        timeout: int | None = None,
         **kwargs: Any,
     ) -> Any:
+        """Register a background task.
+        
+        Args:
+            max_retries: Max retry attempts on failure (default: broker's max_retries)
+            retry_delays: Custom retry delay schedule [1, 2, 4, ...] seconds
+            exponential_backoff: Whether to use exponential backoff on retries
+            timeout: Max execution time in seconds (0 or None = no timeout)
+            
+        Usage::
+        
+            @app.task()
+            async def send_email(to: str, subject: str):
+                ...
+            
+            # Dispatch immediately
+            await send_email.dispatch("user@example.com", "Hello")
+            
+            # Dispatch with delay
+            await send_email.dispatch_after(60, "user@example.com", "Hello")
+        """
         # Support both @app.task and @app.task()
         if len(args) == 1 and callable(args[0]):
             return self.task()(args[0])
@@ -579,6 +723,7 @@ class EdenBroker:
 
         target_retries = mr if mr is not None else self.max_retries
         target_delays = rd if rd is not None else self.retry_delays
+        target_timeout = timeout if timeout is not None else self.default_timeout
 
         def decorator(func: Callable[..., Any]) -> Any:
             # Wrap the function to inject Eden dependencies and handle retries
@@ -586,7 +731,8 @@ class EdenBroker:
                 func, 
                 target_retries, 
                 target_delays,
-                exponential_backoff=exponential_backoff
+                exponential_backoff=exponential_backoff,
+                timeout=target_timeout,
             )
             logger.debug("Task registered: %s", func.__name__)
             taskiq_task = self.broker.task(*args, **kwargs)(handler)
@@ -611,6 +757,24 @@ class EdenBroker:
                 return taskiq_task.kicker().with_labels(**labels).kiq(*args, **kwargs)
             
             taskiq_task.kiq = wrapped_kiq
+
+            # ── Idiomatic Eden aliases ────────────────────────────────────
+            # .dispatch() — clearer name than .kiq()
+            taskiq_task.dispatch = wrapped_kiq
+
+            # .dispatch_after(delay_seconds, *args, **kwargs)
+            async def _dispatch_after(delay: int | float, *a: Any, **kw: Any) -> Any:
+                """Dispatch this task with a delay (in seconds)."""
+                from eden.context import context_manager
+                snapshot = context_manager.get_context_snapshot()
+                labels = {"delay": str(int(delay))}
+                for key, value in snapshot.items():
+                    if value is not None:
+                        labels[key] = str(value)
+                return await taskiq_task.kicker().with_labels(**labels).kiq(*a, **kw)
+
+            taskiq_task.dispatch_after = _dispatch_after
+
             return taskiq_task
 
         return decorator
@@ -644,14 +808,47 @@ class EdenBroker:
 
         return decorator
 
+    def schedule(
+        self,
+        cron: str,
+    ) -> Callable[[Callable[..., Any]], Any]:
+        """Shorthand decorator to register a cron-scheduled periodic task.
+        
+        This is syntactic sugar for ``@app.task.every(cron="...")``.
+        
+        Args:
+            cron: A standard cron expression (e.g., ``"0 12 * * *"`` for daily at noon)
+            
+        Example::
+        
+            @app.task.schedule("0 0 * * *")
+            async def nightly_report():
+                ...
+                
+            # Equivalent to:
+            @app.task.every(cron="0 0 * * *")
+            async def nightly_report():
+                ...
+        """
+        return self.every(cron=cron)
+
     def _wrap_task_function(
         self, 
         func: Callable[..., Any], 
         max_retries: int, 
         retry_delays: list[int],
         exponential_backoff: bool = True,
+        timeout: int = 0,
     ) -> Callable[..., Any]:
-        """Wrap a task function to add DI and retry support."""
+        """Wrap a task function to add DI, retry, timeout, signals, and revocation support.
+        
+        Args:
+            func: The original task function
+            max_retries: Maximum retry attempts
+            retry_delays: Delay schedule per retry attempt (seconds)
+            exponential_backoff: Whether to use exponential backoff
+            timeout: Execution timeout in seconds (0 = no timeout)
+        """
 
         @functools.wraps(func)
         async def task_handler(*args: Any, context: Any = None, **kwargs: Any) -> Any:
@@ -669,6 +866,19 @@ class EdenBroker:
                 # Labels carry the whole propagated context snapshot
                 snapshot = getattr(tiq_ctx, "labels", {})
 
+            # 2. Check revocation before executing
+            if await self.is_revoked(task_id):
+                logger.info("Task '%s' (%s) was revoked — skipping execution.", func.__name__, task_id)
+                revoked_info = TaskResult(
+                    task_id=task_id,
+                    task_name=func.__name__,
+                    status="revoked",
+                    status_message="Task was revoked before execution",
+                    completed_at=datetime.now(timezone.utc),
+                )
+                if self._result_backend:
+                    await self._result_backend.store_result(task_id, revoked_info)
+                return None
 
             # Use DependencyResolver with current app instance
             resolver = DependencyResolver()
@@ -684,9 +894,12 @@ class EdenBroker:
 
             final_kwargs = {**dep_kwargs, **kwargs}
 
+            # 3. Fire prerun signal
+            await self._fire_signal(self._on_task_prerun, func.__name__, task_id)
+
             # Execution loop with retries
             attempt = 0
-            start_time = datetime.now()
+            start_time = datetime.now(timezone.utc)
             
             while True:
                 try:
@@ -712,8 +925,20 @@ class EdenBroker:
                         if self._result_backend:
                             await self._result_backend.store_result(task_id, start_info)
 
+                        # Execute with optional timeout
                         if inspect.iscoroutinefunction(func):
-                            res = await func(*args, **final_kwargs)
+                            if timeout and timeout > 0:
+                                try:
+                                    res = await asyncio.wait_for(
+                                        func(*args, **final_kwargs),
+                                        timeout=timeout
+                                    )
+                                except asyncio.TimeoutError:
+                                    raise TaskExecutionError(
+                                        f"Task '{func.__name__}' exceeded timeout of {timeout}s"
+                                    )
+                            else:
+                                res = await func(*args, **final_kwargs)
                         else:
                             res = func(*args, **final_kwargs)
                             
@@ -728,10 +953,14 @@ class EdenBroker:
                             retries=attempt,
                             correlation_id=correlation_id,
                             started_at=start_time,
-                            completed_at=datetime.now(),
+                            completed_at=datetime.now(timezone.utc),
                         )
                         if self._result_backend:
                             await self._result_backend.store_result(task_id, success_info)
+
+                        # Fire success + postrun signals
+                        await self._fire_signal(self._on_task_success, func.__name__, task_id, res)
+                        await self._fire_signal(self._on_task_postrun, func.__name__, task_id, "success")
                         return res
 
                 except Exception as e:
@@ -754,10 +983,15 @@ class EdenBroker:
                             retries=attempt - 1,
                             correlation_id=correlation_id,
                             started_at=start_time,
-                            completed_at=datetime.now(),
+                            completed_at=datetime.now(timezone.utc),
                         )
                         if self._result_backend:
                             await self._result_backend.store_result(task_id, error_info)
+
+                        # Fire failure + postrun signals
+                        await self._fire_signal(self._on_task_failure, func.__name__, task_id, e)
+                        await self._fire_signal(self._on_task_postrun, func.__name__, task_id, "dead_letter")
+
                         raise MaxRetriesExceeded(
                             f"Task {func.__name__} failed after {max_retries} retries"
                         ) from e
@@ -806,13 +1040,21 @@ class EdenBroker:
         return await task.kiq(*args, **kwargs)
 
     async def schedule(self, task: Any, delay: int | float, *args: Any, **kwargs: Any) -> Any:
-        """Send a task to the queue with a delay."""
+        """Send a task to the queue with a delay.
+        
+        Args:
+            task: A task object registered via @app.task()
+            delay: Delay in seconds before the task executes
+            *args: Positional arguments to pass to the task
+            **kwargs: Keyword arguments to pass to the task
+            
+        Returns:
+            The kiq result (task handle)
+        """
         if not self._startup_complete:
             raise BrokerNotInitialized("Broker not started.")
-        kicker = task.kiq(*args, **kwargs)
-        if hasattr(kicker, "with_labels"):
-            return await kicker.with_labels(delay=int(delay))
-        return await kicker
+        # Use kicker().with_labels().kiq() pattern — NOT task.kiq() which dispatches immediately
+        return await task.kicker().with_labels(delay=int(delay)).kiq(*args, **kwargs)
 
     async def startup(self) -> None:
         """Start the broker and all registered periodic tasks."""

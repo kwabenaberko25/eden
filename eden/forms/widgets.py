@@ -60,7 +60,7 @@ class NumberInput(Widget):
         attrs = self._build_attrs(
             type="number",
             name=name,
-            value=str(value) if value is not None else "",
+            value=escape(str(value)) if value is not None else "",
         )
         html = self._attrs_to_html(attrs)
         return f"<input {html}>"

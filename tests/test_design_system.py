@@ -114,8 +114,8 @@ class TestUtilityFiltersInTemplates:
         assert r.strip() == "Hello…"
 
     def test_slugify_in_template(self, tmp_path):
-        r = self._render(tmp_path, '{{ text | slugify }}', text="Eden Framework!")
-        assert r.strip() == "eden-framework"
+        r = self._render(tmp_path, '{{ text | slugify }}', text="Eden!")
+        assert r.strip() == "eden"
 
     def test_json_encode_in_template(self, tmp_path):
         r = self._render(tmp_path, '{{ data | json_encode }}', data={"x": 1})

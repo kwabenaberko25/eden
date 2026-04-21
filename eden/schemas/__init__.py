@@ -81,7 +81,6 @@ class ModelSchema(BaseModel):
     # Instance attributes
     _model_cls: ClassVar[Type[Model]]
     _config: ClassVar[SchemaConfig]
-    _errors: Dict[str, List[str]] = {}
 
     model_config = ConfigDict(
         arbitrary_types_allowed=True,
@@ -98,7 +97,10 @@ class ModelSchema(BaseModel):
 
         # Extract model from class name or Meta
         if hasattr(cls, 'Meta'):
-            meta = cls.Meta()
+            meta = cls.Meta
+            # Support both callable Meta (lambda/config) and class Meta
+            if callable(meta) and not isinstance(meta, type):
+                meta = meta()
             model_cls = getattr(meta, 'model', None)
         else:
             # Try to infer from class name (e.g., UserSchema -> User)
@@ -201,32 +203,44 @@ class ModelSchema(BaseModel):
         )
 
     @classmethod
-    async def is_valid(cls, data: Dict[str, Any]) -> bool:
+    async def is_valid(cls, data: Dict[str, Any]) -> tuple[bool, Dict[str, List[str]]]:
         """
         Async validation of input data.
 
-        Returns True if valid, False otherwise.
-        Errors are stored in cls._errors.
+        Returns a tuple of (is_valid: bool, errors: dict).
+        Errors dict maps field names to lists of error messages.
+        Thread-safe: no shared mutable state.
         """
+        errors: Dict[str, List[str]] = {}
         try:
             # Create instance to trigger validation
             instance = cls(**data)
-            cls._errors = {}
-            return True
+            return True, {}
         except ValidationError as e:
-            cls._errors = {}
             for error in e.errors():
                 field = error['loc'][0] if error['loc'] else 'non_field'
                 message = error['msg']
-                if field not in cls._errors:
-                    cls._errors[field] = []
-                cls._errors[field].append(message)
-            return False
+                if field not in errors:
+                    errors[field] = []
+                errors[field].append(message)
+            return False, errors
 
     @property
     def errors(self) -> Dict[str, List[str]]:
-        """Get validation errors."""
-        return getattr(self, '_errors', {})
+        """
+        Get validation errors.
+        
+        .. deprecated::
+            Use the return value of ``is_valid()`` instead.
+            ``is_valid()`` now returns ``(bool, errors_dict)`` for thread-safety.
+        """
+        import warnings
+        warnings.warn(
+            "Accessing .errors on ModelSchema instances is deprecated. "
+            "Use `valid, errors = await MySchema.is_valid(data)` instead.",
+            DeprecationWarning, stacklevel=2
+        )
+        return {}
 
     async def save(self) -> Model:
         """
@@ -323,12 +337,21 @@ def create_schema(
         nested_fields=nested_fields or [],
     )
 
+    # Build a proper Meta class that ModelSchema.__init_subclass__ expects
+    meta_cls = type('Meta', (), {
+        'model': model_cls,
+        'exclude_fields': config.exclude_fields,
+        'read_only_fields': config.read_only_fields,
+        'required_fields': config.required_fields,
+        'nested_fields': config.nested_fields,
+    })
+    
     # Create the schema class
     schema_cls = type(
         class_name,
         (ModelSchema,),
         {
-            'Meta': lambda: config,
+            'Meta': meta_cls,
             '__module__': __name__,
         }
     )

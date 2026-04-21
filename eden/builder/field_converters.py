@@ -6,14 +6,14 @@ from typing import Any
 
 from eden.fields.base import Field
 from eden.forms.fields import CharField, IntegerField, EmailField, ChoiceField
-from eden.forms.base import FormField
+from eden.forms.base import BasicFormField
 
 
 class FieldConverter:
     """Converts field definitions to form fields."""
 
     @staticmethod
-    def convert(name: str, field: Field) -> FormField:
+    def convert(name: str, field: Field) -> BasicFormField:
         """Convert a Field to a FormField."""
         metadata = field.metadata
 

@@ -57,3 +57,35 @@ async def update_task_state(
         result.metadata.update(metadata)
         
     await broker._result_backend.store_result(task_id, result)
+
+
+def get_current_task_id() -> str | None:
+    """Get the ID of the currently executing task.
+    
+    Returns None if not called from within a task context.
+    
+    Example::
+    
+        @app.task()
+        async def my_task():
+            task_id = get_current_task_id()
+            print(f"I am task {task_id}")
+    """
+    return _CURRENT_TASK_ID.get()
+
+
+def get_current_broker() -> Optional["EdenBroker"]:
+    """Get the broker instance of the currently executing task.
+    
+    Returns None if not called from within a task context.
+    
+    Example::
+    
+        @app.task()
+        async def my_task():
+            broker = get_current_broker()
+            if broker:
+                # Can access result backend, etc.
+                result = await broker._result_backend.get_result(get_current_task_id())
+    """
+    return _CURRENT_BROKER.get()

@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any, Callable, Generic, Type, TypeVar
 
 from eden.fields.base import Field
-from eden.forms.base import Form, FormField
+from eden.forms.base import Form, BasicFormField
 from eden.forms.fields import CharField, IntegerField, EmailField, ChoiceField
 from eden.forms.widgets import TextInput
 from eden.builder.field_converters import FieldConverter
@@ -18,7 +18,7 @@ class FormBuilder:
 
     def __init__(self):
         self.form_class = None
-        self.fields: dict[str, FormField] = {}
+        self.fields: dict[str, BasicFormField] = {}
         self.name = "DynamicForm"
 
     def set_name(self, name: str) -> FormBuilder:
@@ -26,7 +26,7 @@ class FormBuilder:
         self.name = name
         return self
 
-    def add_field(self, name: str, field: FormField) -> FormBuilder:
+    def add_field(self, name: str, field: BasicFormField) -> FormBuilder:
         """Add a field to the form."""
         self.fields[name] = field
         return self

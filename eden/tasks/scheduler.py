@@ -13,7 +13,15 @@ Usage:
 """
 
 import logging
+import warnings
 from typing import Callable, Optional, List, Any
+
+warnings.warn(
+    "eden.tasks.scheduler is deprecated and will be removed in Eden 2.0. "
+    "Please use @app.task.every(cron='...') and the built-in EdenBroker instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 from datetime import datetime, timedelta
 import re
 import asyncio

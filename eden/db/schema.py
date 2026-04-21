@@ -936,25 +936,13 @@ class ValidationScanner:
 
             # logger.debug(f"  SCANNING BASE {base.__name__}")
             for name, attr in base.__dict__.items():
-                if model_cls.__name__.startswith("Modern") and not name.startswith("__"):
-                    pass
-                    # logger.debug(f"    CHECKING {name}: {type(attr)}")
                 info = None
                 if hasattr(attr, "info"):
                     info = attr.info
-                    if model_cls.__name__.startswith("Modern") and not name.startswith("__"):
-                        pass
-                        # logger.debug(f"      FOUND ATTR.INFO: {info}")
                 elif hasattr(attr, "column") and hasattr(attr.column, "info"):
                     info = attr.column.info
-                    if model_cls.__name__.startswith("Modern") and not name.startswith("__"):
-                        pass
-                        # logger.debug(f"      FOUND ATTR.COLUMN.INFO: {info}")
                 elif hasattr(attr, "prop") and hasattr(attr.prop, "columns") and attr.prop.columns:
                     info = attr.prop.columns[0].info
-                    if model_cls.__name__.startswith("Modern") and not name.startswith("__"):
-                        pass
-                        # logger.debug(f"      FOUND ATTR.PROP.INFO: {info}")
 
                 if not info:
                     continue

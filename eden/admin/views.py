@@ -24,6 +24,8 @@ async def _get_secret_key(request: Request) -> str:
     """Consistently retrieve the secret key for JWT signing/verification."""
     # 1. Try from request.app (Eden/Starlette application)
     secret = getattr(request.app, "secret_key", None)
+    if not secret and hasattr(request.app, "config"):
+        secret = getattr(request.app.config, "secret_key", None)
     if secret:
         return str(secret)
     
@@ -57,6 +59,18 @@ async def _get_authenticated_user(request: Request) -> Any:
     user = getattr(request.state, "user", None) or getattr(request, "user", None)
     if user:
         return user
+        
+    # 1b. Fallback for manual session check if AuthenticationMiddleware was not run
+    if hasattr(request, "session") and "_auth_user_id" in request.session:
+        try:
+            from eden.auth.models import User
+            session_db = getattr(request.app.state, "db", None)
+            user = await User.get(session=session_db, id=str(request.session["_auth_user_id"]))
+            if user:
+                request.state.user = user
+                return user
+        except Exception as e:
+            logger.error(f"ADMIN: Failed to load user from session: {e}")
         
     # 2. Try JWT authentication via official Backend
     auth_header = request.headers.get("Authorization")
@@ -585,6 +599,11 @@ async def admin_login(request: Request, admin_site: Any) -> Response:
                         from eden.security.urls import is_safe_url
                         if not is_safe_url(next_url, request):
                             next_url = "/admin/"
+
+                        if "?" in next_url:
+                            next_url += f"&token={token}"
+                        else:
+                            next_url += f"?token={token}"
 
                         from eden.responses import RedirectResponse
                         response = RedirectResponse(url=next_url, status_code=303)

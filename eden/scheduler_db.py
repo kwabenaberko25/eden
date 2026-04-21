@@ -19,9 +19,17 @@ Persistent job storage with execution history and retry tracking.
 """
 
 import logging
+import warnings
 from datetime import datetime, timedelta
 from typing import List, Optional, Dict, Any
 from enum import Enum
+
+warnings.warn(
+    "eden.scheduler_db is deprecated and will be removed in Eden 2.0. "
+    "Please use the unified EdenBroker scheduled tasks instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 from sqlalchemy import Column, String, Integer, Boolean, DateTime, Text, JSON, Float, create_engine
 from sqlalchemy.ext.declarative import declarative_base

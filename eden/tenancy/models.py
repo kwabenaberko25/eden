@@ -53,10 +53,14 @@ class Tenant(Model):
         was_active = True
         
         if not is_new:
-            # Check old status if we wanted to be perfectly precise, but for now 
-            # we check if it is being deactivated in this save.
-            # A full implementation might load previous state from identity map.
-            pass
+            from sqlalchemy import inspect as sa_inspect
+            state = sa_inspect(self)
+            if 'is_active' in state.attrs:
+                history = state.attrs.is_active.history
+                if history.deleted:
+                    was_active = history.deleted[0]
+                else:
+                    was_active = self.is_active
 
         result = await super().save(session=session, *args, **kwargs)
 
@@ -64,8 +68,7 @@ class Tenant(Model):
         
         if is_new:
             await tenant_created.send(tenant=self)
-        elif not self.is_active:
-            # We trigger deactivated. Ideally we'd only trigger once when transitioning.
+        elif was_active and not self.is_active:
             await tenant_deactivated.send(tenant=self)
             
         return result

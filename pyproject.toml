@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "eden-framework"
+name = "eden"
 version = "1.0.0"
 description = "🌿 Eden — A batteries-included, premium async Python web framework. Django's features, FastAPI's speed, Flask's simplicity."
 readme = "README.md"

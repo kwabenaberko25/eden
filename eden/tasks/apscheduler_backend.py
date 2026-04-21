@@ -21,8 +21,16 @@ Usage::
 """
 
 import logging
+import warnings
 from typing import Optional, Callable, Any
 from datetime import datetime, timezone
+
+warnings.warn(
+    "eden.tasks.apscheduler_backend is deprecated and will be removed in Eden 2.0. "
+    "Please use the unified EdenBroker scheduled tasks instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 try:
     from apscheduler.schedulers.asyncio import AsyncIOScheduler

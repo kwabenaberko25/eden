@@ -69,17 +69,36 @@ import os
 app = Eden(
     title="{name}",
     debug=True,
-    secret_key=os.getenv("SECRET_KEY", "{secrets.token_hex(32)}")
+    secret_key=os.getenv("SECRET_KEY", "{secrets.token_hex(32)}"),
+    # --- Directory Settings ---
+    # static_dir="static",       # Default static files directory
+    # templates_dir="templates", # Default HTML templates directory
 )
+
+# app.media_dir = "media"        # Default media uploads directory
 
 # 2. Database Configuration
 app.state.database_url = os.getenv("DATABASE_URL", "{db_config['url']}")
+# app.config.db_pool_size = 20
+# app.config.db_echo = False     # Toggle SQL query logging
 
 # 3. Middleware (Auto-activated by default in Eden)
 # app.add_middleware("security")
 # app.add_middleware("session", secret_key=app.secret_key)
 # app.add_middleware("cors", allow_origins=["*"])
 # app.add_middleware("rate_limit", default_limit="60/minute")
+
+# 4. Opt-in Features (Uncomment to enable)
+# app.admin_enabled = True                   # Enable SaaS Admin Panel at /admin
+# app.enable_health_checks()                 # Expose /health and /ready probes
+# app.config.metrics_enabled = True          # Expose Prometheus metrics at /metrics
+# app.config.redis_url = "redis://..."       # Enable distributed locking, idempotency & pub-sub
+# app.config.browser_reload = True           # Enable instant front-end reloading in dev
+
+# 5. Background Tasks (Uncomment to enable)
+# @app.task.schedule("every 1 minute")
+# async def background_job():
+#     print("Running background task!")
 '''
 
     if "Payments (Stripe)" in extras:
@@ -87,6 +106,8 @@ app.state.database_url = os.getenv("DATABASE_URL", "{db_config['url']}")
     
     if "Chats/Websockets" in extras:
         main_content += '\n# WebSocket Configuration\nfrom eden import WebSocketRouter\nws_router = WebSocketRouter()\n\n@ws_router.on("connect")\nasync def on_connect(socket, user):\n    await socket.accept()\n    await socket.send_json({{"msg": "Connected to {name}"}})\n\napp.include_router(ws_router)\n'
+    else:
+        main_content += '\n# WebSocket Configuration (Uncomment to enable)\n# from eden import WebSocketRouter\n# ws_router = WebSocketRouter()\n# @ws_router.on("connect")\n# async def on_connect(socket, user):\n#     await socket.accept()\n#     await socket.send_json({"msg": "Connected!"})\n# app.include_router(ws_router)\n'
 
     if "Admin UI" not in extras:
         main_content += '\n# Disable Admin Panel\napp.admin_enabled = False\n'
@@ -139,14 +160,35 @@ import os
 from .routes import main_router
 
 def create_app():
+    # 1. Initialize App
     app = Eden(
         title="{name}",
-        secret_key=os.getenv("SECRET_KEY", "{secrets.token_hex(32)}")
+        secret_key=os.getenv("SECRET_KEY", "{secrets.token_hex(32)}"),
+        # --- Directory Settings ---
+        # static_dir="static",       # Default static files directory
+        # templates_dir="templates", # Default HTML templates directory
     )
     
+    # app.media_dir = "media"        # Default media uploads directory
+    
+    # 2. Database Configuration
     app.state.database_url = os.getenv("DATABASE_URL", "{db_config['url']}")
+    # app.config.db_pool_size = 20
+    # app.config.db_echo = False     # Toggle SQL query logging
     
     # Core middleware is registered automatically by Eden()
+    
+    # Opt-in Features (Uncomment to enable)
+    # app.admin_enabled = True                   # Enable SaaS Admin Panel at /admin
+    # app.enable_health_checks()                 # Expose /health and /ready probes
+    # app.config.metrics_enabled = True          # Expose Prometheus metrics at /metrics
+    # app.config.redis_url = "redis://..."       # Enable distributed locking, idempotency & pub-sub
+    # app.config.browser_reload = True           # Enable instant front-end reloading in dev
+    
+    # Background Tasks (Uncomment to enable)
+    # @app.task.schedule("every 1 minute")
+    # async def background_job():
+    #     print("Running background task!")
 '''
 
     if "Authentication & RBAC" in extras:
@@ -169,6 +211,16 @@ def create_app():
     app.include_router(ws_router)
 '''
         app_init += ws_block
+    else:
+        app_init += '''    # WebSocket Configuration (Uncomment to enable)
+    # from eden import WebSocketRouter
+    # ws_router = WebSocketRouter()
+    # @ws_router.on("connect")
+    # async def on_connect(socket, user):
+    #     await socket.accept()
+    #     await socket.send_json({"msg": "Connected!"})
+    # app.include_router(ws_router)
+'''
 
     if "Admin UI" not in extras:
         app_init += '    app.admin_enabled = False\n'

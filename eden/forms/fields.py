@@ -4,12 +4,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from eden.forms.base import FormField
+from eden.forms.base import BasicFormField
 from eden.forms.widgets import TextInput, NumberInput, EmailInput, Select
 from eden.validators import rules
 
 
-class CharField(FormField):
+class CharField(BasicFormField):
     """Text input field."""
 
     def __init__(
@@ -40,7 +40,7 @@ class CharField(FormField):
         self.min_length = min_length
 
 
-class IntegerField(FormField):
+class IntegerField(BasicFormField):
     """Integer input field."""
 
     def __init__(
@@ -71,7 +71,7 @@ class IntegerField(FormField):
         self.max_value = max_value
 
 
-class EmailField(FormField):
+class EmailField(BasicFormField):
     """Email input field."""
 
     def __init__(
@@ -92,7 +92,7 @@ class EmailField(FormField):
         self.widget = EmailInput()
 
 
-class ChoiceField(FormField):
+class ChoiceField(BasicFormField):
     """Select/choice field."""
 
     def __init__(

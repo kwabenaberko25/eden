@@ -31,7 +31,7 @@ class SessionBackend(AuthBackend[User]):
 
         # Get database session from app state
         session = getattr(request.app.state, "db", None)
-        return await User.get(session, user_id)
+        return await User.get(session=session, id=user_id)
 
     async def login(self, request: Request, user: Any) -> None:
         """Store user ID in the session and rotate session key to prevent fixation attacks."""

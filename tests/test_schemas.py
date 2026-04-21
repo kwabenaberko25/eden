@@ -44,13 +44,13 @@ async def test_schema_validation():
     """Test schema validation."""
     # Valid data
     schema = TestUserSchema(name="John Doe", email="john@example.com", age=30)
-    is_valid = await schema.is_valid({"name": "John Doe", "email": "john@example.com", "age": 30})
+    is_valid, errors = await TestUserSchema.is_valid({"name": "John Doe", "email": "john@example.com", "age": 30})
     assert is_valid is True
 
     # Invalid data - missing required field
-    is_valid = await schema.is_valid({"name": "John Doe"})  # Missing email
+    is_valid, errors = await TestUserSchema.is_valid({"name": "John Doe"})  # Missing email
     assert is_valid is False
-    assert "email" in schema.errors
+    assert "email" in errors
 
 
 @pytest.mark.asyncio

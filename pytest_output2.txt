@@ -1,0 +1,467 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.12.12, pytest-9.0.2, pluggy-1.6.0
+rootdir: C:\PROJECTS\eden-framework
+configfile: pyproject.toml
+plugins: anyio-4.12.1, asyncio-1.3.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=session, asyncio_default_test_loop_scope=session
+collected 34 items
+
+tests\test_routing_fixes.py ..FF...F.....................                [ 85%]
+tests\test_admin_auth.py FF.F.                                           [100%]
+
+================================== FAILURES ===================================
+______________ TestUrlFor.test_url_for_raises_on_missing_params _______________
+
+self = <eden.routing.Router object at 0x0000018F4F6E7590>, name = 'user_post'
+path_params = {'user_id': '1'}
+route = Route(path='/users/{user_id}/posts/{post_id}', endpoint=<function TestUrlFor.test_url_for_raises_on_missing_params.<lo...s=['GET'], name='user_post', summary=None, description=None, tags=[], middleware=[], include_in_schema=True, extras={})
+StarletteRoute = <class 'starlette.routing.Route'>
+StarletteWSRoute = <class 'starlette.routing.WebSocketRoute'>
+sr = Route(path='/users/{user_id}/posts/{post_id}', name='user_post', methods=['GET', 'HEAD'])
+
+    def url_for(self, name: str, **path_params: Any) -> str:
+        """
+        Generate a URL path for a given route name.
+        Uses O(1) dictionary lookup and delegates to robust Starlette path parsing.
+    
+        Args:
+            name: The explicitly registered route name (including namespaces, e.g. "admin:index").
+            **path_params: Values to substitute into the path template.
+    
+        Returns:
+            The fully-interpolated path string (e.g. "/items/42").
+    
+        Raises:
+            ValueError: If a required path parameter was not provided,
+                or if no route matches *name*.
+        """
+        route = self._route_index.get(name)
+        if not route:
+            raise ValueError(f"Route named '{name}' not found.")
+    
+        from starlette.routing import Route as StarletteRoute, WebSocketRoute as StarletteWSRoute
+        try:
+            if isinstance(route, WebSocketRoute):
+                sr = StarletteWSRoute(path=route.path, endpoint=lambda: None, name=name)
+            else:
+                sr = StarletteRoute(path=route.path, endpoint=lambda: None, name=name)
+>           return str(sr.url_path_for(name, **path_params))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+eden\routing.py:746: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = Route(path='/users/{user_id}/posts/{post_id}', name='user_post', methods=['GET', 'HEAD'])
+name = 'user_post', path_params = {'user_id': '1'}, seen_params = {'user_id'}
+expected_params = {'post_id', 'user_id'}
+
+    def url_path_for(self, name: str, /, **path_params: Any) -> URLPath:
+        seen_params = set(path_params.keys())
+        expected_params = set(self.param_convertors.keys())
+    
+        if name != self.name or seen_params != expected_params:
+>           raise NoMatchFound(name, path_params)
+E           starlette.routing.NoMatchFound: No route exists for name "user_post" and params "user_id".
+
+.venv\Lib\site-packages\starlette\routing.py:275: NoMatchFound
+
+During handling of the above exception, another exception occurred:
+
+self = <tests.test_routing_fixes.TestUrlFor object at 0x0000018F4F5A5E20>
+router = <eden.routing.Router object at 0x0000018F4F6E7590>
+
+>   ???
+
+/home/kb/projects/eden/tests/test_routing_fixes.py:547: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <eden.routing.Router object at 0x0000018F4F6E7590>, name = 'user_post'
+path_params = {'user_id': '1'}
+route = Route(path='/users/{user_id}/posts/{post_id}', endpoint=<function TestUrlFor.test_url_for_raises_on_missing_params.<lo...s=['GET'], name='user_post', summary=None, description=None, tags=[], middleware=[], include_in_schema=True, extras={})
+StarletteRoute = <class 'starlette.routing.Route'>
+StarletteWSRoute = <class 'starlette.routing.WebSocketRoute'>
+sr = Route(path='/users/{user_id}/posts/{post_id}', name='user_post', methods=['GET', 'HEAD'])
+
+    def url_for(self, name: str, **path_params: Any) -> str:
+        """
+        Generate a URL path for a given route name.
+        Uses O(1) dictionary lookup and delegates to robust Starlette path parsing.
+    
+        Args:
+            name: The explicitly registered route name (including namespaces, e.g. "admin:index").
+            **path_params: Values to substitute into the path template.
+    
+        Returns:
+            The fully-interpolated path string (e.g. "/items/42").
+    
+        Raises:
+            ValueError: If a required path parameter was not provided,
+                or if no route matches *name*.
+        """
+        route = self._route_index.get(name)
+        if not route:
+            raise ValueError(f"Route named '{name}' not found.")
+    
+        from starlette.routing import Route as StarletteRoute, WebSocketRoute as StarletteWSRoute
+        try:
+            if isinstance(route, WebSocketRoute):
+                sr = StarletteWSRoute(path=route.path, endpoint=lambda: None, name=name)
+            else:
+                sr = StarletteRoute(path=route.path, endpoint=lambda: None, name=name)
+            return str(sr.url_path_for(name, **path_params))
+        except Exception as e:
+            # Starlette raises NoMatchFound or similar if URL interpolation fails
+>           raise ValueError(f"Failed to generate URL for route '{name}': {e}")
+E           ValueError: Failed to generate URL for route 'user_post': No route exists for name "user_post" and params "user_id".
+
+eden\routing.py:749: ValueError
+
+During handling of the above exception, another exception occurred:
+
+self = <tests.test_routing_fixes.TestUrlFor object at 0x0000018F4F5A5E20>
+router = <eden.routing.Router object at 0x0000018F4F6E7590>
+
+>   ???
+E   AssertionError: Regex pattern did not match.
+E     Expected regex: 'Missing path parameters'
+E     Actual message: 'Failed to generate URL for route \'user_post\': No route exists for name "user_post" and params "user_id".'
+
+/home/kb/projects/eden/tests/test_routing_fixes.py:546: AssertionError
+____________ TestUrlFor.test_url_for_raises_on_all_missing_params _____________
+
+self = <eden.routing.Router object at 0x0000018F4F6E67B0>, name = 'item'
+path_params = {}
+route = Route(path='/items/{id:int}', endpoint=<function TestUrlFor.test_url_for_raises_on_all_missing_params.<locals>.item at...ethods=['GET'], name='item', summary=None, description=None, tags=[], middleware=[], include_in_schema=True, extras={})
+StarletteRoute = <class 'starlette.routing.Route'>
+StarletteWSRoute = <class 'starlette.routing.WebSocketRoute'>
+sr = Route(path='/items/{id:int}', name='item', methods=['GET', 'HEAD'])
+
+    def url_for(self, name: str, **path_params: Any) -> str:
+        """
+        Generate a URL path for a given route name.
+        Uses O(1) dictionary lookup and delegates to robust Starlette path parsing.
+    
+        Args:
+            name: The explicitly registered route name (including namespaces, e.g. "admin:index").
+            **path_params: Values to substitute into the path template.
+    
+        Returns:
+            The fully-interpolated path string (e.g. "/items/42").
+    
+        Raises:
+            ValueError: If a required path parameter was not provided,
+                or if no route matches *name*.
+        """
+        route = self._route_index.get(name)
+        if not route:
+            raise ValueError(f"Route named '{name}' not found.")
+    
+        from starlette.routing import Route as StarletteRoute, WebSocketRoute as StarletteWSRoute
+        try:
+            if isinstance(route, WebSocketRoute):
+                sr = StarletteWSRoute(path=route.path, endpoint=lambda: None, name=name)
+            else:
+                sr = StarletteRoute(path=route.path, endpoint=lambda: None, name=name)
+>           return str(sr.url_path_for(name, **path_params))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+eden\routing.py:746: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = Route(path='/items/{id:int}', name='item', methods=['GET', 'HEAD'])
+name = 'item', path_params = {}, seen_params = set(), expected_params = {'id'}
+
+    def url_path_for(self, name: str, /, **path_params: Any) -> URLPath:
+        seen_params = set(path_params.keys())
+        expected_params = set(self.param_convertors.keys())
+    
+        if name != self.name or seen_params != expected_params:
+>           raise NoMatchFound(name, path_params)
+E           starlette.routing.NoMatchFound: No route exists for name "item" and params "".
+
+.venv\Lib\site-packages\starlette\routing.py:275: NoMatchFound
+
+During handling of the above exception, another exception occurred:
+
+self = <tests.test_routing_fixes.TestUrlFor object at 0x0000018F4F5A56D0>
+router = <eden.routing.Router object at 0x0000018F4F6E67B0>
+
+>   ???
+
+/home/kb/projects/eden/tests/test_routing_fixes.py:557: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <eden.routing.Router object at 0x0000018F4F6E67B0>, name = 'item'
+path_params = {}
+route = Route(path='/items/{id:int}', endpoint=<function TestUrlFor.test_url_for_raises_on_all_missing_params.<locals>.item at...ethods=['GET'], name='item', summary=None, description=None, tags=[], middleware=[], include_in_schema=True, extras={})
+StarletteRoute = <class 'starlette.routing.Route'>
+StarletteWSRoute = <class 'starlette.routing.WebSocketRoute'>
+sr = Route(path='/items/{id:int}', name='item', methods=['GET', 'HEAD'])
+
+    def url_for(self, name: str, **path_params: Any) -> str:
+        """
+        Generate a URL path for a given route name.
+        Uses O(1) dictionary lookup and delegates to robust Starlette path parsing.
+    
+        Args:
+            name: The explicitly registered route name (including namespaces, e.g. "admin:index").
+            **path_params: Values to substitute into the path template.
+    
+        Returns:
+            The fully-interpolated path string (e.g. "/items/42").
+    
+        Raises:
+            ValueError: If a required path parameter was not provided,
+                or if no route matches *name*.
+        """
+        route = self._route_index.get(name)
+        if not route:
+            raise ValueError(f"Route named '{name}' not found.")
+    
+        from starlette.routing import Route as StarletteRoute, WebSocketRoute as StarletteWSRoute
+        try:
+            if isinstance(route, WebSocketRoute):
+                sr = StarletteWSRoute(path=route.path, endpoint=lambda: None, name=name)
+            else:
+                sr = StarletteRoute(path=route.path, endpoint=lambda: None, name=name)
+            return str(sr.url_path_for(name, **path_params))
+        except Exception as e:
+            # Starlette raises NoMatchFound or similar if URL interpolation fails
+>           raise ValueError(f"Failed to generate URL for route '{name}': {e}")
+E           ValueError: Failed to generate URL for route 'item': No route exists for name "item" and params "".
+
+eden\routing.py:749: ValueError
+
+During handling of the above exception, another exception occurred:
+
+self = <tests.test_routing_fixes.TestUrlFor object at 0x0000018F4F5A56D0>
+router = <eden.routing.Router object at 0x0000018F4F6E67B0>
+
+>   ???
+E   AssertionError: Regex pattern did not match.
+E     Expected regex: 'Missing path parameters'
+E     Actual message: 'Failed to generate URL for route \'item\': No route exists for name "item" and params "".'
+
+/home/kb/projects/eden/tests/test_routing_fixes.py:556: AssertionError
+_________________ TestUrlFor.test_url_for_sub_router_fallback _________________
+
+self = <tests.test_routing_fixes.TestUrlFor object at 0x0000018F4F5A76B0>
+router = <eden.routing.Router object at 0x0000018F4F7CB170>
+
+>   ???
+
+/home/kb/projects/eden/tests/test_routing_fixes.py:598: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <eden.routing.Router object at 0x0000018F4F7CB170>, name = 'ping'
+path_params = {}, route = None
+
+    def url_for(self, name: str, **path_params: Any) -> str:
+        """
+        Generate a URL path for a given route name.
+        Uses O(1) dictionary lookup and delegates to robust Starlette path parsing.
+    
+        Args:
+            name: The explicitly registered route name (including namespaces, e.g. "admin:index").
+            **path_params: Values to substitute into the path template.
+    
+        Returns:
+            The fully-interpolated path string (e.g. "/items/42").
+    
+        Raises:
+            ValueError: If a required path parameter was not provided,
+                or if no route matches *name*.
+        """
+        route = self._route_index.get(name)
+        if not route:
+>           raise ValueError(f"Route named '{name}' not found.")
+E           ValueError: Route named 'ping' not found.
+
+eden\routing.py:738: ValueError
+____________________ test_admin_login_redirect_with_token _____________________
+
+client = <httpx.AsyncClient object at 0x0000018F516EA750>
+admin_user = <User(email='admin_1776724478.892988@example.com')>
+
+    @pytest.mark.asyncio
+    async def test_admin_login_redirect_with_token(client, admin_user):
+        """Test successful login redirects with a JWT token."""
+        response = await client.post("/admin/login", data={
+            "email": admin_user.email,
+            "password": "StrongPassw0rd!"
+        })
+    
+        assert response.status_code == 303
+>       assert "token=" in response.headers["location"]
+E       AssertionError: assert 'token=' in '/admin/'
+
+tests\test_admin_auth.py:105: AssertionError
+---------------------------- Captured stdout setup ----------------------------
+[32m22:34:36 INFO    [0m eden.storage � Registered storage backend 'local' (default=True)
+[32m22:34:36 INFO    [0m eden.diagnostics � --- Eden Startup Diagnostics ---
+[32m22:34:36 INFO    [0m eden.diagnostics �   [OK] Session/CSRF: Secret key configured
+[33m22:34:36 WARNING [0m eden.diagnostics �   [DEGRADED] Task Broker: Using InMemoryBroker � tasks will not survive restarts. Set REDIS_URL for production.
+[33m22:34:36 WARNING [0m eden.diagnostics �   [DEGRADED] Distributed Backend: No REDIS_URL configured � distributed locking, pub/sub, and idempotency disabled.
+[33m22:34:36 WARNING [0m eden.diagnostics � --- 2 degraded, 0 failed subsystem(s). Review configuration. ---
+[32m22:34:36 INFO    [0m eden.db � Database connected to sqlite+aiosqlite:///:memory:
+[36m22:34:36 DEBUG   [0m eden.db.context � Registered manager 'auth': AuthActions
+[36m22:34:38 DEBUG   [0m eden.db.context � Registered manager 'auth': AuthActions
+[36m22:34:38 DEBUG   [0m eden.db.discovery � Automatically imported models module: eden.admin.models
+[36m22:34:38 DEBUG   [0m eden.db.discovery � Automatically imported models module: eden.auth.models
+[36m22:34:38 DEBUG   [0m eden.db.discovery � Automatically imported models module: eden.payments.models
+[36m22:34:38 DEBUG   [0m eden.db.discovery � Automatically imported models module: eden.tenancy.models
+[36m22:34:38 DEBUG   [0m eden.db.discovery � Skipping C:\PROJECTS\eden-framework\scripts\archive\test_minimal\models.py: parent directory is not a Python package (missing __init__.py)
+[36m22:34:38 DEBUG   [0m eden.db.discovery � Skipping C:\PROJECTS\eden-framework\scripts\archive\test_prod\models.py: parent directory is not a Python package (missing __init__.py)
+[36m22:34:38 DEBUG   [0m eden.db.discovery � Automatically imported models module: eden.models
+[33m22:34:38 WARNING [0m eden.db.discovery � Failed to import C:\PROJECTS\eden-framework\forge_audit_v2\app\models\__init__.py: cannot import name 'Mapped' from 'typing' (C:\Users\COBBY\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\typing.py)
+[36m22:34:38 DEBUG   [0m eden.db.discovery � Automatically imported models module: scripts.archive.my_test_project.app.models
+[36m22:34:38 DEBUG   [0m eden.admin � Model 'FileReference' skipped by auto_discover (set __admin_enabled__ = True to enable).
+[36m22:34:38 DEBUG   [0m eden.admin � Model 'Tenant' skipped by auto_discover (set __admin_enabled__ = True to enable).
+[36m22:34:38 DEBUG   [0m eden.admin � Model 'Plan' skipped by auto_discover (set __admin_enabled__ = True to enable).
+[36m22:34:38 DEBUG   [0m eden.admin � Model 'Price' skipped by auto_discover (set __admin_enabled__ = True to enable).
+[36m22:34:38 DEBUG   [0m eden.admin � Model 'TicketMessage' skipped by auto_discover (set __admin_enabled__ = True to enable).
+[36m22:34:38 DEBUG   [0m eden.admin � Model 'PasswordHistory' skipped by auto_discover (set __admin_enabled__ = True to enable).
+[36m22:34:38 DEBUG   [0m eden.admin � Model 'PasswordResetToken' skipped by auto_discover (set __admin_enabled__ = True to enable).
+[36m22:34:38 DEBUG   [0m eden.admin � Model 'EmailVerificationToken' skipped by auto_discover (set __admin_enabled__ = True to enable).
+[36m22:34:38 DEBUG   [0m eden.admin � Model 'TOTPSecret' skipped by auto_discover (set __admin_enabled__ = True to enable).
+[36m22:34:38 DEBUG   [0m eden.admin � Model 'BackupCode' skipped by auto_discover (set __admin_enabled__ = True to enable).
+[36m22:34:38 DEBUG   [0m eden.admin � Model 'SocialAccount' skipped by auto_discover (set __admin_enabled__ = True to enable).
+[36m22:34:38 DEBUG   [0m eden.admin � Model 'PasswordResetToken' skipped by auto_discover (set __admin_enabled__ = True to enable).
+[36m22:34:38 DEBUG   [0m eden.admin � Model 'APIKey' skipped by auto_discover (set __admin_enabled__ = True to enable).
+[36m22:34:38 DEBUG   [0m eden.admin � Model 'FlagHistoryModel' skipped by auto_discover (set __admin_enabled__ = True to enable).
+[36m22:34:38 DEBUG   [0m eden.admin � Model 'FlagMetricsModel' skipped by auto_discover (set __admin_enabled__ = True to enable).
+[32m22:34:39 INFO    [0m eden.auth.actions � User created: admin_1776724478.892988@example.com
+---------------------------- Captured stdout call -----------------------------
+\x1b[36m22:34:39 DEBUG   \x1b[0m [8efb7bfa] eden.context_middleware \u2014 ContextMiddleware processing POST /admin/login\n\x1b[36m22:34:39 DEBUG   \x1b[0m [6cb834af] eden.context \u2014 Context initialized: request_id=6cb834af-1145-4ed0-bb72-731b8c3f4a0b, path=/admin/login\n\x1b[32m22:34:39 INFO    \x1b[0m [6cb834af] eden.auth.actions \u2014 User admin_1776724478.892988@example.com authenticated successfully\n\x1b[32m22:34:39 INFO    \x1b[0m eden.telemetry \u2014 Performance: Total 84.67ms | DB 0.00ms (0 queries) | Tpl 0.00ms | Mem +0.00MB | App 84.67ms\n\x1b[32m22:34:39 INFO    \x1b[0m [8efb7bfa] eden.requests \u2014 POST /admin/login \u2192 303 (85.57ms)
+__________________________ test_api_me_with_session ___________________________
+
+client = <httpx.AsyncClient object at 0x0000018F5059AC90>
+admin_user = <User(email='admin_1776724481.823123@example.com')>
+
+    @pytest.mark.asyncio
+    async def test_api_me_with_session(client, admin_user):
+        """Test /api/me works with session-based auth."""
+        # Login to set session
+        await client.post("/admin/login", data={
+            "email": admin_user.email,
+            "password": "StrongPassw0rd!"
+        })
+    
+        response = await client.get("/admin/api/me")
+>       assert response.status_code == 200
+E       assert 401 == 200
+E        +  where 401 = <Response [401 Unauthorized]>.status_code
+
+tests\test_admin_auth.py:119: AssertionError
+---------------------------- Captured stdout setup ----------------------------
+[32m22:34:39 INFO    [0m eden.storage � Registered storage backend 'local' (default=True)
+[32m22:34:39 INFO    [0m eden.diagnostics � --- Eden Startup Diagnostics ---
+[32m22:34:39 INFO    [0m eden.diagnostics �   [OK] Session/CSRF: Secret key configured
+[33m22:34:39 WARNING [0m eden.diagnostics �   [DEGRADED] Task Broker: Using InMemoryBroker � tasks will not survive restarts. Set REDIS_URL for production.
+[33m22:34:39 WARNING [0m eden.diagnostics �   [DEGRADED] Distributed Backend: No REDIS_URL configured � distributed locking, pub/sub, and idempotency disabled.
+[33m22:34:39 WARNING [0m eden.diagnostics � --- 2 degraded, 0 failed subsystem(s). Review configuration. ---
+[32m22:34:39 INFO    [0m eden.db � Database connected to sqlite+aiosqlite:///:memory:
+[36m22:34:39 DEBUG   [0m eden.db.context � Registered manager 'auth': AuthActions
+[36m22:34:40 DEBUG   [0m eden.db.context � Registered manager 'auth': AuthActions
+[36m22:34:41 DEBUG   [0m eden.db.discovery � Automatically imported models module: eden.admin.models
+[36m22:34:41 DEBUG   [0m eden.db.discovery � Automatically imported models module: eden.auth.models
+[36m22:34:41 DEBUG   [0m eden.db.discovery � Automatically imported models module: eden.payments.models
+[36m22:34:41 DEBUG   [0m eden.db.discovery � Automatically imported models module: eden.tenancy.models
+[36m22:34:41 DEBUG   [0m eden.db.discovery � Skipping C:\PROJECTS\eden-framework\scripts\archive\test_minimal\models.py: parent directory is not a Python package (missing __init__.py)
+[36m22:34:41 DEBUG   [0m eden.db.discovery � Skipping C:\PROJECTS\eden-framework\scripts\archive\test_prod\models.py: parent directory is not a Python package (missing __init__.py)
+[36m22:34:41 DEBUG   [0m eden.db.discovery � Automatically imported models module: eden.models
+[33m22:34:41 WARNING [0m eden.db.discovery � Failed to import C:\PROJECTS\eden-framework\forge_audit_v2\app\models\__init__.py: cannot import name 'Mapped' from 'typing' (C:\Users\COBBY\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\typing.py)
+[36m22:34:41 DEBUG   [0m eden.db.discovery � Automatically imported models module: scripts.archive.my_test_project.app.models
+[36m22:34:41 DEBUG   [0m eden.admin � Model 'FileReference' skipped by auto_discover (set __admin_enabled__ = True to enable).
+[36m22:34:41 DEBUG   [0m eden.admin � Model 'Tenant' skipped by auto_discover (set __admin_enabled__ = True to enable).
+[36m22:34:41 DEBUG   [0m eden.admin � Model 'Plan' skipped by auto_discover (set __admin_enabled__ = True to enable).
+[36m22:34:41 DEBUG   [0m eden.admin � Model 'Price' skipped by auto_discover (set __admin_enabled__ = True to enable).
+[36m22:34:41 DEBUG   [0m eden.admin � Model 'TicketMessage' skipped by auto_discover (set __admin_enabled__ = True to enable).
+[36m22:34:41 DEBUG   [0m eden.admin � Model 'PasswordHistory' skipped by auto_discover (set __admin_enabled__ = True to enable).
+[36m22:34:41 DEBUG   [0m eden.admin � Model 'PasswordResetToken' skipped by auto_discover (set __admin_enabled__ = True to enable).
+[36m22:34:41 DEBUG   [0m eden.admin � Model 'EmailVerificationToken' skipped by auto_discover (set __admin_enabled__ = True to enable).
+[36m22:34:41 DEBUG   [0m eden.admin � Model 'TOTPSecret' skipped by auto_discover (set __admin_enabled__ = True to enable).
+[36m22:34:41 DEBUG   [0m eden.admin � Model 'BackupCode' skipped by auto_discover (set __admin_enabled__ = True to enable).
+[36m22:34:41 DEBUG   [0m eden.admin � Model 'SocialAccount' skipped by auto_discover (set __admin_enabled__ = True to enable).
+[36m22:34:41 DEBUG   [0m eden.admin � Model 'PasswordResetToken' skipped by auto_discover (set __admin_enabled__ = True to enable).
+[36m22:34:41 DEBUG   [0m eden.admin � Model 'APIKey' skipped by auto_discover (set __admin_enabled__ = True to enable).
+[36m22:34:41 DEBUG   [0m eden.admin � Model 'FlagHistoryModel' skipped by auto_discover (set __admin_enabled__ = True to enable).
+[36m22:34:41 DEBUG   [0m eden.admin � Model 'FlagMetricsModel' skipped by auto_discover (set __admin_enabled__ = True to enable).
+[32m22:34:41 INFO    [0m eden.auth.actions � User created: admin_1776724481.823123@example.com
+---------------------------- Captured stdout call -----------------------------
+\x1b[36m22:34:41 DEBUG   \x1b[0m [af36862c] eden.context_middleware \u2014 ContextMiddleware processing POST /admin/login\n\x1b[36m22:34:41 DEBUG   \x1b[0m [611f3d60] eden.context \u2014 Context initialized: request_id=611f3d60-4239-404f-8ed3-f2bdae54e83d, path=/admin/login\n\x1b[32m22:34:41 INFO    \x1b[0m [611f3d60] eden.auth.actions \u2014 User admin_1776724481.823123@example.com authenticated successfully\n\x1b[32m22:34:41 INFO    \x1b[0m eden.telemetry \u2014 Performance: Total 80.58ms | DB 0.00ms (0 queries) | Tpl 0.00ms | Mem +0.00MB | App 80.58ms\n\x1b[32m22:34:41 INFO    \x1b[0m [af36862c] eden.requests \u2014 POST /admin/login \u2192 303 (81.55ms)\n\x1b[36m22:34:41 DEBUG   \x1b[0m [7005cb7a] eden.context_middleware \u2014 ContextMiddleware processing GET /admin/api/me\n\x1b[36m22:34:41 DEBUG   \x1b[0m [011f4e96] eden.context \u2014 Context initialized: request_id=011f4e96-c1db-4f26-97ea-9eecc30de3e2, path=/admin/api/me\n\x1b[36m22:34:41 DEBUG   \x1b[0m [011f4e96] eden.auth.middleware \u2014 Backend SessionBackend auth failed: User.get() takes at most 1 positional argument (2 given). Use keyword arguments: User.get(id=..., session=...)\n\x1b[31m22:34:41 ERROR   \x1b[0m [011f4e96] eden.error_middleware \u2014 Unauthorized in GET /admin/api/me: Not authenticated\nTraceback (most recent call last):\n  File "C:\\PROJECTS\\eden-framework\\eden\\error_middleware.py", line 72, in dispatch\n    response = await call_next(request)\n               ^^^^^^^^^^^^^^^^^^^^^^^^\n  File "C:\\PROJECTS\\eden-framework\\.venv\\Lib\\site-packages\\starlette\\middleware\\base.py", line 168, in call_next\n    raise app_exc from app_exc.__cause__ or app_exc.__context__\n  File "C:\\PROJECTS\\eden-framework\\.venv\\Lib\\site-packages\\starlette\\middleware\\base.py", line 144, in coro\n    await self.app(scope, receive_or_disconnect, send_no_error)\n  File "C:\\PROJECTS\\eden-framework\\eden\\middleware\\__init__.py", line 359, in __call__\n    await self.app(scope, receive, send_with_headers)\n  File "C:\\PROJECTS\\eden-framework\\.venv\\Lib\\site-packages\\starlette\\middleware\\sessions.py", line 85, in __call__\n    await self.app(scope, receive, send_wrapper)\n  File "C:\\PROJECTS\\eden-framework\\eden\\auth\\middleware.py", line 183, in __call__\n    await self.app(scope, receive, send)\n  File "C:\\PROJECTS\\eden-framework\\eden\\auth\\middleware.py", line 258, in __call__\n    await self.app(scope, receive, send)\n  File "C:\\PROJECTS\\eden-framework\\.venv\\Lib\\site-packages\\starlette\\middleware\\cors.py", line 87, in __call__\n    await self.app(scope, receive, send)\n  File "C:\\PROJECTS\\eden-framework\\.venv\\Lib\\site-packages\\starlette\\middleware\\gzip.py", line 29, in __call__\n    await responder(scope, receive, send)\n  File "C:\\PROJECTS\\eden-framework\\.venv\\Lib\\site-packages\\starlette\\middleware\\gzip.py", line 130, in __call__\n    await super().__call__(scope, receive, send)\n  File "C:\\PROJECTS\\eden-framework\\.venv\\Lib\\site-packages\\starlette\\middleware\\gzip.py", line 46, in __call__\n    await self.app(scope, receive, self.send_with_compression)\n  File "C:\\PROJECTS\\eden-framework\\eden\\middleware\\__init__.py", line 476, in __call__\n    await self.app(scope, receive, send_wrapper)\n  File "C:\\PROJECTS\\eden-framework\\.venv\\Lib\\site-packages\\starlette\\middleware\\exceptions.py", line 63, in __call__\n    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)\n  File "C:\\PROJECTS\\eden-framework\\.venv\\Lib\\site-packages\\starlette\\_exception_handler.py", line 53, in wrapped_app\n    raise exc\n  File "C:\\PROJECTS\\eden-framework\\.venv\\Lib\\site-packages\\starlette\\_exception_handler.py", line 42, in wrapped_app\n    await app(scope, receive, sender)\n  File "C:\\PROJECTS\\eden-framework\\.venv\\Lib\\site-packages\\starlette\\routing.py", line 716, in __call__\n    await self.middleware_stack(scope, receive, send)\n  File "C:\\PROJECTS\\eden-framework\\.venv\\Lib\\site-packages\\starlette\\routing.py", line 736, in app\n    await route.handle(scope, receive, send)\n  File "C:\\PROJECTS\\eden-framework\\.venv\\Lib\\site-packages\\starlette\\routing.py", line 290, in handle\n    await self.app(scope, receive, send)\n  File "C:\\PROJECTS\\eden-framework\\.venv\\Lib\\site-packages\\starlette\\routing.py", line 78, in app\n    await wrap_app_handling_exceptions(app, request)(scope, receive, send)\n  File "C:\\PROJECTS\\eden-framework\\.venv\\Lib\\site-packages\\starlette\\_exception_handler.py", line 53, in wrapped_app\n    raise exc\n  File "C:\\PROJECTS\\eden-framework\\.venv\\Lib\\site-packages\\starlette\\_exception_handler.py", line 42, in wrapped_app\n    await app(scope, receive, sender)\n  File "C:\\PROJECTS\\eden-framework\\.venv\\Lib\\site-packages\\starlette\\routing.py", line 75, in app\n    response = await f(request)\n               ^^^^^^^^^^^^^^^^\n  File "C:\\PROJECTS\\eden-framework\\eden\\routing.py", line 701, in endpoint\n    return await _eden_route.handle(eden_request, **path_params)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File "C:\\PROJECTS\\eden-framework\\eden\\routing.py", line 65, in handle\n    result = await result\n             ^^^^^^^^^^^^\n  File "C:\\PROJECTS\\eden-framework\\eden\\admin\\views.py", line 637, in admin_api_me\n    raise Unauthorized(detail="Not authenticated")\neden.exceptions.Unauthorized: Not authenticated\n\x1b[32m22:34:41 INFO    \x1b[0m eden.telemetry \u2014 Performance: Total 5.34ms | DB 0.00ms (0 queries) | Tpl 0.00ms | Mem +0.00MB | App 5.34ms\n\x1b[32m22:34:41 INFO    \x1b[0m [7005cb7a] eden.requests \u2014 GET /admin/api/me \u2192 401 (6.32ms)
+______________________________ test_role_mapping ______________________________
+
+client = <httpx.AsyncClient object at 0x0000018F4F57DE80>
+editor_user = <User(email='editor_1776724487.354721@example.com')>
+viewer_user = <User(email='viewer_1776724487.439819@example.com')>
+
+    @pytest.mark.asyncio
+    async def test_role_mapping(client, editor_user, viewer_user):
+        """Test that core user roles map correctly to admin roles."""
+        # Editor (Staff)
+        await client.post("/admin/login", data={
+            "email": editor_user.email,
+            "password": "StrongPassw0rd!"
+        })
+        resp = await client.get("/admin/api/me")
+>       assert resp.status_code == 200
+E       assert 401 == 200
+E        +  where 401 = <Response [401 Unauthorized]>.status_code
+
+tests\test_admin_auth.py:148: AssertionError
+---------------------------- Captured stdout setup ----------------------------
+[32m22:34:44 INFO    [0m eden.storage � Registered storage backend 'local' (default=True)
+[32m22:34:44 INFO    [0m eden.diagnostics � --- Eden Startup Diagnostics ---
+[32m22:34:44 INFO    [0m eden.diagnostics �   [OK] Session/CSRF: Secret key configured
+[33m22:34:44 WARNING [0m eden.diagnostics �   [DEGRADED] Task Broker: Using InMemoryBroker � tasks will not survive restarts. Set REDIS_URL for production.
+[33m22:34:44 WARNING [0m eden.diagnostics �   [DEGRADED] Distributed Backend: No REDIS_URL configured � distributed locking, pub/sub, and idempotency disabled.
+[33m22:34:44 WARNING [0m eden.diagnostics � --- 2 degraded, 0 failed subsystem(s). Review configuration. ---
+[32m22:34:44 INFO    [0m eden.db � Database connected to sqlite+aiosqlite:///:memory:
+[36m22:34:44 DEBUG   [0m eden.db.context � Registered manager 'auth': AuthActions
+[36m22:34:46 DEBUG   [0m eden.db.context � Registered manager 'auth': AuthActions
+[36m22:34:47 DEBUG   [0m eden.db.discovery � Automatically imported models module: eden.admin.models
+[36m22:34:47 DEBUG   [0m eden.db.discovery � Automatically imported models module: eden.auth.models
+[36m22:34:47 DEBUG   [0m eden.db.discovery � Automatically imported models module: eden.payments.models
+[36m22:34:47 DEBUG   [0m eden.db.discovery � Automatically imported models module: eden.tenancy.models
+[36m22:34:47 DEBUG   [0m eden.db.discovery � Skipping C:\PROJECTS\eden-framework\scripts\archive\test_minimal\models.py: parent directory is not a Python package (missing __init__.py)
+[36m22:34:47 DEBUG   [0m eden.db.discovery � Skipping C:\PROJECTS\eden-framework\scripts\archive\test_prod\models.py: parent directory is not a Python package (missing __init__.py)
+[36m22:34:47 DEBUG   [0m eden.db.discovery � Automatically imported models module: eden.models
+[33m22:34:47 WARNING [0m eden.db.discovery � Failed to import C:\PROJECTS\eden-framework\forge_audit_v2\app\models\__init__.py: cannot import name 'Mapped' from 'typing' (C:\Users\COBBY\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\typing.py)
+[36m22:34:47 DEBUG   [0m eden.db.discovery � Automatically imported models module: scripts.archive.my_test_project.app.models
+[36m22:34:47 DEBUG   [0m eden.admin � Model 'FileReference' skipped by auto_discover (set __admin_enabled__ = True to enable).
+[36m22:34:47 DEBUG   [0m eden.admin � Model 'Tenant' skipped by auto_discover (set __admin_enabled__ = True to enable).
+[36m22:34:47 DEBUG   [0m eden.admin � Model 'Plan' skipped by auto_discover (set __admin_enabled__ = True to enable).
+[36m22:34:47 DEBUG   [0m eden.admin � Model 'Price' skipped by auto_discover (set __admin_enabled__ = True to enable).
+[36m22:34:47 DEBUG   [0m eden.admin � Model 'TicketMessage' skipped by auto_discover (set __admin_enabled__ = True to enable).
+[36m22:34:47 DEBUG   [0m eden.admin � Model 'PasswordHistory' skipped by auto_discover (set __admin_enabled__ = True to enable).
+[36m22:34:47 DEBUG   [0m eden.admin � Model 'PasswordResetToken' skipped by auto_discover (set __admin_enabled__ = True to enable).
+[36m22:34:47 DEBUG   [0m eden.admin � Model 'EmailVerificationToken' skipped by auto_discover (set __admin_enabled__ = True to enable).
+[36m22:34:47 DEBUG   [0m eden.admin � Model 'TOTPSecret' skipped by auto_discover (set __admin_enabled__ = True to enable).
+[36m22:34:47 DEBUG   [0m eden.admin � Model 'BackupCode' skipped by auto_discover (set __admin_enabled__ = True to enable).
+[36m22:34:47 DEBUG   [0m eden.admin � Model 'SocialAccount' skipped by auto_discover (set __admin_enabled__ = True to enable).
+[36m22:34:47 DEBUG   [0m eden.admin � Model 'PasswordResetToken' skipped by auto_discover (set __admin_enabled__ = True to enable).
+[36m22:34:47 DEBUG   [0m eden.admin � Model 'APIKey' skipped by auto_discover (set __admin_enabled__ = True to enable).
+[36m22:34:47 DEBUG   [0m eden.admin � Model 'FlagHistoryModel' skipped by auto_discover (set __admin_enabled__ = True to enable).
+[36m22:34:47 DEBUG   [0m eden.admin � Model 'FlagMetricsModel' skipped by auto_discover (set __admin_enabled__ = True to enable).
+[32m22:34:47 INFO    [0m eden.auth.actions � User created: editor_1776724487.354721@example.com
+[32m22:34:47 INFO    [0m eden.auth.actions � User created: viewer_1776724487.439819@example.com
+---------------------------- Captured stdout call -----------------------------
+\x1b[36m22:34:47 DEBUG   \x1b[0m [1fa7105f] eden.context_middleware \u2014 ContextMiddleware processing POST /admin/login\n\x1b[36m22:34:47 DEBUG   \x1b[0m [747bcfbe] eden.context \u2014 Context initialized: request_id=747bcfbe-08a8-4ece-8798-36cb11d1cbd8, path=/admin/login\n\x1b[32m22:34:47 INFO    \x1b[0m [747bcfbe] eden.auth.actions \u2014 User editor_1776724487.354721@example.com authenticated successfully\n\x1b[32m22:34:47 INFO    \x1b[0m eden.telemetry \u2014 Performance: Total 77.16ms | DB 0.00ms (0 queries) | Tpl 0.00ms | Mem +0.00MB | App 77.16ms\n\x1b[32m22:34:47 INFO    \x1b[0m [1fa7105f] eden.requests \u2014 POST /admin/login \u2192 303 (83.88ms)\n\x1b[36m22:34:47 DEBUG   \x1b[0m [cff78078] eden.context_middleware \u2014 ContextMiddleware processing GET /admin/api/me\n\x1b[36m22:34:47 DEBUG   \x1b[0m [4e7a6ce0] eden.context \u2014 Context initialized: request_id=4e7a6ce0-3f0f-4ede-a889-60226787a9d3, path=/admin/api/me\n\x1b[36m22:34:47 DEBUG   \x1b[0m [4e7a6ce0] eden.auth.middleware \u2014 Backend SessionBackend auth failed: User.get() takes at most 1 positional argument (2 given). Use keyword arguments: User.get(id=..., session=...)\n\x1b[31m22:34:47 ERROR   \x1b[0m [4e7a6ce0] eden.error_middleware \u2014 Unauthorized in GET /admin/api/me: Not authenticated\nTraceback (most recent call last):\n  File "C:\\PROJECTS\\eden-framework\\eden\\error_middleware.py", line 72, in dispatch\n    response = await call_next(request)\n               ^^^^^^^^^^^^^^^^^^^^^^^^\n  File "C:\\PROJECTS\\eden-framework\\.venv\\Lib\\site-packages\\starlette\\middleware\\base.py", line 168, in call_next\n    raise app_exc from app_exc.__cause__ or app_exc.__context__\n  File "C:\\PROJECTS\\eden-framework\\.venv\\Lib\\site-packages\\starlette\\middleware\\base.py", line 144, in coro\n    await self.app(scope, receive_or_disconnect, send_no_error)\n  File "C:\\PROJECTS\\eden-framework\\eden\\middleware\\__init__.py", line 359, in __call__\n    await self.app(scope, receive, send_with_headers)\n  File "C:\\PROJECTS\\eden-framework\\.venv\\Lib\\site-packages\\starlette\\middleware\\sessions.py", line 85, in __call__\n    await self.app(scope, receive, send_wrapper)\n  File "C:\\PROJECTS\\eden-framework\\eden\\auth\\middleware.py", line 183, in __call__\n    await self.app(scope, receive, send)\n  File "C:\\PROJECTS\\eden-framework\\eden\\auth\\middleware.py", line 258, in __call__\n    await self.app(scope, receive, send)\n  File "C:\\PROJECTS\\eden-framework\\.venv\\Lib\\site-packages\\starlette\\middleware\\cors.py", line 87, in __call__\n    await self.app(scope, receive, send)\n  File "C:\\PROJECTS\\eden-framework\\.venv\\Lib\\site-packages\\starlette\\middleware\\gzip.py", line 29, in __call__\n    await responder(scope, receive, send)\n  File "C:\\PROJECTS\\eden-framework\\.venv\\Lib\\site-packages\\starlette\\middleware\\gzip.py", line 130, in __call__\n    await super().__call__(scope, receive, send)\n  File "C:\\PROJECTS\\eden-framework\\.venv\\Lib\\site-packages\\starlette\\middleware\\gzip.py", line 46, in __call__\n    await self.app(scope, receive, self.send_with_compression)\n  File "C:\\PROJECTS\\eden-framework\\eden\\middleware\\__init__.py", line 476, in __call__\n    await self.app(scope, receive, send_wrapper)\n  File "C:\\PROJECTS\\eden-framework\\.venv\\Lib\\site-packages\\starlette\\middleware\\exceptions.py", line 63, in __call__\n    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)\n  File "C:\\PROJECTS\\eden-framework\\.venv\\Lib\\site-packages\\starlette\\_exception_handler.py", line 53, in wrapped_app\n    raise exc\n  File "C:\\PROJECTS\\eden-framework\\.venv\\Lib\\site-packages\\starlette\\_exception_handler.py", line 42, in wrapped_app\n    await app(scope, receive, sender)\n  File "C:\\PROJECTS\\eden-framework\\.venv\\Lib\\site-packages\\starlette\\routing.py", line 716, in __call__\n    await self.middleware_stack(scope, receive, send)\n  File "C:\\PROJECTS\\eden-framework\\.venv\\Lib\\site-packages\\starlette\\routing.py", line 736, in app\n    await route.handle(scope, receive, send)\n  File "C:\\PROJECTS\\eden-framework\\.venv\\Lib\\site-packages\\starlette\\routing.py", line 290, in handle\n    await self.app(scope, receive, send)\n  File "C:\\PROJECTS\\eden-framework\\.venv\\Lib\\site-packages\\starlette\\routing.py", line 78, in app\n    await wrap_app_handling_exceptions(app, request)(scope, receive, send)\n  File "C:\\PROJECTS\\eden-framework\\.venv\\Lib\\site-packages\\starlette\\_exception_handler.py", line 53, in wrapped_app\n    raise exc\n  File "C:\\PROJECTS\\eden-framework\\.venv\\Lib\\site-packages\\starlette\\_exception_handler.py", line 42, in wrapped_app\n    await app(scope, receive, sender)\n  File "C:\\PROJECTS\\eden-framework\\.venv\\Lib\\site-packages\\starlette\\routing.py", line 75, in app\n    response = await f(request)\n               ^^^^^^^^^^^^^^^^\n  File "C:\\PROJECTS\\eden-framework\\eden\\routing.py", line 701, in endpoint\n    return await _eden_route.handle(eden_request, **path_params)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File "C:\\PROJECTS\\eden-framework\\eden\\routing.py", line 65, in handle\n    result = await result\n             ^^^^^^^^^^^^\n  File "C:\\PROJECTS\\eden-framework\\eden\\admin\\views.py", line 637, in admin_api_me\n    raise Unauthorized(detail="Not authenticated")\neden.exceptions.Unauthorized: Not authenticated\n\x1b[32m22:34:47 INFO    \x1b[0m eden.telemetry \u2014 Performance: Total 2.91ms | DB 0.00ms (0 queries) | Tpl 0.00ms | Mem +0.00MB | App 2.91ms\n\x1b[32m22:34:47 INFO    \x1b[0m [cff78078] eden.requests \u2014 GET /admin/api/me \u2192 401 (3.89ms)
+============================== warnings summary ===============================
+tests/test_admin_auth.py::test_admin_login_redirect_with_token
+tests/test_admin_auth.py::test_api_me_with_session
+tests/test_admin_auth.py::test_role_mapping
+tests/test_admin_auth.py::test_logout
+  C:\PROJECTS\eden-framework\.venv\Lib\site-packages\jwt\api_jwt.py:153: InsecureKeyLengthWarning: The HMAC key is 30 bytes long, which is below the minimum recommended length of 32 bytes for SHA256. See RFC 7518 Section 3.2.
+    return self._jws.encode(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_routing_fixes.py::TestUrlFor::test_url_for_raises_on_missing_params
+FAILED tests/test_routing_fixes.py::TestUrlFor::test_url_for_raises_on_all_missing_params
+FAILED tests/test_routing_fixes.py::TestUrlFor::test_url_for_sub_router_fallback
+FAILED tests/test_admin_auth.py::test_admin_login_redirect_with_token - Asser...
+FAILED tests/test_admin_auth.py::test_api_me_with_session - assert 401 == 200
+FAILED tests/test_admin_auth.py::test_role_mapping - assert 401 == 200
+================== 6 failed, 28 passed, 4 warnings in 22.64s ==================

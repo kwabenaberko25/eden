@@ -171,14 +171,14 @@ def test_middleware_has_dispatch():
 def test_middleware_sets_tenant_context():
     """Layer 4: dispatch() sets tenant context."""
     import inspect
-    source = inspect.getsource(TenantMiddleware.dispatch)
+    source = inspect.getsource(TenantMiddleware._setup_tenant_context)
     assert "set_current_tenant" in source
 
 
 def test_middleware_resets_tenant_context():
     """Layer 4: dispatch() resets tenant context in finally."""
     import inspect
-    source = inspect.getsource(TenantMiddleware.dispatch)
+    source = inspect.getsource(TenantMiddleware._cleanup_tenant_context)
     assert "reset_current_tenant" in source
 
 
@@ -192,8 +192,9 @@ def test_middleware_adds_response_headers():
 def test_middleware_switches_schema():
     """Layer 4: dispatch() switches schema for dedicated-schema tenants."""
     import inspect
-    source = inspect.getsource(TenantMiddleware.dispatch)
-    assert "set_schema" in source
+    setup_source = inspect.getsource(TenantMiddleware._setup_tenant_context)
+    cleanup_source = inspect.getsource(TenantMiddleware._cleanup_tenant_context)
+    assert "set_schema" in setup_source or "set_schema" in cleanup_source
 
 
 def test_middleware_has_try_finally():

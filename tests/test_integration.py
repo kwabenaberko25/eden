@@ -108,13 +108,14 @@ async def test_complete_workflow():
     assert schema.status == Status.PUBLISHED
 
     # Test validation
-    is_valid = await schema.is_valid({
+    is_valid, errors = await schema.is_valid({
         "title": "Test Article",
         "content": "This is a test article content.",
         "status": Status.PUBLISHED,
         "author_name": "John Doe"
     })
     assert is_valid is True
+    assert errors == {}
 
     # 5. Test ControlPanel integration
     panel = ControlPanel()

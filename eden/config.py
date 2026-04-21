@@ -312,6 +312,28 @@ class Config(BaseModel):
         description="Enable browser auto-reload on code changes"
     )
     
+    # Background Tasks
+    task_max_retries: int = Field(
+        default=3,
+        description="Default max retry attempts for background tasks",
+        ge=0,
+    )
+    task_default_timeout: int = Field(
+        default=0,
+        description="Default task execution timeout in seconds (0 = no timeout)",
+        ge=0,
+    )
+    task_result_ttl: int = Field(
+        default=604800,
+        description="Time-to-live for task results in seconds (default: 7 days)",
+        ge=0,
+    )
+    task_worker_concurrency: int = Field(
+        default=4,
+        description="Number of concurrent task workers (used by 'eden tasks worker')",
+        ge=1,
+    )
+    
     @field_validator("env", mode="before")
     @classmethod
     def validate_env(cls, v: Any) -> Environment:
